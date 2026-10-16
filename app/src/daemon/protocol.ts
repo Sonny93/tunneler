@@ -78,9 +78,16 @@ export type SettingsDto = {
 	x11Display?: string;
 };
 
+export type TrayStatusDto =
+	| { kind: 'active' }
+	| { kind: 'missingHost' }
+	| { kind: 'failed'; message: string }
+	| { kind: 'disabled' };
+
 export type SnapshotDto = {
 	tunnels: TunnelDto[];
 	settings: SettingsDto;
+	tray: TrayStatusDto;
 };
 
 export type PromptDto = { text: string; echo: boolean };
@@ -134,4 +141,6 @@ export type EventMessage =
 	  }
 	| { event: 'hostkey.request'; data: HostKeyRequestEventData }
 	| { event: 'quit.requested'; data: Record<string, never> }
+	| { event: 'tray.changed'; data: { status: TrayStatusDto } }
+	| { event: 'show.requested'; data: Record<string, never> }
 	| { event: 'prompt.resolved'; data: { promptId: string } };

@@ -62,6 +62,7 @@ export function buildSnapshot(
 	return {
 		tunnels: [buildTunnel()],
 		settings: buildSettings(),
+		tray: { kind: 'active' },
 		...overrides,
 	};
 }

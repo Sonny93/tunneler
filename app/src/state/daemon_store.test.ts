@@ -21,6 +21,22 @@ describe('useDaemonStore', () => {
 		});
 	});
 
+	it('should load the tray status from a snapshot', () => {
+		useDaemonStore
+			.getState()
+			.applySnapshot(buildSnapshot({ tray: { kind: 'missingHost' } }));
+
+		expect(useDaemonStore.getState().tray).toEqual({ kind: 'missingHost' });
+	});
+
+	it('should keep a quit request received before the first snapshot', () => {
+		useDaemonStore.getState().applyEvent({ event: 'quit.requested', data: {} });
+
+		useDaemonStore.getState().applySnapshot(buildSnapshot());
+
+		expect(useDaemonStore.getState().isQuitRequested).toBe(true);
+	});
+
 	it('should clear configuration errors when a snapshot is applied', () => {
 		useDaemonStore.getState().applyEvent({
 			event: 'config.invalid',

@@ -8,6 +8,7 @@ import { HeaderActions } from '#/header/header_actions';
 import { TunnelList } from '#/tunnels/list/tunnel_list';
 import { DisconnectedScreen } from '#/disconnected_screen';
 import { ToastRegion } from '#/shared/toasts/toast_region';
+import { TrayStatusNotice } from '#/tray/tray_status_notice';
 import { LiveAnnouncer } from '#/shared/announcer/live_announcer';
 import { useDaemonConnection } from '#/state/use_daemon_connection';
 import { useTunnelStateAnnouncements } from '#/tunnels/use_tunnel_state_announcements';
@@ -25,6 +26,7 @@ export function App() {
 			{connection.status === 'connected' && (
 				<>
 					<AppLayout sidebar={<Sidebar />} actions={<HeaderActions />}>
+						<TrayStatusNotice />
 						<TunnelList />
 					</AppLayout>
 					<Overlays />

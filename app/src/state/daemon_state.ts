@@ -2,6 +2,7 @@ import type {
 	CredentialRequestDto,
 	HostKeyAlertReasonDto,
 	SettingsDto,
+	TrayStatusDto,
 	TunnelDto,
 } from '#/daemon/protocol';
 
@@ -42,6 +43,7 @@ export type DaemonState = {
 	/** Empty when the configuration file is valid. */
 	configErrors: readonly string[];
 	isQuitRequested: boolean;
+	tray: TrayStatusDto;
 };
 
 export const INITIAL_DAEMON_STATE: DaemonState = {
@@ -52,4 +54,5 @@ export const INITIAL_DAEMON_STATE: DaemonState = {
 	prompts: [],
 	configErrors: [],
 	isQuitRequested: false,
+	tray: { kind: 'disabled' },
 };

@@ -7,6 +7,7 @@ mod commands;
 mod connection_slot;
 mod credential;
 mod daemon_binary;
+mod window_attention;
 
 use bridge::BridgeState;
 

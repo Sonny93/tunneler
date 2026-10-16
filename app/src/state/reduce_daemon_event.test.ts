@@ -229,6 +229,24 @@ describe('reduceDaemonEvent', () => {
 		expect(next.prompts).toEqual([]);
 	});
 
+	it('should store the status on tray.changed', () => {
+		const next = reduceDaemonEvent(INITIAL_DAEMON_STATE, {
+			event: 'tray.changed',
+			data: { status: { kind: 'missingHost' } },
+		});
+
+		expect(next.tray).toEqual({ kind: 'missingHost' });
+	});
+
+	it('should leave the state unchanged on show.requested', () => {
+		const next = reduceDaemonEvent(INITIAL_DAEMON_STATE, {
+			event: 'show.requested',
+			data: {},
+		});
+
+		expect(next).toBe(INITIAL_DAEMON_STATE);
+	});
+
 	it('should flag the quit request on quit.requested', () => {
 		const next = reduceDaemonEvent(INITIAL_DAEMON_STATE, {
 			event: 'quit.requested',

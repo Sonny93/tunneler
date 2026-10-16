@@ -84,8 +84,11 @@ export function reduceDaemonEvent(
 			};
 		case 'quit.requested':
 			return { ...state, isQuitRequested: true };
+		case 'tray.changed':
+			return { ...state, tray: event.data.status };
 		case 'tunnel.log':
 		case 'config.reloaded':
+		case 'show.requested':
 			return state;
 	}
 }

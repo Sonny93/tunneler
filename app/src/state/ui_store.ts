@@ -10,10 +10,14 @@ export type TunnelFilter =
 	| { kind: 'tag'; tag: string }
 	| { kind: 'host'; host: string };
 
+export type TrayProblemKind = 'missingHost' | 'failed';
+
 type UiState = {
 	panel: Panel;
 	filter: TunnelFilter;
 	isHelpOpen: boolean;
+	/** The tray problem the user hid; a different problem shows the notice again. */
+	dismissedTrayProblem: TrayProblemKind | null;
 	/** A just-created tunnel whose switch takes the focus once its row is rendered. */
 	pendingFocusTunnelId: string | null;
 };
@@ -27,12 +31,14 @@ type UiActions = {
 	clearPendingFocus: () => void;
 	setFilter: (filter: TunnelFilter) => void;
 	setHelpOpen: (isOpen: boolean) => void;
+	dismissTrayProblem: (kind: TrayProblemKind) => void;
 };
 
 export const INITIAL_UI_STATE: UiState = {
 	panel: { kind: 'none' },
 	filter: { kind: 'all' },
 	isHelpOpen: false,
+	dismissedTrayProblem: null,
 	pendingFocusTunnelId: null,
 };
 
@@ -47,4 +53,5 @@ export const useUiStore = create<UiState & UiActions>()((set) => ({
 	clearPendingFocus: () => set({ pendingFocusTunnelId: null }),
 	setFilter: (filter) => set({ filter }),
 	setHelpOpen: (isHelpOpen) => set({ isHelpOpen }),
+	dismissTrayProblem: (dismissedTrayProblem) => set({ dismissedTrayProblem }),
 }));

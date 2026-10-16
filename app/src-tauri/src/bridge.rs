@@ -17,6 +17,7 @@ use tokio::sync::Mutex;
 use crate::bridge_error::BridgeError;
 use crate::connection_slot::{ConnectionSlot, Generation};
 use crate::daemon_binary::locate_daemon_binary_from_environment;
+use crate::window_attention::react_to_event;
 
 const SOCKET_VARIABLE: &str = "TUNNELER_SOCKET";
 const DAEMON_EVENT: &str = "daemon-event";
@@ -92,6 +93,7 @@ async fn relay_events(
 ) {
     while let Some(event) = events.recv().await {
         emit_event(&app, &event);
+        react_to_event(&app, &event);
     }
     if connection.clear_if_current(generation) {
         emit_disconnected(&app);
