@@ -10,18 +10,25 @@ rust-version = "1.99"
 publish = false
 
 [workspace.dependencies]
+async-trait = "0.1"
 base64 = "0.22"
 getrandom = "0.4"
 glob = "0.3"
 hmac = "0.13"
+known-hosts = { path = "crates/known-hosts" }
 pretty_assertions = "1"
 rustix = { version = "1", features = ["process"] }
+russh = { version = "0.64", default-features = false, features = ["ring", "flate2", "rsa"] }
 sha1 = "0.11"
 sha1_smol = "1"
 sha2 = "0.11"
+ssh-config = { path = "crates/ssh-config" }
 tempfile = "3"
 thiserror = "2"
+tokio = { version = "1", default-features = false }
+tracing = "0.1"
 whoami = "2"
+zeroize = "1"
 
 [workspace.lints.rust]
 unsafe_code = "deny"

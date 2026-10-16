@@ -1,0 +1,337 @@
+use std::collections::VecDeque;
+use std::io::ErrorKind;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use async_trait::async_trait;
+use russh::keys::{Certificate, PrivateKey, decode_secret_key, load_openssh_certificate};
+use tracing::{debug, warn};
+use zeroize::Zeroizing;
+
+use super::identity::{Identity, IdentitySource};
+use crate::prompter::{CredentialPrompter, PassphraseRequest, PromptError};
+
+const ENCRYPTED_PEM_MARKER: &str = "ENCRYPTED";
+const PPK_ENCRYPTION_FIELD: &str = "Encryption:";
+const PPK_NO_ENCRYPTION: &str = "none";
+
+pub(crate) struct FileIdentityOptions {
+    pub(crate) alias: String,
+    pub(crate) key_paths: Vec<PathBuf>,
+    pub(crate) certificate_paths: Vec<PathBuf>,
+    pub(crate) prompter: Arc<dyn CredentialPrompter>,
+    pub(crate) is_prompting_allowed: bool,
+    pub(crate) passphrase_attempts: u32,
+}
+
+/// Identities read from `IdentityFile`s, paired with their `CertificateFile`s.
+pub(crate) struct FileIdentitySource {
+    alias: String,
+    key_paths: VecDeque<PathBuf>,
+    certificates: Vec<Certificate>,
+    prompter: Arc<dyn CredentialPrompter>,
+    is_prompting_allowed: bool,
+    passphrase_attempts: u32,
+    pending: VecDeque<Identity>,
+}
+
+impl FileIdentitySource {
+    pub(crate) fn new(options: FileIdentityOptions) -> Self {
+        Self {
+            alias: options.alias,
+            key_paths: options.key_paths.into(),
+            certificates: load_certificates(&options.certificate_paths),
+            prompter: options.prompter,
+            is_prompting_allowed: options.is_prompting_allowed,
+            passphrase_attempts: options.passphrase_attempts,
+            pending: VecDeque::new(),
+        }
+    }
+
+    async fn load_key(&self, path: &Path) -> Result<Option<Arc<PrivateKey>>, PromptError> {
+        let Some(contents) = read_key_file(path) else {
+            return Ok(None);
+        };
+        match decode_secret_key(&contents, None) {
+            Ok(key) => Ok(Some(Arc::new(key))),
+            Err(error) if is_encrypted(&error, &contents) => self.unlock(path, &contents).await,
+            Err(error) => {
+                warn!(path = %path.display(), %error, "cannot read the identity file");
+                Ok(None)
+            }
+        }
+    }
+
+    async fn unlock(
+        &self,
+        path: &Path,
+        contents: &str,
+    ) -> Result<Option<Arc<PrivateKey>>, PromptError> {
+        if !self.is_prompting_allowed {
+            debug!(path = %path.display(), "skipping an encrypted identity file: prompts are disabled");
+            return Ok(None);
+        }
+        for _ in 0..self.passphrase_attempts {
+            let request = PassphraseRequest {
+                alias: self.alias.clone(),
+                key_path: path.to_owned(),
+            };
+            let Some(passphrase) = self.prompter.passphrase(request).await? else {
+                return Ok(None);
+            };
+            if passphrase.is_empty() {
+                return Ok(None);
+            }
+            match decode_secret_key(contents, Some(&passphrase)) {
+                Ok(key) => return Ok(Some(Arc::new(key))),
+                Err(error) => debug!(path = %path.display(), %error, "passphrase refused"),
+            }
+        }
+        warn!(path = %path.display(), "no valid passphrase given for the identity file");
+        Ok(None)
+    }
+
+    fn queue_identities(&mut self, key: Arc<PrivateKey>) {
+        let matching_certificate = self
+            .certificates
+            .iter()
+            .find(|certificate| certificate.public_key() == key.public_key().key_data())
+            .cloned();
+        if matching_certificate.is_some() {
+            self.pending.push_back(Identity::Key {
+                key: Arc::clone(&key),
+                certificate: matching_certificate,
+            });
+        }
+        self.pending.push_back(Identity::Key {
+            key,
+            certificate: None,
+        });
+    }
+}
+
+#[async_trait]
+impl IdentitySource for FileIdentitySource {
+    async fn next_identity(&mut self) -> Result<Option<Identity>, PromptError> {
+        loop {
+            if let Some(identity) = self.pending.pop_front() {
+                return Ok(Some(identity));
+            }
+            let Some(path) = self.key_paths.pop_front() else {
+                return Ok(None);
+            };
+            if let Some(key) = self.load_key(&path).await? {
+                self.queue_identities(key);
+            }
+        }
+    }
+}
+
+fn read_key_file(path: &Path) -> Option<Zeroizing<String>> {
+    match std::fs::read_to_string(path) {
+        Ok(contents) => Some(Zeroizing::new(contents)),
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            debug!(path = %path.display(), "identity file does not exist");
+            None
+        }
+        Err(error) => {
+            warn!(path = %path.display(), %error, "cannot read the identity file");
+            None
+        }
+    }
+}
+
+fn load_certificates(paths: &[PathBuf]) -> Vec<Certificate> {
+    paths
+        .iter()
+        .filter_map(|path| match load_openssh_certificate(path) {
+            Ok(certificate) => Some(certificate),
+            Err(error) => {
+                debug!(path = %path.display(), %error, "ignoring the certificate file");
+                None
+            }
+        })
+        .collect()
+}
+
+fn is_encrypted(error: &russh::keys::Error, contents: &str) -> bool {
+    matches!(error, russh::keys::Error::KeyIsEncrypted)
+        || contents.contains(ENCRYPTED_PEM_MARKER)
+        || is_encrypted_ppk(contents)
+}
+
+fn is_encrypted_ppk(contents: &str) -> bool {
+    contents
+        .lines()
+        .filter_map(|line| line.strip_prefix(PPK_ENCRYPTION_FIELD))
+        .any(|algorithm| algorithm.trim() != PPK_NO_ENCRYPTION)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+
+    use russh::keys::ssh_key::LineEnding;
+    use russh::keys::{Algorithm, key::safe_rng};
+    use tempfile::TempDir;
+    use zeroize::Zeroizing;
+
+    use super::*;
+    use crate::prompter::{KeyboardInteractiveRequest, PasswordRequest};
+
+    const PASSPHRASE: &str = "correct horse";
+
+    #[derive(Default)]
+    struct StubPrompter {
+        passphrases: Mutex<VecDeque<Option<String>>>,
+    }
+
+    impl StubPrompter {
+        fn answering(answers: &[Option<&str>]) -> Arc<Self> {
+            let prompter = Self::default();
+            *prompter.passphrases.lock().unwrap() = answers
+                .iter()
+                .map(|answer| answer.map(str::to_owned))
+                .collect();
+            Arc::new(prompter)
+        }
+    }
+
+    #[async_trait]
+    impl CredentialPrompter for StubPrompter {
+        async fn passphrase(
+            &self,
+            _request: PassphraseRequest,
+        ) -> Result<Option<Zeroizing<String>>, PromptError> {
+            Ok(self
+                .passphrases
+                .lock()
+                .unwrap()
+                .pop_front()
+                .flatten()
+                .map(Zeroizing::new))
+        }
+
+        async fn password(
+            &self,
+            _request: PasswordRequest,
+        ) -> Result<Option<Zeroizing<String>>, PromptError> {
+            Ok(None)
+        }
+
+        async fn keyboard_interactive(
+            &self,
+            _request: KeyboardInteractiveRequest,
+        ) -> Result<Option<Vec<Zeroizing<String>>>, PromptError> {
+            Ok(None)
+        }
+    }
+
+    fn write_key(directory: &TempDir, name: &str, passphrase: Option<&str>) -> PathBuf {
+        let key = PrivateKey::random(&mut safe_rng(), Algorithm::Ed25519).unwrap();
+        let key = match passphrase {
+            Some(passphrase) => key.encrypt(&mut safe_rng(), passphrase).unwrap(),
+            None => key,
+        };
+        let path = directory.path().join(name);
+        std::fs::write(&path, key.to_openssh(LineEnding::LF).unwrap().as_bytes()).unwrap();
+        path
+    }
+
+    fn source(
+        key_paths: Vec<PathBuf>,
+        prompter: Arc<StubPrompter>,
+        is_prompting_allowed: bool,
+    ) -> FileIdentitySource {
+        FileIdentitySource::new(FileIdentityOptions {
+            alias: "host".to_owned(),
+            key_paths,
+            certificate_paths: Vec::new(),
+            prompter,
+            is_prompting_allowed,
+            passphrase_attempts: 3,
+        })
+    }
+
+    async fn count_identities(mut source: FileIdentitySource) -> usize {
+        let mut count = 0;
+        while source.next_identity().await.unwrap().is_some() {
+            count += 1;
+        }
+        count
+    }
+
+    #[tokio::test]
+    async fn should_yield_the_key_when_the_identity_file_is_not_encrypted() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = write_key(&directory, "plain", None);
+        let identities = source(vec![path], StubPrompter::answering(&[]), true);
+        assert_eq!(count_identities(identities).await, 1);
+    }
+
+    #[tokio::test]
+    async fn should_skip_the_file_when_it_does_not_exist() {
+        let directory = tempfile::tempdir().unwrap();
+        let missing = directory.path().join("missing");
+        let identities = source(vec![missing], StubPrompter::answering(&[]), true);
+        assert_eq!(count_identities(identities).await, 0);
+    }
+
+    #[tokio::test]
+    async fn should_skip_the_file_when_it_is_not_a_key() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("garbage");
+        std::fs::write(&path, "not a key").unwrap();
+        let identities = source(vec![path], StubPrompter::answering(&[]), true);
+        assert_eq!(count_identities(identities).await, 0);
+    }
+
+    #[tokio::test]
+    async fn should_not_prompt_when_the_key_is_encrypted_and_prompts_are_disabled() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = write_key(&directory, "locked", Some(PASSPHRASE));
+        let prompter = StubPrompter::answering(&[Some(PASSPHRASE)]);
+        let identities = source(vec![path], Arc::clone(&prompter), false);
+        assert_eq!(count_identities(identities).await, 0);
+        assert_eq!(prompter.passphrases.lock().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn should_unlock_the_key_when_the_second_passphrase_is_right() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = write_key(&directory, "locked", Some(PASSPHRASE));
+        let prompter = StubPrompter::answering(&[Some("wrong"), Some(PASSPHRASE)]);
+        let identities = source(vec![path], prompter, true);
+        assert_eq!(count_identities(identities).await, 1);
+    }
+
+    #[tokio::test]
+    async fn should_skip_the_key_when_the_passphrase_prompt_is_cancelled() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = write_key(&directory, "locked", Some(PASSPHRASE));
+        let identities = source(vec![path], StubPrompter::answering(&[None]), true);
+        assert_eq!(count_identities(identities).await, 0);
+    }
+
+    #[tokio::test]
+    async fn should_skip_the_key_when_the_passphrase_is_empty() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = write_key(&directory, "locked", Some(PASSPHRASE));
+        let identities = source(vec![path], StubPrompter::answering(&[Some("")]), true);
+        assert_eq!(count_identities(identities).await, 0);
+    }
+
+    #[test]
+    fn should_detect_an_encrypted_ppk_when_its_encryption_is_not_none() {
+        assert!(is_encrypted_ppk(
+            "PuTTY-User-Key-File-3: ssh-ed25519\nEncryption: aes256-cbc\n"
+        ));
+    }
+
+    #[test]
+    fn should_not_detect_an_encrypted_ppk_when_its_encryption_is_none() {
+        assert!(!is_encrypted_ppk(
+            "PuTTY-User-Key-File-3: ssh-ed25519\nEncryption: none\n"
+        ));
+    }
+}
