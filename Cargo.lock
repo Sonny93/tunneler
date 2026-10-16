@@ -5285,8 +5285,15 @@ dependencies = [
 name = "tunneler-ui"
 version = "0.1.0"
 dependencies = [
+ "ipc",
+ "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "zeroize",
 ]
 
 [[package]]
