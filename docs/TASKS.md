@@ -222,7 +222,7 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
     - `ThemeToggle` : `document.startViewTransition` fait planter WebKitGTK 2.54 ; l'app passe `isTransitionEnabled={false}`. Détecter/éviter côté lib.
   - Vérifiés conformes : `aria-invalid` + erreur liée sur `Input`/`Switch`, focus restauré par `Modal`, raccourcis globaux désactivés pendant une modale.
 
-## Phase 7 — Tray ✔ (Windows jamais exécuté, macOS sans tray)
+## Phase 7 — Tray ✔ (validé sur GNOME ; Windows jamais exécuté, macOS sans tray)
 - [x] 7.1 `tray-icon` (feature `ksni` Linux), boucle d'événements par OS
   - `tray-icon` 0.26 sans features par défaut : `ksni` sous Linux (D-Bus pur Rust, **aucune dépendance GTK** vérifiée par `cargo tree`, un seul `zbus` partagé), backend Win32 sous Windows. `TrayIcon` et les items muda sont `!Send` (`Rc`) → un thread std « tray » les possède sur chaque OS ; le reste du daemon lui envoie `Render(TrayView)` / `Shutdown`, les clics reviennent par un mpsc tokio (handlers globaux `MenuEvent` / `TrayIconEvent`).
   - Linux : pas de boucle d'événements (ksni a son propre thread). Windows : boucle `winit` 0.30 (`with_any_thread`), commandes en user events via `EventLoopProxy` — **seulement cross-linté, jamais exécuté**.
@@ -242,7 +242,7 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 - [x] 7.5 Détection d'absence de StatusNotifierHost (GNOME) + message
   - `tray-icon` crée ksni avec `assume_sni_available(true)` et `IsStatusNotifierHostRegistered` vaut toujours vrai sous KDE et GNOME : le vrai signal est la présence d'un propriétaire du nom `org.kde.StatusNotifierWatcher`, suivi en continu (`NameOwnerChanged`, thread dédié, `zbus` bloquant).
   - **Ajout protocole** (additif, `PROTOCOL_VERSION` inchangé) : `SnapshotDto.tray` (`active` | `missingHost` | `failed { message }` | `disabled`) et l'événement `tray.changed`. L'UI affiche un bandeau (section titrée, non live, « Masquer » pour la session) pour `missingHost` (rouvrir via `tunneler`, extension GNOME AppIndicator) et `failed`. `status --json` contient aussi `tray`.
-  - Vérifié en vrai sur bus privé avec un faux watcher (Python/Gio) piloté via `com.canonical.dbusmenu` : `missingHost` → `active` à l'arrivée du watcher → `missingHost` à son départ ; titre, tooltip, icône 32×32, menu, clic sur un tag (démarre puis arrête), « Quitter » avec/sans tunnel actif. Sur le GNOME de dev, l'extension AppIndicator est installée mais `INACTIVE` (installée après l'ouverture de session) : bandeau `missingHost` attendu jusqu'à une reconnexion. **Icône jamais vue sur un vrai panneau** (GNOME/KDE/Windows).
+  - Vérifié en vrai sur bus privé avec un faux watcher (Python/Gio) piloté via `com.canonical.dbusmenu` : `missingHost` → `active` à l'arrivée du watcher → `missingHost` à son départ ; titre, tooltip, icône 32×32, menu, clic sur un tag (démarre puis arrête), « Quitter » avec/sans tunnel actif. **Validé à la main (2026-10-17) sur GNOME 48 + extension AppIndicator** (active après reconnexion de session ; installée en cours de session, elle reste `INACTIVE`) : icône affichée dans la barre, UI ouverte depuis le menu, « Quitter » avec tunnel actif → confirmation dans l'UI → arrêt complet. Restent : KDE, Windows.
 
 **Vérifications** : fmt, clippy (workspace + `tunneler-ui` + cross-clippy Windows) et tous les tests verts (277 unitaires tunneler, 18 E2E CLI, 571 tests front). Rien d'exécuté sous Windows ni macOS.
 
