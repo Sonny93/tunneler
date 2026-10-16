@@ -1,0 +1,20 @@
+[package]
+name = "tunneler-ui"
+description = "Tunneler UI: Tauri 2 window hosting the React front end"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "tunneler-ui"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[build-dependencies]
+tauri-build = "2"
+
+[dependencies]
+tauri = "2"

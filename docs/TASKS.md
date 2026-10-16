@@ -8,13 +8,24 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 ---
 
-## Phase 0 — Bootstrap
-- [ ] 0.1 Workspace Cargo (`crates/ssh-config`, `crates/known-hosts`, `crates/engine`, `crates/ipc`, `crates/tunneler`), edition 2024, `rust-toolchain.toml`
-- [ ] 0.2 Lints workspace (`[workspace.lints]` clippy pedantic sélectif), `rustfmt.toml`
-- [ ] 0.3 App Tauri 2 dans `app/` (React 19 + TS + Vite + UnoCSS + `@minimalstuff/ui`), pnpm, Vitest + Testing Library + `vitest-axe`
-- [ ] 0.6 Outillage front via `@minimalstuff/tooling` : `.editorconfig`, `oxlint.config.ts` (`minimalstuffPreset({ react: true })` + plugin `jsx-a11y`), `oxfmt.config.ts`, scripts `lint` / `format` / `typecheck`
-- [ ] 0.4 CI GitHub Actions (Linux/Windows/macOS) : fmt, clippy, test, build UI
-- [ ] 0.5 `.gitignore`, `README.md`, `CLAUDE.md` projet (commandes, conventions, pointeur vers ce plan)
+## Phase 0 — Bootstrap ✔
+- [x] 0.1 Workspace Cargo (`crates/ssh-config`, `crates/known-hosts`, `crates/engine`, `crates/ipc`, `crates/tunneler`), edition 2024, `rust-toolchain.toml`
+  - Toolchain épinglé `1.99.0`. `app/src-tauri` est membre du workspace mais **exclu de `default-members`** : `cargo build/test/clippy` à la racine ne demandent pas les libs système webkit2gtk ; le crate UI se construit avec `-p tunneler-ui` (après `pnpm build`, `generate_context!` embarque `app/dist`).
+  - Crates vides (doc `//!` seulement), aucune dépendance : chaque phase ajoute les siennes.
+- [x] 0.2 Lints workspace (`[workspace.lints]` clippy pedantic sélectif), `rustfmt.toml`
+  - Pedantic en warn, sauf `module_name_repetitions`, `must_use_candidate`, `missing_errors_doc`, `missing_panics_doc` ; `unwrap_used`/`expect_used`/`dbg_macro`/`todo` en warn (unwrap/expect autorisés en tests via `clippy.toml`) ; `unsafe_code = "deny"` (lever localement avec justification si besoin, ex. ACL named pipe). CI : `-D warnings`.
+- [x] 0.3 App Tauri 2 dans `app/` (React 19 + TS + Vite + UnoCSS + `@minimalstuff/ui`), pnpm, Vitest + Testing Library + `vitest-axe`
+  - `tunneler-ui` (bin), identifiant `com.minimalstuff.tunneler`, CSP restrictive, `bundle.active = false` jusqu'à la phase 13, capability `core:default` seule. Icônes provisoires générées depuis `app/src-tauri/app-icon.svg` (dossiers android/ios supprimés).
+  - `vitest-axe` 0.1.0 fonctionne avec Vitest 5, mais ses types visent l'ancien namespace `Vi` → augmentation de `Assertion` dans `app/src/vitest_matchers.d.ts`.
+  - Pas encore de `@tauri-apps/api` (phase 6).
+- [x] 0.6 Outillage front via `@minimalstuff/tooling` : `.editorconfig`, `oxlint.config.ts` (`minimalstuffPreset({ react: true })` + plugin `jsx-a11y`), `oxfmt.config.ts`, scripts `lint` / `format` / `typecheck`
+  - Vérifié : `jsx-a11y/alt-text`, `react/jsx-key` et `typescript/no-floating-promises` se déclenchent (le plugin ajouté n'écrase pas ceux du preset). Script `check` = lint + format:check + typecheck.
+  - `.editorconfig` racine = preset + sections `*.rs`/`*.toml` (4 espaces) et `*.yml` (2 espaces). `.mise.toml` : node 24, pnpm 12, actionlint.
+- [x] 0.4 CI GitHub Actions (Linux/Windows/macOS) : fmt, clippy, test, build UI
+  - Jobs `rust` (fmt sur Linux, clippy, test) et `app` (deps Tauri apt sur Linux, `pnpm check` + `pnpm test` sur Linux, `pnpm build` puis clippy + build de `tunneler-ui` partout). Validé par `actionlint` uniquement : **jamais exécutée sur GitHub** à ce stade.
+- [x] 0.5 `.gitignore`, `README.md`, `CLAUDE.md` projet (commandes, conventions, pointeur vers ce plan)
+
+**Reste ouvert** : compilation de `app/src-tauri` non vérifiée en local (libs webkit2gtk-4.1 absentes de la machine de dev) — première vérification réelle = premier run CI, ou après installation des deps listées dans le README.
 
 ## Phase 1 — Crate `ssh-config`
 - [ ] 1.1 Lexer : commentaires, `key value` / `key=value`, guillemets, échappements, insensibilité à la casse des clés

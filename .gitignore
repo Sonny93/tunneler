@@ -1,0 +1,6 @@
+/target
+node_modules
+app/dist
+.DS_Store
+.idea
+*.swp

@@ -1,0 +1,10 @@
+[package]
+name = "ipc"
+description = "IPC protocol types, client and server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

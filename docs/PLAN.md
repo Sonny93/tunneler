@@ -59,6 +59,8 @@ Les tunnels vivent *dans* le daemon : ils ne peuvent pas survivre à sa fermetur
 | `crates/tunneler` | bin `tunneler` | Daemon (`tunneler daemon`, défaut) + CLI (`up`, `down`, `status`, `list`, `open`, `quit`) + tray |
 | `app/` | bin `tunneler-ui` | Tauri 2 : `src-tauri` = pont IPC minimal, `src` = React |
 
+`app/src-tauri` est membre du workspace mais hors `default-members` : les crates du daemon se construisent sans les dépendances système du webview ; le crate UI se construit explicitement (`-p tunneler-ui`).
+
 ### Démarrage / single instance
 1. `tunneler` (sans argument) tente de binder le socket IPC.
 2. Succès → devient le daemon. Échec car un daemon répond → client : envoie `ui.show` et quitte.
