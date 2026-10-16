@@ -1,0 +1,49 @@
+import { describe, expect, it } from 'vitest';
+
+import { useUiStore } from '#/state/ui_store';
+
+describe('useUiStore', () => {
+	it('should open the editor in create mode with a null id', () => {
+		useUiStore.getState().openTunnelEditor(null);
+
+		expect(useUiStore.getState().panel).toEqual({
+			kind: 'tunnelEditor',
+			tunnelId: null,
+		});
+	});
+
+	it('should open the editor on an existing tunnel', () => {
+		useUiStore.getState().openTunnelEditor('a');
+
+		expect(useUiStore.getState().panel).toEqual({
+			kind: 'tunnelEditor',
+			tunnelId: 'a',
+		});
+	});
+
+	it('should open the settings panel', () => {
+		useUiStore.getState().openSettings();
+
+		expect(useUiStore.getState().panel).toEqual({ kind: 'settings' });
+	});
+
+	it('should close the panel', () => {
+		useUiStore.getState().openSettings();
+
+		useUiStore.getState().closePanel();
+
+		expect(useUiStore.getState().panel).toEqual({ kind: 'none' });
+	});
+
+	it('should set the filter', () => {
+		useUiStore.getState().setFilter({ kind: 'tag', tag: 'dev' });
+
+		expect(useUiStore.getState().filter).toEqual({ kind: 'tag', tag: 'dev' });
+	});
+
+	it('should toggle the help flag', () => {
+		useUiStore.getState().setHelpOpen(true);
+
+		expect(useUiStore.getState().isHelpOpen).toBe(true);
+	});
+});

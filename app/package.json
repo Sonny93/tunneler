@@ -20,15 +20,20 @@
 	},
 	"dependencies": {
 		"@minimalstuff/ui": "^4.0.0",
+		"@tauri-apps/api": "^2.12.4",
+		"clsx": "^2.1.1",
 		"react": "^19.3.1",
-		"react-dom": "^19.3.1"
+		"react-dom": "^19.3.1",
+		"zustand": "^5.0.15"
 	},
 	"devDependencies": {
+		"@iconify-json/mdi": "^1.2.3",
 		"@minimalstuff/tooling": "^0.6.0",
 		"@tauri-apps/cli": "^2.12.3",
 		"@testing-library/dom": "^10.4.2",
 		"@testing-library/jest-dom": "^7.0.1",
 		"@testing-library/react": "^16.3.3",
+		"@testing-library/user-event": "^14.6.8",
 		"@types/node": "^26.6.5",
 		"@types/react": "^19.3.0",
 		"@types/react-dom": "^19.3.0",

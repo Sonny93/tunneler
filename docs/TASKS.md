@@ -172,23 +172,50 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Vérifications** : 1348 tests verts. Lint Windows de tout le workspace (hors `tunneler-ui`) propre en cross-clippy `x86_64-pc-windows-gnu` (avec `CC/AR` pointant sur gcc/ar faute de mingw), mais rien d'exécuté sous Windows ni macOS (détachement, named pipe, signaux, `open`).
 
-## Phase 6 — UI Tauri MVP
-- [ ] 6.1 Pont Tauri ↔ IPC (commandes + relais des événements), spawn du daemon si absent
-- [ ] 6.2 Store front (état alimenté par événements), design tokens, thème clair/sombre
-- [ ] 6.3 Liste des tunnels groupée par host, switch, badges d'état et santé
-- [ ] 6.4 Sidebar tags (toggle d'ensemble, compteurs) + hosts
-- [ ] 6.5 Création/édition : port cible lié au port d'écoute jusqu'à modification, bind par défaut surchargeable, tags
-- [ ] 6.6 Écran settings (dont bind par défaut local/remote)
-- [ ] 6.7 Modales : passphrase/mot de passe, clé d'hôte inconnue, alerte clé changée
-- [ ] 6.8 Quitter Tunneler : confirmation si tunnels actifs ; fermer la fenêtre = UI seule
-- [ ] 6.9 Tests composants (Vitest + Testing Library, requêtes par rôle) + `axe` sur chaque composant/écran, échec CI sur violation
-- [ ] 6.10 Design tokens vérifiés : contraste texte ≥ 4.5:1 et composants/focus ≥ 3:1 dans les deux thèmes, support `forced-colors`
-- [ ] 6.11 Navigation clavier : ordre de tabulation, focus visible, roving tabindex dans la liste, raccourcis + aide `?`, cibles ≥ 24×24 px
-- [ ] 6.12 Région `aria-live` pour les changements d'état (throttlée), focus géré dans les modales et retour au déclencheur
-- [ ] 6.13 `prefers-reduced-motion`, zoom 200 % sans scroll horizontal
+## Phase 6 — UI Tauri MVP (reste : passe manuelle 6.14, zoom réel 6.13, correctifs upstream 6.16)
+- [x] 6.1 Pont Tauri ↔ IPC (commandes + relais des événements), spawn du daemon si absent
+  - `app/src-tauri` : une commande Tauri par méthode IPC (`connect_daemon`, `snapshot`, `list_hosts`, CRUD, start/stop/restart, tags, settings, réponses aux prompts, `quit_daemon`) ; événements `daemon-event` (l'`EventMessage` tel quel) et `daemon-disconnected`. Erreurs sérialisées `{ code, message, data? }` : codes IPC + `daemon_unreachable` / `disconnected`. Connexion pilotée par le front, idempotente (tentatives sérialisées, garde de génération contre une reconnexion concurrente). Pas de reconnexion automatique : écran « Daemon injoignable » + bouton *Réessayer*.
+  - Binaire daemon : `TUNNELER_DAEMON_BINARY`, sinon `tunneler` à côté de `tunneler-ui`, sinon `PATH`. La logique « lancer détaché et attendre » est sortie du CLI vers `ipc::ensure_daemon_running` (partagée CLI/UI).
+  - **Ajout protocole** : `hosts.list` (alias concrets de `ssh_config`, via `HostConfigResolver::list_hosts`) pour le formulaire de création. Additif, `PROTOCOL_VERSION` inchangé (un daemon plus ancien répond `unknown_method`).
+  - `quit_daemon` réussi → `app.exit(0)`. Secrets des prompts en `Zeroizing` dès la désérialisation.
+  - Smoke test réel sous Xvfb : l'UI lance le daemon et lit la liste. **Sans session D-Bus, la webview WebKitGTK ne démarre jamais (aucun `WebKitWebProcess`, pas d'erreur)** : `dbus-run-session` requis en environnement headless. Rendu jamais vu par un humain à ce stade.
+- [x] 6.2 Store front (état alimenté par événements), design tokens, thème clair/sombre
+  - Front dépend de l'interface `DaemonGateway` (implémentation Tauri + fake de test). zustand : `daemon_store` (réducteur d'événements pur), `ui_store` (panneau, filtre, aide). `config.reloaded` → relecture du snapshot. Types TS écrits à la main en miroir des DTO Rust (pas de validation runtime : le pont désérialise déjà avec serde).
+  - Tokens sémantiques (`src/theme/tokens.ts`) exposés en variables CSS `--tn-*` + couleurs Uno `tn-*` ; thème clair/sombre via `ThemeToggle` de la lib (classe `dark`, `system` = `prefers-color-scheme`).
+- [x] 6.3 Liste des tunnels groupée par host, switch, badges d'état et santé
+  - Switch nommé « Tunnel Adonis, 3333 vers nova:3333, actif » ; endpoint et métriques avec flèches visuelles masquées et équivalent texte lu. Menu d'actions par ligne : Modifier, Redémarrer, Supprimer (confirmation). Après suppression, focus sur la ligne suivante/précédente ou sur « Créer un tunnel ».
+- [x] 6.4 Sidebar tags (toggle d'ensemble, compteurs) + hosts
+  - Switch de tag coché si **tous** ses tunnels tournent ; basculer démarre le tag sinon l'arrête. Filtre actif : `aria-current` + gras + barre + icône. Filtre vers un tag/host disparu → retour à « Tous ».
+- [x] 6.5 Création/édition : port cible lié au port d'écoute jusqu'à modification, bind par défaut surchargeable, tags
+  - Host : champ libre + `datalist` des alias (`hosts.list`). Tags séparés par des virgules. Type toujours `local` (sélecteur en 9.3). Erreurs `validation_failed` du daemon dans un résumé `role="alert"` qui prend le focus.
+- [x] 6.6 Écran settings (dont bind par défaut local/remote)
+  - Panneau latéral (drawer) plutôt qu'un écran. Seuls les réglages effectifs sont exposés (adresses, keepalive, délai de grâce, reconnexion, sonde) ; `restore_on_launch`, `start_on_launch_tags`, `launch_at_login`, `x11_display` sont conservés tels quels jusqu'aux phases 10/12. Durées saisies en secondes.
+- [x] 6.7 Modales : passphrase/mot de passe, clé d'hôte inconnue, alerte clé changée
+  - Une modale à la fois (file FIFO) ; `prompt.resolved` ferme la modale sans répondre. Fermer/Échap = annuler (credential) ou refuser (clé d'hôte). Alerte clé changée/révoquée : non fermable par Échap, seul bouton « J'ai compris », aucun contournement.
+- [x] 6.8 Quitter Tunneler : confirmation si tunnels actifs ; fermer la fenêtre = UI seule
+  - `quit(false)` → si `tunnels_running`, confirmation « Tout arrêter et quitter » → `quit(true)`. `quit.requested` (tray, phase 7) déclenche la même confirmation — le daemon ne l'émet pas encore.
+- [x] 6.9 Tests composants (Vitest + Testing Library, requêtes par rôle) + `axe` sur chaque composant/écran, échec CI sur violation
+  - 67 fichiers / 529 tests front. CI : `pnpm test` existant suffit (un `axe` en échec fait échouer le test).
+- [x] 6.10 Design tokens vérifiés : contraste texte ≥ 4.5:1 et composants/focus ≥ 3:1 dans les deux thèmes, support `forced-colors`
+  - Ratios vérifiés par test unitaire (`tokens.test.ts`) dans les deux thèmes. `forced-colors` : bordure `CanvasText` sur les badges, focus en `Highlight`, icônes `forced-color-adjust: none` — jamais vu en contraste élevé réel.
+- [x] 6.11 Navigation clavier : ordre de tabulation, focus visible, roving tabindex dans la liste, raccourcis + aide `?`, cibles ≥ 24×24 px
+  - Roving à deux colonnes (switch / bouton d'actions) sur toute la liste, ↑/↓/Début/Fin ; gestion en phase de capture → ↓ n'ouvre plus le menu d'actions depuis son bouton (Entrée/Espace oui). Raccourcis `n`, `,`, `?` (désactivés dans les champs, avec Ctrl/Alt/Meta, panneau ou modale ouvert). Taille des cibles non mesurée dans un vrai rendu.
+- [x] 6.12 Région `aria-live` pour les changements d'état (throttlée), focus géré dans les modales et retour au déclencheur
+  - Changements regroupés sur 1 s (détail si ≤ 3 tunnels), rien au chargement initial ni pour la santé seule.
+- [~] 6.13 `prefers-reduced-motion`, zoom 200 % sans scroll horizontal
+  - Animations/transitions coupées sous `prefers-reduced-motion` ; mise en page empilée sous `md` (sidebar au-dessus). Zoom 200 % **non vérifié** dans une vraie webview.
 - [ ] 6.14 Passe manuelle : clavier seul, NVDA (Windows), Orca (Linux), contraste élevé Windows — résultats notés ici
-- [ ] 6.15 Composants app absents de la lib : drawer, toasts + annonceur `aria-live`, liste navigable, badge d'état (icône + texte)
-- [ ] 6.16 Audit `axe` + clavier des composants `@minimalstuff/ui` utilisés ; écarts corrigés dans la lib (issue/PR upstream)
+  - À faire par un humain : rien n'a été rendu à l'écran pendant cette phase.
+- [x] 6.15 Composants app absents de la lib : drawer, toasts + annonceur `aria-live`, liste navigable, badge d'état (icône + texte)
+  - Drawer : dialogue modal en portail, focus piégé et restauré, pas d'`inert` sur le reste (couperait aussi les régions live). Toasts d'erreur `role="alert"` persistants ; info/succès 5 s, minuteur en pause au survol/focus.
+- [~] 6.16 Audit `axe` + clavier des composants `@minimalstuff/ui` utilisés ; écarts corrigés dans la lib (issue/PR upstream)
+  - Couvert par les tests (axe + clavier) des composants qui les utilisent. Écarts à remonter dans `minimalstuff/ui` (**rien d'ouvert upstream**) :
+    - `Modal` force `role="dialog"` : pas d'`alertdialog` possible pour l'alerte clé changée (seul `ConfirmModal` l'utilise).
+    - `Modal` n'expose pas `initialFocusRef` : sur « Hôte inconnu », le focus initial tombe sur « Copier l'empreinte » au lieu de « Refuser ».
+    - `ModalFooter` avec des enfants recréés à chaque rendu (render prop) boucle à l'infini.
+    - Libellés par défaut en anglais (`Close`, `Confirm`, `Cancel`) : l'app passe ses libellés partout.
+    - `Input` sans prop `description` (contrairement à `Switch`) : indices reliés à la main via `aria-describedby` (fusionné correctement par la lib).
+  - Vérifiés conformes : `aria-invalid` + erreur liée sur `Input`/`Switch`, focus restauré par `Modal`, raccourcis globaux désactivés pendant une modale.
 
 ## Phase 7 — Tray
 - [ ] 7.1 `tray-icon` (feature `ksni` Linux), boucle d'événements par OS
