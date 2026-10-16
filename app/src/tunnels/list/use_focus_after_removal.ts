@@ -15,7 +15,7 @@ function findSuccessorId(
 	return rowIds[index + 1] ?? rowIds[index - 1] ?? null;
 }
 
-function focusRowSwitch(container: HTMLElement, rowId: string): void {
+export function focusRowSwitch(container: HTMLElement, rowId: string): void {
 	const rows = container.querySelectorAll<HTMLElement>(
 		`[${ROVING_ROW_ATTRIBUTE}]`
 	);

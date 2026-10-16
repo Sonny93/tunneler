@@ -24,7 +24,12 @@ export function HeaderActions() {
 				color="neutral"
 				onClick={openSettings}
 			/>
-			<ThemeToggle variant="ghost" getAriaLabel={getThemeAriaLabel} />
+			{/* View transitions crash the WebKitGTK 2.54 web process */}
+			<ThemeToggle
+				variant="ghost"
+				getAriaLabel={getThemeAriaLabel}
+				isTransitionEnabled={false}
+			/>
 			<IconButton
 				icon="i-mdi-keyboard-outline"
 				aria-label="Raccourcis clavier"

@@ -48,6 +48,7 @@ export function useTunnelActions(
 				'Le tunnel est retiré de la configuration, et arrêté s’il est en cours.',
 			confirmLabel: 'Supprimer',
 			cancelLabel: 'Annuler',
+			closeLabel: 'Fermer',
 			confirmColor: 'danger',
 		});
 		if (!isConfirmed) return;

@@ -11,7 +11,7 @@ import { useResolvedFilter } from '#/tunnels/use_resolved_filter';
 import { countActiveTunnels } from '#/tunnels/count_active_tunnels';
 
 const SECTION_HEADING_CLASS_NAME =
-	'mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-tn-muted';
+	'mb-1 px-2 text-xs font-semibold text-tn-muted';
 
 export function Sidebar() {
 	const tunnels = useDaemonStore((state) => state.tunnels);
@@ -35,7 +35,7 @@ export function Sidebar() {
 			{tagSummaries.length > 0 && (
 				<section>
 					<h2 className={SECTION_HEADING_CLASS_NAME}>Tags</h2>
-					<ul className="flex flex-col gap-0.5">
+					<ul role="list" className="flex flex-col gap-0.5">
 						{tagSummaries.map((summary) => (
 							<TagFilterRow key={summary.tag} summary={summary} />
 						))}
@@ -45,7 +45,7 @@ export function Sidebar() {
 			{hostSummaries.length > 0 && (
 				<section>
 					<h2 className={SECTION_HEADING_CLASS_NAME}>Hosts</h2>
-					<ul className="flex flex-col gap-0.5">
+					<ul role="list" className="flex flex-col gap-0.5">
 						{hostSummaries.map((summary) => (
 							<HostFilterRow key={summary.host} summary={summary} />
 						))}

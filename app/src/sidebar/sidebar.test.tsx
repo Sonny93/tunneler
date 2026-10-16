@@ -42,6 +42,17 @@ describe('Sidebar', () => {
 		).toHaveTextContent('2/3 actifs');
 	});
 
+	it('should read the active count in words in the button name', () => {
+		seedTunnels();
+		renderWithGateway(<Sidebar />);
+
+		expect(
+			screen.getByRole('button', {
+				name: /^Tous les tunnels\s?2 sur 3 actifs$/,
+			})
+		).toBeInTheDocument();
+	});
+
 	it('should list tags sorted ignoring case with their counts', () => {
 		seedTunnels();
 		renderWithGateway(<Sidebar />);
@@ -52,7 +63,7 @@ describe('Sidebar', () => {
 
 		expect(
 			tagList.getAllByRole('button').map((button) => button.textContent)
-		).toEqual(['Db0/1 actifs', 'dev1/2 actifs']);
+		).toEqual(['Db0/1 actifs0 sur 1 actifs', 'dev1/2 actifs1 sur 2 actifs']);
 	});
 
 	it('should list the hosts used by tunnels', () => {

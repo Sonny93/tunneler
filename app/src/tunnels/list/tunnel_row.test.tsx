@@ -125,6 +125,31 @@ describe('TunnelRow', () => {
 		);
 	});
 
+	it('should describe the failure reason on the switch when the tunnel failed', () => {
+		renderRow({
+			state: { kind: 'failed', reason: { kind: 'connect', message: 'boom' } },
+		});
+
+		expect(screen.getByRole('switch')).toHaveAccessibleDescription(
+			'Connexion SSH impossible : boom'
+		);
+	});
+
+	it('should describe the health error on the switch when the target is unreachable', () => {
+		renderRow({
+			state: { kind: 'active' },
+			health: { kind: 'unreachable', since: 0, error: 'timeout' },
+		});
+
+		expect(screen.getByRole('switch')).toHaveAccessibleDescription('timeout');
+	});
+
+	it('should not describe the switch when the tunnel has no problem', () => {
+		renderRow({ state: { kind: 'active' } });
+
+		expect(screen.getByRole('switch')).not.toHaveAttribute('aria-describedby');
+	});
+
 	it('should have no accessibility violation', async () => {
 		const { container } = renderRow({
 			tags: ['dev'],

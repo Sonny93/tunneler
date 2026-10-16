@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Switch } from '@minimalstuff/ui';
 
 import type { TunnelDto } from '#/daemon/protocol';
@@ -10,6 +11,7 @@ import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
 import { TunnelMetricsLine } from '#/tunnels/list/tunnel_metrics_line';
 import { TunnelActionsMenu } from '#/tunnels/list/tunnel_actions_menu';
 import { getTunnelAccessibleName } from '#/tunnels/tunnel_accessible_name';
+import { describeTunnelProblems } from '#/tunnels/describe_tunnel_problems';
 import {
 	ROVING_CONTROL_ATTRIBUTE,
 	ROVING_ROW_ATTRIBUTE,
@@ -23,6 +25,8 @@ type TunnelRowProps = {
 export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 	const { toggleRunning } = useTunnelActions(tunnel);
 	const isRunning = isTunnelRunning(tunnel.state);
+	const problemsId = useId();
+	const problems = describeTunnelProblems(tunnel);
 
 	return (
 		<li
@@ -31,12 +35,18 @@ export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 		>
 			<Switch
 				aria-label={getTunnelAccessibleName(tunnel)}
+				aria-describedby={problems === null ? undefined : problemsId}
 				checked={isRunning}
 				onChange={toggleRunning}
 				tabIndex={isActiveRow ? 0 : -1}
 				wrapperClassName="shrink-0"
 				{...{ [ROVING_CONTROL_ATTRIBUTE]: 'switch' }}
 			/>
+			{problems !== null && (
+				<span id={problemsId} aria-hidden="true" className="sr-only">
+					{problems}
+				</span>
+			)}
 			<div className="flex min-w-40 flex-1 flex-col gap-1">
 				<span className="font-semibold text-tn-text">{tunnel.name}</span>
 				<TunnelEndpoint tunnel={tunnel} />

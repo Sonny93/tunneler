@@ -1,6 +1,7 @@
 import { cn } from '#/shared/cn';
 import type { ActiveCount } from '#/tunnels/active_count';
 import { formatActiveCount } from '#/tunnels/format_active_count';
+import { describeActiveCount } from '#/tunnels/describe_active_count';
 
 type FilterButtonProps = {
 	label: string;
@@ -39,8 +40,12 @@ export const FilterButton = ({
 			)}
 		/>
 		<span className="min-w-0 flex-1 break-words">{label}</span>
-		<span className="shrink-0 text-xs font-normal text-tn-muted">
+		<span
+			aria-hidden="true"
+			className="shrink-0 text-xs font-normal text-tn-muted"
+		>
 			{formatActiveCount(count)}
 		</span>
+		<span className="sr-only">{describeActiveCount(count)}</span>
 	</button>
 );

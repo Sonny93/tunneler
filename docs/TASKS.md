@@ -172,7 +172,7 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Vérifications** : 1348 tests verts. Lint Windows de tout le workspace (hors `tunneler-ui`) propre en cross-clippy `x86_64-pc-windows-gnu` (avec `CC/AR` pointant sur gcc/ar faute de mingw), mais rien d'exécuté sous Windows ni macOS (détachement, named pipe, signaux, `open`).
 
-## Phase 6 — UI Tauri MVP (reste : passe manuelle 6.14, zoom réel 6.13, correctifs upstream 6.16)
+## Phase 6 — UI Tauri MVP (reste : NVDA/contraste élevé 6.14, zoom réel 6.13, correctifs upstream 6.16)
 - [x] 6.1 Pont Tauri ↔ IPC (commandes + relais des événements), spawn du daemon si absent
   - `app/src-tauri` : une commande Tauri par méthode IPC (`connect_daemon`, `snapshot`, `list_hosts`, CRUD, start/stop/restart, tags, settings, réponses aux prompts, `quit_daemon`) ; événements `daemon-event` (l'`EventMessage` tel quel) et `daemon-disconnected`. Erreurs sérialisées `{ code, message, data? }` : codes IPC + `daemon_unreachable` / `disconnected`. Connexion pilotée par le front, idempotente (tentatives sérialisées, garde de génération contre une reconnexion concurrente). Pas de reconnexion automatique : écran « Daemon injoignable » + bouton *Réessayer*.
   - Binaire daemon : `TUNNELER_DAEMON_BINARY`, sinon `tunneler` à côté de `tunneler-ui`, sinon `PATH`. La logique « lancer détaché et attendre » est sortie du CLI vers `ipc::ensure_daemon_running` (partagée CLI/UI).
@@ -195,7 +195,7 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 - [x] 6.8 Quitter Tunneler : confirmation si tunnels actifs ; fermer la fenêtre = UI seule
   - `quit(false)` → si `tunnels_running`, confirmation « Tout arrêter et quitter » → `quit(true)`. `quit.requested` (tray, phase 7) déclenche la même confirmation — le daemon ne l'émet pas encore.
 - [x] 6.9 Tests composants (Vitest + Testing Library, requêtes par rôle) + `axe` sur chaque composant/écran, échec CI sur violation
-  - 67 fichiers / 529 tests front. CI : `pnpm test` existant suffit (un `axe` en échec fait échouer le test).
+  - 72 fichiers / 557 tests front. CI : `pnpm test` existant suffit (un `axe` en échec fait échouer le test).
 - [x] 6.10 Design tokens vérifiés : contraste texte ≥ 4.5:1 et composants/focus ≥ 3:1 dans les deux thèmes, support `forced-colors`
   - Ratios vérifiés par test unitaire (`tokens.test.ts`) dans les deux thèmes. `forced-colors` : bordure `CanvasText` sur les badges, focus en `Highlight`, icônes `forced-color-adjust: none` — jamais vu en contraste élevé réel.
 - [x] 6.11 Navigation clavier : ordre de tabulation, focus visible, roving tabindex dans la liste, raccourcis + aide `?`, cibles ≥ 24×24 px
@@ -204,8 +204,11 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
   - Changements regroupés sur 1 s (détail si ≤ 3 tunnels), rien au chargement initial ni pour la santé seule.
 - [~] 6.13 `prefers-reduced-motion`, zoom 200 % sans scroll horizontal
   - Animations/transitions coupées sous `prefers-reduced-motion` ; mise en page empilée sous `md` (sidebar au-dessus). Zoom 200 % **non vérifié** dans une vraie webview.
-- [ ] 6.14 Passe manuelle : clavier seul, NVDA (Windows), Orca (Linux), contraste élevé Windows — résultats notés ici
-  - À faire par un humain : rien n'a été rendu à l'écran pendant cette phase.
+- [~] 6.14 Passe manuelle : clavier seul, NVDA (Windows), Orca (Linux), contraste élevé Windows — résultats notés ici
+  - **Linux fait (2026-10-16)** : vraie fenêtre GNOME/Xwayland, WebKitGTK 2.54.0, clavier synthétisé (XTest) + lecture de l'arbre AT-SPI (ce qu'Orca consomme ; Orca lui-même non lancé). Restent : NVDA, contraste élevé Windows, écoute Orca par un humain.
+  - Conformes : ordre de tabulation (lien d'évitement → en-tête → sidebar → ligne active), roving ↑/↓/Début/Fin sur les deux colonnes, Espace sur un switch, modale clé d'hôte (« Accepter et enregistrer » écrit `known_hosts`), formulaire (libellés, requis, indices, focus initial et sur le premier champ invalide, port cible lié/délié), menu d'actions (élément désactivé sauté), confirmation de suppression en `alertdialog` focus sur « Annuler » puis focus sur la ligne voisine, fieldsets des réglages nommés, focus rendu à « Nouveau tunnel » après *Annuler*, badge d'échec + annonce live, fermer la fenêtre laisse le daemon.
+  - Corrigés suite à la passe : `<ul>` en `list-none` exposés en simple panneau par WebKit (→ `role="list"`) ; compteurs lus « 0/4 actifs » (→ « 0 sur 4 actifs ») ; raison d'échec et cible injoignable absentes du switch (→ `aria-describedby`) ; titres « TAGS »/« HOSTS » exposés en capitales (CSS `uppercase` retiré) ; en-tête/pied du drawer exposés en landmarks anonymes (→ `div`) ; erreurs de champ persistantes après correction (→ effacées à l'édition) ; focus perdu après création (→ switch du nouveau tunnel, repli sur `main`) ; bouton « Close » sur la confirmation de suppression ; raccourcis inactifs quand le focus est sur un switch (`input` checkbox pris pour un champ éditable) ; **`ThemeToggle` fait planter le `WebKitWebProcess`** (View Transition, reproduit 2/2, OK sous `prefers-reduced-motion`) → transition désactivée.
+  - Notés : le bouton du menu d'actions est exposé « combo box » (mapping WebKitGTK des boutons `aria-haspopup`) ; une authentification qui ne répond jamais (agent SSH qui attend une confirmation) laisse le tunnel en « Démarrage… » sans fin — pas de délai d'authentification côté moteur (suivi moteur, hors phase 6).
 - [x] 6.15 Composants app absents de la lib : drawer, toasts + annonceur `aria-live`, liste navigable, badge d'état (icône + texte)
   - Drawer : dialogue modal en portail, focus piégé et restauré, pas d'`inert` sur le reste (couperait aussi les régions live). Toasts d'erreur `role="alert"` persistants ; info/succès 5 s, minuteur en pause au survol/focus.
 - [~] 6.16 Audit `axe` + clavier des composants `@minimalstuff/ui` utilisés ; écarts corrigés dans la lib (issue/PR upstream)
@@ -215,6 +218,8 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
     - `ModalFooter` avec des enfants recréés à chaque rendu (render prop) boucle à l'infini.
     - Libellés par défaut en anglais (`Close`, `Confirm`, `Cancel`) : l'app passe ses libellés partout.
     - `Input` sans prop `description` (contrairement à `Switch`) : indices reliés à la main via `aria-describedby` (fusionné correctement par la lib).
+    - Erreur de champ `Input` rendue en `<p role="alert">` : WebKitGTK ne l'inclut pas dans la description calculée (la relation `described-by` est pourtant correcte), donc pas relue au focus ; et plusieurs alertes partent en même temps à la soumission. Préférer un texte non-live relié par `aria-describedby` + le résumé d'erreurs.
+    - `ThemeToggle` : `document.startViewTransition` fait planter WebKitGTK 2.54 ; l'app passe `isTransitionEnabled={false}`. Détecter/éviter côté lib.
   - Vérifiés conformes : `aria-invalid` + erreur liée sur `Input`/`Switch`, focus restauré par `Modal`, raccourcis globaux désactivés pendant une modale.
 
 ## Phase 7 — Tray

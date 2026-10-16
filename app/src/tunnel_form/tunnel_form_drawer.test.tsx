@@ -364,3 +364,28 @@ describe('TunnelFormDrawer when editing', () => {
 		expect(useUiStore.getState().panel.kind).toBe('none');
 	});
 });
+
+describe('TunnelFormDrawer field errors', () => {
+	it('should show the name error when submitting without a name', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		renderDrawer();
+
+		await user.click(screen.getByRole('button', { name: 'Créer' }));
+
+		expect(screen.getByText('Le nom est obligatoire.')).toBeInTheDocument();
+	});
+
+	it('should clear the name error when the user types a name', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		renderDrawer();
+		await user.click(screen.getByRole('button', { name: 'Créer' }));
+
+		await user.type(screen.getByRole('textbox', { name: /^Nom/ }), 'A');
+
+		expect(
+			screen.queryByText('Le nom est obligatoire.')
+		).not.toBeInTheDocument();
+	});
+});

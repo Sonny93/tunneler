@@ -3,6 +3,7 @@ import { useEffect, type KeyboardEvent, type RefObject } from 'react';
 const FOCUSABLE_SELECTOR =
 	'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const BODY_SELECTOR = '[data-drawer-body]';
+const MAIN_SELECTOR = 'main';
 
 function getFocusableElements(container: HTMLElement): HTMLElement[] {
 	return [...container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)];
@@ -12,6 +13,14 @@ function moveFocusIntoPanel(panel: HTMLElement): void {
 	const body = panel.querySelector<HTMLElement>(BODY_SELECTOR);
 	const [firstBodyElement] = body ? getFocusableElements(body) : [];
 	(firstBodyElement ?? panel).focus();
+}
+
+function canRestoreFocus(element: Element | null): element is HTMLElement {
+	return (
+		element instanceof HTMLElement &&
+		element.isConnected &&
+		element !== document.body
+	);
 }
 
 type UseDrawerFocusReturn = {
@@ -26,7 +35,8 @@ export function useDrawerFocus(
 		const previouslyFocused = document.activeElement;
 		if (panelRef.current) moveFocusIntoPanel(panelRef.current);
 		return () => {
-			if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
+			if (canRestoreFocus(previouslyFocused)) previouslyFocused.focus();
+			else document.querySelector<HTMLElement>(MAIN_SELECTOR)?.focus();
 		};
 	}, [panelRef]);
 

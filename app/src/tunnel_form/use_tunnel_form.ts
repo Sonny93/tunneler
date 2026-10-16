@@ -3,10 +3,11 @@ import { useReducer, useState, type FormEvent } from 'react';
 import { useUiStore } from '#/state/ui_store';
 import { toTunnelSpec } from '#/tunnel_form/to_tunnel_spec';
 import { useToastStore } from '#/shared/toasts/toast_store';
-import type { TunnelDefinitionDto } from '#/daemon/protocol';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import { toTunnelFormValues } from '#/tunnel_form/tunnel_form_values';
+import type { TunnelDefinitionDto, TunnelDto } from '#/daemon/protocol';
+import { clearEditedFieldErrors } from '#/tunnel_form/clear_edited_field_errors';
 import {
 	tunnelFormReducer,
 	type TunnelFormAction,
@@ -37,7 +38,7 @@ export function useTunnelForm(
 	tunnel: Readonly<TunnelDefinitionDto> | null
 ): UseTunnelFormReturn {
 	const gateway = useDaemonGateway();
-	const [values, dispatch] = useReducer(
+	const [values, dispatchToReducer] = useReducer(
 		tunnelFormReducer,
 		tunnel,
 		toTunnelFormValues
@@ -46,12 +47,18 @@ export function useTunnelForm(
 	const [isSaving, setIsSaving] = useState(false);
 	const summary = useFormErrorSummary();
 
+	const dispatch = (action: TunnelFormAction) => {
+		setErrors((current) => clearEditedFieldErrors(current, action, values));
+		dispatchToReducer(action);
+	};
+
 	const save = async () => {
 		const spec = toTunnelSpec(values, tunnel?.kind ?? DEFAULT_KIND);
 		setIsSaving(true);
 		summary.clearFailure();
+		let savedTunnel: TunnelDto;
 		try {
-			await (tunnel
+			savedTunnel = await (tunnel
 				? gateway.updateTunnel({ id: tunnel.id, ...spec })
 				: gateway.createTunnel(spec));
 		} catch (rejection) {
@@ -64,7 +71,8 @@ export function useTunnelForm(
 			tone: 'success',
 			message: `Tunnel ${spec.name} ${outcome}`,
 		});
-		useUiStore.getState().closePanel();
+		if (tunnel) useUiStore.getState().closePanel();
+		else useUiStore.getState().closePanelFocusingTunnel(savedTunnel.id);
 	};
 
 	const submit = (event: FormEvent<HTMLFormElement>) => {

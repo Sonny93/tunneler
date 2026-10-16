@@ -49,7 +49,7 @@ export function DrawerPanel({
 				onKeyDown={handleKeyDown}
 				className="absolute inset-y-0 right-0 flex w-full flex-col border-l border-tn-border bg-tn-surface text-tn-text shadow-xl sm:w-[420px]"
 			>
-				<header className="flex items-center justify-between gap-2 border-b border-tn-border p-4">
+				<div className="flex items-center justify-between gap-2 border-b border-tn-border p-4">
 					<h2 id={titleId} className="text-lg font-semibold">
 						{title}
 					</h2>
@@ -60,12 +60,12 @@ export function DrawerPanel({
 						color="neutral"
 						onClick={onClose}
 					/>
-				</header>
+				</div>
 				<div data-drawer-body className="flex-1 overflow-y-auto p-4">
 					{children}
 				</div>
 				{footer && (
-					<footer className="border-t border-tn-border p-4">{footer}</footer>
+					<div className="border-t border-tn-border p-4">{footer}</div>
 				)}
 			</div>
 		</div>,

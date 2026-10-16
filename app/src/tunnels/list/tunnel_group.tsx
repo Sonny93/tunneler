@@ -22,6 +22,7 @@ export function TunnelGroup({
 				{group.host}
 			</h3>
 			<ul
+				role="list"
 				aria-describedby={hintId}
 				className="m-0 flex list-none flex-col gap-2 p-0"
 			>

@@ -10,6 +10,7 @@ import { groupTunnelsByHost } from '#/tunnels/group_tunnels_by_host';
 import { describeTunnelFilter } from '#/tunnels/describe_tunnel_filter';
 import { RemovalFocusContext } from '#/tunnels/list/removal_focus_context';
 import { useFocusAfterRemoval } from '#/tunnels/list/use_focus_after_removal';
+import { useFocusAfterCreation } from '#/tunnels/list/use_focus_after_creation';
 
 export function TunnelList() {
 	const tunnels = useDaemonStore((state) => state.tunnels);
@@ -34,6 +35,8 @@ export function TunnelList() {
 		containerProps.ref,
 		() => createButtonRef.current?.focus()
 	);
+
+	useFocusAfterCreation(rowIds, containerProps.ref);
 
 	return (
 		<div className="flex flex-col gap-4">

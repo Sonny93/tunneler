@@ -35,6 +35,25 @@ describe('useUiStore', () => {
 		expect(useUiStore.getState().panel).toEqual({ kind: 'none' });
 	});
 
+	it('should close the panel and request the focus of a tunnel', () => {
+		useUiStore.getState().openTunnelEditor(null);
+
+		useUiStore.getState().closePanelFocusingTunnel('a');
+
+		expect(useUiStore.getState()).toMatchObject({
+			panel: { kind: 'none' },
+			pendingFocusTunnelId: 'a',
+		});
+	});
+
+	it('should clear the pending tunnel focus', () => {
+		useUiStore.getState().closePanelFocusingTunnel('a');
+
+		useUiStore.getState().clearPendingFocus();
+
+		expect(useUiStore.getState().pendingFocusTunnelId).toBeNull();
+	});
+
 	it('should set the filter', () => {
 		useUiStore.getState().setFilter({ kind: 'tag', tag: 'dev' });
 
