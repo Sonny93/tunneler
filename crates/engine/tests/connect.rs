@@ -14,7 +14,7 @@ use russh::MethodKind;
 use russh::keys::{Algorithm, PrivateKey};
 use support::{
     ALIAS, EchoServer, ScriptedPrompter, ScriptedVerifier, SilentListener, TestServer, TestUser,
-    Workspace, fingerprint_of, generate_key, write_private_key,
+    Workspace, fingerprint_of, fixture_key, generate_key, write_private_key,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -608,7 +608,7 @@ async fn should_record_and_look_up_the_host_key_alias_when_one_is_configured() {
 async fn should_trust_the_recorded_rsa_key_when_the_server_also_has_an_ed25519_key() {
     let server = TestServer::builder()
         .host_key(generate_key(Algorithm::Ed25519))
-        .host_key(generate_key(Algorithm::Rsa { hash: None }))
+        .host_key(fixture_key("rsa_host_key"))
         .user(support::REMOTE_USER, user_with_password())
         .methods(&[MethodKind::Password])
         .start()
@@ -735,33 +735,62 @@ async fn should_round_trip_bytes_when_opening_a_direct_tcpip_channel() {
 }
 
 #[tokio::test]
-async fn should_refuse_to_connect_directly_when_proxy_jump_is_configured() {
-    let scenario = ScenarioBuilder::new(password_only_server().await, Workspace::new())
-        .config("ProxyJump bastion")
+async fn should_authenticate_with_an_rsa_key_when_the_server_authorizes_it() {
+    let key = fixture_key("rsa_client_key");
+    let workspace = Workspace::new();
+    let key_path = write_private_key(workspace.path(), "id_rsa_test", &key, None);
+    let scenario = ScenarioBuilder::new(server_for(user_with_key(&key)).await, workspace)
+        .identity_file(&key_path)
         .build();
 
-    let error = scenario.connect_failing().await;
+    let outcome = scenario.connect().await;
 
-    assert!(matches!(
-        error,
-        ConnectError::Transport(TransportError::UnsupportedProxy {
-            directive: "ProxyJump"
-        })
-    ));
+    assert!(outcome.is_ok(), "{outcome:?}");
 }
 
 #[tokio::test]
-async fn should_refuse_to_connect_directly_when_proxy_command_is_configured() {
-    let scenario = ScenarioBuilder::new(password_only_server().await, Workspace::new())
-        .config("ProxyCommand nc %h %p")
-        .build();
+async fn should_connect_on_the_second_round_when_the_server_comes_up_during_the_pause() {
+    let reserved = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = reserved.local_addr().unwrap().port();
+    drop(reserved);
+    let workspace = Workspace::new();
+    let config_path = workspace.write_config(port, &["ConnectionAttempts 2"]);
+    let prompter = Arc::new(ScriptedPrompter::default().with_passwords(&[Some(PASSWORD)]));
+    let connector = workspace.connector(&config_path, prompter, support::rejecting_verifier());
+    let late_server = tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        TestServer::builder()
+            .host_key(generate_key(Algorithm::Ed25519))
+            .user(support::REMOTE_USER, user_with_password())
+            .methods(&[MethodKind::Password])
+            .on_port(port)
+            .start()
+            .await
+    });
 
-    let error = scenario.connect_failing().await;
+    let outcome = connector.connect(ALIAS).await;
 
-    assert!(matches!(
-        error,
-        ConnectError::Transport(TransportError::UnsupportedProxy {
-            directive: "ProxyCommand"
-        })
-    ));
+    let _server = late_server.await.unwrap();
+    assert!(outcome.is_ok(), "{outcome:?}");
+}
+
+#[tokio::test]
+async fn should_pause_between_rounds_when_connection_attempts_is_two_and_nothing_listens() {
+    let workspace = Workspace::new();
+    let closed_port = {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        listener.local_addr().unwrap().port()
+    };
+    let config_path = workspace.write_config(closed_port, &["ConnectionAttempts 2"]);
+    let connector = workspace.connector(
+        &config_path,
+        support::quiet_prompter(),
+        support::rejecting_verifier(),
+    );
+    let started = Instant::now();
+
+    let outcome = connector.connect(ALIAS).await;
+
+    assert!(matches!(outcome, Err(ConnectError::Transport(_))));
+    assert!(started.elapsed() >= Duration::from_secs(1));
 }

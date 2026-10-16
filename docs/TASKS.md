@@ -80,24 +80,45 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Lacunes connues** : révocation de la clé du certificat elle-même (seule la CA est vérifiée) ; marqueurs testés uniquement en unitaire (`ssh-keygen -F` les ignore) ; Windows non vérifié.
 
-## Phase 3 — Engine : connexion & auth
-- [ ] 3.1 Abstractions : `CredentialPrompter`, `HostKeyVerifier`, `Clock`
-- [ ] 3.2 Serveur SSH russh in-process pour les tests d'intégration (fixtures clés, users)
-- [ ] 3.3 Transport TCP direct (ConnectTimeout, AddressFamily)
-- [ ] 3.4 `ProxyJump` (chaîne multiple) via `direct-tcpip` + `connect_stream`
-- [ ] 3.5 `ProxyCommand` via stdio d'un process enfant
-- [ ] 3.6 Auth agent : `SSH_AUTH_SOCK`/`IdentityAgent` (Unix), named pipe OpenSSH + Pageant (Windows)
-- [ ] 3.7 Auth clés (`IdentityFile`, passphrase via prompter, RSA hash via `best_supported_rsa_hash`)
-- [ ] 3.8 Auth keyboard-interactive + password
-- [ ] 3.9 Vérification clé d'hôte (known-hosts + `StrictHostKeyChecking`), refus dur si changée/révoquée
-  - Ordonner les algorithmes de clé d'hôte proposés selon `KnownHosts::known_algorithms` (cf. `order_hostkeyalgs`), sinon un serveur qui propose d'abord un autre type donne un faux `Changed`.
-- [ ] 3.10 Keepalive depuis la config résolue
+## Phase 3 — Engine : connexion & auth ✔
+- [x] 3.1 Abstractions : `CredentialPrompter`, `HostKeyVerifier`, `Clock`
+  - Traits `#[async_trait]` utilisés via `Arc<dyn …>` : `CredentialPrompter` (passphrase / password / keyboard-interactive, `None` = annulé, secrets `Zeroizing<String>`), `HostKeyVerifier` (`decide_unknown` → `AcceptAndSave | AcceptOnce | Reject`, `report_rejected` = notification seule), `HostConfigResolver` (+ `SshConfigResolver`), `AgentLocator` (+ `SystemAgentLocator`).
+  - **`Clock` reporté à la phase 4** (aucun usage avant la reconnexion) pour éviter une abstraction prématurée.
+  - Point d'entrée : `Connector::new(ConnectorDependencies { resolver, prompter, verifier, agent_locator })`, `Connector::connect(alias) -> SshSession` (`alias`, `resolved`, `jump_chain`, `open_direct_tcpip`, `disconnect`).
+- [x] 3.2 Serveur SSH russh in-process pour les tests d'intégration (fixtures clés, users)
+  - `crates/engine/tests/support/` : serveur configurable (méthodes, users, partial success, `direct-tcpip`, enregistre cibles et clés offertes), agent russh sur socket Unix temporaire, environnement/prompter/verifier scriptés. Clés RSA pré-générées dans `tests/fixtures/` (keygen RSA en debug = jusqu'à 10 s), ed25519 générées à l'exécution.
+  - Helper `[[bin]] tcp-bridge` (stdin↔TCP) dans le crate engine pour tester ProxyCommand sans `nc` ; construit aussi par `cargo build`, jamais livré.
+- [x] 3.3 Transport TCP direct (ConnectTimeout, AddressFamily)
+  - `ConnectTimeout` borne chaque connexion TCP **et** le handshake ; le chrono est suspendu pendant un prompt de clé d'hôte. `ConnectionAttempts` = tours complets sur la liste d'adresses, pause 1 s.
+- [x] 3.4 `ProxyJump` (chaîne multiple) via `direct-tcpip` + `connect_stream`
+  - Sémantique OpenSSH (`-J`) : le 1ᵉʳ saut utilise sa config complète (son propre ProxyJump/ProxyCommand → récursion), les sauts suivants et la cible ignorent leurs proxys. user/port de la spec surchargent ceux du saut. Profondeur max 8 + détection de cycle par alias. Erreur `ConnectError::Jump { hop, source }`.
+  - La session cible possède ses sauts ; `disconnect()` ferme cible puis sauts en ordre inverse. Pas encore de partage d'un saut entre plusieurs cibles (à voir avec le `SessionManager`, 4.1).
+- [x] 3.5 `ProxyCommand` via stdio d'un process enfant
+  - `$SHELL -c "exec <cmd>"` (repli `/bin/sh`), `cmd /C` sous Windows (approximation : Win32-OpenSSH fait un `posix_spawnp` direct, non vérifié). stderr → `tracing::warn`, enfant tué et récolté à la fermeture/drop.
+- [x] 3.6 Auth agent : `SSH_AUTH_SOCK`/`IdentityAgent` (Unix), named pipe OpenSSH + Pageant (Windows)
+  - Clés agent d'abord, puis fichiers non déjà offerts (dédup par clé publique, sans prompt de passphrase si l'agent a la clé). `IdentitiesOnly` filtre l'agent sur les `IdentityFile` configurés. Agent injoignable → fichiers. Échec de signature par l'agent → erreur (russh laisserait la requête en suspens).
+  - Branche Windows (named pipe + Pageant, natifs dans russh 0.64) écrite mais **jamais compilée ni exécutée**. `AddKeysToAgent` non implémenté.
+- [x] 3.7 Auth clés (`IdentityFile`, passphrase via prompter, RSA hash via `best_supported_rsa_hash`)
+  - Formats via russh : OpenSSH, PKCS#8, PEM/PKCS#5, PuTTY `.ppk` (seul OpenSSH testé de bout en bout). Détection de chiffrement ajoutée pour PEM/PPK. Essais de passphrase = `NumberOfPasswordPrompts` (comme OpenSSH). Lecture/déchiffrement en `spawn_blocking`.
+  - Certificats utilisateur (`CertificateFile` + `authenticate_openssh_cert`) câblés mais sans test d'intégration.
+  - Fichiers d'identité absents : toujours en debug (`ResolvedConfig` ne distingue pas défauts et fichiers explicites).
+- [x] 3.8 Auth keyboard-interactive + password
+  - Ordre publickey → keyboard-interactive → password, filtré par `PreferredAuthentications` et `*Authentication no`, respect de `remaining_methods`/`partial_success` (multi-facteur testé). Annulation d'un prompt = méthode suivante ; erreur du prompter = échec. Keyboard-interactive plafonné à 10 tours. `BatchMode yes` = aucun prompt.
+- [x] 3.9 Vérification clé d'hôte (known-hosts + `StrictHostKeyChecking`), refus dur si changée/révoquée
+  - `Changed`/`Revoked` refusés quel que soit `StrictHostKeyChecking` (même `no`). `Unknown` : `yes` → refus, `ask` → prompt (refus en `BatchMode`), `accept-new`/`no` → enregistré sans prompt. `AcceptOnce` mémorisé en RAM pour la vie du daemon, consulté seulement en mode `ask`. Échec d'écriture du known_hosts → connexion refusée.
+  - Algorithmes de clé d'hôte ordonnés selon `KnownHosts::known_algorithms` (testé : known_hosts RSA seul + serveur ed25519+RSA → `Trusted`).
+  - **Certificats d'hôte non supportés** : russh 0.64 peut les recevoir mais la validation serait à écrire ; un certificat reçu est refusé (`UnsupportedKey`), `@cert-authority` inutilisable pour l'instant.
+- [x] 3.10 Keepalive depuis la config résolue
+  - `ServerAliveInterval` (0 = désactivé) / `ServerAliveCountMax` → `keepalive_interval` / `keepalive_max` de russh.
+
+**Choix techniques** : russh 0.64 sans features par défaut, backend `ring` (pas d'aws-lc → pas de cmake sous Windows), `flate2`, `rsa`. 132 tests engine (76 unitaires + 56 intégration), suite en quelques secondes. Rien de vérifié sous Windows.
 
 ## Phase 4 — Engine : forwards locaux & cycle de vie
 - [ ] 4.1 `SessionManager` : une session par alias, refcount, délai de grâce avant fermeture
 - [ ] 4.2 Forward local : listener → `direct-tcpip` par connexion, copie bidirectionnelle
 - [ ] 4.3 Machine à états des tunnels + événements de changement
 - [ ] 4.4 Reconnexion : backoff exponentiel + jitter, plafond configurable
+  - Introduire ici l'abstraction `Clock` reportée de 3.1.
 - [ ] 4.5 Santé de la cible : passive (`ConnectFailed`) + sonde active optionnelle
 - [ ] 4.6 Métriques (connexions, octets, dernière activité) + logs ring buffer par tunnel
 - [ ] 4.7 Store TOML : modèle, défauts (`listen_address`, `target_port = listen_port`), validation, écriture atomique, migrations, rechargement à chaud

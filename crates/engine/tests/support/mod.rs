@@ -4,6 +4,8 @@
 //! throwaway keys, `ssh_config` and `known_hosts` files, a hermetic local
 //! environment and scripted prompter/verifier fakes.
 
+#[cfg(unix)]
+mod agent;
 mod environment;
 mod keys;
 mod listeners;
@@ -11,9 +13,13 @@ mod scripted;
 mod server;
 mod workspace;
 
+#[cfg(unix)]
+pub use agent::{FixedAgentLocator, TestAgent};
 pub use environment::FakeEnvironment;
-pub use keys::{fingerprint_of, generate_key, write_private_key};
+pub use keys::{fingerprint_of, fixture_key, generate_key, write_private_key};
 pub use listeners::{EchoServer, SilentListener};
 pub use scripted::{ScriptedPrompter, ScriptedVerifier};
 pub use server::{TestServer, TestServerBuilder, TestUser};
-pub use workspace::{ALIAS, REMOTE_USER, Workspace, quiet_prompter, rejecting_verifier};
+pub use workspace::{
+    ALIAS, HostSpec, NoAgentLocator, REMOTE_USER, Workspace, quiet_prompter, rejecting_verifier,
+};

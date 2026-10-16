@@ -1,18 +1,24 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use russh::keys::{Certificate, PrivateKey};
+use russh::keys::{Certificate, PrivateKey, PublicKey};
+use tokio::sync::Mutex;
 
+use crate::agent::AgentClientConnection;
 use crate::prompter::PromptError;
 
 pub(crate) enum Identity {
     Key {
         key: Arc<PrivateKey>,
-        certificate: Option<Certificate>,
+        certificate: Option<Box<Certificate>>,
+    },
+    Agent {
+        public_key: PublicKey,
+        client: Arc<Mutex<AgentClientConnection>>,
     },
 }
 
-/// Where public key identities come from: identity files now, an agent later.
+/// Where public key identities come from: the agent, then identity files.
 ///
 /// Identities are produced lazily, so that a passphrase is only asked when the
 /// previous identities did not already authenticate.

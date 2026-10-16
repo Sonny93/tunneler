@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use russh::keys::{PrivateKey, PublicKey};
+use russh::keys::{HashAlg, PrivateKey, PublicKey};
 use russh::server::{self, Auth, Config, Msg, Server, Session};
 use russh::{Channel, ChannelOpenFailure, MethodKind, MethodSet};
 use tokio::io::copy_bidirectional;
@@ -28,9 +28,12 @@ struct Behavior {
     requires_publickey_then_password: bool,
     allows_direct_tcpip: bool,
     connection_count: Arc<AtomicUsize>,
+    direct_tcpip_targets: Arc<Mutex<Vec<(String, u16)>>>,
+    offered_fingerprints: Arc<Mutex<Vec<String>>>,
 }
 
 pub struct TestServerBuilder {
+    port: u16,
     host_keys: Vec<PrivateKey>,
     users: HashMap<String, TestUser>,
     methods: Option<Vec<MethodKind>>,
@@ -39,6 +42,11 @@ pub struct TestServerBuilder {
 }
 
 impl TestServerBuilder {
+    pub fn on_port(mut self, port: u16) -> Self {
+        self.port = port;
+        self
+    }
+
     pub fn host_key(mut self, key: PrivateKey) -> Self {
         self.host_keys.push(key);
         self
@@ -65,9 +73,11 @@ impl TestServerBuilder {
     }
 
     pub async fn start(self) -> TestServer {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let listener = TcpListener::bind(("127.0.0.1", self.port)).await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let connection_count = Arc::new(AtomicUsize::new(0));
+        let direct_tcpip_targets = Arc::new(Mutex::new(Vec::new()));
+        let offered_fingerprints = Arc::new(Mutex::new(Vec::new()));
         let config = self.server_config();
         let offered_methods = config.methods.clone();
         let config = Arc::new(config);
@@ -78,6 +88,8 @@ impl TestServerBuilder {
                 requires_publickey_then_password: self.requires_publickey_then_password,
                 allows_direct_tcpip: self.allows_direct_tcpip,
                 connection_count: Arc::clone(&connection_count),
+                direct_tcpip_targets: Arc::clone(&direct_tcpip_targets),
+                offered_fingerprints: Arc::clone(&offered_fingerprints),
             }),
         };
         let task = tokio::spawn(async move {
@@ -87,6 +99,8 @@ impl TestServerBuilder {
             port,
             host_keys: self.host_keys,
             connection_count,
+            direct_tcpip_targets,
+            offered_fingerprints,
             task,
         }
     }
@@ -116,12 +130,15 @@ pub struct TestServer {
     pub port: u16,
     pub host_keys: Vec<PrivateKey>,
     connection_count: Arc<AtomicUsize>,
+    direct_tcpip_targets: Arc<Mutex<Vec<(String, u16)>>>,
+    offered_fingerprints: Arc<Mutex<Vec<String>>>,
     task: JoinHandle<()>,
 }
 
 impl TestServer {
     pub fn builder() -> TestServerBuilder {
         TestServerBuilder {
+            port: 0,
             host_keys: Vec::new(),
             users: HashMap::new(),
             methods: None,
@@ -136,6 +153,16 @@ impl TestServer {
 
     pub fn connection_count(&self) -> usize {
         self.connection_count.load(Ordering::SeqCst)
+    }
+
+    /// The `direct-tcpip` targets clients asked this server to reach.
+    pub fn direct_tcpip_targets(&self) -> Vec<(String, u16)> {
+        self.direct_tcpip_targets.lock().unwrap().clone()
+    }
+
+    /// The SHA-256 fingerprints of the public keys clients offered.
+    pub fn offered_fingerprints(&self) -> Vec<String> {
+        self.offered_fingerprints.lock().unwrap().clone()
     }
 }
 
@@ -205,6 +232,11 @@ impl server::Handler for ConnectionHandler {
         user: &str,
         public_key: &PublicKey,
     ) -> Result<Auth, Self::Error> {
+        self.behavior
+            .offered_fingerprints
+            .lock()
+            .unwrap()
+            .push(public_key.fingerprint(HashAlg::Sha256).to_string());
         if self.is_authorized(user, public_key) {
             return Ok(Auth::Accept);
         }
@@ -293,6 +325,13 @@ impl server::Handler for ConnectionHandler {
         reply: server::ChannelOpenHandle,
         _session: &mut Session,
     ) -> Result<(), Self::Error> {
+        if let Ok(port) = u16::try_from(port_to_connect) {
+            self.behavior
+                .direct_tcpip_targets
+                .lock()
+                .unwrap()
+                .push((host_to_connect.to_owned(), port));
+        }
         if !self.behavior.allows_direct_tcpip {
             reply
                 .reject(ChannelOpenFailure::AdministrativelyProhibited)

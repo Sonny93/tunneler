@@ -1,7 +1,7 @@
-use std::sync::Arc;
-
 use russh::client::{AuthResult, Handle};
-use russh::keys::{HashAlg, PrivateKey, PrivateKeyWithHashAlg};
+use russh::keys::agent::client::AgentClient;
+use russh::keys::{HashAlg, PrivateKeyWithHashAlg, PublicKey};
+use russh::{AgentAuthError, Error as RusshError};
 
 use super::flow::AuthenticationContext;
 use super::identity::{Identity, IdentitySource};
@@ -25,7 +25,9 @@ pub(crate) async fn attempt(
     let mut last_rejection = None;
     for source in sources {
         while let Some(identity) = source.next_identity().await? {
-            let result = try_identity(handle, context, identity, &mut rsa_hash).await?;
+            let Some(result) = try_identity(handle, context, identity, &mut rsa_hash).await? else {
+                continue;
+            };
             match result {
                 AuthResult::Success => return Ok(MethodOutcome::Authenticated),
                 AuthResult::Failure {
@@ -57,25 +59,53 @@ async fn try_identity(
     context: &AuthenticationContext,
     identity: Identity,
     rsa_hash: &mut RsaHashCache,
-) -> Result<AuthResult, ConnectError> {
-    let Identity::Key { key, certificate } = identity;
-    let user = context.user.as_str();
-    if let Some(certificate) = certificate {
-        return Ok(handle
-            .authenticate_openssh_cert(user, key, certificate)
-            .await?);
+) -> Result<Option<AuthResult>, ConnectError> {
+    match identity {
+        Identity::Key { key, certificate } => {
+            let user = context.user.as_str();
+            if let Some(certificate) = certificate {
+                let result = handle
+                    .authenticate_openssh_cert(user, key, *certificate)
+                    .await?;
+                return Ok(Some(result));
+            }
+            let hash = signature_hash(handle, key.algorithm().is_rsa(), rsa_hash).await?;
+            let key_with_hash = PrivateKeyWithHashAlg::new(key, hash);
+            Ok(Some(
+                handle.authenticate_publickey(user, key_with_hash).await?,
+            ))
+        }
+        Identity::Agent { public_key, client } => {
+            let hash = signature_hash(handle, public_key.algorithm().is_rsa(), rsa_hash).await?;
+            let mut agent = client.lock().await;
+            sign_with_agent(handle, context, public_key, hash, &mut agent).await
+        }
     }
-    let hash = signature_hash(handle, &key, rsa_hash).await?;
-    let key_with_hash = PrivateKeyWithHashAlg::new(key, hash);
-    Ok(handle.authenticate_publickey(user, key_with_hash).await?)
+}
+
+async fn sign_with_agent(
+    handle: &mut Handle<ClientHandler>,
+    context: &AuthenticationContext,
+    public_key: PublicKey,
+    hash: Option<HashAlg>,
+    agent: &mut AgentClient<Box<dyn russh::keys::agent::client::AgentStream + Send + Unpin>>,
+) -> Result<Option<AuthResult>, ConnectError> {
+    let outcome = handle
+        .authenticate_publickey_with(context.user.as_str(), public_key, hash, agent)
+        .await;
+    match outcome {
+        Ok(result) => Ok(Some(result)),
+        Err(AgentAuthError::Send(_)) => Err(ConnectError::Protocol(RusshError::SendError)),
+        Err(AgentAuthError::Key(error)) => Err(ConnectError::Agent(Box::new(error))),
+    }
 }
 
 async fn signature_hash(
     handle: &Handle<ClientHandler>,
-    key: &Arc<PrivateKey>,
+    is_rsa: bool,
     cache: &mut RsaHashCache,
 ) -> Result<Option<HashAlg>, ConnectError> {
-    if !key.algorithm().is_rsa() {
+    if !is_rsa {
         return Ok(None);
     }
     if let RsaHashCache::Resolved(hash) = cache {

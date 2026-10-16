@@ -27,6 +27,16 @@ pub fn write_private_key(
     path
 }
 
+/// A key committed under `tests/fixtures`, for algorithms too slow to
+/// generate in debug builds (RSA).
+pub fn fixture_key(name: &str) -> PrivateKey {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join(name);
+    PrivateKey::from_openssh(std::fs::read(path).unwrap()).unwrap()
+}
+
 pub fn fingerprint_of(key: &PublicKey) -> String {
     key.fingerprint(HashAlg::Sha256).to_string()
 }

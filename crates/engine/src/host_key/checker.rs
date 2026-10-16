@@ -12,6 +12,7 @@ use super::state::HandshakeState;
 use super::verifier::{
     HostKeyDecision, HostKeyVerifier, RejectedHostKey, RejectionReason, UnknownHostKey,
 };
+use crate::blocking::run_blocking;
 use crate::error::HostKeyFailure;
 
 /// The parts of the resolved configuration that govern host key decisions.
@@ -93,7 +94,7 @@ impl HostKeyChecker {
                     presented_fingerprint: host_key.fingerprint_sha256(),
                 })
                 .await),
-            UnknownHostAction::AcceptAndSave => self.record(&host_key),
+            UnknownHostAction::AcceptAndSave => self.record(&host_key).await,
             UnknownHostAction::Ask => self.ask_user(host_key).await,
         }
     }
@@ -105,7 +106,7 @@ impl HostKeyChecker {
         }
         let decision = self.ask_verifier(&lookup_name, &host_key).await;
         match decision {
-            HostKeyDecision::AcceptAndSave => self.record(&host_key),
+            HostKeyDecision::AcceptAndSave => self.record(&host_key).await,
             HostKeyDecision::AcceptOnce => {
                 self.accepted_once.remember(&lookup_name, &host_key);
                 Ok(())
@@ -129,12 +130,19 @@ impl HostKeyChecker {
         decision
     }
 
-    fn record(&self, host_key: &HostKey) -> Result<(), HostKeyFailure> {
+    async fn record(&self, host_key: &HostKey) -> Result<(), HostKeyFailure> {
         let Some(path) = &self.policy.recording_file else {
             warn!(alias = %self.alias, "no user known_hosts file: the host key is accepted but not recorded");
             return Ok(());
         };
-        append_entry(path, &self.lookup, host_key, self.policy.hashing)
+        let (entry_path, lookup, key, hashing) = (
+            path.clone(),
+            self.lookup.clone(),
+            host_key.clone(),
+            self.policy.hashing,
+        );
+        run_blocking(move || append_entry(&entry_path, &lookup, &key, hashing))
+            .await
             .map_err(|source| HostKeyFailure::NotRecorded { source })?;
         info!(alias = %self.alias, path = %path.display(), "recorded a new host key");
         Ok(())

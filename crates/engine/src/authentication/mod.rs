@@ -1,13 +1,18 @@
+mod agent_identities;
 mod file_identities;
 mod flow;
 mod identity;
+mod identity_files;
 mod keyboard_interactive;
 mod method;
+mod offered_keys;
 mod outcome;
 mod password;
 mod publickey;
 
+pub(crate) use agent_identities::{AgentIdentityOptions, AgentIdentitySource};
 pub(crate) use file_identities::{FileIdentityOptions, FileIdentitySource};
 pub(crate) use flow::{AuthenticationContext, authenticate};
 pub(crate) use identity::IdentitySource;
 pub use method::AuthenticationMethod;
+pub(crate) use offered_keys::OfferedKeys;

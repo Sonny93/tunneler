@@ -4,11 +4,16 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use russh::keys::{Certificate, PrivateKey, decode_secret_key, load_openssh_certificate};
+use russh::keys::{
+    Certificate, PrivateKey, PublicKey, decode_secret_key, load_openssh_certificate,
+};
 use tracing::{debug, warn};
 use zeroize::Zeroizing;
 
 use super::identity::{Identity, IdentitySource};
+use super::identity_files::identity_file_public_key;
+use super::offered_keys::OfferedKeys;
+use crate::blocking::run_blocking;
 use crate::prompter::{CredentialPrompter, PassphraseRequest, PromptError};
 
 const ENCRYPTED_PEM_MARKER: &str = "ENCRYPTED";
@@ -22,16 +27,29 @@ pub(crate) struct FileIdentityOptions {
     pub(crate) prompter: Arc<dyn CredentialPrompter>,
     pub(crate) is_prompting_allowed: bool,
     pub(crate) passphrase_attempts: u32,
+    pub(crate) offered: Arc<OfferedKeys>,
 }
 
-/// Identities read from `IdentityFile`s, paired with their `CertificateFile`s.
+enum KeyFile {
+    Unusable,
+    Plain(Box<PrivateKey>),
+    Encrypted {
+        contents: Arc<Zeroizing<String>>,
+        public_key: Option<PublicKey>,
+    },
+}
+
+/// Identities read from `IdentityFile`s, paired with their `CertificateFile`s
+/// and skipping the keys the agent already offered.
 pub(crate) struct FileIdentitySource {
     alias: String,
     key_paths: VecDeque<PathBuf>,
-    certificates: Vec<Certificate>,
+    certificate_paths: Vec<PathBuf>,
+    certificates: Option<Vec<Certificate>>,
     prompter: Arc<dyn CredentialPrompter>,
     is_prompting_allowed: bool,
     passphrase_attempts: u32,
+    offered: Arc<OfferedKeys>,
     pending: VecDeque<Identity>,
 }
 
@@ -40,33 +58,47 @@ impl FileIdentitySource {
         Self {
             alias: options.alias,
             key_paths: options.key_paths.into(),
-            certificates: load_certificates(&options.certificate_paths),
+            certificate_paths: options.certificate_paths,
+            certificates: None,
             prompter: options.prompter,
             is_prompting_allowed: options.is_prompting_allowed,
             passphrase_attempts: options.passphrase_attempts,
+            offered: options.offered,
             pending: VecDeque::new(),
         }
     }
 
     async fn load_key(&self, path: &Path) -> Result<Option<Arc<PrivateKey>>, PromptError> {
-        let Some(contents) = read_key_file(path) else {
-            return Ok(None);
-        };
-        match decode_secret_key(&contents, None) {
-            Ok(key) => Ok(Some(Arc::new(key))),
-            Err(error) if is_encrypted(&error, &contents) => self.unlock(path, &contents).await,
-            Err(error) => {
-                warn!(path = %path.display(), %error, "cannot read the identity file");
-                Ok(None)
+        let owned_path = path.to_owned();
+        let key = match run_blocking(move || inspect_key_file(&owned_path)).await {
+            KeyFile::Unusable => return Ok(None),
+            KeyFile::Plain(key) => Arc::new(*key),
+            KeyFile::Encrypted {
+                contents,
+                public_key,
+            } => {
+                if public_key.is_some_and(|public_key| self.offered.contains(&public_key)) {
+                    debug!(path = %path.display(), "identity already offered by the agent");
+                    return Ok(None);
+                }
+                match self.unlock(path, contents).await? {
+                    Some(key) => Arc::new(key),
+                    None => return Ok(None),
+                }
             }
+        };
+        if self.offered.contains(key.public_key()) {
+            debug!(path = %path.display(), "identity already offered by the agent");
+            return Ok(None);
         }
+        Ok(Some(key))
     }
 
     async fn unlock(
         &self,
         path: &Path,
-        contents: &str,
-    ) -> Result<Option<Arc<PrivateKey>>, PromptError> {
+        contents: Arc<Zeroizing<String>>,
+    ) -> Result<Option<PrivateKey>, PromptError> {
         if !self.is_prompting_allowed {
             debug!(path = %path.display(), "skipping an encrypted identity file: prompts are disabled");
             return Ok(None);
@@ -82,21 +114,33 @@ impl FileIdentitySource {
             if passphrase.is_empty() {
                 return Ok(None);
             }
-            match decode_secret_key(contents, Some(&passphrase)) {
-                Ok(key) => return Ok(Some(Arc::new(key))),
-                Err(error) => debug!(path = %path.display(), %error, "passphrase refused"),
+            let attempt_contents = Arc::clone(&contents);
+            let decrypted = run_blocking(move || decrypt_key(&attempt_contents, &passphrase)).await;
+            if decrypted.is_some() {
+                return Ok(decrypted);
             }
+            debug!(path = %path.display(), "passphrase refused");
         }
         warn!(path = %path.display(), "no valid passphrase given for the identity file");
         Ok(None)
     }
 
-    fn queue_identities(&mut self, key: Arc<PrivateKey>) {
+    async fn ensure_certificates_loaded(&mut self) -> &[Certificate] {
+        if self.certificates.is_none() {
+            let paths = self.certificate_paths.clone();
+            self.certificates = Some(run_blocking(move || load_certificates(&paths)).await);
+        }
+        self.certificates.as_deref().unwrap_or_default()
+    }
+
+    async fn queue_identities(&mut self, key: Arc<PrivateKey>) {
         let matching_certificate = self
-            .certificates
+            .ensure_certificates_loaded()
+            .await
             .iter()
             .find(|certificate| certificate.public_key() == key.public_key().key_data())
-            .cloned();
+            .cloned()
+            .map(Box::new);
         if matching_certificate.is_some() {
             self.pending.push_back(Identity::Key {
                 key: Arc::clone(&key),
@@ -121,10 +165,31 @@ impl IdentitySource for FileIdentitySource {
                 return Ok(None);
             };
             if let Some(key) = self.load_key(&path).await? {
-                self.queue_identities(key);
+                self.queue_identities(key).await;
             }
         }
     }
+}
+
+fn inspect_key_file(path: &Path) -> KeyFile {
+    let Some(contents) = read_key_file(path) else {
+        return KeyFile::Unusable;
+    };
+    match decode_secret_key(&contents, None) {
+        Ok(key) => KeyFile::Plain(Box::new(key)),
+        Err(error) if is_encrypted(&error, &contents) => KeyFile::Encrypted {
+            public_key: identity_file_public_key(path),
+            contents: Arc::new(contents),
+        },
+        Err(error) => {
+            warn!(path = %path.display(), %error, "cannot read the identity file");
+            KeyFile::Unusable
+        }
+    }
+}
+
+fn decrypt_key(contents: &Zeroizing<String>, passphrase: &Zeroizing<String>) -> Option<PrivateKey> {
+    decode_secret_key(contents, Some(passphrase)).ok()
 }
 
 fn read_key_file(path: &Path) -> Option<Zeroizing<String>> {
@@ -250,6 +315,7 @@ mod tests {
             prompter,
             is_prompting_allowed,
             passphrase_attempts: 3,
+            offered: Arc::new(OfferedKeys::default()),
         })
     }
 

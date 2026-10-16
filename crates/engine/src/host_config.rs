@@ -11,7 +11,7 @@ pub enum HostConfigError {
         /// The alias being resolved.
         alias: String,
         /// The underlying failure.
-        source: ssh_config::Error,
+        source: Box<ssh_config::Error>,
     },
 }
 
@@ -47,7 +47,7 @@ where
         let resolution = resolve(&self.sources, alias, &self.environment).map_err(|source| {
             HostConfigError::Resolution {
                 alias: alias.to_owned(),
-                source,
+                source: Box::new(source),
             }
         })?;
         for warning in &resolution.warnings {

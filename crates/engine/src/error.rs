@@ -86,12 +86,19 @@ pub enum TransportError {
         /// The port.
         port: u16,
     },
-    /// The host is configured with a proxy this version cannot use, and
-    /// connecting directly would bypass it.
-    #[error("{directive} is not supported yet")]
-    UnsupportedProxy {
-        /// The directive that asked for a proxy.
-        directive: &'static str,
+    /// The `ProxyCommand` could not be started.
+    #[error("cannot start the ProxyCommand \"{command}\": {source}")]
+    ProxyCommandSpawn {
+        /// The expanded command.
+        command: String,
+        /// The process failure.
+        source: io::Error,
+    },
+    /// The `ProxyCommand` process has no standard input or output to talk to.
+    #[error("the ProxyCommand \"{command}\" has no standard input or output")]
+    ProxyCommandStdio {
+        /// The expanded command.
+        command: String,
     },
     /// The connection to an address failed.
     #[error("cannot connect to {address}: {source}")]
@@ -108,6 +115,25 @@ pub enum TransportError {
         address: SocketAddr,
         /// The configured bound.
         timeout: Duration,
+    },
+}
+
+/// Why a `ProxyJump` chain cannot be followed.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum JumpChainError {
+    /// A host is reached through itself.
+    #[error("ProxyJump cycle: {}", chain.join(" -> "))]
+    Cycle {
+        /// The aliases being connected, outermost first, ending with the repeated one.
+        chain: Vec<String>,
+    },
+    /// The chain of jump hosts, each with its own `ProxyJump`, is too long.
+    #[error("ProxyJump chain deeper than {maximum}: {}", chain.join(" -> "))]
+    TooDeep {
+        /// The aliases being connected, outermost first.
+        chain: Vec<String>,
+        /// The depth limit.
+        maximum: usize,
     },
 }
 
@@ -141,9 +167,26 @@ pub enum ConnectError {
         /// The methods that were attempted, in order.
         tried: Vec<AuthenticationMethod>,
     },
+    /// A jump host could not be reached or authenticated.
+    #[error("jump host \"{hop}\": {source}")]
+    Jump {
+        /// The alias of the jump host that failed.
+        hop: String,
+        /// Why it failed.
+        source: Box<ConnectError>,
+    },
+    /// The `ProxyJump` chain loops or is too deep.
+    #[error(transparent)]
+    JumpChain(#[from] JumpChainError),
     /// A secret could not be asked.
     #[error(transparent)]
     Prompt(#[from] PromptError),
+    /// The channel to the next jump host or the target could not be opened.
+    #[error("cannot tunnel to the next host: {0}")]
+    Tunnel(#[from] SessionError),
+    /// The SSH agent failed to sign during authentication.
+    #[error("the SSH agent failed: {0}")]
+    Agent(Box<russh::keys::Error>),
     /// The SSH connection broke during authentication.
     #[error("the SSH connection failed during authentication: {0}")]
     Protocol(#[from] russh::Error),
@@ -160,7 +203,7 @@ pub enum SessionError {
         /// The target port.
         port: u16,
         /// The SSH failure.
-        source: russh::Error,
+        source: Box<russh::Error>,
     },
     /// The disconnect message could not be sent.
     #[error("cannot disconnect: {0}")]
