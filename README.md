@@ -13,6 +13,7 @@ Portable SSH tunnel manager (Windows + Linux, macOS without regressions): a ligh
 | `crates/engine` | Sessions, auth, forwards, states, metrics, store |
 | `crates/ipc` | Daemon ↔ clients protocol, client and server |
 | `crates/tunneler` | `tunneler` binary: daemon, CLI, tray |
+| `crates/test-support` | In-process SSH server and fixtures shared by the integration tests |
 | `app/` | `tunneler-ui`: Tauri 2 (`src-tauri`) + React 19 (`src`) |
 
 ## Prerequisites
@@ -45,3 +46,15 @@ pnpm tauri dev  # run the UI (needs the Linux deps above)
 # UI Rust crate (after `pnpm build`, which produces app/dist)
 cargo clippy -p tunneler-ui --all-targets --locked -- -D warnings
 ```
+
+## Usage
+
+```sh
+tunneler                 # start the daemon (or ask the running one to show its window)
+tunneler up dev          # start every tunnel named or tagged "dev" (starts the daemon if needed)
+tunneler status          # runtime state, one tunnel per line (--json for scripts)
+tunneler down --all
+tunneler quit            # asks for confirmation when tunnels are active (--yes to skip)
+```
+
+Tunnels live in `tunnels.toml` (`~/.config/tunneler/` on Linux, `%APPDATA%\tunneler\` on Windows), reloaded on change. `tunneler --help` lists every command, the environment variables and the exit codes.

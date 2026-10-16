@@ -35,7 +35,9 @@ CI (`.github/workflows/ci.yml`) runs the same commands on Linux, Windows and mac
 
 ### Rust
 - Edition 2024, toolchain pinned in `rust-toolchain.toml`. Every crate sets `[lints] workspace = true`; lints live in the root `Cargo.toml` (clippy pedantic, `unsafe_code = "deny"`, no `unwrap`/`expect` outside tests).
-- Unit tests co-located (`#[cfg(test)]`), integration tests in each crate's `tests/`, using an in-process russh server (never a system `sshd`).
+- Unit tests co-located (`#[cfg(test)]`), integration tests in each crate's `tests/`, using the in-process russh server from `crates/test-support` (never a system `sshd`). `test-support` must never depend on `engine` (a dev-dependency cycle duplicates the engine types); engine-trait fakes live in `crates/engine/tests/support/`.
+- `ipc` never depends on `engine`: wire DTOs are the protocol contract (golden JSON tests), the daemon maps between them.
+- Windows-only code is linted locally with `CC_x86_64_pc_windows_gnu=gcc AR_x86_64_pc_windows_gnu=ar cargo clippy --workspace --exclude tunneler-ui --all-targets --target x86_64-pc-windows-gnu -- -D warnings`.
 - `engine` depends on abstractions (`CredentialPrompter`, `HostKeyVerifier`, `Clock`…), not on IPC or UI.
 - Add dependencies in the phase that needs them, not ahead of time.
 

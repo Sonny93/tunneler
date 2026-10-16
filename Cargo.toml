@@ -12,6 +12,7 @@ publish = false
 [workspace.dependencies]
 async-trait = "0.1"
 base64 = "0.22"
+clap = { version = "4", features = ["derive", "env"] }
 directories = "6"
 getrandom = "0.4"
 glob = "0.3"
@@ -20,8 +21,10 @@ interprocess = { version = "2.4", default-features = false, features = ["tokio"]
 known-hosts = { path = "crates/known-hosts" }
 notify = "8"
 notify-debouncer-mini = { version = "0.7", default-features = false }
+open = "5"
 pretty_assertions = "1"
 rustix = { version = "1", features = ["process"] }
+rpassword = "7"
 russh = { version = "0.64", default-features = false, features = ["ring", "flate2", "rsa"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -30,12 +33,15 @@ sha1_smol = "1"
 sha2 = "0.11"
 ssh-config = { path = "crates/ssh-config" }
 tempfile = "3"
+test-support = { path = "crates/test-support" }
 thiserror = "2"
 toml_edit = { version = "0.25", features = ["serde"] }
 tokio = { version = "1", default-features = false }
 tokio-stream = { version = "0.1", default-features = false, features = ["net"] }
 tokio-util = { version = "0.7", default-features = false }
 tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["env-filter", "fmt", "ansi", "std"] }
 ulid = { version = "3", features = ["serde"] }
 whoami = "2"
 zeroize = "1"

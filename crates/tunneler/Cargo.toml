@@ -8,3 +8,30 @@ publish.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+async-trait.workspace = true
+clap.workspace = true
+directories.workspace = true
+engine = { path = "../engine" }
+ipc = { path = "../ipc" }
+open.workspace = true
+rpassword.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+ssh-config.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time", "sync", "signal", "io-util", "process"] }
+tokio-util = { workspace = true, features = ["rt"] }
+tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true
+ulid.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+russh.workspace = true
+tempfile.workspace = true
+test-support.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time", "process", "io-util"] }

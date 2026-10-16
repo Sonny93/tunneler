@@ -7,6 +7,7 @@ const FAST_BCRYPT_ROUNDS: u32 = 2;
 const BCRYPT_SALT_SIZE: usize = 16;
 const CHECK_INTEGER: u32 = 0x1234_5678;
 
+/// A fresh random key of the given algorithm.
 pub fn generate_key(algorithm: Algorithm) -> PrivateKey {
     PrivateKey::random(&mut safe_rng(), algorithm).unwrap()
 }
@@ -27,16 +28,16 @@ pub fn write_private_key(
     path
 }
 
-/// A key committed under `tests/fixtures`, for algorithms too slow to
-/// generate in debug builds (RSA).
+/// A key committed under this crate's `fixtures` directory, for algorithms too
+/// slow to generate in debug builds (RSA).
 pub fn fixture_key(name: &str) -> PrivateKey {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
         .join("fixtures")
         .join(name);
     PrivateKey::from_openssh(std::fs::read(path).unwrap()).unwrap()
 }
 
+/// The OpenSSH SHA-256 fingerprint of a public key.
 pub fn fingerprint_of(key: &PublicKey) -> String {
     key.fingerprint(HashAlg::Sha256).to_string()
 }

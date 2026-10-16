@@ -10,8 +10,8 @@ use std::time::{Duration, SystemTime};
 
 use engine::{
     Clock, Engine, EngineDependencies, EngineError, EngineEvent, EngineOptions, FailureReason,
-    HostKeyDecision, LogLevel, NewTunnel, Store, SystemClock, TargetHealth, TunnelId, TunnelKind,
-    TunnelState,
+    HostKeyDecision, LogLevel, NewTunnel, Settings, Store, StoreError, SystemClock, TargetHealth,
+    TunnelId, TunnelKind, TunnelState,
 };
 use russh::keys::{Algorithm, PrivateKey};
 use support::{
@@ -1498,4 +1498,49 @@ async fn should_save_the_generated_ids_when_the_engine_starts_on_a_file_without_
     let (reopened, outcome) = Store::open(path).unwrap();
     assert!(!outcome.was_normalized);
     assert_eq!(reopened.document().tunnels[0].id, engine_id);
+}
+
+#[tokio::test]
+async fn should_persist_and_apply_the_settings_when_they_are_updated() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let settings = Settings {
+        keepalive_max: 9,
+        ..harness.engine.snapshot().settings
+    };
+
+    harness.engine.update_settings(settings).await.unwrap();
+
+    let stored = std::fs::read_to_string(harness.store_path()).unwrap();
+    assert_eq!(
+        (
+            harness.engine.snapshot().settings.keepalive_max,
+            stored.contains("keepalive_max = 9")
+        ),
+        (9, true)
+    );
+    wait_for_event(&mut harness.events, WAIT, |event| {
+        (*event == EngineEvent::ConfigReloaded).then_some(())
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn should_write_nothing_when_the_updated_settings_are_invalid() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let before = std::fs::read_to_string(harness.store_path()).unwrap();
+    let settings = Settings {
+        default_bind_address: String::new(),
+        ..harness.engine.snapshot().settings
+    };
+
+    let error = harness.engine.update_settings(settings).await.unwrap_err();
+
+    assert!(matches!(
+        error,
+        EngineError::Store(StoreError::Validation(_))
+    ));
+    assert_eq!(
+        std::fs::read_to_string(harness.store_path()).unwrap(),
+        before
+    );
 }

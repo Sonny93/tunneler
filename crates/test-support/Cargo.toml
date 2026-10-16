@@ -1,0 +1,18 @@
+[package]
+name = "test-support"
+description = "Test fixtures shared by the integration tests: an in-process SSH server, keys, listeners and client-side files"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+russh.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt", "net", "time", "sync", "macros", "io-util"] }
+
+[target.'cfg(unix)'.dependencies]
+tokio-stream.workspace = true

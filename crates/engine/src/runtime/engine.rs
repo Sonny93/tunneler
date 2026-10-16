@@ -246,6 +246,20 @@ impl Engine {
         Ok(())
     }
 
+    /// Validates the settings, saves them to the store and applies them: new
+    /// sessions and the running tunnels see them at once.
+    pub async fn update_settings(&self, settings: Settings) -> Result<(), EngineError> {
+        let _serialized = self.inner.mutation.lock().await;
+        self.ensure_running()?;
+        let mut document = self.inner.store.document();
+        document.settings = settings.clone();
+        let store = Arc::clone(&self.inner.store);
+        run_blocking(move || store.save(document)).await?;
+        self.inner.settings.send_replace(settings);
+        self.inner.bus.publish(EngineEvent::ConfigReloaded);
+        Ok(())
+    }
+
     /// Stops the tunnel if it runs, removes it and saves the store.
     pub async fn delete_tunnel(&self, id: TunnelId) -> Result<(), EngineError> {
         let _serialized = self.inner.mutation.lock().await;

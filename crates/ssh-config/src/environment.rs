@@ -152,8 +152,11 @@ impl LocalEnvironment for SystemEnvironment {
     }
 
     fn command_succeeds(&self, command: &str) -> Result<bool, EnvironmentError> {
-        let status = self
-            .shell_command(command)
+        #[cfg(unix)]
+        let mut shell_command = self.shell_command(command);
+        #[cfg(windows)]
+        let mut shell_command = Self::shell_command(command);
+        let status = shell_command
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -178,7 +181,7 @@ impl SystemEnvironment {
     }
 
     #[cfg(windows)]
-    fn shell_command(&self, command: &str) -> Command {
+    fn shell_command(command: &str) -> Command {
         let mut shell_command = Command::new("cmd");
         shell_command.arg("/C").arg(command);
         shell_command

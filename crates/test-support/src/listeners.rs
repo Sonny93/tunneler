@@ -6,15 +6,18 @@ use tokio::task::JoinHandle;
 
 /// A TCP server that sends back every byte it receives.
 pub struct EchoServer {
+    /// The loopback port it listens on.
     pub port: u16,
     task: JoinHandle<()>,
 }
 
 impl EchoServer {
+    /// Listens on a random loopback port.
     pub async fn start() -> Self {
         Self::start_on(0).await
     }
 
+    /// Listens on the given loopback port.
     pub async fn start_on(port: u16) -> Self {
         let listener = TcpListener::bind(("127.0.0.1", port)).await.unwrap();
         let port = listener.local_addr().unwrap().port();
@@ -57,11 +60,13 @@ async fn echo(mut stream: TcpStream) {
 
 /// A TCP listener that accepts connections and never says a word.
 pub struct SilentListener {
+    /// The loopback port it listens on.
     pub port: u16,
     task: JoinHandle<()>,
 }
 
 impl SilentListener {
+    /// Listens on a random loopback port.
     pub async fn start() -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();

@@ -20,8 +20,11 @@ const BRIDGE_BUFFER_SIZE: usize = 64 * 1024;
 /// What one account of the test server accepts.
 #[derive(Clone, Default)]
 pub struct TestUser {
+    /// The password the account accepts.
     pub password: Option<String>,
+    /// The public keys the account accepts.
     pub authorized_keys: Vec<PublicKey>,
+    /// The question and expected answer of each keyboard-interactive prompt.
     pub keyboard_interactive: Vec<(String, String)>,
 }
 
@@ -83,6 +86,8 @@ impl Drop for OpenConnection {
     }
 }
 
+/// Configures a [`TestServer`].
+#[must_use]
 pub struct TestServerBuilder {
     port: u16,
     host_keys: Vec<PrivateKey>,
@@ -93,36 +98,43 @@ pub struct TestServerBuilder {
 }
 
 impl TestServerBuilder {
+    /// Listens on this port instead of a random one.
     pub fn on_port(mut self, port: u16) -> Self {
         self.port = port;
         self
     }
 
+    /// Adds a host key the server presents.
     pub fn host_key(mut self, key: PrivateKey) -> Self {
         self.host_keys.push(key);
         self
     }
 
+    /// Adds an account.
     pub fn user(mut self, name: &str, user: TestUser) -> Self {
         self.users.insert(name.to_owned(), user);
         self
     }
 
+    /// Restricts the authentication methods the server offers.
     pub fn methods(mut self, methods: &[MethodKind]) -> Self {
         self.methods = Some(methods.to_vec());
         self
     }
 
+    /// Requires a public key and then a password.
     pub fn requiring_publickey_then_password(mut self) -> Self {
         self.requires_publickey_then_password = true;
         self
     }
 
+    /// Refuses every `direct-tcpip` channel.
     pub fn refusing_direct_tcpip(mut self) -> Self {
         self.allows_direct_tcpip = false;
         self
     }
 
+    /// Starts listening on loopback.
     pub async fn start(self) -> TestServer {
         let listener = TcpListener::bind(("127.0.0.1", self.port)).await.unwrap();
         let port = listener.local_addr().unwrap().port();
@@ -186,7 +198,9 @@ impl TestServerBuilder {
 
 /// An in-process SSH server on a random loopback port.
 pub struct TestServer {
+    /// The loopback port it listens on.
     pub port: u16,
+    /// The host keys it presents.
     pub host_keys: Vec<PrivateKey>,
     connection_count: Arc<AtomicUsize>,
     direct_tcpip_targets: Arc<Mutex<Vec<(String, u16)>>>,
@@ -199,6 +213,7 @@ pub struct TestServer {
 }
 
 impl TestServer {
+    /// A builder for a server with no host key and no account.
     pub fn builder() -> TestServerBuilder {
         TestServerBuilder {
             port: 0,
@@ -210,10 +225,12 @@ impl TestServer {
         }
     }
 
+    /// The public half of the host key at `index`.
     pub fn public_host_key(&self, index: usize) -> PublicKey {
         self.host_keys[index].public_key().clone()
     }
 
+    /// The connections accepted since the server started.
     pub fn connection_count(&self) -> usize {
         self.connection_count.load(Ordering::SeqCst)
     }

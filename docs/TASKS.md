@@ -141,16 +141,36 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Lacunes connues** : partage des sauts entre cibles ; Windows/macOS non vérifiés. Rechargement : un changement `None` → valeur par défaut explicite redémarre le tunnel (comparaison des champs bruts).
 
-## Phase 5 — IPC, daemon, CLI
-- [ ] 5.1 Types du protocole (serde) + versionnage + handshake
-- [ ] 5.2 Serveur IPC (`interprocess` tokio), socket `0600` / named pipe ACL utilisateur, `PeerCreds`
-- [ ] 5.3 Client IPC réutilisable (UI + CLI)
-- [ ] 5.4 Daemon : single instance (bind = verrou, reclaim socket orphelin), 2ᵉ instance → `ui.show`
-- [ ] 5.5 CLI : `up`, `down`, `status`, `list`, `open`, `quit` (sortie lisible + `--json`)
-- [ ] 5.6 Logs fichier tournant (`tracing`)
-- [ ] 5.7 CLI accessible : `NO_COLOR`, `TERM=dumb`, `--color auto|always|never`, détection TTY (pas de couleur/spinner/réécriture hors TTY), symboles + mots avec repli ASCII, sortie ligne à ligne sans tableaux en caractères de dessin
-- [ ] 5.8 CLI : erreurs sur stderr avec cause + action suggérée, codes de sortie documentés, `--yes` pour les confirmations, aucun prompt hors TTY, `--help` avec exemples
-- [ ] 5.9 Tests de sortie CLI (snapshots TTY / non-TTY / `NO_COLOR` / `--json`)
+## Phase 5 — IPC, daemon, CLI ✔
+- [x] 5.1 Types du protocole (serde) + versionnage + handshake
+  - `ipc` ne dépend pas d'`engine` : DTO propres (camelCase, enums taggés `kind`, horodatages en **epoch ms**), mapping dans le daemon. Contrat figé par des tests JSON « golden » (`crates/ipc/tests/protocol_contract.rs`).
+  - `hello { protocolVersion, clientKind, clientVersion, subscribeEvents, canPrompt }` ; version différente → `protocol_mismatch` puis fermeture ; timeout de handshake 10 s. Codes d'erreur fermés (`invalid_request`, `unknown_method`, `not_found`, `validation_failed`, `tunnels_running`, `prompt_not_pending`, `ui_unavailable`…). Prompts corrélés par `promptId`, `prompt.resolved` pour fermer les dialogues ailleurs.
+  - Pas encore d'`external.*`, `hosts.*`, `x11.*`, `import.*` ni d'états `External`/`Conflict` : ajouts additifs dans leurs phases (changement de protocole à versionner).
+- [x] 5.2 Serveur IPC (`interprocess` tokio), socket `0600` / named pipe ACL utilisateur, `PeerCreds`
+  - Unix : `0600` posé avant le `bind` (fchmod), uid du pair vérifié (fail closed). Sans `$XDG_RUNTIME_DIR` (et sous macOS) : `<tmp>/tunneler-<uid>/tunneler.sock` en `0700`, refusé si le dossier n'est pas privé.
+  - Windows : pipe `tunneler-<user>`, SDDL `D:P(A;;GA;;;OW)(A;;GA;;;SY)` sans `unsafe` ; pas de contrôle de pair, l'ACL est la frontière. **Jamais exécuté.**
+  - Requêtes concurrentes par connexion, file sortante bornée (client lent = déconnecté), lignes ≤ 1 Mio.
+- [x] 5.3 Client IPC réutilisable (UI + CLI)
+  - `IpcClient` typé, corrélation par id, `take_events()` à appeler avant de partager le client (pont Tauri).
+- [x] 5.4 Daemon : single instance (bind = verrou, reclaim socket orphelin), 2ᵉ instance → `ui.show`
+  - `tunneler` sans argument : daemon au premier plan, ou `ui.show` si un daemon répond (répond `ui_unavailable` tant qu'il n'y a pas d'UI). Options `--socket`, `--config`, `--ssh-config` (équivalent `ssh -F`) + variables `TUNNELER_*`.
+  - Broker de prompts : envoyés aux clients `canPrompt`, premier qui répond gagne, timeout 120 s, aucun répondeur → annulation/refus (seam isolée pour lancer l'UI en phase 7). Sonde de santé active tant qu'un client `ui` est connecté.
+  - `settings.update` → `Engine::update_settings` (même verrou et même store que le CRUD).
+- [x] 5.5 CLI : `up`, `down`, `status`, `list`, `open`, `quit` (sortie lisible + `--json`)
+  - `up` démarre le daemon détaché s'il est absent, attend Active/Failed (`--timeout`, `--no-wait`) et répond aux prompts sur le TTY (passphrase masquée, clé d'hôte `y`/`o`/`N`). Résolution : nom exact (insensible à la casse) puis tag, ambiguïté → `--tag` (sauf si le tag ne désigne que ce même tunnel).
+  - `list` passe par le daemon (exit 3 sans daemon). `down` n'attend pas la fermeture des ports.
+- [x] 5.6 Logs fichier tournant (`tracing`)
+  - Daemon : `TUNNELER_LOG` (défaut `info`), rotation quotidienne, 7 fichiers dans `<data local>/tunneler/logs`, + stderr si TTY. CLI silencieuse sauf `TUNNELER_LOG`.
+- [x] 5.7 CLI accessible : `NO_COLOR`, `TERM=dumb`, `--color auto|always|never`, détection TTY (pas de couleur/spinner/réécriture hors TTY), symboles + mots avec repli ASCII, sortie ligne à ligne sans tableaux en caractères de dessin
+  - Heures de santé affichées en **UTC** (pas d'API d'heure locale dans std) — à revoir si besoin d'une dépendance tz.
+- [x] 5.8 CLI : erreurs sur stderr avec cause + action suggérée, codes de sortie documentés, `--yes` pour les confirmations, aucun prompt hors TTY, `--help` avec exemples
+  - Codes : 0 ok, 1 erreur (dont « déjà lancé »), 2 usage, 3 daemon absent, 4 échec partiel (`up`), 5 confirmation impossible (hors TTY sans `--yes`), 6 timeout.
+- [x] 5.9 Tests de sortie CLI (snapshots TTY / non-TTY / `NO_COLOR` / `--json`)
+  - 182 tests unitaires tunneler + 16 E2E sur le vrai binaire (daemon auto-lancé, echo à travers les tunnels, `NO_COLOR` sans séquences ANSI, quit refusé hors TTY, socket orphelin récupéré après `kill -9`), stables sur 6 exécutions.
+  - Serveur SSH de test extrait dans `crates/test-support` (dépend de russh seulement, jamais d'`engine`) ; les fakes des traits engine restent dans `crates/engine/tests/support/`.
+  - Prompts interactifs vérifiés une fois à la main sous pty (`script`), pas de test conservé.
+
+**Vérifications** : 1348 tests verts. Lint Windows de tout le workspace (hors `tunneler-ui`) propre en cross-clippy `x86_64-pc-windows-gnu` (avec `CC/AR` pointant sur gcc/ar faute de mingw), mais rien d'exécuté sous Windows ni macOS (détachement, named pipe, signaux, `open`).
 
 ## Phase 6 — UI Tauri MVP
 - [ ] 6.1 Pont Tauri ↔ IPC (commandes + relais des événements), spawn du daemon si absent
