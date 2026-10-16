@@ -11,12 +11,18 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
+directories.workspace = true
 known-hosts.workspace = true
+notify.workspace = true
+notify-debouncer-mini.workspace = true
 russh.workspace = true
+serde.workspace = true
 ssh-config.workspace = true
 thiserror.workspace = true
+toml_edit.workspace = true
 tokio = { workspace = true, features = ["rt", "net", "time", "sync", "macros", "io-util", "process"] }
 tracing.workspace = true
+ulid.workspace = true
 zeroize.workspace = true
 
 [dev-dependencies]

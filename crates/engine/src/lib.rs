@@ -37,6 +37,7 @@ mod host_config;
 mod host_key;
 mod prompter;
 mod session;
+mod store;
 mod transport;
 
 pub use agent::{AgentEndpoint, AgentLocator, SystemAgentLocator};
@@ -52,3 +53,8 @@ pub use prompter::{
     PromptError,
 };
 pub use session::SshSession;
+pub use store::{
+    HostOverrides, InvalidTunnelId, LoadOutcome, Settings, SourceLocation, Store, StoreDocument,
+    StoreError, StoreEvent, StoreWatcher, TagProblem, TunnelDefinition, TunnelId, TunnelKind,
+    TunnelReference, ValidationError, X11Launcher, default_store_path,
+};

@@ -1,0 +1,878 @@
+use std::collections::HashMap;
+use std::fmt;
+use std::time::Duration;
+
+use thiserror::Error;
+
+use super::model::{Settings, StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher};
+
+const MIN_PORT: u16 = 1;
+
+/// Names a tunnel in an error message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TunnelReference {
+    /// The tunnel identifier.
+    pub id: TunnelId,
+    /// The tunnel name.
+    pub name: String,
+}
+
+impl TunnelReference {
+    fn of(tunnel: &TunnelDefinition) -> Self {
+        Self {
+            id: tunnel.id,
+            name: tunnel.name.clone(),
+        }
+    }
+}
+
+impl fmt::Display for TunnelReference {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "tunnel \"{}\" ({})", self.name, self.id)
+    }
+}
+
+/// What is wrong with a tag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum TagProblem {
+    /// The tag is empty.
+    #[error("it is empty")]
+    Empty,
+    /// The tag contains whitespace.
+    #[error("it contains whitespace")]
+    ContainsWhitespace,
+    /// The tag contains a comma.
+    #[error("it contains a comma")]
+    ContainsComma,
+}
+
+/// A rule broken by the content of the store.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum ValidationError {
+    /// Two tunnels share an identifier.
+    #[error("{tunnel}: the id is already used by another tunnel")]
+    DuplicateId {
+        /// The second tunnel carrying the identifier.
+        tunnel: TunnelReference,
+    },
+    /// Two tunnels share a name, ignoring case.
+    #[error("{tunnel}: the name is already used by {first} (names are compared ignoring case)")]
+    DuplicateName {
+        /// The later tunnel.
+        tunnel: TunnelReference,
+        /// The first tunnel carrying the name.
+        first: TunnelReference,
+    },
+    /// The name is empty.
+    #[error("{tunnel}: the name must not be empty")]
+    EmptyName {
+        /// The offending tunnel.
+        tunnel: TunnelReference,
+    },
+    /// The host alias is empty.
+    #[error("{tunnel}: the host must not be empty")]
+    EmptyHost {
+        /// The offending tunnel.
+        tunnel: TunnelReference,
+    },
+    /// An optional text field is present but empty.
+    #[error("{tunnel}: {field} must not be empty when set")]
+    EmptyField {
+        /// The offending tunnel.
+        tunnel: TunnelReference,
+        /// The field name as written in the file.
+        field: &'static str,
+    },
+    /// The listen port is zero.
+    #[error("{tunnel}: listen_port must be between 1 and 65535, found 0")]
+    ZeroListenPort {
+        /// The offending tunnel.
+        tunnel: TunnelReference,
+    },
+    /// The target port is zero.
+    #[error("{tunnel}: target_port must be between 1 and 65535, found 0")]
+    ZeroTargetPort {
+        /// The offending tunnel.
+        tunnel: TunnelReference,
+    },
+    /// Two local or dynamic tunnels listen on the same local address and port.
+    #[error("{tunnel}: {listen_address}:{listen_port} is already used by {other}")]
+    LocalListenConflict {
+        /// The later tunnel.
+        tunnel: TunnelReference,
+        /// The tunnel that holds the address first.
+        other: TunnelReference,
+        /// The contested address.
+        listen_address: String,
+        /// The contested port.
+        listen_port: u16,
+    },
+    /// Two remote tunnels of the same host listen on the same remote address
+    /// and port.
+    #[error("{tunnel}: {listen_address}:{listen_port} on host {host} is already used by {other}")]
+    RemoteListenConflict {
+        /// The later tunnel.
+        tunnel: TunnelReference,
+        /// The tunnel that holds the address first.
+        other: TunnelReference,
+        /// The host both tunnels go through.
+        host: String,
+        /// The contested address.
+        listen_address: String,
+        /// The contested port.
+        listen_port: u16,
+    },
+    /// A tag breaks the tag syntax.
+    #[error("{tunnel}: tag \"{tag}\" is invalid: {problem}")]
+    InvalidTag {
+        /// The offending tunnel.
+        tunnel: TunnelReference,
+        /// The tag.
+        tag: String,
+        /// What is wrong with it.
+        problem: TagProblem,
+    },
+    /// A tunnel lists the same tag twice.
+    #[error("{tunnel}: tag \"{tag}\" is listed more than once")]
+    DuplicateTag {
+        /// The offending tunnel.
+        tunnel: TunnelReference,
+        /// The repeated tag.
+        tag: String,
+    },
+    /// The first reconnection delay exceeds the maximum delay.
+    #[error(
+        "settings: reconnect_initial_delay_ms ({}) must not exceed reconnect_max_delay_ms ({})",
+        initial.as_millis(),
+        max.as_millis()
+    )]
+    ReconnectDelaysOutOfOrder {
+        /// The configured initial delay.
+        initial: Duration,
+        /// The configured maximum delay.
+        max: Duration,
+    },
+    /// The first reconnection delay is zero, which would retry in a busy loop.
+    #[error("settings: reconnect_initial_delay_ms must be greater than 0")]
+    ZeroReconnectInitialDelay,
+    /// Keepalive is enabled but tolerates no missed probe.
+    #[error(
+        "settings: keepalive_max must be greater than 0 when keepalive is enabled (set keepalive_interval_s to 0 to disable it)"
+    )]
+    ZeroKeepaliveMax,
+    /// A default bind address is empty.
+    #[error("settings: {setting} must not be empty")]
+    EmptyBindAddress {
+        /// The setting name as written in the file.
+        setting: &'static str,
+    },
+    /// A tag of `start_on_launch_tags` breaks the tag syntax.
+    #[error("settings: start_on_launch_tags contains the invalid tag \"{tag}\": {problem}")]
+    InvalidStartOnLaunchTag {
+        /// The tag.
+        tag: String,
+        /// What is wrong with it.
+        problem: TagProblem,
+    },
+    /// A launcher field is empty.
+    #[error("x11_launchers entry {position}: {field} must not be empty")]
+    EmptyLauncherField {
+        /// The 1-based position of the launcher.
+        position: usize,
+        /// The field name as written in the file.
+        field: &'static str,
+    },
+    /// Two launchers share a host and a name.
+    #[error("x11_launchers: \"{name}\" is defined more than once for host {host}")]
+    DuplicateLauncher {
+        /// The host alias.
+        host: String,
+        /// The launcher name.
+        name: String,
+    },
+}
+
+/// Checks every rule and returns all violations, not just the first.
+pub(crate) fn validate(document: &StoreDocument) -> Result<(), Vec<ValidationError>> {
+    let errors: Vec<ValidationError> = validate_settings(&document.settings)
+        .into_iter()
+        .chain(validate_tunnels(document))
+        .chain(validate_launchers(&document.x11_launchers))
+        .collect();
+    if errors.is_empty() {
+        return Ok(());
+    }
+    Err(errors)
+}
+
+fn validate_settings(settings: &Settings) -> Vec<ValidationError> {
+    let mut errors = Vec::new();
+    if settings.reconnect_initial_delay.is_zero() {
+        errors.push(ValidationError::ZeroReconnectInitialDelay);
+    }
+    if settings.reconnect_initial_delay > settings.reconnect_max_delay {
+        errors.push(ValidationError::ReconnectDelaysOutOfOrder {
+            initial: settings.reconnect_initial_delay,
+            max: settings.reconnect_max_delay,
+        });
+    }
+    if !settings.keepalive_interval.is_zero() && settings.keepalive_max == 0 {
+        errors.push(ValidationError::ZeroKeepaliveMax);
+    }
+    errors.extend(validate_bind_addresses(settings));
+    errors.extend(settings.start_on_launch_tags.iter().filter_map(|tag| {
+        find_tag_problem(tag).map(|problem| ValidationError::InvalidStartOnLaunchTag {
+            tag: tag.clone(),
+            problem,
+        })
+    }));
+    errors
+}
+
+fn validate_bind_addresses(settings: &Settings) -> Vec<ValidationError> {
+    [
+        ("default_bind_address", &settings.default_bind_address),
+        (
+            "default_remote_bind_address",
+            &settings.default_remote_bind_address,
+        ),
+    ]
+    .into_iter()
+    .filter(|(_, address)| address.trim().is_empty())
+    .map(|(setting, _)| ValidationError::EmptyBindAddress { setting })
+    .collect()
+}
+
+fn validate_tunnels(document: &StoreDocument) -> Vec<ValidationError> {
+    let tunnels = &document.tunnels;
+    tunnels
+        .iter()
+        .flat_map(validate_tunnel)
+        .chain(find_duplicate_ids(tunnels))
+        .chain(find_duplicate_names(tunnels))
+        .chain(find_listen_conflicts(tunnels, &document.settings))
+        .collect()
+}
+
+fn validate_tunnel(tunnel: &TunnelDefinition) -> Vec<ValidationError> {
+    let reference = TunnelReference::of(tunnel);
+    let mut errors = Vec::new();
+    if tunnel.name.trim().is_empty() {
+        errors.push(ValidationError::EmptyName {
+            tunnel: reference.clone(),
+        });
+    }
+    if tunnel.host.trim().is_empty() {
+        errors.push(ValidationError::EmptyHost {
+            tunnel: reference.clone(),
+        });
+    }
+    errors.extend(validate_optional_fields(tunnel, &reference));
+    if tunnel.listen_port < MIN_PORT {
+        errors.push(ValidationError::ZeroListenPort {
+            tunnel: reference.clone(),
+        });
+    }
+    if tunnel.target_port.is_some_and(|port| port < MIN_PORT) {
+        errors.push(ValidationError::ZeroTargetPort {
+            tunnel: reference.clone(),
+        });
+    }
+    errors.extend(validate_tags(tunnel, &reference));
+    errors
+}
+
+fn validate_optional_fields(
+    tunnel: &TunnelDefinition,
+    reference: &TunnelReference,
+) -> Vec<ValidationError> {
+    [
+        ("listen_address", &tunnel.listen_address),
+        ("target_host", &tunnel.target_host),
+    ]
+    .into_iter()
+    .filter(|(_, value)| value.as_deref().is_some_and(|text| text.trim().is_empty()))
+    .map(|(field, _)| ValidationError::EmptyField {
+        tunnel: reference.clone(),
+        field,
+    })
+    .collect()
+}
+
+fn validate_tags(tunnel: &TunnelDefinition, reference: &TunnelReference) -> Vec<ValidationError> {
+    let mut errors = Vec::new();
+    for (position, tag) in tunnel.tags.iter().enumerate() {
+        if let Some(problem) = find_tag_problem(tag) {
+            errors.push(ValidationError::InvalidTag {
+                tunnel: reference.clone(),
+                tag: tag.clone(),
+                problem,
+            });
+        } else if tunnel.tags[..position].contains(tag) {
+            errors.push(ValidationError::DuplicateTag {
+                tunnel: reference.clone(),
+                tag: tag.clone(),
+            });
+        }
+    }
+    errors
+}
+
+fn find_tag_problem(tag: &str) -> Option<TagProblem> {
+    if tag.is_empty() {
+        return Some(TagProblem::Empty);
+    }
+    if tag.contains(char::is_whitespace) {
+        return Some(TagProblem::ContainsWhitespace);
+    }
+    if tag.contains(',') {
+        return Some(TagProblem::ContainsComma);
+    }
+    None
+}
+
+fn find_duplicate_ids(tunnels: &[TunnelDefinition]) -> Vec<ValidationError> {
+    let mut seen = Vec::new();
+    let mut errors = Vec::new();
+    for tunnel in tunnels {
+        if seen.contains(&tunnel.id) {
+            errors.push(ValidationError::DuplicateId {
+                tunnel: TunnelReference::of(tunnel),
+            });
+        }
+        seen.push(tunnel.id);
+    }
+    errors
+}
+
+fn find_duplicate_names(tunnels: &[TunnelDefinition]) -> Vec<ValidationError> {
+    let mut first_by_name: HashMap<String, &TunnelDefinition> = HashMap::new();
+    let mut errors = Vec::new();
+    for tunnel in tunnels {
+        let normalized_name = tunnel.name.trim().to_lowercase();
+        if normalized_name.is_empty() {
+            continue;
+        }
+        match first_by_name.get(&normalized_name) {
+            Some(first) => errors.push(ValidationError::DuplicateName {
+                tunnel: TunnelReference::of(tunnel),
+                first: TunnelReference::of(first),
+            }),
+            None => {
+                first_by_name.insert(normalized_name, tunnel);
+            }
+        }
+    }
+    errors
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+struct ListenEndpoint {
+    remote_host: Option<String>,
+    address: String,
+    port: u16,
+}
+
+impl ListenEndpoint {
+    fn of(tunnel: &TunnelDefinition, settings: &Settings) -> Self {
+        let remote_host = match tunnel.kind {
+            TunnelKind::Remote => Some(tunnel.host.clone()),
+            TunnelKind::Local | TunnelKind::Dynamic => None,
+        };
+        Self {
+            remote_host,
+            address: tunnel
+                .effective_listen_address(settings)
+                .trim()
+                .to_lowercase(),
+            port: tunnel.listen_port,
+        }
+    }
+}
+
+fn find_listen_conflicts(
+    tunnels: &[TunnelDefinition],
+    settings: &Settings,
+) -> Vec<ValidationError> {
+    let mut first_by_endpoint: HashMap<ListenEndpoint, &TunnelDefinition> = HashMap::new();
+    let mut errors = Vec::new();
+    for tunnel in tunnels
+        .iter()
+        .filter(|tunnel| tunnel.listen_port >= MIN_PORT)
+    {
+        let endpoint = ListenEndpoint::of(tunnel, settings);
+        match first_by_endpoint.get(&endpoint) {
+            Some(first) => errors.push(listen_conflict(tunnel, first, endpoint)),
+            None => {
+                first_by_endpoint.insert(endpoint, tunnel);
+            }
+        }
+    }
+    errors
+}
+
+fn listen_conflict(
+    tunnel: &TunnelDefinition,
+    first: &TunnelDefinition,
+    endpoint: ListenEndpoint,
+) -> ValidationError {
+    let tunnel = TunnelReference::of(tunnel);
+    let other = TunnelReference::of(first);
+    match endpoint.remote_host {
+        Some(host) => ValidationError::RemoteListenConflict {
+            tunnel,
+            other,
+            host,
+            listen_address: endpoint.address,
+            listen_port: endpoint.port,
+        },
+        None => ValidationError::LocalListenConflict {
+            tunnel,
+            other,
+            listen_address: endpoint.address,
+            listen_port: endpoint.port,
+        },
+    }
+}
+
+fn validate_launchers(launchers: &[X11Launcher]) -> Vec<ValidationError> {
+    let mut errors = Vec::new();
+    for (index, launcher) in launchers.iter().enumerate() {
+        let position = index + 1;
+        for (field, value) in [
+            ("host", &launcher.host),
+            ("name", &launcher.name),
+            ("command", &launcher.command),
+        ] {
+            if value.trim().is_empty() {
+                errors.push(ValidationError::EmptyLauncherField { position, field });
+            }
+        }
+        let is_repeated = launchers[..index]
+            .iter()
+            .any(|earlier| earlier.host == launcher.host && earlier.name == launcher.name);
+        if is_repeated {
+            errors.push(ValidationError::DuplicateLauncher {
+                host: launcher.host.clone(),
+                name: launcher.name.clone(),
+            });
+        }
+    }
+    errors
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::store::test_support::{named_tunnel, tunnel};
+    use pretty_assertions::assert_eq;
+
+    fn document_with(tunnels: Vec<TunnelDefinition>) -> StoreDocument {
+        StoreDocument {
+            tunnels,
+            ..StoreDocument::default()
+        }
+    }
+
+    fn document_with_settings(settings: Settings) -> StoreDocument {
+        StoreDocument {
+            settings,
+            ..StoreDocument::default()
+        }
+    }
+
+    fn errors_of(document: &StoreDocument) -> Vec<ValidationError> {
+        validate(document).err().unwrap_or_default()
+    }
+
+    #[test]
+    fn should_accept_document_when_every_rule_holds() {
+        let document = document_with(vec![
+            named_tunnel(TunnelKind::Local, "Adonis", 3333),
+            named_tunnel(TunnelKind::Remote, "Mail", 3333),
+        ]);
+
+        assert_eq!(validate(&document), Ok(()));
+    }
+
+    #[test]
+    fn should_reject_duplicate_ids() {
+        let first = tunnel(TunnelKind::Local);
+        let second = TunnelDefinition {
+            name: "Other".to_owned(),
+            listen_port: 4444,
+            ..first.clone()
+        };
+
+        let errors = errors_of(&document_with(vec![first, second]));
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::DuplicateId { .. }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_duplicate_names_ignoring_case() {
+        let document = document_with(vec![
+            named_tunnel(TunnelKind::Local, "Adonis", 3333),
+            named_tunnel(TunnelKind::Local, "adonis", 4444),
+        ]);
+
+        let errors = errors_of(&document);
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::DuplicateName { .. }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_empty_name() {
+        let document = document_with(vec![named_tunnel(TunnelKind::Local, "  ", 3333)]);
+
+        let errors = errors_of(&document);
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::EmptyName { .. }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_empty_host() {
+        let document = document_with(vec![TunnelDefinition {
+            host: String::new(),
+            ..tunnel(TunnelKind::Local)
+        }]);
+
+        let errors = errors_of(&document);
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::EmptyHost { .. }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_empty_listen_address_when_it_is_set() {
+        let document = document_with(vec![TunnelDefinition {
+            listen_address: Some(String::new()),
+            ..tunnel(TunnelKind::Local)
+        }]);
+
+        let errors = errors_of(&document);
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::EmptyField {
+                field: "listen_address",
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_zero_listen_port() {
+        let document = document_with(vec![named_tunnel(TunnelKind::Local, "Adonis", 0)]);
+
+        let errors = errors_of(&document);
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::ZeroListenPort { .. }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_zero_target_port() {
+        let document = document_with(vec![TunnelDefinition {
+            target_port: Some(0),
+            ..tunnel(TunnelKind::Local)
+        }]);
+
+        let errors = errors_of(&document);
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::ZeroTargetPort { .. }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_local_tunnels_when_they_share_the_effective_listen_endpoint() {
+        let explicit = TunnelDefinition {
+            listen_address: Some("127.0.0.1".to_owned()),
+            ..named_tunnel(TunnelKind::Local, "Explicit", 3333)
+        };
+        let implicit = named_tunnel(TunnelKind::Dynamic, "Implicit", 3333);
+
+        let errors = errors_of(&document_with(vec![explicit, implicit]));
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::LocalListenConflict {
+                listen_port: 3333,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_accept_local_tunnels_when_listen_addresses_differ() {
+        let loopback = named_tunnel(TunnelKind::Local, "Loopback", 3333);
+        let any = TunnelDefinition {
+            listen_address: Some("0.0.0.0".to_owned()),
+            ..named_tunnel(TunnelKind::Local, "Any", 3333)
+        };
+
+        assert_eq!(validate(&document_with(vec![loopback, any])), Ok(()));
+    }
+
+    #[test]
+    fn should_reject_remote_tunnels_when_they_share_endpoint_on_the_same_host() {
+        let first = named_tunnel(TunnelKind::Remote, "First", 8080);
+        let second = named_tunnel(TunnelKind::Remote, "Second", 8080);
+
+        let errors = errors_of(&document_with(vec![first, second]));
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::RemoteListenConflict { .. }]
+        ));
+    }
+
+    #[test]
+    fn should_accept_remote_tunnels_when_they_go_through_different_hosts() {
+        let first = named_tunnel(TunnelKind::Remote, "First", 8080);
+        let second = TunnelDefinition {
+            host: "other".to_owned(),
+            ..named_tunnel(TunnelKind::Remote, "Second", 8080)
+        };
+
+        assert_eq!(validate(&document_with(vec![first, second])), Ok(()));
+    }
+
+    #[test]
+    fn should_accept_local_and_remote_tunnels_when_they_share_a_port() {
+        let local = named_tunnel(TunnelKind::Local, "Local", 8080);
+        let remote = named_tunnel(TunnelKind::Remote, "Remote", 8080);
+
+        assert_eq!(validate(&document_with(vec![local, remote])), Ok(()));
+    }
+
+    fn tunnel_with_tags(tags: &[&str]) -> TunnelDefinition {
+        TunnelDefinition {
+            tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
+            ..tunnel(TunnelKind::Local)
+        }
+    }
+
+    #[test]
+    fn should_reject_empty_tag() {
+        let errors = errors_of(&document_with(vec![tunnel_with_tags(&[""])]));
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::InvalidTag {
+                problem: TagProblem::Empty,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_tag_with_whitespace() {
+        let errors = errors_of(&document_with(vec![tunnel_with_tags(&["my tag"])]));
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::InvalidTag {
+                problem: TagProblem::ContainsWhitespace,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_tag_with_comma() {
+        let errors = errors_of(&document_with(vec![tunnel_with_tags(&["a,b"])]));
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::InvalidTag {
+                problem: TagProblem::ContainsComma,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_tag_listed_twice_in_a_tunnel() {
+        let errors = errors_of(&document_with(vec![tunnel_with_tags(&["dev", "dev"])]));
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::DuplicateTag { .. }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_initial_reconnect_delay_above_the_maximum() {
+        let document = document_with_settings(Settings {
+            reconnect_initial_delay: Duration::from_secs(10),
+            reconnect_max_delay: Duration::from_secs(5),
+            ..Settings::default()
+        });
+
+        let errors = errors_of(&document);
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::ReconnectDelaysOutOfOrder { .. }]
+        ));
+    }
+
+    #[test]
+    fn should_accept_equal_reconnect_delays() {
+        let document = document_with_settings(Settings {
+            reconnect_initial_delay: Duration::from_secs(5),
+            reconnect_max_delay: Duration::from_secs(5),
+            ..Settings::default()
+        });
+
+        assert_eq!(validate(&document), Ok(()));
+    }
+
+    #[test]
+    fn should_reject_zero_initial_reconnect_delay() {
+        let document = document_with_settings(Settings {
+            reconnect_initial_delay: Duration::ZERO,
+            ..Settings::default()
+        });
+
+        let errors = errors_of(&document);
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::ZeroReconnectInitialDelay]
+        ));
+    }
+
+    #[test]
+    fn should_reject_zero_keepalive_max_when_keepalive_is_enabled() {
+        let document = document_with_settings(Settings {
+            keepalive_max: 0,
+            ..Settings::default()
+        });
+
+        assert_eq!(
+            errors_of(&document),
+            vec![ValidationError::ZeroKeepaliveMax]
+        );
+    }
+
+    #[test]
+    fn should_accept_zero_keepalive_interval_when_keepalive_is_disabled() {
+        let document = document_with_settings(Settings {
+            keepalive_interval: Duration::ZERO,
+            keepalive_max: 0,
+            ..Settings::default()
+        });
+
+        assert_eq!(validate(&document), Ok(()));
+    }
+
+    #[test]
+    fn should_reject_empty_default_bind_address() {
+        let document = document_with_settings(Settings {
+            default_bind_address: String::new(),
+            ..Settings::default()
+        });
+
+        assert_eq!(
+            errors_of(&document),
+            vec![ValidationError::EmptyBindAddress {
+                setting: "default_bind_address"
+            }]
+        );
+    }
+
+    #[test]
+    fn should_reject_invalid_start_on_launch_tag() {
+        let document = document_with_settings(Settings {
+            start_on_launch_tags: vec!["a b".to_owned()],
+            ..Settings::default()
+        });
+
+        assert!(matches!(
+            errors_of(&document).as_slice(),
+            [ValidationError::InvalidStartOnLaunchTag { .. }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_launcher_with_empty_command() {
+        let document = StoreDocument {
+            x11_launchers: vec![X11Launcher {
+                host: "nova".to_owned(),
+                name: "Editor".to_owned(),
+                command: String::new(),
+            }],
+            ..StoreDocument::default()
+        };
+
+        assert_eq!(
+            errors_of(&document),
+            vec![ValidationError::EmptyLauncherField {
+                position: 1,
+                field: "command"
+            }]
+        );
+    }
+
+    #[test]
+    fn should_reject_launchers_sharing_host_and_name() {
+        let launcher = X11Launcher {
+            host: "nova".to_owned(),
+            name: "Editor".to_owned(),
+            command: "code".to_owned(),
+        };
+        let document = StoreDocument {
+            x11_launchers: vec![launcher.clone(), launcher],
+            ..StoreDocument::default()
+        };
+
+        assert!(matches!(
+            errors_of(&document).as_slice(),
+            [ValidationError::DuplicateLauncher { .. }]
+        ));
+    }
+
+    #[test]
+    fn should_collect_every_error_when_several_rules_are_broken() {
+        let document = document_with(vec![
+            named_tunnel(TunnelKind::Local, "", 0),
+            TunnelDefinition {
+                host: String::new(),
+                ..named_tunnel(TunnelKind::Local, "Adonis", 3333)
+            },
+        ]);
+
+        assert_eq!(errors_of(&document).len(), 3);
+    }
+
+    #[test]
+    fn should_name_the_tunnel_id_and_name_when_formatting_an_error() {
+        let definition = named_tunnel(TunnelKind::Local, "Adonis", 0);
+        let message = errors_of(&document_with(vec![definition.clone()]))[0].to_string();
+
+        assert_eq!(
+            message,
+            format!(
+                "tunnel \"Adonis\" ({}): listen_port must be between 1 and 65535, found 0",
+                definition.id
+            )
+        );
+    }
+}
