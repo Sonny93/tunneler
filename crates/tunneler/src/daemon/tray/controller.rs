@@ -305,6 +305,7 @@ mod tests {
             EngineSnapshot {
                 tunnels: self.tunnels.lock().unwrap().clone(),
                 settings: Settings::default(),
+                externals: Vec::new(),
             }
         }
 

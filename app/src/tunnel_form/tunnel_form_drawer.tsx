@@ -2,15 +2,17 @@ import { useEffect } from 'react';
 
 import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
+import type { TunnelSpecDto } from '#/daemon/protocol';
 import { TunnelFormPanel } from '#/tunnel_form/tunnel_form_panel';
 
 const NEW_TUNNEL_KEY = 'new';
 
 type TunnelEditorProps = {
 	tunnelId: string | null;
+	draft?: TunnelSpecDto;
 };
 
-function TunnelEditor({ tunnelId }: Readonly<TunnelEditorProps>) {
+function TunnelEditor({ tunnelId, draft }: Readonly<TunnelEditorProps>) {
 	const tunnel = useDaemonStore((state) =>
 		state.tunnels.find((candidate) => candidate.id === tunnelId)
 	);
@@ -22,7 +24,7 @@ function TunnelEditor({ tunnelId }: Readonly<TunnelEditorProps>) {
 	}, [isMissing, closePanel]);
 
 	if (isMissing) return null;
-	return <TunnelFormPanel tunnel={tunnel ?? null} />;
+	return <TunnelFormPanel tunnel={tunnel ?? null} draft={draft} />;
 }
 
 /** The create/edit drawer, open while the UI panel is the tunnel editor. */
@@ -32,8 +34,9 @@ export function TunnelFormDrawer() {
 
 	return (
 		<TunnelEditor
-			key={panel.tunnelId ?? NEW_TUNNEL_KEY}
+			key={panel.tunnelId ?? panel.draft?.name ?? NEW_TUNNEL_KEY}
 			tunnelId={panel.tunnelId}
+			draft={panel.draft}
 		/>
 	);
 }

@@ -15,6 +15,12 @@
 //! [`EngineEvent`]s. Only local forwards are implemented; remote and dynamic
 //! tunnels fail with [`FailureReason::UnsupportedKind`].
 //!
+//! While [`Engine::set_port_scanning`] is on, the engine also detects
+//! external tunnels: a tunnel whose port is held by an `ssh` process with a
+//! matching forward is [`TunnelState::External`], held by anything else it is
+//! [`TunnelState::Conflict`], and the other `ssh` forwards are listed in
+//! [`EngineSnapshot::externals`].
+//!
 //! The engine depends on those abstractions only, never on IPC or a UI.
 //!
 //! # Known gaps
@@ -39,6 +45,7 @@ mod clock;
 mod connection_chain;
 mod connector;
 mod error;
+mod external;
 mod handshake;
 mod host_config;
 mod host_key;
@@ -53,6 +60,11 @@ pub use authentication::AuthenticationMethod;
 pub use clock::{Clock, SystemClock};
 pub use connector::{Connector, ConnectorDependencies};
 pub use error::{ConnectError, HostKeyFailure, JumpChainError, SessionError, TransportError};
+pub use external::{
+    ListeningSocket, PortOccupation, PortOwner, PortScanner, ProcessIdentity, ProcessInfo,
+    ScanError, SshForward, SshInvocation, SystemPortScanner, SystemScan, TerminateError,
+    UnmanagedProcess, is_ssh_process, parse_ssh_command_line,
+};
 pub use host_config::{HostConfigError, HostConfigResolver, SshConfigResolver};
 pub use host_key::{
     HostKeyDecision, HostKeyVerifier, RejectedHostKey, RejectionReason, UnknownHostKey,

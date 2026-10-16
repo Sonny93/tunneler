@@ -74,7 +74,8 @@ pub(crate) fn parse_local_forward(
         return Err(missing_or_extra(arguments, true));
     };
     let specification = format!("{listen}{FIELD_SEPARATOR}{target}");
-    parse_fixed_forward(&specification, environment, ListenPort::NonZero)
+    let expanded = expand_specification(&specification, environment)?;
+    parse_fixed_forward(&expanded, ListenPort::NonZero)
 }
 
 pub(crate) fn parse_remote_forward(
@@ -82,12 +83,15 @@ pub(crate) fn parse_remote_forward(
     environment: &dyn LocalEnvironment,
 ) -> Result<RemoteForward, ValueError> {
     match arguments {
-        [listen] => parse_dynamic_listen(listen, environment, ListenPort::Any)
-            .map(|listen| RemoteForward::Dynamic(DynamicForward { listen })),
+        [listen] => {
+            let expanded = expand_specification(listen, environment)?;
+            parse_dynamic_listen(&expanded, ListenPort::Any)
+                .map(|listen| RemoteForward::Dynamic(DynamicForward { listen }))
+        }
         [listen, target] => {
             let specification = format!("{listen}{FIELD_SEPARATOR}{target}");
-            parse_fixed_forward(&specification, environment, ListenPort::Any)
-                .map(RemoteForward::Fixed)
+            let expanded = expand_specification(&specification, environment)?;
+            parse_fixed_forward(&expanded, ListenPort::Any).map(RemoteForward::Fixed)
         }
         _ => Err(missing_or_extra(arguments, false)),
     }
@@ -100,8 +104,42 @@ pub(crate) fn parse_dynamic_forward(
     let [listen] = arguments else {
         return Err(missing_or_extra(arguments, false));
     };
-    parse_dynamic_listen(listen, environment, ListenPort::NonZero)
-        .map(|listen| DynamicForward { listen })
+    let expanded = expand_specification(listen, environment)?;
+    parse_dynamic_forward_argument(&expanded)
+}
+
+/// Parses the argument of `ssh -L`: `[bind_address:]port:host:hostport` or one
+/// of the Unix socket forms. Unlike the configuration directive, nothing is
+/// expanded: the shell already did.
+pub fn parse_local_forward_argument(argument: &str) -> Result<ForwardSpec, ValueError> {
+    parse_fixed_forward(argument, ListenPort::NonZero)
+}
+
+/// Parses the argument of `ssh -R`: `[bind_address:]port:host:hostport` is a
+/// fixed forward and `[bind_address:]port` a SOCKS proxy on the remote side.
+/// Nothing is expanded.
+pub fn parse_remote_forward_argument(argument: &str) -> Result<RemoteForward, ValueError> {
+    parse_fixed_forward(argument, ListenPort::Any)
+        .map(RemoteForward::Fixed)
+        .or_else(|_| {
+            parse_dynamic_listen(argument, ListenPort::Any)
+                .map(|listen| RemoteForward::Dynamic(DynamicForward { listen }))
+        })
+}
+
+/// Parses the argument of `ssh -D`: `[bind_address:]port`. Nothing is
+/// expanded.
+pub fn parse_dynamic_forward_argument(argument: &str) -> Result<DynamicForward, ValueError> {
+    parse_dynamic_listen(argument, ListenPort::NonZero).map(|listen| DynamicForward { listen })
+}
+
+fn expand_specification(
+    specification: &str,
+    environment: &dyn LocalEnvironment,
+) -> Result<String, ValueError> {
+    expand_environment(specification, environment).map_err(|_| ValueError::InvalidForward {
+        value: specification.to_owned(),
+    })
 }
 
 fn missing_or_extra(arguments: &[String], needs_target: bool) -> ValueError {
@@ -120,13 +158,12 @@ enum ListenPort {
 
 fn parse_fixed_forward(
     specification: &str,
-    environment: &dyn LocalEnvironment,
     listen_port: ListenPort,
 ) -> Result<ForwardSpec, ValueError> {
     let invalid = || ValueError::InvalidForward {
         value: specification.to_owned(),
     };
-    let fields = read_fields(specification, environment).ok_or_else(invalid)?;
+    let fields = read_fields(specification).ok_or_else(invalid)?;
     let (listen, target) = interpret_fixed_fields(&fields).ok_or_else(invalid)?;
     let is_valid = is_valid_listen(&listen, listen_port) && is_valid_target(&target);
     is_valid
@@ -136,22 +173,20 @@ fn parse_fixed_forward(
 
 fn parse_dynamic_listen(
     specification: &str,
-    environment: &dyn LocalEnvironment,
     listen_port: ListenPort,
 ) -> Result<Endpoint, ValueError> {
     let invalid = || ValueError::InvalidForward {
         value: specification.to_owned(),
     };
-    let fields = read_fields(specification, environment).ok_or_else(invalid)?;
+    let fields = read_fields(specification).ok_or_else(invalid)?;
     let listen = interpret_dynamic_fields(&fields).ok_or_else(invalid)?;
     is_valid_listen(&listen, listen_port)
         .then_some(listen)
         .ok_or_else(invalid)
 }
 
-fn read_fields(specification: &str, environment: &dyn LocalEnvironment) -> Option<Vec<Field>> {
-    let expanded = expand_environment(specification, environment).ok()?;
-    let mut remainder = expanded.trim_start().to_owned();
+fn read_fields(specification: &str) -> Option<Vec<Field>> {
+    let mut remainder = specification.trim_start().to_owned();
     let mut fields = Vec::new();
     while fields.len() < MAX_FIELDS {
         match read_field(&remainder) {
@@ -592,5 +627,126 @@ mod tests {
             parse_dynamic_forward(&strings(&["1", "2"]), &FakeEnvironment::default()),
             Err(ValueError::ExtraArguments)
         );
+    }
+
+    #[test]
+    fn should_parse_separated_local_argument_when_it_has_four_fields() {
+        assert_eq!(
+            parse_local_forward_argument("127.0.0.1:3333:db:5432"),
+            Ok(ForwardSpec {
+                listen: tcp(Some("127.0.0.1"), 3333),
+                target: tcp(Some("db"), 5432)
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_bracketed_ipv6_when_local_argument_uses_it() {
+        assert_eq!(
+            parse_local_forward_argument("[::1]:4444:[fe80::1]:5555"),
+            Ok(ForwardSpec {
+                listen: tcp(Some("::1"), 4444),
+                target: tcp(Some("fe80::1"), 5555)
+            })
+        );
+    }
+
+    #[test]
+    fn should_not_expand_environment_when_argument_is_local() {
+        let spec = parse_local_forward_argument("80:${HOME}:81").unwrap();
+        assert_eq!(spec.target, tcp(Some("${HOME}"), 81));
+    }
+
+    #[test]
+    fn should_fail_when_local_argument_has_no_target() {
+        assert!(parse_local_forward_argument("3333").is_err());
+    }
+
+    #[test]
+    fn should_fail_when_local_argument_listens_on_port_zero() {
+        assert!(parse_local_forward_argument("0:h:1").is_err());
+    }
+
+    #[test]
+    fn should_parse_fixed_when_remote_argument_has_a_target() {
+        assert_eq!(
+            parse_remote_forward_argument("localhost:9000:app:80"),
+            Ok(RemoteForward::Fixed(ForwardSpec {
+                listen: tcp(Some("localhost"), 9000),
+                target: tcp(Some("app"), 80)
+            }))
+        );
+    }
+
+    #[test]
+    fn should_parse_dynamic_when_remote_argument_has_only_a_port() {
+        assert_eq!(
+            parse_remote_forward_argument("9001"),
+            Ok(RemoteForward::Dynamic(DynamicForward {
+                listen: tcp(None, 9001)
+            }))
+        );
+    }
+
+    #[test]
+    fn should_parse_dynamic_with_bind_address_when_remote_argument_has_two_fields() {
+        assert_eq!(
+            parse_remote_forward_argument("[::1]:9001"),
+            Ok(RemoteForward::Dynamic(DynamicForward {
+                listen: tcp(Some("::1"), 9001)
+            }))
+        );
+    }
+
+    #[test]
+    fn should_allow_port_zero_when_remote_argument_listens() {
+        assert!(parse_remote_forward_argument("0:h:1").is_ok());
+    }
+
+    #[test]
+    fn should_fail_when_remote_argument_is_invalid() {
+        assert!(parse_remote_forward_argument("a:b:c:d:e").is_err());
+    }
+
+    #[test]
+    fn should_not_expand_environment_when_argument_is_remote() {
+        let forward = parse_remote_forward_argument("80:${HOME}:81");
+        assert_eq!(
+            forward,
+            Ok(RemoteForward::Fixed(ForwardSpec {
+                listen: tcp(None, 80),
+                target: tcp(Some("${HOME}"), 81)
+            }))
+        );
+    }
+
+    #[test]
+    fn should_parse_port_when_dynamic_argument_has_no_bind_address() {
+        assert_eq!(
+            parse_dynamic_forward_argument("1080"),
+            Ok(DynamicForward {
+                listen: tcp(None, 1080)
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_bind_address_when_dynamic_argument_has_one() {
+        assert_eq!(
+            parse_dynamic_forward_argument("[::]:1082"),
+            Ok(DynamicForward {
+                listen: tcp(Some("::"), 1082)
+            })
+        );
+    }
+
+    #[test]
+    fn should_fail_when_dynamic_argument_is_invalid() {
+        assert!(parse_dynamic_forward_argument("0").is_err());
+    }
+
+    #[test]
+    fn should_not_expand_environment_when_argument_is_dynamic() {
+        assert!(parse_dynamic_forward_argument("${HOME}").is_err());
     }
 }

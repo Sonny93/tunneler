@@ -32,6 +32,9 @@ export function createTauriGateway(): DaemonGateway {
 		restartTunnel: (id) => call('restart_tunnel', { id }),
 		startTag: (tag) => call('start_tag', { tag }),
 		stopTag: (tag) => call('stop_tag', { tag }),
+		adoptExternal: (id) => call('adopt_external', { id }),
+		killExternal: (pid) => call('kill_external', { pid }),
+		ignoreExternal: (pid) => call('ignore_external', { pid }),
 		updateSettings: (settings) => call('update_settings', { settings }),
 		respondCredential: (promptId, answer) =>
 			call('respond_credential', { promptId, answer }),

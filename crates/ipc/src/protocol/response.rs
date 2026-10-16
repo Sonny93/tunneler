@@ -23,6 +23,14 @@ pub struct HostsResult {
     pub hosts: Vec<String>,
 }
 
+/// The result of `external.adopt`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdoptResult {
+    /// The identifiers of the tunnels that were started.
+    pub ids: Vec<String>,
+}
+
 /// What a handler answers on success; serialized as the bare `result` value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
@@ -39,6 +47,8 @@ pub enum ResponsePayload {
     Logs(LogsResult),
     /// The answer to `hosts.list`.
     Hosts(HostsResult),
+    /// The answer to `external.adopt`.
+    Adopt(AdoptResult),
 }
 
 impl ResponsePayload {

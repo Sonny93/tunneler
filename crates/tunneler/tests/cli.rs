@@ -422,7 +422,7 @@ async fn should_exit_with_4_when_a_target_fails_to_start() {
 
     assert_eq!(code(&output), EXIT_TARGETS_FAILED);
     assert!(
-        stdout(&output).contains("Alpha: failed: port already in use"),
+        stdout(&output).contains("Alpha: port held by"),
         "{}",
         stdout(&output)
     );

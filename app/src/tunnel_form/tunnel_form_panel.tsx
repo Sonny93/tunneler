@@ -3,20 +3,34 @@ import { Button } from '@minimalstuff/ui';
 
 import { Drawer } from '#/shared/drawer';
 import { useUiStore } from '#/state/ui_store';
-import type { TunnelDefinitionDto } from '#/daemon/protocol';
 import { useTunnelForm } from '#/tunnel_form/use_tunnel_form';
 import { FormErrorSummary } from '#/shared/form_error_summary';
 import { TunnelFormFields } from '#/tunnel_form/tunnel_form_fields';
+import type { TunnelDefinitionDto, TunnelSpecDto } from '#/daemon/protocol';
 
 type TunnelFormPanelProps = {
 	tunnel: TunnelDefinitionDto | null;
+	draft?: TunnelSpecDto;
 };
 
-export function TunnelFormPanel({ tunnel }: Readonly<TunnelFormPanelProps>) {
+function getTitle(
+	tunnel: Readonly<TunnelDefinitionDto> | null,
+	draft: Readonly<TunnelSpecDto> | undefined
+): string {
+	if (tunnel) return `Modifier ${tunnel.name}`;
+	return draft ? 'Importer un tunnel' : 'Nouveau tunnel';
+}
+
+export function TunnelFormPanel({
+	tunnel,
+	draft,
+}: Readonly<TunnelFormPanelProps>) {
 	const formId = useId();
 	const closePanel = useUiStore((state) => state.closePanel);
-	const { values, errors, isSaving, summary, dispatch, submit } =
-		useTunnelForm(tunnel);
+	const { values, errors, isSaving, summary, dispatch, submit } = useTunnelForm(
+		tunnel,
+		draft ?? null
+	);
 
 	const footer = (
 		<div className="flex justify-end gap-2">
@@ -32,7 +46,7 @@ export function TunnelFormPanel({ tunnel }: Readonly<TunnelFormPanelProps>) {
 	return (
 		<Drawer
 			isOpen
-			title={tunnel ? `Modifier ${tunnel.name}` : 'Nouveau tunnel'}
+			title={getTitle(tunnel, draft)}
 			onClose={closePanel}
 			footer={footer}
 		>

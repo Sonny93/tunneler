@@ -69,6 +69,8 @@ export function reduceDaemonEvent(
 			});
 		case 'tunnel.metrics':
 			return patchTunnel(state, event.data.id, { metrics: event.data.metrics });
+		case 'externals.changed':
+			return { ...state, externals: event.data.processes };
 		case 'config.invalid':
 			return { ...state, configErrors: event.data.messages };
 		case 'credential.request':

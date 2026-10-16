@@ -1,7 +1,7 @@
 import { cn } from '#/shared/cn';
 import type { TunnelStateDto } from '#/daemon/protocol';
 import { getTunnelStateLabel } from '#/tunnels/tunnel_state_label';
-import { getFailureReasonLabel } from '#/tunnels/failure_reason_label';
+import { getTunnelStateDetail } from '#/tunnels/tunnel_state_detail';
 
 type StateAppearance = { icon: string; toneClassName: string };
 
@@ -28,6 +28,14 @@ const STATE_APPEARANCES: Readonly<
 		icon: 'i-mdi-alert-octagon',
 		toneClassName: 'text-tn-danger bg-tn-danger-subtle',
 	},
+	external: {
+		icon: 'i-mdi-link-variant',
+		toneClassName: 'text-tn-info bg-tn-info-subtle',
+	},
+	conflict: {
+		icon: 'i-mdi-alert',
+		toneClassName: 'text-tn-warning bg-tn-warning-subtle',
+	},
 };
 
 type TunnelStatusBadgeProps = {
@@ -40,6 +48,7 @@ export const TunnelStatusBadge = ({
 	className,
 }: Readonly<TunnelStatusBadgeProps>) => {
 	const { icon, toneClassName } = STATE_APPEARANCES[state.kind];
+	const detail = getTunnelStateDetail(state);
 
 	return (
 		<span
@@ -51,11 +60,7 @@ export const TunnelStatusBadge = ({
 		>
 			<span aria-hidden="true" className={cn(icon, 'size-4 shrink-0')} />
 			<span>{getTunnelStateLabel(state)}</span>
-			{state.kind === 'failed' && (
-				<span className="font-normal">
-					{getFailureReasonLabel(state.reason)}
-				</span>
-			)}
+			{detail !== null && <span className="font-normal">{detail}</span>}
 		</span>
 	);
 };

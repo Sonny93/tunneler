@@ -1,15 +1,16 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use ipc::protocol::{
-    ClientKind, ConfigInvalidEvent, CredentialAnswer, CredentialRequestDto, CredentialRequestEvent,
-    CredentialResponseParams, EventMessage, FailureReasonDto, Hello, HostKeyAlertReasonDto,
+    AdoptResult, ClientKind, ConfigInvalidEvent, CredentialAnswer, CredentialRequestDto,
+    CredentialRequestEvent, CredentialResponseParams, EventMessage, ExternalForwardDto,
+    ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto, Hello, HostKeyAlertReasonDto,
     HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, HostsResult, IpcError,
     LogEntryDto, LogLevelDto, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, PROTOCOL_VERSION,
-    PromptDto, PromptResolvedEvent, QuitParams, Request, RequestEnvelope, ResponsePayload, Secret,
-    ServerFrame, SettingsDto, SnapshotDto, TagParams, TargetHealthDto, TrayChangedEvent,
-    TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelIdParams,
-    TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, encode_event,
-    encode_response,
+    PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent, QuitParams, Request,
+    RequestEnvelope, ResponsePayload, Secret, ServerFrame, SettingsDto, SnapshotDto, TagParams,
+    TargetHealthDto, TrayChangedEvent, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto,
+    TunnelDto, TunnelIdParams, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto,
+    TunnelStateDto, encode_event, encode_response,
 };
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -74,6 +75,37 @@ fn tunnel() -> TunnelDto {
     }
 }
 
+fn port_owner() -> PortOwnerDto {
+    PortOwnerDto {
+        pid: 4242,
+        process: "ssh".to_owned(),
+    }
+}
+
+fn external_process() -> ExternalProcessDto {
+    ExternalProcessDto {
+        pid: 4242,
+        process: "ssh".to_owned(),
+        destination: Some("nova".to_owned()),
+        forwards: vec![
+            ExternalForwardDto {
+                kind: TunnelKindDto::Local,
+                listen_address: Some("127.0.0.1".to_owned()),
+                listen_port: 3333,
+                target_host: Some("db.internal".to_owned()),
+                target_port: Some(5432),
+            },
+            ExternalForwardDto {
+                kind: TunnelKindDto::Dynamic,
+                listen_address: None,
+                listen_port: 1080,
+                target_host: None,
+                target_port: None,
+            },
+        ],
+    }
+}
+
 fn every_request() -> Vec<Request> {
     let tunnel_id = TunnelIdParams {
         id: TUNNEL_ID.to_owned(),
@@ -105,6 +137,11 @@ fn every_request() -> Vec<Request> {
         }),
         Request::DaemonQuit(QuitParams { force: false }),
         Request::UiShow {},
+        Request::ExternalAdopt(TunnelIdParams {
+            id: TUNNEL_ID.to_owned(),
+        }),
+        Request::ExternalKill(ProcessParams { pid: 4242 }),
+        Request::ExternalIgnore(ProcessParams { pid: 4242 }),
     ]
 }
 
@@ -178,6 +215,9 @@ fn every_event() -> Vec<EventMessage> {
         EventMessage::PromptResolved(PromptResolvedEvent {
             prompt_id: "p1".to_owned(),
         }),
+        EventMessage::ExternalsChanged(ExternalsChangedEvent {
+            processes: vec![external_process()],
+        }),
     ]
 }
 
@@ -232,7 +272,7 @@ fn should_serialize_hello_as_documented() {
 
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
-        r#"{"id":1,"method":"hello","params":{"protocolVersion":1,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
+        r#"{"id":1,"method":"hello","params":{"protocolVersion":2,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
     );
 }
 
@@ -350,6 +390,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
         tunnels: vec![tunnel()],
         settings: settings(),
         tray: TrayStatusDto::Active,
+        externals: Vec::new(),
     };
 
     let line = encode_response(Some(4), &Ok(ResponsePayload::Snapshot(snapshot))).unwrap();
@@ -361,7 +402,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000}}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"healthProbe":true,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false},"tray":{"kind":"active"}}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"healthProbe":true,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false},"tray":{"kind":"active"},"externals":[]}}"#,
             "\n"
         )
     );
@@ -393,6 +434,7 @@ fn should_deserialize_a_snapshot_without_tray_as_disabled() {
         tunnels: Vec::new(),
         settings: settings(),
         tray: TrayStatusDto::Active,
+        externals: Vec::new(),
     });
     snapshot.as_object_mut().unwrap().remove("tray");
 
@@ -445,7 +487,7 @@ fn should_serialize_a_protocol_mismatch_with_both_versions() {
     assert_eq!(
         line,
         concat!(
-            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 1, the client protocol 9","data":{"client":9,"daemon":1}}}"#,
+            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 2, the client protocol 9","data":{"client":9,"daemon":2}}}"#,
             "\n"
         )
     );
@@ -536,4 +578,177 @@ fn should_serialize_a_failure_reason_with_camel_case_fields() {
 #[test]
 fn should_limit_lines_to_one_mebibyte() {
     assert_eq!(MAX_LINE_BYTES, 1_048_576);
+}
+
+#[test]
+fn should_serialize_the_external_state_with_its_owner() {
+    assert_eq!(
+        to_json(&TunnelStateDto::External {
+            owner: port_owner()
+        }),
+        json!({"kind":"external","owner":{"pid":4242,"process":"ssh"}})
+    );
+}
+
+#[test]
+fn should_serialize_a_conflict_with_its_owner() {
+    assert_eq!(
+        to_json(&TunnelStateDto::Conflict {
+            owner: Some(port_owner())
+        }),
+        json!({"kind":"conflict","owner":{"pid":4242,"process":"ssh"}})
+    );
+}
+
+#[test]
+fn should_serialize_a_conflict_without_an_owner_when_it_is_unknown() {
+    assert_eq!(
+        to_json(&TunnelStateDto::Conflict { owner: None }),
+        json!({"kind":"conflict"})
+    );
+}
+
+#[test]
+fn should_deserialize_a_conflict_without_an_owner_as_none() {
+    let state: TunnelStateDto = serde_json::from_value(json!({"kind":"conflict"})).unwrap();
+
+    assert_eq!(state, TunnelStateDto::Conflict { owner: None });
+}
+
+#[test]
+fn should_serialize_an_external_process_without_its_absent_options() {
+    let process = ExternalProcessDto {
+        pid: 7,
+        process: "ssh".to_owned(),
+        destination: None,
+        forwards: vec![ExternalForwardDto {
+            kind: TunnelKindDto::Dynamic,
+            listen_address: None,
+            listen_port: 1080,
+            target_host: None,
+            target_port: None,
+        }],
+    };
+
+    assert_eq!(
+        to_json(&process),
+        json!({"pid":7,"process":"ssh","forwards":[{"kind":"dynamic","listenPort":1080}]})
+    );
+}
+
+#[test]
+fn should_serialize_a_snapshot_with_its_externals() {
+    let snapshot = SnapshotDto {
+        tunnels: Vec::new(),
+        settings: settings(),
+        tray: TrayStatusDto::Active,
+        externals: vec![external_process()],
+    };
+
+    assert_eq!(
+        to_json(&snapshot)["externals"],
+        json!([{
+            "pid":4242,
+            "process":"ssh",
+            "destination":"nova",
+            "forwards":[
+                {"kind":"local","listenAddress":"127.0.0.1","listenPort":3333,"targetHost":"db.internal","targetPort":5432},
+                {"kind":"dynamic","listenPort":1080}
+            ]
+        }])
+    );
+}
+
+#[test]
+fn should_deserialize_a_snapshot_without_externals_as_empty() {
+    let mut snapshot = to_json(&SnapshotDto {
+        tunnels: Vec::new(),
+        settings: settings(),
+        tray: TrayStatusDto::Active,
+        externals: vec![external_process()],
+    });
+    snapshot.as_object_mut().unwrap().remove("externals");
+
+    let parsed: SnapshotDto = serde_json::from_value(snapshot).unwrap();
+
+    assert_eq!(parsed.externals, Vec::new());
+}
+
+#[test]
+fn should_serialize_an_externals_changed_event_as_documented() {
+    let event = EventMessage::ExternalsChanged(ExternalsChangedEvent {
+        processes: vec![ExternalProcessDto {
+            pid: 4242,
+            process: "ssh".to_owned(),
+            destination: Some("nova".to_owned()),
+            forwards: vec![ExternalForwardDto {
+                kind: TunnelKindDto::Local,
+                listen_address: None,
+                listen_port: 3333,
+                target_host: Some("db.internal".to_owned()),
+                target_port: Some(5432),
+            }],
+        }],
+    });
+
+    assert_eq!(
+        encode_event(&event).unwrap(),
+        concat!(
+            r#"{"event":"externals.changed","data":{"processes":[{"pid":4242,"process":"ssh","destination":"nova","forwards":[{"kind":"local","listenPort":3333,"targetHost":"db.internal","targetPort":5432}]}]}}"#,
+            "\n"
+        )
+    );
+}
+
+#[test]
+fn should_serialize_the_external_requests_as_documented() {
+    let requests = [
+        Request::ExternalAdopt(TunnelIdParams {
+            id: TUNNEL_ID.to_owned(),
+        }),
+        Request::ExternalKill(ProcessParams { pid: 4242 }),
+        Request::ExternalIgnore(ProcessParams { pid: 4242 }),
+    ];
+
+    assert_eq!(
+        requests.map(|request| to_json(&request)),
+        [
+            json!({"method":"external.adopt","params":{"id":TUNNEL_ID}}),
+            json!({"method":"external.kill","params":{"pid":4242}}),
+            json!({"method":"external.ignore","params":{"pid":4242}}),
+        ]
+    );
+}
+
+#[test]
+fn should_serialize_an_adopt_response_as_documented() {
+    let adopted = AdoptResult {
+        ids: vec![TUNNEL_ID.to_owned()],
+    };
+
+    let line = encode_response(Some(8), &Ok(ResponsePayload::Adopt(adopted))).unwrap();
+
+    assert_eq!(
+        line,
+        "{\"id\":8,\"result\":{\"ids\":[\"01J9ZK3Q8M5N7R2T4V6X8Y0ABC\"]}}\n"
+    );
+}
+
+#[test]
+fn should_serialize_the_new_error_codes_as_documented() {
+    let invalid_state = encode_response(Some(9), &Err(IpcError::invalid_state("not external")));
+    let kill_failed = encode_response(Some(10), &Err(IpcError::kill_failed("still running")));
+
+    assert_eq!(
+        [invalid_state.unwrap(), kill_failed.unwrap()],
+        [
+            "{\"id\":9,\"error\":{\"code\":\"invalid_state\",\"message\":\"not external\"}}\n",
+            "{\"id\":10,\"error\":{\"code\":\"kill_failed\",\"message\":\"still running\"}}\n",
+        ]
+    );
+}
+
+#[test]
+fn should_list_twenty_methods() {
+    assert_eq!(METHOD_NAMES.len(), 20);
 }

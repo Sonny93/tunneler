@@ -1,4 +1,4 @@
-import type { TunnelDefinitionDto } from '#/daemon/protocol';
+import type { TunnelSpecDto } from '#/daemon/protocol';
 
 export type TunnelFormValues = {
 	name: string;
@@ -24,9 +24,9 @@ export const EMPTY_TUNNEL_FORM_VALUES: TunnelFormValues = {
 
 const TAGS_SEPARATOR = ', ';
 
-/** Form values of an existing tunnel, or the empty form when creating. */
+/** Form values of an existing tunnel or of a draft, or the empty form when creating. */
 export function toTunnelFormValues(
-	definition: Readonly<TunnelDefinitionDto> | null
+	definition: Readonly<TunnelSpecDto> | null
 ): TunnelFormValues {
 	if (definition === null) return EMPTY_TUNNEL_FORM_VALUES;
 	const listenPort = String(definition.listenPort);

@@ -11,6 +11,7 @@ mod agent;
 mod clock;
 mod engine_harness;
 mod environment;
+mod fake_port_scanner;
 mod scripted;
 mod workspace;
 
@@ -19,6 +20,9 @@ pub use agent::FixedAgentLocator;
 pub use clock::ManualClock;
 pub use engine_harness::{wait_for_event, wait_for_state, wait_until};
 pub use environment::FakeEnvironment;
+pub use fake_port_scanner::{
+    FakePortScanner, foreign_scan, identity_of, listener, process, ssh_scan,
+};
 pub use scripted::{ScriptedPrompter, ScriptedVerifier};
 #[cfg(unix)]
 pub use test_support::TestAgent;

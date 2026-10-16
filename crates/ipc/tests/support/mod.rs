@@ -8,8 +8,8 @@ use interprocess::local_socket::tokio::Stream;
 use interprocess::local_socket::traits::tokio::Stream as _;
 use interprocess::local_socket::{GenericFilePath, ToFsName};
 use ipc::protocol::{
-    ClientKind, ConfigInvalidEvent, EventMessage, Hello, IpcError, LogEntryDto, LogLevelDto,
-    LogsResult, Request, RequestEnvelope, ResponsePayload,
+    AdoptResult, ClientKind, ConfigInvalidEvent, EventMessage, Hello, IpcError, LogEntryDto,
+    LogLevelDto, LogsResult, Request, RequestEnvelope, ResponsePayload,
 };
 use ipc::{
     ConnectionInfo, Endpoint, IpcClient, IpcServer, RequestHandler, ServerHandle, ServerOptions,
@@ -25,6 +25,7 @@ pub const WAIT: Duration = Duration::from_secs(5);
 pub const QUIET_PERIOD: Duration = Duration::from_millis(300);
 pub const SLOW_TUNNEL_ID: &str = "slow";
 pub const MISSING_TUNNEL_ID: &str = "missing";
+pub const UNKILLABLE_PID: u32 = 1;
 pub const SLOW_DELAY: Duration = Duration::from_millis(300);
 const EVENT_BUS_CAPACITY: usize = 16;
 
@@ -52,6 +53,12 @@ impl RequestHandler for FakeHandler {
             }
             Request::TunnelDelete(params) if params.id == MISSING_TUNNEL_ID => {
                 Err(IpcError::not_found("no such tunnel"))
+            }
+            Request::ExternalAdopt(params) => Ok(ResponsePayload::Adopt(AdoptResult {
+                ids: vec![params.id],
+            })),
+            Request::ExternalKill(params) if params.pid == UNKILLABLE_PID => {
+                Err(IpcError::kill_failed("process still running"))
             }
             Request::DaemonQuit(params) if !params.force => Err(IpcError::tunnels_running(2)),
             _ => Ok(ResponsePayload::empty()),

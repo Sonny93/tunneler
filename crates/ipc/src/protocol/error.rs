@@ -26,6 +26,10 @@ pub enum ErrorCode {
     PromptNotPending,
     /// No UI could be reached or started.
     UiUnavailable,
+    /// The target is not in a state that allows the operation.
+    InvalidState,
+    /// The process could not be terminated or is still running.
+    KillFailed,
     /// The daemon failed unexpectedly.
     Internal,
 }
@@ -43,6 +47,8 @@ impl ErrorCode {
             Self::TunnelsRunning => "tunnels_running",
             Self::PromptNotPending => "prompt_not_pending",
             Self::UiUnavailable => "ui_unavailable",
+            Self::InvalidState => "invalid_state",
+            Self::KillFailed => "kill_failed",
             Self::Internal => "internal",
         }
     }
@@ -151,6 +157,16 @@ impl IpcError {
         Self::new(ErrorCode::UiUnavailable, message)
     }
 
+    /// The target is not in a state that allows the operation.
+    pub fn invalid_state(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::InvalidState, message)
+    }
+
+    /// The process could not be terminated or is still running.
+    pub fn kill_failed(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::KillFailed, message)
+    }
+
     /// The daemon failed unexpectedly.
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::Internal, message)
@@ -161,7 +177,7 @@ impl IpcError {
 mod tests {
     use super::*;
 
-    const ALL_CODES: [ErrorCode; 10] = [
+    const ALL_CODES: [ErrorCode; 12] = [
         ErrorCode::InvalidRequest,
         ErrorCode::UnknownMethod,
         ErrorCode::HandshakeRequired,
@@ -171,6 +187,8 @@ mod tests {
         ErrorCode::TunnelsRunning,
         ErrorCode::PromptNotPending,
         ErrorCode::UiUnavailable,
+        ErrorCode::InvalidState,
+        ErrorCode::KillFailed,
         ErrorCode::Internal,
     ];
 

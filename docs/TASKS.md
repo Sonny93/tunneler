@@ -246,13 +246,32 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Vérifications** : fmt, clippy (workspace + `tunneler-ui` + cross-clippy Windows) et tous les tests verts (277 unitaires tunneler, 18 E2E CLI, 571 tests front). Rien d'exécuté sous Windows ni macOS.
 
-## Phase 8 — Tunnels externes
-- [ ] 8.1 `PortScanner` (`listeners` + `sysinfo`) avec cadence liée à la présence d'une UI
-- [ ] 8.2 Parsing de ligne de commande `ssh` (`-L`/`-R`/`-D`, formes collées/séparées, host cible)
-- [ ] 8.3 États `External` (tunnel réutilisé) et `Conflict`
-- [ ] 8.4 Actions : adopter, kill, ignorer, importer
-- [ ] 8.5 Section UI « Externes non gérés »
-- [ ] 8.6 Test : tunnel lancé par `ssh -N -L` détecté puis adopté
+## Phase 8 — Tunnels externes ✔ (Linux ; Windows jamais exécuté)
+- [x] 8.1 `PortScanner` (`listeners` + `sysinfo`) avec cadence liée à la présence d'une UI
+  - Trait `PortScanner` (scan bloquant + `terminate`) dans `engine`, implémentation `SystemPortScanner` : sockets TCP en écoute (`listeners` 0.6) + processus propriétaires et processus `ssh` (`sysinfo` 0.39, feature `system` seule ; aucune dépendance lourde). Processus identifié par pid **et** heure de démarrage : `terminate` refuse un pid réutilisé (`ProcessChanged`), envoie SIGTERM (repli `kill`, `TerminateProcess` sous Windows).
+  - Passe de scan à la connexion d'une UI puis toutes les 5 s (`EngineOptions::port_scan_interval`) tant qu'une UI est connectée (`daemon/ui_presence.rs`, même suiveur que la sonde de santé), et au démarrage d'un tunnel dont le port est pris. Le daemon s'exclut lui-même. Erreur de scan → avertissement, états inchangés.
+  - **Lacune** : sans UI connectée, aucun scan périodique → `tunneler status` n'affiche les externes non gérés que si une UI a scanné récemment ; les états External/Conflict restent ceux du dernier scan.
+- [x] 8.2 Parsing de ligne de commande `ssh` (`-L`/`-R`/`-D`, formes collées/séparées, host cible)
+  - Options façon getopt d'OpenSSH (groupées `-NfL…`, collées, séparées, `--`, arrêt à la destination). Specs analysées par `ssh-config` (nouveaux `parse_*_forward_argument`, sans expansion d'environnement). Destination réduite au host (`user@`, `ssh://…:port`, crochets IPv6). Ignorés : sockets Unix, `-R` dynamique, `-o LocalForward=…` (non interprété).
+  - Correspondance tunnel ↔ forward : même type, même port d'écoute, adresses compatibles (sans bind = loopback, joker = tout, nom d'hôte autre que `localhost` = compatible faute de DNS), même port cible et host cible équivalent (`localhost`/`127.0.0.0/8`/`::1` identiques). **La destination ssh n'est pas comparée.**
+- [x] 8.3 États `External` (tunnel réutilisé) et `Conflict`
+  - `External { owner }`, `Conflict { owner? }` (owner absent = processus inconnu, ex. socket d'un autre utilisateur). Ni l'un ni l'autre ne compte comme « en cours » (quitter, tray, switch de tag). Observation appliquée seulement à un tunnel arrêté, External, Conflict ou `Failed { PortInUse }` ; port libéré → `Stopped`. *Arrêter* garde l'état observé. Démarrer sur un port pris → External/Conflict au lieu de `Failed { PortInUse }` (gardé si le scan échoue).
+  - **Protocole v2** (`PROTOCOL_VERSION` 2 : nouvelles variantes d'état), `SnapshotDto.externals`, événement `externals.changed`, codes d'erreur `invalid_state` et `kill_failed`.
+  - CLI : `⇄ provided by external ssh (pid N)` / `! port held by node (pid N)` ; `up` réussit (exit 0) si chaque cible est Active ou External ; un tunnel déjà External/Conflict avant `up` est considéré réglé (un nouvel essai ne change pas l'état, donc aucun événement). Bloc « Unmanaged ssh processes » dans `status`.
+- [x] 8.4 Actions : adopter, kill, ignorer, importer
+  - `external.adopt { id }` : termine le ssh, attend la libération de ses ports (sondage 100 ms, 5 s max → `kill_failed`) puis démarre **tous** les tunnels configurés qu'il fournissait (un même ssh fournit souvent plusieurs `-L`), renvoie leurs ids. `external.kill { pid }` / `external.ignore { pid }` : pid accepté seulement s'il est signalé (owner d'un External/Conflict ou externe non géré).
+  - **Interprétation d'« Ignorer »** : le daemon cesse de signaler ce processus (identité pid + démarrage) jusqu'à son arrêt, non persisté — ses tunnels External repassent `Stopped`, il quitte la liste des non gérés ; un démarrage explicite rapporte quand même la vérité.
+  - **Écart PLAN** : pas de méthode `external.import` ; l'UI ouvre le formulaire de création prérempli (nom, host = destination, ports, adresses) puis passe par `tunnel.create`, ce qui laisse nommer/étiqueter le tunnel. Le tunnel créé devient External au scan suivant et peut être adopté.
+  - Pas de commandes CLI `adopt`/`kill`/`ignore` (suivi possible).
+- [x] 8.5 Section UI « Externes non gérés »
+  - Badges « Externe — fourni par ssh (pid N) » et « Conflit — port occupé par … » (icône + ton + texte, détail relié au switch par `aria-describedby`, annoncé dans la région live). Menu de ligne : *Adopter*, *Arrêter le processus externe…*, *Ignorer* (External) ; *Arrêter le processus…* (Conflict avec owner). Arrêt toujours confirmé (`ConfirmModal`, conséquences explicites).
+  - Section `<section>` « Externes non gérés (N) » sous la liste, une entrée par processus (`h3` « ssh vers nova (pid N) »), forwards `-L 3333 → localhost:3333` avec équivalent texte, *Importer comme tunnel* (forwards locaux seulement avant la phase 9), *Arrêter le processus…*, *Ignorer* ; noms accessibles commençant par le texte visible (WCAG 2.5.3).
+  - Pas d'entrée « Externes » dans la sidebar : la section suffit. Rendu réel non vérifié dans une webview.
+- [x] 8.6 Test : tunnel lancé par `ssh -N -L` détecté puis adopté
+  - Binaire de test `fake-ssh` (copié en `ssh` dans un dossier temporaire, il écoute sur ses `-L`) : détecté `External` avec le vrai pid, adopté → processus terminé, tunnel Active et echo à travers le serveur russh de test ; un `-L` hors config apparaît dans les externes. Plus ~22 tests runtime sur un scanner scripté.
+  - Smoke manuel : `fake-ssh` réel + daemon + `tunneler up` → « provided by external ssh (pid N) », exit 0. Le vrai client OpenSSH n'a pas été utilisé (il exige un serveur).
+
+**Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows) et tests verts (1644 tests Rust, 628 tests front). Rien d'exécuté sous Windows ni macOS (`listeners`/`sysinfo`/`TerminateProcess` non vérifiés).
 
 ## Phase 9 — Forwards remote & dynamic
 - [ ] 9.1 Remote : `tcpip_forward`, callback `forwarded-tcpip`, `cancel_tcpip_forward`

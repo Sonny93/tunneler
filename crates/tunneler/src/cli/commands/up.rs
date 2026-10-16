@@ -35,6 +35,9 @@ pub async fn up(context: &Context, arguments: UpArguments) -> Result<(), CliErro
     for name in tracker.already_active() {
         println!("{name}: already active");
     }
+    for name in tracker.already_provided() {
+        println!("{name}: already provided by an external process");
+    }
     request_starts(&client, &targets).await?;
     let Some(events) = events.filter(|_| will_wait) else {
         for target in &targets {

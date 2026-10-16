@@ -1,5 +1,6 @@
 import type {
 	CredentialRequestDto,
+	ExternalProcessDto,
 	HostKeyAlertReasonDto,
 	SettingsDto,
 	TrayStatusDto,
@@ -36,6 +37,7 @@ export type PendingPrompt =
 export type DaemonState = {
 	connection: ConnectionState;
 	tunnels: readonly TunnelDto[];
+	externals: readonly ExternalProcessDto[];
 	settings: SettingsDto | null;
 	hosts: readonly string[];
 	/** First-in first-out: the first prompt is the one shown. */
@@ -49,6 +51,7 @@ export type DaemonState = {
 export const INITIAL_DAEMON_STATE: DaemonState = {
 	connection: { status: 'connecting' },
 	tunnels: [],
+	externals: [],
 	settings: null,
 	hosts: [],
 	prompts: [],

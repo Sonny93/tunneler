@@ -6,8 +6,12 @@ import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import { toTunnelFormValues } from '#/tunnel_form/tunnel_form_values';
-import type { TunnelDefinitionDto, TunnelDto } from '#/daemon/protocol';
 import { clearEditedFieldErrors } from '#/tunnel_form/clear_edited_field_errors';
+import type {
+	TunnelDefinitionDto,
+	TunnelDto,
+	TunnelSpecDto,
+} from '#/daemon/protocol';
 import {
 	tunnelFormReducer,
 	type TunnelFormAction,
@@ -35,12 +39,14 @@ function focusField(form: HTMLFormElement, fieldName: string): void {
 }
 
 export function useTunnelForm(
-	tunnel: Readonly<TunnelDefinitionDto> | null
+	tunnel: Readonly<TunnelDefinitionDto> | null,
+	draft: Readonly<TunnelSpecDto> | null = null
 ): UseTunnelFormReturn {
+	const source = tunnel ?? draft;
 	const gateway = useDaemonGateway();
 	const [values, dispatchToReducer] = useReducer(
 		tunnelFormReducer,
-		tunnel,
+		source,
 		toTunnelFormValues
 	);
 	const [errors, setErrors] = useState<TunnelFormErrors>({});
@@ -53,7 +59,7 @@ export function useTunnelForm(
 	};
 
 	const save = async () => {
-		const spec = toTunnelSpec(values, tunnel?.kind ?? DEFAULT_KIND);
+		const spec = toTunnelSpec(values, source?.kind ?? DEFAULT_KIND);
 		setIsSaving(true);
 		summary.clearFailure();
 		let savedTunnel: TunnelDto;

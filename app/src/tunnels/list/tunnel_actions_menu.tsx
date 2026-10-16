@@ -4,6 +4,7 @@ import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
 import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
+import { ExternalMenuItems } from '#/tunnels/list/external_menu_items';
 import { ROVING_CONTROL_ATTRIBUTE } from '#/tunnels/list/use_roving_rows';
 
 type TunnelActionsMenuProps = {
@@ -36,6 +37,7 @@ export function TunnelActionsMenu({
 
 	return (
 		<Menu trigger={trigger} align="end">
+			<ExternalMenuItems tunnel={tunnel} />
 			<MenuItem icon="i-mdi-pencil-outline" onClick={handleEdit}>
 				Modifier
 			</MenuItem>

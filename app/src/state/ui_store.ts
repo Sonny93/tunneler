@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 
+import type { TunnelSpecDto } from '#/daemon/protocol';
+
 export type Panel =
 	| { kind: 'none' }
-	| { kind: 'tunnelEditor'; tunnelId: string | null }
+	| { kind: 'tunnelEditor'; tunnelId: string | null; draft?: TunnelSpecDto }
 	| { kind: 'settings' };
 
 export type TunnelFilter =
@@ -25,6 +27,8 @@ type UiState = {
 type UiActions = {
 	/** `null` opens the editor in create mode. */
 	openTunnelEditor: (tunnelId: string | null) => void;
+	/** Opens the editor in create mode, prefilled from the spec of an external forward. */
+	openTunnelImport: (draft: TunnelSpecDto) => void;
 	openSettings: () => void;
 	closePanel: () => void;
 	closePanelFocusingTunnel: (tunnelId: string) => void;
@@ -46,6 +50,8 @@ export const useUiStore = create<UiState & UiActions>()((set) => ({
 	...INITIAL_UI_STATE,
 	openTunnelEditor: (tunnelId) =>
 		set({ panel: { kind: 'tunnelEditor', tunnelId } }),
+	openTunnelImport: (draft) =>
+		set({ panel: { kind: 'tunnelEditor', tunnelId: null, draft } }),
 	openSettings: () => set({ panel: { kind: 'settings' } }),
 	closePanel: () => set({ panel: { kind: 'none' } }),
 	closePanelFocusingTunnel: (tunnelId) =>

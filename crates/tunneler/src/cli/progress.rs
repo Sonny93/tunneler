@@ -3,7 +3,7 @@
 
 use ipc::protocol::{SnapshotDto, TunnelChangedEvent, TunnelStateDto};
 
-use super::render::describe_failure;
+use super::render::{describe_conflict, describe_external, describe_failure};
 use super::style::Style;
 use super::target::ResolvedTunnel;
 
@@ -11,6 +11,7 @@ use super::target::ResolvedTunnel;
 enum TargetStatus {
     Waiting,
     Active,
+    Provided,
     Unsuccessful,
 }
 
@@ -23,9 +24,11 @@ struct Target {
 
 /// Where each started tunnel stands.
 ///
-/// Only tunnels that are already active count as done from the start: a stopped
-/// or failed one still holds the outcome of an earlier run, so only the events
-/// that follow the start request tell how this run went.
+/// Only tunnels that are already active or provided by an external process
+/// count as done from the start: a stopped or failed one still holds the
+/// outcome of an earlier run, so only the events that follow the start request
+/// tell how this run went. A tunnel already in conflict counts as unsuccessful,
+/// since starting it again reports the same state and so sends no event.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProgressTracker {
     targets: Vec<Target>,
@@ -54,6 +57,16 @@ impl ProgressTracker {
             .collect()
     }
 
+    /// The names of the tunnels an external process provided before anything
+    /// was asked.
+    pub fn already_provided(&self) -> Vec<&str> {
+        self.targets
+            .iter()
+            .filter(|target| target.status == TargetStatus::Provided)
+            .map(|target| target.name.as_str())
+            .collect()
+    }
+
     /// Takes a state change into account; returns the name of the tunnel it
     /// concerns, or `None` when it is not one of the tracked tunnels.
     pub fn apply(&mut self, change: &TunnelChangedEvent) -> Option<&str> {
@@ -65,7 +78,7 @@ impl ProgressTracker {
         Some(&target.name)
     }
 
-    /// Whether every tunnel is either active or unsuccessful.
+    /// Whether every tunnel is either active, provided or unsuccessful.
     pub fn is_settled(&self) -> bool {
         self.targets
             .iter()
@@ -96,21 +109,26 @@ impl ProgressTracker {
 }
 
 fn initial_status(id: &str, snapshot: &SnapshotDto) -> TargetStatus {
-    let is_active = snapshot
+    let state = snapshot
         .tunnels
         .iter()
-        .any(|tunnel| tunnel.definition.id == id && tunnel.state == TunnelStateDto::Active);
-    if is_active {
-        TargetStatus::Active
-    } else {
-        TargetStatus::Waiting
+        .find(|tunnel| tunnel.definition.id == id)
+        .map(|tunnel| &tunnel.state);
+    match state {
+        Some(TunnelStateDto::Active) => TargetStatus::Active,
+        Some(TunnelStateDto::External { .. }) => TargetStatus::Provided,
+        Some(TunnelStateDto::Conflict { .. }) => TargetStatus::Unsuccessful,
+        _ => TargetStatus::Waiting,
     }
 }
 
 fn status_after(state: &TunnelStateDto) -> TargetStatus {
     match state {
         TunnelStateDto::Active => TargetStatus::Active,
-        TunnelStateDto::Failed { .. } | TunnelStateDto::Stopped => TargetStatus::Unsuccessful,
+        TunnelStateDto::External { .. } => TargetStatus::Provided,
+        TunnelStateDto::Failed { .. }
+        | TunnelStateDto::Stopped
+        | TunnelStateDto::Conflict { .. } => TargetStatus::Unsuccessful,
         TunnelStateDto::Starting | TunnelStateDto::Reconnecting { .. } => TargetStatus::Waiting,
     }
 }
@@ -127,13 +145,19 @@ pub fn describe_step(tunnel_name: &str, state: &TunnelStateDto, style: Style) ->
             format!("{tunnel_name}: failed: {}", describe_failure(reason))
         }
         TunnelStateDto::Stopped => format!("{tunnel_name}: stopped"),
+        TunnelStateDto::External { owner } => {
+            format!("{tunnel_name}: {}", describe_external(owner))
+        }
+        TunnelStateDto::Conflict { owner } => {
+            format!("{tunnel_name}: {}", describe_conflict(owner.as_ref()))
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use ipc::protocol::{
-        FailureReasonDto, MetricsDto, SettingsDto, TargetHealthDto, TrayStatusDto,
+        FailureReasonDto, MetricsDto, PortOwnerDto, SettingsDto, TargetHealthDto, TrayStatusDto,
         TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelSpecDto,
     };
 
@@ -179,6 +203,7 @@ mod tests {
     fn snapshot_of(tunnels: Vec<TunnelDto>) -> SnapshotDto {
         SnapshotDto {
             tray: TrayStatusDto::default(),
+            externals: Vec::new(),
             tunnels,
             settings: SettingsDto {
                 default_bind_address: "127.0.0.1".to_owned(),
@@ -213,6 +238,92 @@ mod tests {
                 tunnel("2", "Mail", TunnelStateDto::Stopped),
             ]),
         )
+    }
+
+    fn external() -> TunnelStateDto {
+        TunnelStateDto::External {
+            owner: PortOwnerDto {
+                pid: 4242,
+                process: "ssh".to_owned(),
+            },
+        }
+    }
+
+    fn conflict() -> TunnelStateDto {
+        TunnelStateDto::Conflict {
+            owner: Some(PortOwnerDto {
+                pid: 4242,
+                process: "node".to_owned(),
+            }),
+        }
+    }
+
+    #[test]
+    fn should_settle_successfully_when_a_tunnel_becomes_external() {
+        let mut tracker = tracker_for_two_stopped_tunnels();
+
+        tracker.apply(&change("1", external()));
+        tracker.apply(&change("2", TunnelStateDto::Active));
+
+        assert_eq!(
+            (tracker.is_settled(), tracker.unsuccessful_count()),
+            (true, 0)
+        );
+    }
+
+    #[test]
+    fn should_count_a_failure_when_a_tunnel_ends_in_conflict() {
+        let mut tracker = tracker_for_two_stopped_tunnels();
+
+        tracker.apply(&change("1", TunnelStateDto::Active));
+        tracker.apply(&change("2", conflict()));
+
+        assert_eq!(
+            (tracker.is_settled(), tracker.unsuccessful_count()),
+            (true, 1)
+        );
+    }
+
+    #[test]
+    fn should_consider_a_tunnel_done_when_it_is_already_provided_externally() {
+        let tracker = ProgressTracker::new(
+            &[resolved("1", "Adonis")],
+            &snapshot_of(vec![tunnel("1", "Adonis", external())]),
+        );
+
+        assert_eq!(
+            (tracker.is_settled(), tracker.already_provided()),
+            (true, vec!["Adonis"])
+        );
+    }
+
+    #[test]
+    fn should_count_a_failure_when_a_tunnel_is_already_in_conflict() {
+        let tracker = ProgressTracker::new(
+            &[resolved("1", "Adonis")],
+            &snapshot_of(vec![tunnel("1", "Adonis", conflict())]),
+        );
+
+        assert_eq!(
+            (tracker.is_settled(), tracker.unsuccessful_count()),
+            (true, 1)
+        );
+    }
+
+    #[test]
+    fn should_word_the_external_and_conflict_steps() {
+        assert_eq!(
+            [
+                describe_step("Adonis", &external(), UNICODE),
+                describe_step("Adonis", &conflict(), UNICODE),
+                describe_step("Adonis", &TunnelStateDto::Conflict { owner: None }, UNICODE),
+            ],
+            [
+                "Adonis: provided by external ssh (pid 4242)",
+                "Adonis: port held by node (pid 4242)",
+                "Adonis: port held by an unknown process",
+            ]
+        );
     }
 
     #[test]

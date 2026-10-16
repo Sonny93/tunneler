@@ -29,12 +29,16 @@ export type FailureReasonDto =
 	| { kind: 'connect'; message: string }
 	| { kind: 'unsupportedKind'; tunnelKind: TunnelKindDto };
 
+export type ProcessOwnerDto = { pid: number; process: string };
+
 export type TunnelStateDto =
 	| { kind: 'stopped' }
 	| { kind: 'starting' }
 	| { kind: 'active' }
 	| { kind: 'reconnecting'; attempt: number; nextRetryAt: EpochMillis }
-	| { kind: 'failed'; reason: FailureReasonDto };
+	| { kind: 'failed'; reason: FailureReasonDto }
+	| { kind: 'external'; owner: ProcessOwnerDto }
+	| { kind: 'conflict'; owner?: ProcessOwnerDto };
 
 export type TargetHealthDto =
 	| { kind: 'unknown' }
@@ -84,8 +88,24 @@ export type TrayStatusDto =
 	| { kind: 'failed'; message: string }
 	| { kind: 'disabled' };
 
+export type ExternalForwardDto = {
+	kind: TunnelKindDto;
+	listenAddress?: string;
+	listenPort: number;
+	targetHost?: string;
+	targetPort?: number;
+};
+
+export type ExternalProcessDto = {
+	pid: number;
+	process: string;
+	destination?: string;
+	forwards: ExternalForwardDto[];
+};
+
 export type SnapshotDto = {
 	tunnels: TunnelDto[];
+	externals: ExternalProcessDto[];
 	settings: SettingsDto;
 	tray: TrayStatusDto;
 };
@@ -143,4 +163,5 @@ export type EventMessage =
 	| { event: 'quit.requested'; data: Record<string, never> }
 	| { event: 'tray.changed'; data: { status: TrayStatusDto } }
 	| { event: 'show.requested'; data: Record<string, never> }
+	| { event: 'externals.changed'; data: { processes: ExternalProcessDto[] } }
 	| { event: 'prompt.resolved'; data: { promptId: string } };

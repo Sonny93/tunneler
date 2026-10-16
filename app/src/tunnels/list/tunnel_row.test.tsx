@@ -135,6 +135,24 @@ describe('TunnelRow', () => {
 		);
 	});
 
+	it('should describe the owner on the switch when the tunnel is external', () => {
+		renderRow({
+			state: { kind: 'external', owner: { pid: 4242, process: 'ssh' } },
+		});
+
+		expect(screen.getByRole('switch')).toHaveAccessibleDescription(
+			'fourni par ssh (pid 4242)'
+		);
+	});
+
+	it('should describe the holder on the switch when the tunnel is in conflict', () => {
+		renderRow({ state: { kind: 'conflict' } });
+
+		expect(screen.getByRole('switch')).toHaveAccessibleDescription(
+			'port occupé par un processus inconnu'
+		);
+	});
+
 	it('should describe the health error on the switch when the target is unreachable', () => {
 		renderRow({
 			state: { kind: 'active' },

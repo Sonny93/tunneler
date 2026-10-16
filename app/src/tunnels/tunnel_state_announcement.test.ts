@@ -27,6 +27,17 @@ describe('buildStateAnnouncement', () => {
 		);
 	});
 
+	it('should include the owner of an external tunnel', () => {
+		const external = buildTunnel({
+			name: 'Adonis',
+			state: { kind: 'external', owner: { pid: 4242, process: 'ssh' } },
+		});
+
+		expect(buildStateAnnouncement([external])).toBe(
+			'Adonis : Externe, fourni par ssh (pid 4242)'
+		);
+	});
+
 	it('should count and detail up to three changes', () => {
 		expect(buildStateAnnouncement([active('a', 'A'), active('b', 'B')])).toBe(
 			"2 tunnels ont changé d'état. A : Actif. B : Actif"

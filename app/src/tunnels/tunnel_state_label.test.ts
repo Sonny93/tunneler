@@ -12,6 +12,8 @@ describe('getTunnelStateLabel', () => {
 			'Reconnexion (tentative 2)',
 		],
 		[{ kind: 'failed', reason: { kind: 'connect', message: 'x' } }, 'Échec'],
+		[{ kind: 'external', owner: { pid: 1, process: 'ssh' } }, 'Externe'],
+		[{ kind: 'conflict' }, 'Conflit'],
 	] as const)('should label %j as %s', (state, label) => {
 		expect(getTunnelStateLabel(state)).toBe(label);
 	});

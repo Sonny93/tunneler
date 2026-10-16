@@ -128,8 +128,11 @@ fn lock<Value>(mutex: &Mutex<Value>) -> MutexGuard<'_, Value> {
 fn level_of(state: &TunnelState) -> LogLevel {
     match state {
         TunnelState::Failed { .. } => LogLevel::Error,
-        TunnelState::Reconnecting { .. } => LogLevel::Warn,
-        TunnelState::Stopped | TunnelState::Starting | TunnelState::Active => LogLevel::Info,
+        TunnelState::Reconnecting { .. } | TunnelState::Conflict { .. } => LogLevel::Warn,
+        TunnelState::Stopped
+        | TunnelState::Starting
+        | TunnelState::Active
+        | TunnelState::External { .. } => LogLevel::Info,
     }
 }
 

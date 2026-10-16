@@ -22,7 +22,7 @@ pub fn describe_exit_codes() -> String {
         (ERROR, "error"),
         (USAGE, "invalid usage"),
         (DAEMON_NOT_RUNNING, "the daemon is not running"),
-        (TARGETS_FAILED, "some tunnels failed to start (up)"),
+        (TARGETS_FAILED, "some tunnels failed to start or are blocked by another program (up); a tunnel provided by an external ssh counts as started"),
         (
             CONFIRMATION_REQUIRED,
             "confirmation required but not possible: not a terminal, pass --yes",

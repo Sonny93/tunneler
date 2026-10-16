@@ -14,10 +14,12 @@ async-trait.workspace = true
 directories.workspace = true
 getrandom.workspace = true
 known-hosts.workspace = true
+listeners.workspace = true
 notify.workspace = true
 notify-debouncer-mini.workspace = true
 russh.workspace = true
 serde.workspace = true
+sysinfo.workspace = true
 ssh-config.workspace = true
 thiserror.workspace = true
 toml_edit.workspace = true
@@ -34,5 +36,11 @@ test-support.workspace = true
 [[bin]]
 name = "tcp-bridge"
 path = "tests/support/tcp_bridge.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fake-ssh"
+path = "tests/support/fake_ssh.rs"
 test = false
 doc = false

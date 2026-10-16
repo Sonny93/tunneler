@@ -3,8 +3,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use engine::{Engine, EngineError, HostConfigResolver, StoreError, TunnelId};
 use ipc::protocol::{
-    HostsResult, IpcError, LogsResult, QuitParams, Request, ResponsePayload, SettingsDto,
-    TunnelIdParams,
+    AdoptResult, HostsResult, IpcError, LogsResult, ProcessParams, QuitParams, Request,
+    ResponsePayload, SettingsDto, TunnelIdParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
@@ -79,12 +79,42 @@ impl DaemonHandler {
                 .map(|()| ResponsePayload::empty()),
             Request::DaemonQuit(params) => self.quit(params),
             Request::UiShow {} => self.show_ui(),
+            Request::ExternalAdopt(params) => self.adopt_external(&params).await,
+            Request::ExternalKill(params) => self.kill_external(params).await,
+            Request::ExternalIgnore(params) => self.ignore_external(params).await,
         }
     }
 
     fn snapshot(&self) -> ResponsePayload {
         let tray_status = self.tray_status.borrow().clone();
         ResponsePayload::Snapshot(snapshot_to_dto(&self.engine.snapshot(), &tray_status))
+    }
+
+    async fn adopt_external(&self, params: &TunnelIdParams) -> Result<ResponsePayload, IpcError> {
+        let ids = self
+            .engine
+            .adopt_external(parse_tunnel_id(params)?)
+            .await
+            .map_err(engine_error_to_ipc)?;
+        Ok(ResponsePayload::Adopt(AdoptResult {
+            ids: ids.iter().map(ToString::to_string).collect(),
+        }))
+    }
+
+    async fn kill_external(&self, params: ProcessParams) -> Result<ResponsePayload, IpcError> {
+        self.engine
+            .kill_external(params.pid)
+            .await
+            .map(|()| ResponsePayload::empty())
+            .map_err(engine_error_to_ipc)
+    }
+
+    async fn ignore_external(&self, params: ProcessParams) -> Result<ResponsePayload, IpcError> {
+        self.engine
+            .ignore_external(params.pid)
+            .await
+            .map(|()| ResponsePayload::empty())
+            .map_err(engine_error_to_ipc)
     }
 
     fn show_ui(&self) -> Result<ResponsePayload, IpcError> {
@@ -240,6 +270,12 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         }
         EngineError::Store(error) => store_error_to_ipc(error),
         EngineError::ShutDown => IpcError::internal("the daemon is shutting down"),
+        EngineError::NotExternal(_) => IpcError::invalid_state(error.to_string()),
+        EngineError::UnknownProcess(_) => IpcError::not_found(error.to_string()),
+        EngineError::Terminate(_) | EngineError::ProcessStillRunning(_) => {
+            IpcError::kill_failed(error.to_string())
+        }
+        EngineError::PortScan(_) => IpcError::internal(error.to_string()),
     }
 }
 
@@ -272,7 +308,7 @@ mod tests {
 
     use super::*;
     use crate::daemon::prompts::NoResponderSource;
-    use crate::daemon::testing::TestServer;
+    use crate::daemon::testing::{EmptyPortScanner, TestServer};
     use crate::daemon::tray::TrayStatusCell;
     use crate::daemon::ui::testing::FakeLauncher;
 
@@ -326,6 +362,7 @@ mod tests {
             },
             clock: Arc::new(SystemClock),
             store,
+            port_scanner: Arc::new(EmptyPortScanner),
         })
         .unwrap();
         let quit_requested = CancellationToken::new();
@@ -483,6 +520,75 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    async fn should_answer_invalid_state_when_adopting_a_tunnel_that_is_not_external() {
+        let fixture = fixture();
+        let tunnel = created_tunnel(&fixture, "Web", free_port().await).await;
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::ExternalAdopt(TunnelIdParams {
+                    id: tunnel.definition.id,
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::InvalidState);
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_killing_an_unreported_process() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(None, Request::ExternalKill(ProcessParams { pid: 4242 }))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_ignoring_an_unreported_process() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(None, Request::ExternalIgnore(ProcessParams { pid: 4242 }))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    #[test]
+    fn should_answer_kill_failed_when_the_process_is_still_running() {
+        assert_eq!(
+            engine_error_to_ipc(EngineError::ProcessStillRunning(1)).code,
+            ErrorCode::KillFailed
+        );
+    }
+
+    #[test]
+    fn should_answer_kill_failed_when_the_termination_is_refused() {
+        let error = EngineError::Terminate(engine::TerminateError::Refused { pid: 1 });
+
+        assert_eq!(engine_error_to_ipc(error).code, ErrorCode::KillFailed);
+    }
+
+    #[test]
+    fn should_answer_internal_when_the_port_scan_fails() {
+        let error = EngineError::PortScan(engine::ScanError::ListeningSockets {
+            message: "denied".to_owned(),
+        });
+
+        assert_eq!(engine_error_to_ipc(error).code, ErrorCode::Internal);
     }
 
     #[tokio::test]

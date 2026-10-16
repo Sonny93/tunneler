@@ -113,9 +113,10 @@ Métriques par tunnel : connexions actives, octets in/out, dernière activité. 
 
 ### Tunnels externes
 - `PortScanner` (`listeners` + `sysinfo`) : process propriétaire du port d'écoute de chaque tunnel configuré, au démarrage d'un tunnel, à l'ouverture de l'UI, puis toutes les N secondes tant qu'une UI est connectée.
-- Port tenu par `ssh`/`ssh.exe` dont la ligne de commande contient un `-L`/`-R`/`-D` correspondant → `External` : le tunnel est **considéré comme fourni** (réutilisé). Actions : *Adopter* (kill + relance gérée), *Kill*, *Ignorer*.
+- Port tenu par `ssh`/`ssh.exe` dont la ligne de commande contient un `-L`/`-R`/`-D` correspondant (type, port d'écoute, adresse compatible, cible équivalente ; la destination ssh n'est pas comparée) → `External` : le tunnel est **considéré comme fourni** (réutilisé). Actions : *Adopter* (kill + relance gérée de tous les tunnels fournis par ce processus), *Kill*, *Ignorer* (le daemon cesse de signaler ce processus jusqu'à son arrêt, non persisté).
 - Port tenu par autre chose → `Conflict` (ex. « port occupé par node.exe (pid 4242) »). Action : *Kill* (avec confirmation).
-- Tunnels `ssh` détectés hors config → section « Externes non gérés » avec *Importer comme tunnel*, *Kill*.
+- Tunnels `ssh` détectés hors config → section « Externes non gérés » avec *Importer comme tunnel* (formulaire de création prérempli → `tunnel.create`), *Kill*, *Ignorer*.
+- Processus identifié par pid + heure de démarrage : un pid réutilisé n'est jamais tué. Le daemon s'exclut du scan.
 - Limite connue : sous Linux, les sockets d'un autre utilisateur ne donnent pas de PID sans root → affiché « process inconnu ».
 
 ---
@@ -189,7 +190,7 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 | `state.snapshot` | tunnels + états + santé + métriques + settings + statut du tray |
 | `tunnel.create` / `update` / `delete` / `start` / `stop` / `restart` | |
 | `tag.start` / `tag.stop` | |
-| `external.adopt` / `kill` / `ignore` / `import` | |
+| `external.adopt` / `kill` / `ignore` | `import` passe par le formulaire de création prérempli (`tunnel.create`) |
 | `hosts.list` / `hosts.resolve` | alias de `ssh_config` + config résolue (équivalent `ssh -G`) |
 | `settings.update` | |
 | `credential.respond` / `hostkey.respond` | réponses aux prompts |
@@ -198,7 +199,7 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 | `daemon.quit { force }` | refusé sans `force` si des tunnels tournent → l'UI demande confirmation |
 | `ui.show` | utilisé par la 2ᵉ instance et le tray : `show.requested` aux UI connectées, sinon lancement de `tunneler-ui` |
 
-Événements : `tunnel.changed`, `tunnel.metrics` (throttlé), `tunnel.log`, `credential.request`, `hostkey.request`, `prompt.resolved`, `config.reloaded`, `config.invalid`, `quit.requested`, `show.requested`, `tray.changed`.
+Événements : `externals.changed`, `tunnel.changed`, `tunnel.metrics` (throttlé), `tunnel.log`, `credential.request`, `hostkey.request`, `prompt.resolved`, `config.reloaded`, `config.invalid`, `quit.requested`, `show.requested`, `tray.changed`.
 
 ---
 

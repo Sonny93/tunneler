@@ -17,7 +17,7 @@ mod format;
 mod migration;
 mod model;
 #[cfg(test)]
-mod test_support;
+pub(crate) mod test_support;
 mod validation;
 mod watch;
 

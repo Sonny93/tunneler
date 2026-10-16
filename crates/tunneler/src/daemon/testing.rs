@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use engine::{PortScanner, ProcessIdentity, ScanError, SystemScan, TerminateError};
 use ipc::protocol::{ClientKind, Hello, IpcError, Request, ResponsePayload};
 use ipc::{ConnectionInfo, Endpoint, IpcClient, IpcServer, RequestHandler, ServerHandle};
 use tempfile::TempDir;
@@ -22,6 +23,19 @@ impl RequestHandler for AcceptingHandler {
         _request: Request,
     ) -> Result<ResponsePayload, IpcError> {
         Ok(ResponsePayload::empty())
+    }
+}
+
+/// A port scanner that sees nothing and ends nothing.
+pub(crate) struct EmptyPortScanner;
+
+impl PortScanner for EmptyPortScanner {
+    fn scan(&self) -> Result<SystemScan, ScanError> {
+        Ok(SystemScan::default())
+    }
+
+    fn terminate(&self, process: ProcessIdentity) -> Result<(), TerminateError> {
+        Err(TerminateError::NotFound(process.pid))
     }
 }
 

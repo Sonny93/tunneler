@@ -10,7 +10,7 @@ use ipc::ClientError;
 use ipc::protocol::{ClientKind, ErrorCode, MAX_LINE_BYTES};
 use pretty_assertions::assert_eq;
 use serde_json::json;
-use support::{MISSING_TUNNEL_ID, SLOW_DELAY, SLOW_TUNNEL_ID, TestDaemon};
+use support::{MISSING_TUNNEL_ID, SLOW_DELAY, SLOW_TUNNEL_ID, TestDaemon, UNKILLABLE_PID};
 use tokio::task::JoinSet;
 
 const CONCURRENT_CALLS: u32 = 50;
@@ -31,6 +31,48 @@ async fn should_return_unit_when_a_request_has_nothing_to_report() {
     let client = daemon.connect(ClientKind::Cli, false).await;
 
     assert!(client.start_tunnel("abc").await.is_ok());
+}
+
+#[tokio::test]
+async fn should_return_the_started_ids_when_an_external_tunnel_is_adopted() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let ids = client.adopt_external("abc").await.unwrap();
+
+    assert_eq!(ids, vec!["abc".to_owned()]);
+}
+
+#[tokio::test]
+async fn should_return_unit_when_an_external_process_is_killed() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    assert!(client.kill_external(4242).await.is_ok());
+}
+
+#[tokio::test]
+async fn should_fail_with_kill_failed_when_the_process_survives() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let error = client.kill_external(UNKILLABLE_PID).await.unwrap_err();
+
+    assert!(matches!(
+        error,
+        ClientError::Remote {
+            code: ErrorCode::KillFailed,
+            ..
+        }
+    ));
+}
+
+#[tokio::test]
+async fn should_return_unit_when_an_external_process_is_ignored() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    assert!(client.ignore_external(4242).await.is_ok());
 }
 
 #[tokio::test]

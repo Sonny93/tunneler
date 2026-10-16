@@ -1,5 +1,6 @@
 use tokio::sync::broadcast;
 
+use crate::external::UnmanagedProcess;
 use crate::runtime::log_buffer::TunnelLogEntry;
 use crate::runtime::metrics::TunnelMetrics;
 use crate::runtime::state::{TargetHealth, TunnelState};
@@ -38,6 +39,12 @@ pub enum EngineEvent {
     /// edited, or a tunnel was created, updated or deleted. Subscribers
     /// should read a new snapshot.
     ConfigReloaded,
+    /// The `ssh` processes forwarding ports that match no configured tunnel
+    /// changed.
+    ExternalsChanged {
+        /// The processes now reported.
+        processes: Vec<UnmanagedProcess>,
+    },
     /// The store file was edited into something unusable; the previous
     /// configuration keeps running.
     ConfigInvalid {

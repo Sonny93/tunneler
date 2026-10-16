@@ -1,19 +1,22 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
 use crate::clock::Clock;
+use crate::external::{ProcessIdentity, SystemScan, occupation_of};
 use crate::runtime::definition_diff::{ReloadPlan, plan_reload};
 use crate::runtime::events::EventBus;
 use crate::runtime::log_buffer::TunnelLogEntry;
 use crate::runtime::metrics::TunnelMetrics;
 use crate::runtime::options::EngineOptions;
+use crate::runtime::port_watch::PortWatch;
 use crate::runtime::session_manager::SessionManager;
 use crate::runtime::shared::TunnelShared;
 use crate::runtime::state::{TargetHealth, TunnelState};
 use crate::runtime::tunnel_actor::{TunnelCommand, TunnelContext, TunnelHandle, spawn_tunnel};
-use crate::store::{Settings, TunnelDefinition, TunnelId};
+use crate::store::{Settings, TunnelDefinition, TunnelId, TunnelKind};
 
 /// A tunnel definition, its state, health and metrics at one instant.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,6 +39,7 @@ pub(crate) struct TunnelFactory {
     pub(crate) settings: watch::Receiver<Settings>,
     pub(crate) probing: watch::Receiver<bool>,
     pub(crate) options: EngineOptions,
+    pub(crate) port_watch: Arc<PortWatch>,
 }
 
 impl TunnelFactory {
@@ -48,6 +52,7 @@ impl TunnelFactory {
             settings: self.settings.clone(),
             probing: self.probing.clone(),
             options: self.options,
+            port_watch: Arc::clone(&self.port_watch),
         });
         TunnelEntry { definition, handle }
     }
@@ -136,6 +141,22 @@ impl Catalog {
 
     pub(crate) fn send(&self, id: TunnelId, command: TunnelCommand) -> bool {
         self.find(id).map(|entry| entry.send(command)).is_some()
+    }
+
+    pub(crate) fn observe_ports(
+        &self,
+        settings: &Settings,
+        scan: &SystemScan,
+        ignored: &HashSet<ProcessIdentity>,
+        own_pid: u32,
+    ) {
+        for entry in &self.entries {
+            if entry.definition.kind == TunnelKind::Remote {
+                continue;
+            }
+            let occupation = occupation_of(&entry.definition, settings, scan, ignored, own_pid);
+            entry.send(TunnelCommand::PortObserved(occupation));
+        }
     }
 
     pub(crate) fn add(&mut self, definition: TunnelDefinition) {

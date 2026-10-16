@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { useUiStore } from '#/state/ui_store';
+import type { TunnelSpecDto } from '#/daemon/protocol';
 
 describe('useUiStore', () => {
 	it('should open the editor in create mode with a null id', () => {
@@ -18,6 +19,24 @@ describe('useUiStore', () => {
 		expect(useUiStore.getState().panel).toEqual({
 			kind: 'tunnelEditor',
 			tunnelId: 'a',
+		});
+	});
+
+	it('should open the editor in create mode with a draft when importing', () => {
+		const draft: TunnelSpecDto = {
+			name: 'nova 3333',
+			host: 'nova',
+			kind: 'local',
+			listenPort: 3333,
+			tags: [],
+		};
+
+		useUiStore.getState().openTunnelImport(draft);
+
+		expect(useUiStore.getState().panel).toEqual({
+			kind: 'tunnelEditor',
+			tunnelId: null,
+			draft,
 		});
 	});
 

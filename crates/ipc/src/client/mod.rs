@@ -16,10 +16,10 @@ use tokio::task::JoinHandle;
 use crate::endpoint::Endpoint;
 use crate::error::ClientError;
 use crate::protocol::{
-    CredentialAnswer, CredentialResponseParams, EventMessage, Hello, HostKeyDecisionDto,
-    HostKeyResponseParams, HostsResult, LogEntryDto, LogsResult, QuitParams, Request,
-    RequestEnvelope, SettingsDto, SnapshotDto, TagParams, TunnelDefinitionDto, TunnelDto,
-    TunnelIdParams, TunnelSpecDto, encode_line,
+    AdoptResult, CredentialAnswer, CredentialResponseParams, EventMessage, Hello,
+    HostKeyDecisionDto, HostKeyResponseParams, HostsResult, LogEntryDto, LogsResult, ProcessParams,
+    QuitParams, Request, RequestEnvelope, SettingsDto, SnapshotDto, TagParams, TunnelDefinitionDto,
+    TunnelDto, TunnelIdParams, TunnelSpecDto, encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -285,6 +285,37 @@ impl IpcClient {
     /// Fails when the call fails; see [`ClientError`].
     pub async fn show_ui(&self) -> Result<(), ClientError> {
         self.call_without_result(Request::UiShow {}).await
+    }
+
+    /// Terminates the external ssh process providing a tunnel and starts every
+    /// configured tunnel it provided; returns the identifiers of those tunnels.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn adopt_external(&self, id: &str) -> Result<Vec<String>, ClientError> {
+        let adopted: AdoptResult = self.call(Request::ExternalAdopt(tunnel_id(id))).await?;
+        Ok(adopted.ids)
+    }
+
+    /// Terminates a process the daemon reported.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn kill_external(&self, pid: u32) -> Result<(), ClientError> {
+        self.call_without_result(Request::ExternalKill(ProcessParams { pid }))
+            .await
+    }
+
+    /// Stops the daemon from reporting a process.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn ignore_external(&self, pid: u32) -> Result<(), ClientError> {
+        self.call_without_result(Request::ExternalIgnore(ProcessParams { pid }))
+            .await
     }
 
     async fn call_without_result(&self, request: Request) -> Result<(), ClientError> {

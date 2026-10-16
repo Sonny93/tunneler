@@ -19,6 +19,7 @@ glob = "0.3"
 hmac = "0.13"
 interprocess = { version = "2.4", default-features = false, features = ["tokio"] }
 known-hosts = { path = "crates/known-hosts" }
+listeners = "0.6"
 notify = "8"
 notify-debouncer-mini = { version = "0.7", default-features = false }
 open = "5"
@@ -32,6 +33,7 @@ sha1 = "0.11"
 sha1_smol = "1"
 sha2 = "0.11"
 ssh-config = { path = "crates/ssh-config" }
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 tempfile = "3"
 test-support = { path = "crates/test-support" }
 thiserror = "2"

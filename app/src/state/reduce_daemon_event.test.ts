@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { reduceDaemonEvent } from '#/state/reduce_daemon_event';
-import { buildMetrics, buildTunnel } from '#/testing/factories';
 import { INITIAL_DAEMON_STATE, type DaemonState } from '#/state/daemon_state';
+import {
+	buildExternalProcess,
+	buildMetrics,
+	buildTunnel,
+} from '#/testing/factories';
 
 const stateWithTunnels = (...tunnels: DaemonState['tunnels'][number][]) => ({
 	...INITIAL_DAEMON_STATE,
@@ -236,6 +240,17 @@ describe('reduceDaemonEvent', () => {
 		});
 
 		expect(next.tray).toEqual({ kind: 'missingHost' });
+	});
+
+	it('should replace the externals on externals.changed', () => {
+		const processes = [buildExternalProcess({ pid: 7 })];
+
+		const next = reduceDaemonEvent(
+			{ ...INITIAL_DAEMON_STATE, externals: [buildExternalProcess()] },
+			{ event: 'externals.changed', data: { processes } }
+		);
+
+		expect(next.externals).toEqual(processes);
 	});
 
 	it('should leave the state unchanged on show.requested', () => {

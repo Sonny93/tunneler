@@ -84,6 +84,16 @@ pub enum FailureReasonDto {
     },
 }
 
+/// The process holding a port.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PortOwnerDto {
+    /// The process identifier.
+    pub pid: u32,
+    /// The process name, such as `ssh`.
+    pub process: String,
+}
+
 /// Where a tunnel is in its life.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(
@@ -109,6 +119,19 @@ pub enum TunnelStateDto {
     Failed {
         /// Why.
         reason: FailureReasonDto,
+    },
+    /// The port is held by an ssh process whose command line has a matching
+    /// forward; the tunnel is considered provided.
+    External {
+        /// The ssh process providing the tunnel.
+        owner: PortOwnerDto,
+    },
+    /// The port is held by a process that does not provide the tunnel.
+    Conflict {
+        /// The process holding the port; absent when it cannot be determined,
+        /// such as another user's socket on Linux.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        owner: Option<PortOwnerDto>,
     },
 }
 
@@ -244,6 +267,40 @@ pub enum TrayStatusDto {
     Disabled,
 }
 
+/// A port forward found on the command line of an ssh process.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalForwardDto {
+    /// The direction of the forward.
+    pub kind: TunnelKindDto,
+    /// The bind address, when the command line gives one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listen_address: Option<String>,
+    /// The port listened on.
+    pub listen_port: u16,
+    /// The host the traffic is forwarded to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_host: Option<String>,
+    /// The port the traffic is forwarded to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_port: Option<u16>,
+}
+
+/// An ssh process with forwards that match no configured tunnel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalProcessDto {
+    /// The process identifier.
+    pub pid: u32,
+    /// The process name, such as `ssh`.
+    pub process: String,
+    /// The host the process connects to, when the command line gives one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destination: Option<String>,
+    /// The forwards found on its command line.
+    pub forwards: Vec<ExternalForwardDto>,
+}
+
 /// Everything a client needs to draw its first screen.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -255,6 +312,9 @@ pub struct SnapshotDto {
     /// Whether the daemon shows its tray icon.
     #[serde(default)]
     pub tray: TrayStatusDto,
+    /// The ssh processes with forwards that match no configured tunnel.
+    #[serde(default)]
+    pub externals: Vec<ExternalProcessDto>,
 }
 
 /// One question of a keyboard-interactive exchange.

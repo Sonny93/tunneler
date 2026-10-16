@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { useDaemonStore } from '#/state/daemon_store';
-import { buildSnapshot, buildTunnel } from '#/testing/factories';
+import {
+	buildExternalProcess,
+	buildSnapshot,
+	buildTunnel,
+} from '#/testing/factories';
 
 describe('useDaemonStore', () => {
 	it('should start in the connecting status', () => {
@@ -11,12 +15,13 @@ describe('useDaemonStore', () => {
 	});
 
 	it('should load tunnels and settings from a snapshot', () => {
-		const snapshot = buildSnapshot();
+		const snapshot = buildSnapshot({ externals: [buildExternalProcess()] });
 
 		useDaemonStore.getState().applySnapshot(snapshot);
 
 		expect(useDaemonStore.getState()).toMatchObject({
 			tunnels: snapshot.tunnels,
+			externals: snapshot.externals,
 			settings: snapshot.settings,
 		});
 	});

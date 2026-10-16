@@ -7,12 +7,14 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use engine::{
     EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision, InvalidTunnelId, LogLevel,
-    NewTunnel, RejectedHostKey, RejectionReason, Settings, TargetHealth, TunnelDefinition,
-    TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot, TunnelState,
+    NewTunnel, PortOwner, RejectedHostKey, RejectionReason, Settings, SshForward, TargetHealth,
+    TunnelDefinition, TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot,
+    TunnelState, UnmanagedProcess,
 };
 use ipc::protocol::{
-    ConfigInvalidEvent, EpochMillis, EventMessage, FailureReasonDto, HostKeyAlertReasonDto,
-    HostKeyDecisionDto, HostKeyRequestEvent, LogEntryDto, LogLevelDto, MetricsDto, SettingsDto,
+    ConfigInvalidEvent, EpochMillis, EventMessage, ExternalForwardDto, ExternalProcessDto,
+    ExternalsChangedEvent, FailureReasonDto, HostKeyAlertReasonDto, HostKeyDecisionDto,
+    HostKeyRequestEvent, LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, SettingsDto,
     SnapshotDto, TargetHealthDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto,
     TunnelDto, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto,
 };
@@ -128,6 +130,38 @@ pub(crate) fn state_to_dto(state: &TunnelState) -> TunnelStateDto {
         TunnelState::Failed { reason } => TunnelStateDto::Failed {
             reason: failure_to_dto(reason),
         },
+        TunnelState::External { owner } => TunnelStateDto::External {
+            owner: owner_to_dto(owner),
+        },
+        TunnelState::Conflict { owner } => TunnelStateDto::Conflict {
+            owner: owner.as_ref().map(owner_to_dto),
+        },
+    }
+}
+
+fn owner_to_dto(owner: &PortOwner) -> PortOwnerDto {
+    PortOwnerDto {
+        pid: owner.pid,
+        process: owner.process.clone(),
+    }
+}
+
+fn forward_to_dto(forward: &SshForward) -> ExternalForwardDto {
+    ExternalForwardDto {
+        kind: kind_to_dto(forward.kind),
+        listen_address: forward.listen_address.clone(),
+        listen_port: forward.listen_port,
+        target_host: forward.target_host.clone(),
+        target_port: forward.target_port,
+    }
+}
+
+pub(crate) fn external_to_dto(process: &UnmanagedProcess) -> ExternalProcessDto {
+    ExternalProcessDto {
+        pid: process.pid,
+        process: process.process.clone(),
+        destination: process.destination.clone(),
+        forwards: process.forwards.iter().map(forward_to_dto).collect(),
     }
 }
 
@@ -211,6 +245,7 @@ pub(crate) fn snapshot_to_dto(snapshot: &EngineSnapshot, tray: &TrayStatus) -> S
         tunnels: snapshot.tunnels.iter().map(tunnel_to_dto).collect(),
         settings: settings_to_dto(&snapshot.settings),
         tray: tray_status_to_dto(tray),
+        externals: snapshot.externals.iter().map(external_to_dto).collect(),
     }
 }
 
@@ -253,6 +288,11 @@ pub(crate) fn event_to_message(event: &EngineEvent) -> EventMessage {
         EngineEvent::ConfigInvalid { message } => EventMessage::ConfigInvalid(ConfigInvalidEvent {
             messages: vec![message.clone()],
         }),
+        EngineEvent::ExternalsChanged { processes } => {
+            EventMessage::ExternalsChanged(ExternalsChangedEvent {
+                processes: processes.iter().map(external_to_dto).collect(),
+            })
+        }
     }
 }
 
@@ -428,6 +468,111 @@ mod tests {
                     address: "127.0.0.1:3333".to_owned()
                 }
             }
+        );
+    }
+
+    fn owner() -> PortOwner {
+        PortOwner {
+            pid: 4242,
+            process: "ssh".to_owned(),
+        }
+    }
+
+    fn owner_dto() -> PortOwnerDto {
+        PortOwnerDto {
+            pid: 4242,
+            process: "ssh".to_owned(),
+        }
+    }
+
+    fn unmanaged() -> UnmanagedProcess {
+        UnmanagedProcess {
+            pid: 1234,
+            process: "ssh".to_owned(),
+            destination: Some("nova".to_owned()),
+            forwards: vec![SshForward {
+                kind: TunnelKind::Local,
+                listen_address: Some("0.0.0.0".to_owned()),
+                listen_port: 3333,
+                target_host: Some("localhost".to_owned()),
+                target_port: Some(3333),
+            }],
+        }
+    }
+
+    fn unmanaged_dto() -> ExternalProcessDto {
+        ExternalProcessDto {
+            pid: 1234,
+            process: "ssh".to_owned(),
+            destination: Some("nova".to_owned()),
+            forwards: vec![ExternalForwardDto {
+                kind: TunnelKindDto::Local,
+                listen_address: Some("0.0.0.0".to_owned()),
+                listen_port: 3333,
+                target_host: Some("localhost".to_owned()),
+                target_port: Some(3333),
+            }],
+        }
+    }
+
+    #[test]
+    fn should_convert_an_external_state_with_its_owner() {
+        assert_eq!(
+            state_to_dto(&TunnelState::External { owner: owner() }),
+            TunnelStateDto::External { owner: owner_dto() }
+        );
+    }
+
+    #[test]
+    fn should_convert_a_conflict_state_with_its_owner() {
+        assert_eq!(
+            state_to_dto(&TunnelState::Conflict {
+                owner: Some(owner())
+            }),
+            TunnelStateDto::Conflict {
+                owner: Some(owner_dto())
+            }
+        );
+    }
+
+    #[test]
+    fn should_convert_a_conflict_state_without_owner() {
+        assert_eq!(
+            state_to_dto(&TunnelState::Conflict { owner: None }),
+            TunnelStateDto::Conflict { owner: None }
+        );
+    }
+
+    #[test]
+    fn should_convert_an_unmanaged_process_with_its_forwards() {
+        assert_eq!(external_to_dto(&unmanaged()), unmanaged_dto());
+    }
+
+    #[test]
+    fn should_include_the_externals_when_converting_a_snapshot() {
+        let snapshot = EngineSnapshot {
+            tunnels: Vec::new(),
+            settings: Settings::default(),
+            externals: vec![unmanaged()],
+        };
+
+        assert_eq!(
+            snapshot_to_dto(&snapshot, &TrayStatus::Disabled).externals,
+            vec![unmanaged_dto()]
+        );
+    }
+
+    #[test]
+    fn should_convert_an_externals_changed_event() {
+        let event = EngineEvent::ExternalsChanged {
+            processes: vec![unmanaged()],
+        };
+
+        assert_eq!(
+            event_to_message(&event),
+            EventMessage::ExternalsChanged(ExternalsChangedEvent {
+                processes: vec![unmanaged_dto()]
+            })
         );
     }
 

@@ -8,7 +8,6 @@
 mod error;
 mod events;
 mod handler;
-mod health;
 mod instance;
 mod mapping;
 mod prompts;
@@ -18,6 +17,7 @@ mod signals;
 mod testing;
 mod tray;
 mod ui;
+mod ui_presence;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -25,7 +25,7 @@ use std::time::Duration;
 
 use engine::{
     ConnectorDependencies, Engine, EngineDependencies, HostConfigResolver, SshConfigResolver,
-    Store, SystemAgentLocator, SystemClock,
+    Store, SystemAgentLocator, SystemClock, SystemPortScanner,
 };
 use ipc::Endpoint;
 use ssh_config::{ConfigSources, SystemEnvironment};
@@ -35,11 +35,11 @@ use tokio_util::sync::CancellationToken;
 pub use error::DaemonError;
 use events::spawn_event_bridge;
 use handler::DaemonHandler;
-use health::spawn_health_probing_follower;
 use instance::bind_single_instance;
 use prompts::PromptBroker;
 use tray::{TrayService, TrayStatus, TrayStatusCell, spawn_tray_status_publisher};
 use ui::{ProcessUiLauncher, UiCoordinator};
+use ui_presence::spawn_ui_presence_follower;
 
 /// How many wire events may wait for the IPC server before the oldest are lost.
 const WIRE_EVENT_CAPACITY: usize = 1024;
@@ -90,6 +90,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         connector: connector_dependencies(hosts.clone(), &prompts),
         clock: Arc::new(SystemClock),
         store,
+        port_scanner: Arc::new(SystemPortScanner),
     })?;
     let bridge = spawn_event_bridge(engine.subscribe(), wire_events.clone());
     let shutdown = CancellationToken::new();
@@ -103,7 +104,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         ui.clone(),
         tray_status.subscribe(),
     ));
-    let health = spawn_health_probing_follower(engine.clone(), server.handle(), shutdown.clone());
+    let ui_presence = spawn_ui_presence_follower(engine.clone(), server.handle(), shutdown.clone());
     let ui_follower = ui.spawn_follower(shutdown.clone());
     let status_publisher =
         spawn_tray_status_publisher(tray_status.subscribe(), wire_events, shutdown.clone());
@@ -133,7 +134,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
     if let Some(tray) = tray {
         tray.stop().await;
     }
-    for task in [serving, health, ui_follower, status_publisher] {
+    for task in [serving, ui_presence, ui_follower, status_publisher] {
         if let Err(error) = task.await {
             tracing::warn!(%error, "a daemon task ended abnormally");
         }

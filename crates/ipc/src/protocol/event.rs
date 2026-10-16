@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::protocol::dto::{
-    CredentialRequestDto, HostKeyAlertReasonDto, LogEntryDto, MetricsDto, TargetHealthDto,
-    TrayStatusDto, TunnelStateDto,
+    CredentialRequestDto, ExternalProcessDto, HostKeyAlertReasonDto, LogEntryDto, MetricsDto,
+    TargetHealthDto, TrayStatusDto, TunnelStateDto,
 };
 
 /// The state or the target health of a tunnel changed.
@@ -104,6 +104,14 @@ pub struct TrayChangedEvent {
     pub status: TrayStatusDto,
 }
 
+/// The ssh processes with unmatched forwards changed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalsChangedEvent {
+    /// Every such process now, replacing the previous list.
+    pub processes: Vec<ExternalProcessDto>,
+}
+
 /// What the daemon pushes: `{"event": "...", "data": {...}}`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "event", content = "data")]
@@ -142,4 +150,7 @@ pub enum EventMessage {
     /// A prompt was answered elsewhere; close its dialog.
     #[serde(rename = "prompt.resolved")]
     PromptResolved(PromptResolvedEvent),
+    /// The ssh processes with unmatched forwards changed.
+    #[serde(rename = "externals.changed")]
+    ExternalsChanged(ExternalsChangedEvent),
 }

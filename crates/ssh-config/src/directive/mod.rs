@@ -5,7 +5,10 @@ mod jump;
 mod keyword;
 mod values;
 
-pub use forward::{DynamicForward, Endpoint, ForwardSpec, RemoteForward};
+pub use forward::{
+    DynamicForward, Endpoint, ForwardSpec, RemoteForward, parse_dynamic_forward_argument,
+    parse_local_forward_argument, parse_remote_forward_argument,
+};
 pub use jump::JumpHost;
 pub use keyword::Keyword;
 pub use values::{

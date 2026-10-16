@@ -14,21 +14,23 @@ mod response;
 mod secret;
 
 pub use dto::{
-    CredentialRequestDto, EpochMillis, FailureReasonDto, HostKeyAlertReasonDto, HostKeyDecisionDto,
-    LogEntryDto, LogLevelDto, MetricsDto, PromptDto, SettingsDto, SnapshotDto, TargetHealthDto,
-    TrayStatusDto, TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto,
+    CredentialRequestDto, EpochMillis, ExternalForwardDto, ExternalProcessDto, FailureReasonDto,
+    HostKeyAlertReasonDto, HostKeyDecisionDto, LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto,
+    PromptDto, SettingsDto, SnapshotDto, TargetHealthDto, TrayStatusDto, TunnelDefinitionDto,
+    TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto,
 };
 pub use error::{ErrorCode, IpcError};
 pub use event::{
-    ConfigInvalidEvent, CredentialRequestEvent, EventMessage, HostKeyRequestEvent,
-    PromptResolvedEvent, TrayChangedEvent, TunnelChangedEvent, TunnelLogEvent, TunnelMetricsEvent,
+    ConfigInvalidEvent, CredentialRequestEvent, EventMessage, ExternalsChangedEvent,
+    HostKeyRequestEvent, PromptResolvedEvent, TrayChangedEvent, TunnelChangedEvent, TunnelLogEvent,
+    TunnelMetricsEvent,
 };
 pub use frame::{MalformedFrame, Outcome, ServerFrame, encode_event, encode_response};
 pub use hello::{ClientKind, Hello, HelloResult, PROTOCOL_VERSION};
 pub use line::{LineRead, MAX_LINE_BYTES, encode_line, read_line};
 pub use request::{
-    CredentialAnswer, CredentialResponseParams, HostKeyResponseParams, METHOD_NAMES, QuitParams,
-    Request, RequestEnvelope, RequestRejection, TagParams, TunnelIdParams,
+    CredentialAnswer, CredentialResponseParams, HostKeyResponseParams, METHOD_NAMES, ProcessParams,
+    QuitParams, Request, RequestEnvelope, RequestRejection, TagParams, TunnelIdParams,
 };
-pub use response::{EmptyResult, HostsResult, LogsResult, ResponsePayload};
+pub use response::{AdoptResult, EmptyResult, HostsResult, LogsResult, ResponsePayload};
 pub use secret::Secret;

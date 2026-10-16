@@ -5,8 +5,9 @@
 //! transfer objects, printed compactly on a single line.
 
 use ipc::protocol::{
-    FailureReasonDto, MetricsDto, SettingsDto, SnapshotDto, TargetHealthDto, TunnelDefinitionDto,
-    TunnelDto, TunnelKindDto, TunnelStateDto,
+    ExternalForwardDto, ExternalProcessDto, FailureReasonDto, MetricsDto, PortOwnerDto,
+    SettingsDto, SnapshotDto, TargetHealthDto, TunnelDefinitionDto, TunnelDto, TunnelKindDto,
+    TunnelStateDto,
 };
 use serde::Serialize;
 
@@ -20,6 +21,7 @@ const MILLISECONDS_PER_SECOND: u64 = 1000;
 const BYTES_PER_UNIT: u64 = 1024;
 const BYTE_UNITS: [&str; 4] = ["KiB", "MiB", "GiB", "TiB"];
 const NO_TUNNELS_MESSAGE: &str = "No tunnels configured.";
+const UNMANAGED_HEADING: &str = "Unmanaged ssh processes:";
 
 /// The reason of a failure, as a sentence fragment.
 pub fn describe_failure(reason: &FailureReasonDto) -> String {
@@ -40,6 +42,20 @@ const fn kind_word(kind: TunnelKindDto) -> &'static str {
         TunnelKindDto::Local => "local",
         TunnelKindDto::Remote => "remote",
         TunnelKindDto::Dynamic => "dynamic",
+    }
+}
+
+/// Who provides a tunnel that something else already runs, such as
+/// `provided by external ssh (pid 4242)`.
+pub fn describe_external(owner: &PortOwnerDto) -> String {
+    format!("provided by external {} (pid {})", owner.process, owner.pid)
+}
+
+/// Who holds the port of a tunnel, such as `port held by node (pid 4242)`.
+pub fn describe_conflict(owner: Option<&PortOwnerDto>) -> String {
+    match owner {
+        Some(owner) => format!("port held by {} (pid {})", owner.process, owner.pid),
+        None => "port held by an unknown process".to_owned(),
     }
 }
 
@@ -66,6 +82,10 @@ fn state_label(state: &TunnelStateDto, style: Style) -> StateLabel {
             format!("failed: {}", describe_failure(reason)),
             Tone::Bad,
         ),
+        TunnelStateDto::External { owner } => ("⇄", "[ext]", describe_external(owner), Tone::Good),
+        TunnelStateDto::Conflict { owner } => {
+            ("!", "[!]", describe_conflict(owner.as_ref()), Tone::Bad)
+        }
     };
     StateLabel {
         symbol: if style.unicode {
@@ -237,6 +257,65 @@ pub fn render_status(snapshot: &SnapshotDto, style: Style) -> String {
         .join("\n")
 }
 
+fn describe_external_forward(forward: &ExternalForwardDto, style: Style) -> String {
+    let (option, has_target) = match forward.kind {
+        TunnelKindDto::Local => ("-L", true),
+        TunnelKindDto::Remote => ("-R", true),
+        TunnelKindDto::Dynamic => ("-D", false),
+    };
+    let listening = match &forward.listen_address {
+        Some(address) => format!("{address}:{}", forward.listen_port),
+        None => forward.listen_port.to_string(),
+    };
+    let arrow = style.arrow();
+    if !has_target {
+        return format!("{option} {listening} {arrow} SOCKS");
+    }
+    let target_host = forward
+        .target_host
+        .as_deref()
+        .unwrap_or(DEFAULT_TARGET_HOST);
+    let target_port = forward.target_port.unwrap_or(forward.listen_port);
+    format!("{option} {listening} {arrow} {target_host}:{target_port}")
+}
+
+fn describe_external_process(process: &ExternalProcessDto, style: Style) -> String {
+    let destination = process
+        .destination
+        .as_ref()
+        .map(|destination| format!(" to {destination}"))
+        .unwrap_or_default();
+    let forwards: Vec<String> = process
+        .forwards
+        .iter()
+        .map(|forward| describe_external_forward(forward, style))
+        .collect();
+    format!(
+        "  {}{destination} (pid {}): {}",
+        process.process,
+        process.pid,
+        forwards.join(", ")
+    )
+}
+
+/// One line per ssh process forwarding ports that match no configured
+/// tunnel, under a heading; `None` when there are none.
+pub fn render_externals(snapshot: &SnapshotDto, style: Style) -> Option<String> {
+    if snapshot.externals.is_empty() {
+        return None;
+    }
+    let lines = snapshot
+        .externals
+        .iter()
+        .map(|process| describe_external_process(process, style));
+    Some(
+        std::iter::once(UNMANAGED_HEADING.to_owned())
+            .chain(lines)
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
+}
+
 /// The line that opens the output of `status`.
 pub fn render_daemon_summary(daemon_version: &str, snapshot: &SnapshotDto) -> String {
     let active = snapshot
@@ -286,8 +365,8 @@ struct ListJson<'a> {
 }
 
 /// The `status --json` output: `{"daemonVersion", "tunnels": [TunnelDto…],
-/// "settings": SettingsDto, "tray": TrayStatusDto}` on a single
-/// line.
+/// "settings": SettingsDto, "tray": TrayStatusDto, "externals":
+/// [ExternalProcessDto…]}` on a single line.
 pub fn render_status_json(
     daemon_version: &str,
     snapshot: &SnapshotDto,
@@ -374,6 +453,7 @@ mod tests {
             tunnels,
             settings: settings(),
             tray: TrayStatusDto::default(),
+            externals: Vec::new(),
         }
     }
 
@@ -389,6 +469,137 @@ mod tests {
         FailureReasonDto::PortInUse {
             address: "127.0.0.1:3333".to_owned(),
         }
+    }
+
+    fn owner(process: &str) -> PortOwnerDto {
+        PortOwnerDto {
+            pid: 4242,
+            process: process.to_owned(),
+        }
+    }
+
+    fn unmanaged() -> ExternalProcessDto {
+        ExternalProcessDto {
+            pid: 1234,
+            process: "ssh".to_owned(),
+            destination: Some("nova".to_owned()),
+            forwards: vec![ExternalForwardDto {
+                kind: TunnelKindDto::Local,
+                listen_address: None,
+                listen_port: 3333,
+                target_host: Some("localhost".to_owned()),
+                target_port: Some(3333),
+            }],
+        }
+    }
+
+    #[test]
+    fn should_render_an_external_tunnel_with_its_owner() {
+        let state = TunnelStateDto::External {
+            owner: owner("ssh"),
+        };
+
+        assert_eq!(
+            [
+                render_one(state.clone(), UNICODE_PLAIN),
+                render_one(state, ASCII_PLAIN)
+            ],
+            [
+                "⇄ provided by external ssh (pid 4242)  Adonis  3333 → nova:3333  [dev, adonis]",
+                "[ext] provided by external ssh (pid 4242)  Adonis  3333 -> nova:3333  [dev, adonis]"
+            ]
+        );
+    }
+
+    #[test]
+    fn should_render_a_conflict_with_its_owner() {
+        let state = TunnelStateDto::Conflict {
+            owner: Some(owner("node")),
+        };
+
+        assert_eq!(
+            render_one(state, ASCII_PLAIN),
+            "[!] port held by node (pid 4242)  Adonis  3333 -> nova:3333  [dev, adonis]"
+        );
+    }
+
+    #[test]
+    fn should_render_a_conflict_without_owner_as_an_unknown_process() {
+        let state = TunnelStateDto::Conflict { owner: None };
+
+        assert_eq!(
+            render_one(state, UNICODE_PLAIN),
+            "! port held by an unknown process  Adonis  3333 → nova:3333  [dev, adonis]"
+        );
+    }
+
+    #[test]
+    fn should_color_an_external_tunnel_green_and_a_conflict_red() {
+        let external = render_one(
+            TunnelStateDto::External {
+                owner: owner("ssh"),
+            },
+            UNICODE_COLOR,
+        );
+        let conflict = render_one(TunnelStateDto::Conflict { owner: None }, UNICODE_COLOR);
+
+        assert_eq!(
+            (
+                external.starts_with("\x1b[32m"),
+                conflict.starts_with("\x1b[31m")
+            ),
+            (true, true)
+        );
+    }
+
+    #[test]
+    fn should_render_nothing_when_there_are_no_unmanaged_processes() {
+        assert_eq!(
+            render_externals(&snapshot_of(Vec::new()), UNICODE_PLAIN),
+            None
+        );
+    }
+
+    #[test]
+    fn should_render_one_line_per_unmanaged_process() {
+        let mut snapshot = snapshot_of(Vec::new());
+        snapshot.externals = vec![unmanaged()];
+
+        assert_eq!(
+            render_externals(&snapshot, UNICODE_PLAIN).unwrap(),
+            "Unmanaged ssh processes:\n  ssh to nova (pid 1234): -L 3333 → localhost:3333"
+        );
+    }
+
+    #[test]
+    fn should_use_an_ascii_arrow_and_no_color_when_rendering_unmanaged_processes_plainly() {
+        let mut snapshot = snapshot_of(Vec::new());
+        snapshot.externals = vec![unmanaged()];
+
+        assert_eq!(
+            render_externals(&snapshot, ASCII_PLAIN).unwrap(),
+            "Unmanaged ssh processes:\n  ssh to nova (pid 1234): -L 3333 -> localhost:3333"
+        );
+    }
+
+    #[test]
+    fn should_describe_a_dynamic_forward_without_destination() {
+        let mut process = unmanaged();
+        process.destination = None;
+        process.forwards = vec![ExternalForwardDto {
+            kind: TunnelKindDto::Dynamic,
+            listen_address: Some("0.0.0.0".to_owned()),
+            listen_port: 1080,
+            target_host: None,
+            target_port: None,
+        }];
+        let mut snapshot = snapshot_of(Vec::new());
+        snapshot.externals = vec![process];
+
+        assert_eq!(
+            render_externals(&snapshot, ASCII_PLAIN).unwrap(),
+            "Unmanaged ssh processes:\n  ssh (pid 1234): -D 0.0.0.0:1080 -> SOCKS"
+        );
     }
 
     #[test]

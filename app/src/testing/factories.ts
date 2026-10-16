@@ -1,4 +1,5 @@
 import type {
+	ExternalProcessDto,
 	MetricsDto,
 	SettingsDto,
 	SnapshotDto,
@@ -37,6 +38,25 @@ export function buildTunnel(
 	};
 }
 
+export function buildExternalProcess(
+	overrides: Readonly<Partial<ExternalProcessDto>> = {}
+): ExternalProcessDto {
+	return {
+		pid: 4242,
+		process: 'ssh',
+		destination: 'nova',
+		forwards: [
+			{
+				kind: 'local',
+				listenPort: DEFAULT_LISTEN_PORT,
+				targetHost: 'localhost',
+				targetPort: DEFAULT_LISTEN_PORT,
+			},
+		],
+		...overrides,
+	};
+}
+
 export function buildSettings(
 	overrides: Readonly<Partial<SettingsDto>> = {}
 ): SettingsDto {
@@ -61,6 +81,7 @@ export function buildSnapshot(
 ): SnapshotDto {
 	return {
 		tunnels: [buildTunnel()],
+		externals: [],
 		settings: buildSettings(),
 		tray: { kind: 'active' },
 		...overrides,

@@ -12,5 +12,9 @@ export function getTunnelStateLabel(state: Readonly<TunnelStateDto>): string {
 			return `Reconnexion (tentative ${state.attempt})`;
 		case 'failed':
 			return 'Échec';
+		case 'external':
+			return 'Externe';
+		case 'conflict':
+			return 'Conflit';
 	}
 }

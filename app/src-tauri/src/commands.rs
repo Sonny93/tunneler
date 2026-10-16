@@ -75,6 +75,24 @@ pub async fn stop_tag(state: State<'_, BridgeState>, tag: String) -> CommandResu
 }
 
 #[tauri::command]
+pub async fn adopt_external(
+    state: State<'_, BridgeState>,
+    id: String,
+) -> CommandResult<Vec<String>> {
+    Ok(state.client()?.adopt_external(&id).await?)
+}
+
+#[tauri::command]
+pub async fn kill_external(state: State<'_, BridgeState>, pid: u32) -> CommandResult<()> {
+    Ok(state.client()?.kill_external(pid).await?)
+}
+
+#[tauri::command]
+pub async fn ignore_external(state: State<'_, BridgeState>, pid: u32) -> CommandResult<()> {
+    Ok(state.client()?.ignore_external(pid).await?)
+}
+
+#[tauri::command]
 pub async fn update_settings(
     state: State<'_, BridgeState>,
     settings: SettingsDto,

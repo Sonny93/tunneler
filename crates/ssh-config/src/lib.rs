@@ -40,7 +40,8 @@ pub use criteria::{Criterion, CriterionKind};
 pub use directive::{
     AddKeysMode, AddKeysToAgent, AddressFamily, CanonicalizeHostname, DynamicForward, Endpoint,
     EnvironmentVariable, ForwardSpec, JumpHost, Keyword, PubkeyAuthentication, RemoteForward,
-    StrictHostKeyChecking,
+    StrictHostKeyChecking, parse_dynamic_forward_argument, parse_local_forward_argument,
+    parse_remote_forward_argument,
 };
 pub use environment::{EnvironmentError, LocalEnvironment, SystemEnvironment};
 pub use error::{

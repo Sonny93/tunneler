@@ -4,6 +4,7 @@ use std::time::SystemTime;
 
 use thiserror::Error;
 
+use crate::external::PortOwner;
 use crate::store::TunnelKind;
 
 /// Why a tunnel is in the [`TunnelState::Failed`] state.
@@ -63,6 +64,17 @@ pub enum TunnelState {
         /// Why.
         reason: FailureReason,
     },
+    /// Something else already provides the tunnel: an `ssh` process forwards
+    /// the same port.
+    External {
+        /// The process providing the tunnel.
+        owner: PortOwner,
+    },
+    /// Another process holds the listen port.
+    Conflict {
+        /// The process holding the port; `None` when it cannot be seen.
+        owner: Option<PortOwner>,
+    },
 }
 
 impl TunnelState {
@@ -90,6 +102,21 @@ impl fmt::Display for TunnelState {
                 write!(formatter, "reconnecting (attempt {attempt})")
             }
             Self::Failed { reason } => write!(formatter, "failed: {reason}"),
+            Self::External { owner } => write!(
+                formatter,
+                "provided by an external {} (pid {})",
+                owner.process, owner.pid
+            ),
+            Self::Conflict { owner: Some(owner) } => {
+                write!(
+                    formatter,
+                    "port held by {} (pid {})",
+                    owner.process, owner.pid
+                )
+            }
+            Self::Conflict { owner: None } => {
+                formatter.write_str("port held by an unknown process")
+            }
         }
     }
 }
@@ -147,6 +174,44 @@ mod tests {
 
     fn at(seconds: u64) -> SystemTime {
         UNIX_EPOCH + Duration::from_secs(seconds)
+    }
+
+    fn owner() -> PortOwner {
+        PortOwner {
+            pid: 4242,
+            process: "ssh".to_owned(),
+        }
+    }
+
+    #[test]
+    fn should_not_be_running_when_external_or_in_conflict() {
+        let external = TunnelState::External { owner: owner() };
+        let conflict = TunnelState::Conflict { owner: None };
+
+        assert!(!external.is_running() && !conflict.is_running());
+    }
+
+    #[test]
+    fn should_describe_the_owner_when_displaying_an_external_state() {
+        let state = TunnelState::External { owner: owner() };
+
+        assert_eq!(state.to_string(), "provided by an external ssh (pid 4242)");
+    }
+
+    #[test]
+    fn should_describe_the_owner_when_displaying_a_conflict() {
+        let state = TunnelState::Conflict {
+            owner: Some(owner()),
+        };
+
+        assert_eq!(state.to_string(), "port held by ssh (pid 4242)");
+    }
+
+    #[test]
+    fn should_say_the_owner_is_unknown_when_displaying_a_conflict_without_owner() {
+        let state = TunnelState::Conflict { owner: None };
+
+        assert_eq!(state.to_string(), "port held by an unknown process");
     }
 
     #[test]

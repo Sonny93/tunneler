@@ -1,5 +1,7 @@
 use super::super::args::OutputArguments;
-use super::super::render::{render_daemon_summary, render_status, render_status_json};
+use super::super::render::{
+    render_daemon_summary, render_externals, render_status, render_status_json,
+};
 use super::super::session::{ConnectionMode, connect};
 use super::super::{CliError, Context};
 use crate::logging;
@@ -21,5 +23,8 @@ pub async fn status(context: &Context, arguments: &OutputArguments) -> Result<()
         render_daemon_summary(client.daemon_version(), &snapshot)
     );
     println!("{}", render_status(&snapshot, context.style));
+    if let Some(externals) = render_externals(&snapshot, context.style) {
+        println!("{externals}");
+    }
     Ok(())
 }

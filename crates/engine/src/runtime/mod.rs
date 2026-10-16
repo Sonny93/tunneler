@@ -14,6 +14,7 @@ mod local_forward;
 mod log_buffer;
 mod metrics;
 mod options;
+mod port_watch;
 mod reload;
 mod retry;
 mod session_manager;

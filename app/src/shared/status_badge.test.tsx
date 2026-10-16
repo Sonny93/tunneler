@@ -20,6 +20,8 @@ const STATES: readonly [TunnelStateDto, string][] = [
 		},
 		'Échec',
 	],
+	[{ kind: 'external', owner: { pid: 4242, process: 'ssh' } }, 'Externe'],
+	[{ kind: 'conflict' }, 'Conflit'],
 ];
 
 const iconClassOf = (container: HTMLElement) =>
@@ -44,6 +46,31 @@ describe('TunnelStatusBadge', () => {
 
 		expect(
 			screen.getByText('Port déjà utilisé (127.0.0.1:3333)')
+		).toBeVisible();
+	});
+
+	it('should show the owner of an external tunnel as visible text', () => {
+		render(
+			<TunnelStatusBadge
+				state={{ kind: 'external', owner: { pid: 4242, process: 'ssh' } }}
+			/>
+		);
+
+		expect(screen.getByText('fourni par ssh (pid 4242)')).toBeVisible();
+	});
+
+	it('should show the holder of the port on a conflict', () => {
+		render(
+			<TunnelStatusBadge
+				state={{
+					kind: 'conflict',
+					owner: { pid: 4242, process: 'node.exe' },
+				}}
+			/>
+		);
+
+		expect(
+			screen.getByText('port occupé par node.exe (pid 4242)')
 		).toBeVisible();
 	});
 

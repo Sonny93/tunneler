@@ -21,6 +21,15 @@ describe('describeTunnelProblems', () => {
 		).toBe('Connexion SSH impossible : boom');
 	});
 
+	it('should return the owner when the tunnel is external', () => {
+		expect(
+			describeTunnelProblems({
+				state: { kind: 'external', owner: { pid: 4242, process: 'ssh' } },
+				health: { kind: 'unknown' },
+			})
+		).toBe('fourni par ssh (pid 4242)');
+	});
+
 	it('should return the health error when the target is unreachable', () => {
 		expect(
 			describeTunnelProblems({

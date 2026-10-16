@@ -10,13 +10,15 @@ use std::time::{Duration, SystemTime};
 
 use engine::{
     Clock, Engine, EngineDependencies, EngineError, EngineEvent, EngineOptions, FailureReason,
-    HostKeyDecision, LogLevel, NewTunnel, Settings, Store, StoreError, SystemClock, TargetHealth,
-    TunnelId, TunnelKind, TunnelState,
+    HostKeyDecision, LogLevel, NewTunnel, PortOwner, PortScanner, Settings, Store, StoreError,
+    SystemClock, SystemPortScanner, SystemScan, TargetHealth, TunnelId, TunnelKind, TunnelState,
+    UnmanagedProcess,
 };
 use russh::keys::{Algorithm, PrivateKey};
 use support::{
-    EchoServer, ScriptedPrompter, ScriptedVerifier, TestServer, TestUser, Workspace, free_port,
-    generate_key, wait_for_event, wait_for_state, wait_until, write_private_key,
+    EchoServer, FakePortScanner, ScriptedPrompter, ScriptedVerifier, TestServer, TestUser,
+    Workspace, foreign_scan, free_port, generate_key, identity_of, ssh_scan, wait_for_event,
+    wait_for_state, wait_until, write_private_key,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -64,6 +66,7 @@ struct HarnessBuilder {
     host_lines: Vec<&'static str>,
     verifier: ScriptedVerifier,
     clock: Arc<dyn Clock>,
+    port_scanner: Option<Arc<dyn PortScanner>>,
 }
 
 struct Harness {
@@ -77,6 +80,7 @@ struct Harness {
     verifier: Arc<ScriptedVerifier>,
     specs: Vec<TunnelSpec>,
     timing: Timing,
+    scanner: Arc<FakePortScanner>,
 }
 
 impl HarnessBuilder {
@@ -96,6 +100,7 @@ impl HarnessBuilder {
             host_lines: Vec::new(),
             verifier: ScriptedVerifier::default(),
             clock: Arc::new(SystemClock),
+            port_scanner: None,
         }
     }
 
@@ -157,6 +162,11 @@ impl HarnessBuilder {
         self
     }
 
+    fn port_scanner(mut self, scanner: Arc<dyn PortScanner>) -> Self {
+        self.port_scanner = Some(scanner);
+        self
+    }
+
     async fn start(self) -> Harness {
         let client_key = generate_key(Algorithm::Ed25519);
         let server = server_authorizing(&client_key, self.is_client_key_authorized).await;
@@ -195,15 +205,21 @@ impl HarnessBuilder {
             self.is_health_probe_enabled,
             self.keepalive,
         );
+        let scanner = Arc::new(FakePortScanner::default());
+        let port_scanner = self
+            .port_scanner
+            .unwrap_or_else(|| Arc::clone(&scanner) as Arc<dyn PortScanner>);
         let engine = Engine::start_with_options(
             EngineDependencies {
                 connector: dependencies,
                 clock: self.clock,
                 store,
+                port_scanner,
             },
             EngineOptions {
                 health_probe_interval: PROBE_INTERVAL,
                 metrics_event_interval: PROBE_INTERVAL,
+                port_scan_interval: PROBE_INTERVAL,
             },
         )
         .unwrap();
@@ -219,6 +235,7 @@ impl HarnessBuilder {
             verifier,
             specs,
             timing: self.timing,
+            scanner,
         }
     }
 
@@ -650,24 +667,15 @@ async fn should_cancel_the_reconnection_immediately_when_the_tunnel_is_stopped()
 }
 
 #[tokio::test]
-async fn should_fail_without_any_ssh_connection_when_the_port_is_taken() {
+async fn should_report_a_conflict_without_any_ssh_connection_when_the_port_is_taken() {
     let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
     let port = harness.port("alpha");
     let _squatter = TcpListener::bind((LOOPBACK, port)).await.unwrap();
 
     harness.start_tunnel("alpha");
-    let state = harness
-        .wait_for("alpha", |state| matches!(state, TunnelState::Failed { .. }))
-        .await;
+    let state = harness.wait_for("alpha", is_conflict).await;
 
-    assert_eq!(
-        state,
-        TunnelState::Failed {
-            reason: FailureReason::PortInUse {
-                address: format!("{LOOPBACK}:{port}")
-            }
-        }
-    );
+    assert_eq!(state, TunnelState::Conflict { owner: None });
     assert_eq!(harness.server.connection_count(), 0);
 }
 
@@ -678,9 +686,7 @@ async fn should_start_again_when_the_port_is_freed_after_a_failure() {
         .await
         .unwrap();
     harness.start_tunnel("alpha");
-    harness
-        .wait_for("alpha", |state| matches!(state, TunnelState::Failed { .. }))
-        .await;
+    harness.wait_for("alpha", is_conflict).await;
 
     drop(squatter);
     harness.start_and_wait_active("alpha").await;
@@ -1491,6 +1497,7 @@ async fn should_save_the_generated_ids_when_the_engine_starts_on_a_file_without_
         connector,
         clock: Arc::new(SystemClock),
         store,
+        port_scanner: Arc::new(FakePortScanner::default()),
     })
     .unwrap();
 
@@ -1543,4 +1550,466 @@ async fn should_write_nothing_when_the_updated_settings_are_invalid() {
         std::fs::read_to_string(harness.store_path()).unwrap(),
         before
     );
+}
+
+const SSH_PID: u32 = 424_242;
+const OTHER_SSH_PID: u32 = 424_243;
+const NGINX_PID: u32 = 424_244;
+const UNMANAGED_PORT: u16 = 59_999;
+const SSH_NAME: &str = "ssh";
+
+impl Harness {
+    fn forward_of(&self, name: &str) -> (u16, String) {
+        let port = self.port(name);
+        (port, format!("{port}:{LOOPBACK}:{}", self.echo.port))
+    }
+
+    fn scan_with_ssh_providing(&self, pid: u32, names: &[&str]) -> SystemScan {
+        let forwards: Vec<(u16, String)> = names.iter().map(|name| self.forward_of(name)).collect();
+        ssh_scan(pid, &forwards)
+    }
+
+    fn set_scan(&self, scan: SystemScan) {
+        self.scanner.set_scan(scan);
+    }
+
+    async fn wait_for_externals(
+        &mut self,
+        predicate: impl Fn(&[UnmanagedProcess]) -> bool,
+    ) -> Vec<UnmanagedProcess> {
+        wait_for_event(&mut self.events, WAIT, |event| match event {
+            EngineEvent::ExternalsChanged { processes } if predicate(processes) => {
+                Some(processes.clone())
+            }
+            _ => None,
+        })
+        .await
+    }
+}
+
+fn external_owner(pid: u32) -> TunnelState {
+    TunnelState::External {
+        owner: PortOwner {
+            pid,
+            process: SSH_NAME.to_owned(),
+        },
+    }
+}
+
+fn is_external(state: &TunnelState) -> bool {
+    matches!(state, TunnelState::External { .. })
+}
+
+fn is_conflict(state: &TunnelState) -> bool {
+    matches!(state, TunnelState::Conflict { .. })
+}
+
+fn unmanaged_ssh_scan(base: SystemScan) -> SystemScan {
+    let unmanaged = ssh_scan(
+        OTHER_SSH_PID,
+        &[(UNMANAGED_PORT, format!("{UNMANAGED_PORT}:db:5432"))],
+    );
+    SystemScan {
+        listeners: [base.listeners, unmanaged.listeners].concat(),
+        processes: [base.processes, unmanaged.processes].concat(),
+    }
+}
+
+#[tokio::test]
+async fn should_report_external_when_scanning_finds_a_matching_ssh_forward() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.set_scan(harness.scan_with_ssh_providing(SSH_PID, &["alpha"]));
+
+    harness.engine.set_port_scanning(true);
+    let state = harness.wait_for("alpha", is_external).await;
+
+    assert_eq!(state, external_owner(SSH_PID));
+}
+
+#[tokio::test]
+async fn should_report_conflict_when_scanning_finds_another_program_on_the_port() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.set_scan(foreign_scan(NGINX_PID, "nginx", harness.port("alpha")));
+
+    harness.engine.set_port_scanning(true);
+    let state = harness.wait_for("alpha", is_conflict).await;
+
+    assert_eq!(
+        state,
+        TunnelState::Conflict {
+            owner: Some(PortOwner {
+                pid: NGINX_PID,
+                process: "nginx".to_owned()
+            })
+        }
+    );
+}
+
+#[tokio::test]
+async fn should_return_to_stopped_when_the_external_listener_disappears() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.set_scan(harness.scan_with_ssh_providing(SSH_PID, &["alpha"]));
+    harness.engine.set_port_scanning(true);
+    harness.wait_for("alpha", is_external).await;
+
+    harness.set_scan(SystemScan::default());
+
+    harness.wait_stopped("alpha").await;
+}
+
+#[tokio::test]
+async fn should_not_scan_when_port_scanning_is_off() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    sleep(QUIET_PERIOD).await;
+
+    assert_eq!(harness.scanner.scan_count(), 0);
+}
+
+#[tokio::test]
+async fn should_scan_repeatedly_when_port_scanning_is_on() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    harness.engine.set_port_scanning(true);
+
+    wait_until(WAIT, "several scans", || harness.scanner.scan_count() >= 3).await;
+}
+
+#[tokio::test]
+async fn should_stop_scanning_when_port_scanning_is_turned_off() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.engine.set_port_scanning(true);
+    wait_until(WAIT, "a scan", || harness.scanner.scan_count() >= 1).await;
+    harness.engine.set_port_scanning(false);
+    sleep(PROBE_INTERVAL * 2).await;
+    let count = harness.scanner.scan_count();
+
+    sleep(QUIET_PERIOD).await;
+
+    assert_eq!(harness.scanner.scan_count(), count);
+}
+
+#[tokio::test]
+async fn should_keep_the_states_when_a_scan_fails() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.set_scan(harness.scan_with_ssh_providing(SSH_PID, &["alpha"]));
+    harness.engine.set_port_scanning(true);
+    harness.wait_for("alpha", is_external).await;
+
+    harness.scanner.fail_scans();
+    let count = harness.scanner.scan_count();
+    wait_until(WAIT, "failing scans", || {
+        harness.scanner.scan_count() > count + 1
+    })
+    .await;
+
+    assert_eq!(harness.state_of("alpha"), external_owner(SSH_PID));
+}
+
+async fn start_on_taken_port(harness: &mut Harness) -> TunnelState {
+    let squatter = TcpListener::bind((LOOPBACK, harness.port("alpha")))
+        .await
+        .unwrap();
+    harness.start_tunnel("alpha");
+    let state = harness
+        .wait_for("alpha", |state| {
+            is_external(state) || is_conflict(state) || matches!(state, TunnelState::Failed { .. })
+        })
+        .await;
+    drop(squatter);
+    state
+}
+
+#[tokio::test]
+async fn should_report_external_when_starting_on_a_port_held_by_a_matching_ssh() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.set_scan(harness.scan_with_ssh_providing(SSH_PID, &["alpha"]));
+
+    let state = start_on_taken_port(&mut harness).await;
+
+    assert_eq!(state, external_owner(SSH_PID));
+}
+
+#[tokio::test]
+async fn should_report_conflict_when_starting_on_a_port_held_by_another_program() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.set_scan(foreign_scan(NGINX_PID, "nginx", harness.port("alpha")));
+
+    let state = start_on_taken_port(&mut harness).await;
+
+    assert!(matches!(
+        state,
+        TunnelState::Conflict { owner: Some(owner) } if owner.pid == NGINX_PID
+    ));
+}
+
+#[tokio::test]
+async fn should_report_conflict_without_owner_when_starting_on_a_port_the_scan_cannot_see() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let state = start_on_taken_port(&mut harness).await;
+
+    assert_eq!(state, TunnelState::Conflict { owner: None });
+}
+
+#[tokio::test]
+async fn should_keep_the_port_in_use_failure_when_the_scan_fails_at_start() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.scanner.fail_scans();
+
+    let state = start_on_taken_port(&mut harness).await;
+
+    assert!(matches!(
+        state,
+        TunnelState::Failed {
+            reason: FailureReason::PortInUse { .. }
+        }
+    ));
+}
+
+#[tokio::test]
+async fn should_keep_the_external_state_when_the_tunnel_is_stopped() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.set_scan(harness.scan_with_ssh_providing(SSH_PID, &["alpha"]));
+    harness.engine.set_port_scanning(true);
+    harness.wait_for("alpha", is_external).await;
+
+    harness.stop_tunnel("alpha");
+    sleep(QUIET_PERIOD).await;
+
+    assert_eq!(harness.state_of("alpha"), external_owner(SSH_PID));
+}
+
+#[tokio::test]
+async fn should_terminate_once_and_start_every_tunnel_of_the_process_when_adopting() {
+    let mut harness = HarnessBuilder::new(&["alpha", "beta"]).start().await;
+    harness.set_scan(harness.scan_with_ssh_providing(SSH_PID, &["alpha", "beta"]));
+    harness.engine.set_port_scanning(true);
+    harness.wait_for("alpha", is_external).await;
+    harness.wait_for("beta", is_external).await;
+
+    let adopted = harness
+        .engine
+        .adopt_external(harness.id("alpha"))
+        .await
+        .unwrap();
+
+    harness.wait_all_active(&["alpha", "beta"]).await;
+    assert_eq!(adopted, vec![harness.id("alpha"), harness.id("beta")]);
+    assert_eq!(harness.scanner.terminated(), vec![identity_of(SSH_PID)]);
+}
+
+#[tokio::test]
+async fn should_refuse_to_adopt_when_the_tunnel_is_not_external() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let error = harness
+        .engine
+        .adopt_external(harness.id("alpha"))
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, EngineError::NotExternal(id) if id == harness.id("alpha")));
+}
+
+#[tokio::test]
+async fn should_fail_with_unknown_tunnel_when_adopting_a_tunnel_that_does_not_exist() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let error = harness
+        .engine
+        .adopt_external(TunnelId::generate())
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, EngineError::UnknownTunnel(_)));
+}
+
+#[tokio::test]
+async fn should_refuse_to_kill_when_the_process_is_not_reported() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let error = harness.engine.kill_external(NGINX_PID).await.unwrap_err();
+
+    assert!(matches!(error, EngineError::UnknownProcess(NGINX_PID)));
+    assert_eq!(harness.scanner.terminated(), Vec::new());
+}
+
+#[tokio::test]
+async fn should_terminate_and_stop_reporting_when_an_unmanaged_process_is_killed() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.set_scan(unmanaged_ssh_scan(SystemScan::default()));
+    harness.engine.set_port_scanning(true);
+    harness
+        .wait_for_externals(|processes| !processes.is_empty())
+        .await;
+
+    harness.engine.kill_external(OTHER_SSH_PID).await.unwrap();
+
+    assert_eq!(
+        harness.scanner.terminated(),
+        vec![identity_of(OTHER_SSH_PID)]
+    );
+    harness
+        .wait_for_externals(<[UnmanagedProcess]>::is_empty)
+        .await;
+}
+
+#[tokio::test]
+async fn should_publish_unmanaged_processes_when_ssh_forwards_match_no_tunnel() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.set_scan(unmanaged_ssh_scan(SystemScan::default()));
+
+    harness.engine.set_port_scanning(true);
+    let processes = harness
+        .wait_for_externals(|processes| !processes.is_empty())
+        .await;
+
+    assert_eq!(processes[0].pid, OTHER_SSH_PID);
+    assert_eq!(harness.engine.snapshot().externals, processes);
+}
+
+#[tokio::test]
+async fn should_hide_the_unmanaged_process_when_it_is_ignored() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.set_scan(unmanaged_ssh_scan(SystemScan::default()));
+    harness.engine.set_port_scanning(true);
+    harness
+        .wait_for_externals(|processes| !processes.is_empty())
+        .await;
+
+    harness.engine.ignore_external(OTHER_SSH_PID).await.unwrap();
+
+    harness
+        .wait_for_externals(<[UnmanagedProcess]>::is_empty)
+        .await;
+    assert_eq!(harness.scanner.terminated(), Vec::new());
+}
+
+#[tokio::test]
+async fn should_stop_the_external_state_when_its_owner_is_ignored() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.set_scan(harness.scan_with_ssh_providing(SSH_PID, &["alpha"]));
+    harness.engine.set_port_scanning(true);
+    harness.wait_for("alpha", is_external).await;
+
+    harness.engine.ignore_external(SSH_PID).await.unwrap();
+
+    harness.wait_stopped("alpha").await;
+}
+
+#[tokio::test]
+async fn should_refuse_to_ignore_when_the_process_is_not_reported() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let error = harness.engine.ignore_external(NGINX_PID).await.unwrap_err();
+
+    assert!(matches!(error, EngineError::UnknownProcess(NGINX_PID)));
+}
+
+#[tokio::test]
+async fn should_refuse_the_external_actions_when_the_engine_is_shut_down() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.engine.shutdown().await;
+
+    let error = harness.engine.kill_external(SSH_PID).await.unwrap_err();
+
+    assert!(matches!(error, EngineError::ShutDown));
+}
+
+struct FakeSsh {
+    child: std::process::Child,
+    _directory: tempfile::TempDir,
+}
+
+impl FakeSsh {
+    fn spawn(forwards: &[String]) -> Self {
+        let directory = tempfile::tempdir().unwrap();
+        let program = directory
+            .path()
+            .join(format!("ssh{}", std::env::consts::EXE_SUFFIX));
+        std::fs::copy(env!("CARGO_BIN_EXE_fake-ssh"), &program).unwrap();
+        let mut command = std::process::Command::new(&program);
+        command.arg("-N");
+        for forward in forwards {
+            command.args(["-L", forward]);
+        }
+        command.arg(support::ALIAS);
+        let child = command.spawn().unwrap();
+        Self {
+            child,
+            _directory: directory,
+        }
+    }
+
+    fn pid(&self) -> u32 {
+        self.child.id()
+    }
+
+    fn has_exited(&mut self) -> bool {
+        self.child.try_wait().unwrap().is_some()
+    }
+}
+
+impl Drop for FakeSsh {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+async fn wait_until_listening(port: u16) {
+    let deadline = tokio::time::Instant::now() + WAIT;
+    while TcpStream::connect((LOOPBACK, port)).await.is_err() {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "nothing listens on port {port}"
+        );
+        sleep(Duration::from_millis(20)).await;
+    }
+}
+
+#[tokio::test]
+async fn should_adopt_a_real_ssh_process_when_it_provides_the_tunnel() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .port_scanner(Arc::new(SystemPortScanner))
+        .start()
+        .await;
+    let (port, forward) = harness.forward_of("alpha");
+    let mut ssh = FakeSsh::spawn(&[forward]);
+    wait_until_listening(port).await;
+
+    harness.engine.set_port_scanning(true);
+    let state = harness.wait_for("alpha", is_external).await;
+    harness
+        .engine
+        .adopt_external(harness.id("alpha"))
+        .await
+        .unwrap();
+
+    assert_eq!(state, external_owner(ssh.pid()));
+    assert!(ssh.has_exited());
+    harness.wait_active("alpha").await;
+    assert_eq!(echo_through(port, PAYLOAD).await, PAYLOAD);
+}
+
+#[tokio::test]
+async fn should_list_a_real_ssh_process_when_its_forward_matches_no_tunnel() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .port_scanner(Arc::new(SystemPortScanner))
+        .start()
+        .await;
+    let other_port = free_port().await;
+    let ssh = FakeSsh::spawn(&[format!("{other_port}:db:5432")]);
+    wait_until_listening(other_port).await;
+
+    harness.engine.set_port_scanning(true);
+    let pid = ssh.pid();
+    let processes = harness
+        .wait_for_externals(|processes| processes.iter().any(|process| process.pid == pid))
+        .await;
+
+    let listed = processes.iter().find(|process| process.pid == pid).unwrap();
+    assert_eq!(listed.forwards[0].listen_port, other_port);
+    assert_eq!(harness.state_of("alpha"), TunnelState::Stopped);
 }

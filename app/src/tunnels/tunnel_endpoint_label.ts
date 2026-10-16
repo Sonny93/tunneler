@@ -1,8 +1,8 @@
 import type { TunnelDefinitionDto } from '#/daemon/protocol';
 
 const LOOPBACK_HOSTS: readonly string[] = ['127.0.0.1', 'localhost', '::1'];
-const VISUAL_SEPARATOR = '→';
-const SPOKEN_SEPARATOR = 'vers';
+export const VISUAL_SEPARATOR = '→';
+export const SPOKEN_SEPARATOR = 'vers';
 
 type EndpointSource = Pick<
 	TunnelDefinitionDto,

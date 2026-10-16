@@ -78,7 +78,7 @@ impl Counts {
             TunnelState::Starting => self.starting += 1,
             TunnelState::Reconnecting { .. } => self.reconnecting += 1,
             TunnelState::Failed { .. } => self.failed += 1,
-            TunnelState::Stopped => {}
+            TunnelState::Stopped | TunnelState::External { .. } | TunnelState::Conflict { .. } => {}
         }
         if is_unreachable_while_running(tunnel) {
             self.unreachable += 1;
@@ -230,6 +230,7 @@ mod tests {
         tray_view(&EngineSnapshot {
             tunnels,
             settings: Settings::default(),
+            externals: Vec::new(),
         })
     }
 
@@ -249,6 +250,23 @@ mod tests {
     #[test]
     fn should_be_idle_when_every_tunnel_is_stopped() {
         assert_eq!(view_of(vec![stopped(&[])]).status, GlobalStatus::Idle);
+    }
+
+    #[test]
+    fn should_be_idle_when_the_tunnels_are_external_or_in_conflict() {
+        let external = TunnelState::External {
+            owner: engine::PortOwner {
+                pid: 4242,
+                process: "ssh".to_owned(),
+            },
+        };
+        let conflict = TunnelState::Conflict { owner: None };
+        let tunnels = vec![
+            tunnel(external, TargetHealth::Unknown, &[]),
+            tunnel(conflict, TargetHealth::Unknown, &[]),
+        ];
+
+        assert_eq!(view_of(tunnels).status, GlobalStatus::Idle);
     }
 
     #[test]

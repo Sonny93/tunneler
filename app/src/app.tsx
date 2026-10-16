@@ -9,6 +9,7 @@ import { TunnelList } from '#/tunnels/list/tunnel_list';
 import { DisconnectedScreen } from '#/disconnected_screen';
 import { ToastRegion } from '#/shared/toasts/toast_region';
 import { TrayStatusNotice } from '#/tray/tray_status_notice';
+import { ExternalSection } from '#/externals/external_section';
 import { LiveAnnouncer } from '#/shared/announcer/live_announcer';
 import { useDaemonConnection } from '#/state/use_daemon_connection';
 import { useTunnelStateAnnouncements } from '#/tunnels/use_tunnel_state_announcements';
@@ -28,6 +29,7 @@ export function App() {
 					<AppLayout sidebar={<Sidebar />} actions={<HeaderActions />}>
 						<TrayStatusNotice />
 						<TunnelList />
+						<ExternalSection />
 					</AppLayout>
 					<Overlays />
 				</>

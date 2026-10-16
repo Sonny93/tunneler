@@ -11,7 +11,7 @@ const METHOD_KEY: &str = "method";
 const PARAMS_KEY: &str = "params";
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 17] = [
+pub const METHOD_NAMES: [&str; 20] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -29,6 +29,9 @@ pub const METHOD_NAMES: [&str; 17] = [
     "hostkey.respond",
     "daemon.quit",
     "ui.show",
+    "external.adopt",
+    "external.kill",
+    "external.ignore",
 ];
 
 /// The parameters of the methods that address one tunnel.
@@ -37,6 +40,14 @@ pub const METHOD_NAMES: [&str; 17] = [
 pub struct TunnelIdParams {
     /// The tunnel.
     pub id: String,
+}
+
+/// The parameters of the methods that address one process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessParams {
+    /// The process identifier.
+    pub pid: u32,
 }
 
 /// The parameters of the methods that address one tag.
@@ -142,6 +153,17 @@ pub enum Request {
     /// Asks the daemon to show the UI.
     #[serde(rename = "ui.show")]
     UiShow {},
+    /// Terminates the external ssh process providing a tunnel, then starts
+    /// every configured tunnel it provided as managed tunnels.
+    #[serde(rename = "external.adopt")]
+    ExternalAdopt(TunnelIdParams),
+    /// Terminates a process the daemon reported: the owner of an `external` or
+    /// `conflict` state, or an unmanaged ssh process.
+    #[serde(rename = "external.kill")]
+    ExternalKill(ProcessParams),
+    /// Stops reporting a process for the lifetime of the daemon.
+    #[serde(rename = "external.ignore")]
+    ExternalIgnore(ProcessParams),
 }
 
 /// A [`Request`] and the identifier its response will carry.
