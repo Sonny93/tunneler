@@ -1,17 +1,23 @@
-use russh::client::Handler;
+use russh::client::{DisconnectReason, Handler};
 use russh::keys::PublicKeyOrCertificate;
+use tokio::sync::watch;
 
 use super::checker::HostKeyChecker;
 
-/// The russh client handler: it only decides about the server key and leaves
-/// the reason of a refusal in the shared handshake state.
+/// The russh client handler: it decides about the server key, leaving the
+/// reason of a refusal in the shared handshake state, and signals when the
+/// connection ends.
 pub(crate) struct ClientHandler {
     checker: HostKeyChecker,
+    closed_signal: watch::Sender<bool>,
 }
 
 impl ClientHandler {
-    pub(crate) fn new(checker: HostKeyChecker) -> Self {
-        Self { checker }
+    pub(crate) fn new(checker: HostKeyChecker, closed_signal: watch::Sender<bool>) -> Self {
+        Self {
+            checker,
+            closed_signal,
+        }
     }
 }
 
@@ -28,6 +34,21 @@ impl Handler for ClientHandler {
                 self.checker.record_failure(failure);
                 Ok(false)
             }
+        }
+    }
+
+    #[allow(
+        clippy::unused_async_trait_impl,
+        reason = "the russh handler trait requires an async method even when nothing awaits"
+    )]
+    async fn disconnected(
+        &mut self,
+        reason: DisconnectReason<Self::Error>,
+    ) -> Result<(), Self::Error> {
+        self.closed_signal.send_replace(true);
+        match reason {
+            DisconnectReason::ReceivedDisconnect(_) => Ok(()),
+            DisconnectReason::Error(error) => Err(error),
         }
     }
 }

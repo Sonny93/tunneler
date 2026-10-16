@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use known_hosts::{HostLookup, KnownHosts};
 use ssh_config::{JumpHost, ResolvedConfig};
+use tokio::sync::watch;
 use tracing::{debug, warn};
 
 use crate::agent::AgentLocator;
@@ -12,7 +13,7 @@ use crate::authentication::{
     FileIdentitySource, IdentitySource, OfferedKeys, authenticate,
 };
 use crate::blocking::run_blocking;
-use crate::client_config::build_client_config;
+use crate::client_config::{KeepaliveDefaults, build_client_config};
 use crate::connection_chain::ConnectionChain;
 use crate::error::ConnectError;
 use crate::handshake::perform_handshake;
@@ -23,6 +24,7 @@ use crate::host_key::{
 };
 use crate::prompter::CredentialPrompter;
 use crate::session::SshSession;
+use crate::store::Settings;
 use crate::transport::{BoxedTransport, open_transport};
 
 type ConnectFuture<'a> =
@@ -47,14 +49,27 @@ pub struct ConnectorDependencies {
 pub struct Connector {
     dependencies: ConnectorDependencies,
     accepted_once: Arc<AcceptedOnceStore>,
+    settings: watch::Receiver<Settings>,
 }
 
 impl Connector {
-    /// A connector using these collaborators.
+    /// A connector using these collaborators and the default settings.
     pub fn new(dependencies: ConnectorDependencies) -> Self {
+        let (_, settings) = watch::channel(Settings::default());
+        Self::with_settings(dependencies, settings)
+    }
+
+    /// A connector that takes the keepalive defaults, for hosts whose
+    /// `ssh_config` sets none, from `settings`. The settings in force when a
+    /// session is opened apply to that session only.
+    pub fn with_settings(
+        dependencies: ConnectorDependencies,
+        settings: watch::Receiver<Settings>,
+    ) -> Self {
         Self {
             dependencies,
             accepted_once: Arc::new(AcceptedOnceStore::default()),
+            settings,
         }
     }
 
@@ -132,7 +147,7 @@ impl Connector {
             return Ok(open_transport(resolved).await?);
         };
         let channel = previous
-            .open_direct_tcpip(&resolved.hostname, resolved.port)
+            .open_direct_tcpip(&resolved.hostname, resolved.port, None)
             .await?;
         Ok(Box::new(channel))
     }
@@ -149,6 +164,7 @@ impl Connector {
         let client_config = Arc::new(build_client_config(
             &resolved,
             &known_hosts.known_algorithms(&lookup),
+            KeepaliveDefaults::from(&*self.settings.borrow()),
         ));
         let state = Arc::new(HandshakeState::default());
         let checker = HostKeyChecker {
@@ -160,10 +176,11 @@ impl Connector {
             accepted_once: Arc::clone(&self.accepted_once),
             state: Arc::clone(&state),
         };
+        let (closed_signal, closed) = watch::channel(false);
         let mut handle = perform_handshake(
             client_config,
             transport,
-            ClientHandler::new(checker),
+            ClientHandler::new(checker, closed_signal),
             &state,
             resolved.connect_timeout,
         )
@@ -172,7 +189,7 @@ impl Connector {
             AuthenticationContext::from_config(&resolved, Arc::clone(&self.dependencies.prompter));
         authenticate(&mut handle, &context, self.identity_sources(&resolved)).await?;
         debug!(alias = %alias, "authenticated");
-        Ok(SshSession::new(alias, resolved, handle, jumps))
+        Ok(SshSession::new(alias, resolved, handle, closed, jumps))
     }
 
     fn identity_sources(&self, resolved: &ResolvedConfig) -> Vec<Box<dyn IdentitySource>> {

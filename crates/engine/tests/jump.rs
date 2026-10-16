@@ -345,3 +345,25 @@ async fn should_close_every_session_when_the_target_disconnects() {
 
     assert!(outcome.is_ok(), "{outcome:?}");
 }
+
+#[tokio::test]
+async fn should_resolve_closed_when_the_jump_host_connection_is_cut() {
+    let (jump, target) = (password_server().await, password_server().await);
+    let workspace = Workspace::new();
+    let hosts = [
+        host("jump", &jump, &[]),
+        host(TARGET, &target, &["ProxyJump jump"]),
+    ];
+    let connector = connector_for(
+        &workspace,
+        &hosts,
+        &prompter_knowing_the_password(),
+        rejecting_verifier(),
+    );
+    let session = connector.connect(TARGET).await.unwrap();
+
+    jump.cut_connections();
+
+    let outcome = tokio::time::timeout(std::time::Duration::from_secs(3), session.closed()).await;
+    assert!(outcome.is_ok());
+}

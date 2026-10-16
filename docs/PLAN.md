@@ -103,7 +103,7 @@ Les prompts passent par le trait `CredentialPrompter` → événement IPC `crede
 Règles par défaut : `target_port` absent = `listen_port` ; `listen_address` absent = `settings.default_bind_address` (local) ou `settings.default_remote_bind_address` (remote) ; `target_host` absent = `127.0.0.1`.
 
 ### États d'un tunnel
-`Stopped` · `Starting` · `Active { connections }` · `Reconnecting { attempt, next_retry_at }` · `Failed { reason }` · `External { pid, process }` · `Conflict { pid, process }`
+`Stopped` · `Starting` · `Active` · `Reconnecting { attempt, next_retry_at }` · `Failed { reason }` · `External { pid, process }` · `Conflict { pid, process }`
 
 Santé de la cible, indépendante de l'état : `Unknown` · `Reachable` · `Unreachable { since, error }`.
 - Passif : un `direct-tcpip` refusé (`ConnectFailed`) marque la cible injoignable (« tunnel OK, service distant down »).

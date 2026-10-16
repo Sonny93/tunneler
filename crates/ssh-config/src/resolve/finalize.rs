@@ -20,7 +20,6 @@ const NONE_VALUE: &str = "none";
 const SSH_AUTH_SOCK: &str = "SSH_AUTH_SOCK";
 const ENVIRONMENT_PREFIX: char = '$';
 const ENVIRONMENT_BRACE: &str = "${";
-const DEFAULT_SERVER_ALIVE_COUNT_MAX: u32 = 3;
 const DEFAULT_CONNECTION_ATTEMPTS: u32 = 1;
 const DEFAULT_PASSWORD_PROMPTS: u32 = 3;
 const DEFAULT_IDENTITY_FILES: [&str; 6] = [
@@ -68,12 +67,11 @@ pub(crate) fn finalize(
         forward_x11: flag_or(options, Keyword::ForwardX11, false),
         forward_x11_trusted: flag_or(options, Keyword::ForwardX11Trusted, false),
         forward_agent: expand_forward_agent(options, &expander)?,
-        server_alive_interval: seconds_or_zero(options, Keyword::ServerAliveInterval),
-        server_alive_count_max: count_or(
-            options,
-            Keyword::ServerAliveCountMax,
-            DEFAULT_SERVER_ALIVE_COUNT_MAX,
-        ),
+        server_alive_interval: options
+            .seconds
+            .get(&Keyword::ServerAliveInterval)
+            .map(|seconds| Duration::from_secs(u64::from(*seconds))),
+        server_alive_count_max: options.counts.get(&Keyword::ServerAliveCountMax).copied(),
         strict_host_key_checking: options
             .strict_host_key_checking
             .unwrap_or(StrictHostKeyChecking::Ask),
@@ -130,11 +128,6 @@ fn flag_or(options: &Options, keyword: Keyword, default: bool) -> bool {
 
 fn count_or(options: &Options, keyword: Keyword, default: u32) -> u32 {
     options.counts.get(&keyword).copied().unwrap_or(default)
-}
-
-fn seconds_or_zero(options: &Options, keyword: Keyword) -> Duration {
-    let seconds = options.seconds.get(&keyword).copied().unwrap_or(0);
-    Duration::from_secs(u64::from(seconds))
 }
 
 fn text_value(options: &Options, keyword: Keyword) -> Option<String> {

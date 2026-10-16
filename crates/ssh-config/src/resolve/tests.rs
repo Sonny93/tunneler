@@ -115,8 +115,19 @@ mod defaults {
     }
 
     #[test]
-    fn should_default_server_alive_count_max_to_3() {
-        assert_eq!(resolved("", "web").server_alive_count_max, 3);
+    fn should_leave_server_alive_count_max_unset_when_no_line_sets_it() {
+        assert_eq!(resolved("", "web").server_alive_count_max, None);
+    }
+
+    #[test]
+    fn should_leave_server_alive_interval_unset_when_no_line_sets_it() {
+        assert_eq!(resolved("", "web").server_alive_interval, None);
+    }
+
+    #[test]
+    fn should_keep_an_explicit_zero_server_alive_interval() {
+        let config = resolved("ServerAliveInterval 0\n", "web");
+        assert_eq!(config.server_alive_interval, Some(Duration::ZERO));
     }
 
     #[test]
@@ -403,7 +414,7 @@ mod evaluation {
     #[test]
     fn should_parse_time_values_when_they_have_units() {
         let config = resolved("ServerAliveInterval 1m30s\n", "web");
-        assert_eq!(config.server_alive_interval, Duration::from_secs(90));
+        assert_eq!(config.server_alive_interval, Some(Duration::from_secs(90)));
     }
 
     #[test]

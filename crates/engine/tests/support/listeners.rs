@@ -12,7 +12,11 @@ pub struct EchoServer {
 
 impl EchoServer {
     pub async fn start() -> Self {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        Self::start_on(0).await
+    }
+
+    pub async fn start_on(port: u16) -> Self {
+        let listener = TcpListener::bind(("127.0.0.1", port)).await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let task = tokio::spawn(async move {
             while let Ok((stream, _)) = listener.accept().await {
@@ -21,6 +25,19 @@ impl EchoServer {
         });
         Self { port, task }
     }
+
+    /// Stops listening; the port is free when this returns. Connections
+    /// already accepted keep echoing.
+    pub async fn stop(&mut self) {
+        self.task.abort();
+        let _ = (&mut self.task).await;
+    }
+}
+
+/// A port nobody listens on right now.
+pub async fn free_port() -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    listener.local_addr().unwrap().port()
 }
 
 impl Drop for EchoServer {

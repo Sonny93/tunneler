@@ -723,7 +723,7 @@ async fn should_round_trip_bytes_when_opening_a_direct_tcpip_channel() {
         .build();
     let session = scenario.connect_successfully().await;
     let mut stream = session
-        .open_direct_tcpip("127.0.0.1", echo.port)
+        .open_direct_tcpip("127.0.0.1", echo.port, None)
         .await
         .unwrap();
 
@@ -793,4 +793,62 @@ async fn should_pause_between_rounds_when_connection_attempts_is_two_and_nothing
 
     assert!(matches!(outcome, Err(ConnectError::Transport(_))));
     assert!(started.elapsed() >= Duration::from_secs(1));
+}
+
+#[tokio::test]
+async fn should_resolve_closed_when_the_server_cuts_the_connection() {
+    let scenario = ScenarioBuilder::new(password_only_server().await, Workspace::new())
+        .prompter(ScriptedPrompter::default().with_passwords(&[Some(PASSWORD)]))
+        .build();
+    let session = scenario.connect_successfully().await;
+
+    scenario.server.cut_connections();
+
+    let outcome = tokio::time::timeout(TIMEOUT_BOUND, session.closed()).await;
+    assert!(outcome.is_ok());
+}
+
+#[tokio::test]
+async fn should_not_resolve_closed_when_the_session_is_alive() {
+    let scenario = ScenarioBuilder::new(password_only_server().await, Workspace::new())
+        .prompter(ScriptedPrompter::default().with_passwords(&[Some(PASSWORD)]))
+        .build();
+    let session = scenario.connect_successfully().await;
+
+    let outcome = tokio::time::timeout(Duration::from_millis(200), session.closed()).await;
+
+    assert!(outcome.is_err());
+}
+
+#[tokio::test]
+async fn should_resolve_closed_when_the_client_disconnects() {
+    let scenario = ScenarioBuilder::new(password_only_server().await, Workspace::new())
+        .prompter(ScriptedPrompter::default().with_passwords(&[Some(PASSWORD)]))
+        .build();
+    let session = scenario.connect_successfully().await;
+
+    session.disconnect().await.unwrap();
+
+    let outcome = tokio::time::timeout(TIMEOUT_BOUND, session.closed()).await;
+    assert!(outcome.is_ok());
+}
+
+#[tokio::test]
+async fn should_report_the_originator_when_opening_a_direct_tcpip_channel_for_a_client() {
+    let echo = EchoServer::start().await;
+    let scenario = ScenarioBuilder::new(password_only_server().await, Workspace::new())
+        .prompter(ScriptedPrompter::default().with_passwords(&[Some(PASSWORD)]))
+        .build();
+    let session = scenario.connect_successfully().await;
+    let originator = std::net::SocketAddr::from(([127, 0, 0, 1], 40_000));
+
+    session
+        .open_direct_tcpip("127.0.0.1", echo.port, Some(originator))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        scenario.server.direct_tcpip_originators(),
+        vec![("127.0.0.1".to_owned(), 40_000)]
+    );
 }

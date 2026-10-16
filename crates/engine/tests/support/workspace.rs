@@ -130,16 +130,26 @@ impl Workspace {
         verifier: Arc<dyn HostKeyVerifier>,
         agent_locator: Arc<dyn AgentLocator>,
     ) -> Connector {
+        Connector::new(self.connector_dependencies(config_path, prompter, verifier, agent_locator))
+    }
+
+    pub fn connector_dependencies(
+        &self,
+        config_path: &Path,
+        prompter: Arc<dyn CredentialPrompter>,
+        verifier: Arc<dyn HostKeyVerifier>,
+        agent_locator: Arc<dyn AgentLocator>,
+    ) -> ConnectorDependencies {
         let environment = FakeEnvironment {
             home: self.path().join("home"),
         };
         let resolver = SshConfigResolver::new(ConfigSources::user_only(config_path), environment);
-        Connector::new(ConnectorDependencies {
+        ConnectorDependencies {
             resolver: Arc::new(resolver),
             prompter,
             verifier,
             agent_locator,
-        })
+        }
     }
 }
 

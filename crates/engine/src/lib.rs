@@ -9,6 +9,12 @@
 //! `ProxyCommand` or through `ProxyJump` hosts; identities come from the SSH
 //! agent first, then from identity files.
 //!
+//! On top of it, [`Engine`] runs the local port forwards of the store: one
+//! task per tunnel, one shared session per host alias, reconnection with
+//! backoff, target health, metrics and logs, all reported through
+//! [`EngineEvent`]s. Only local forwards are implemented; remote and dynamic
+//! tunnels fail with [`FailureReason::UnsupportedKind`].
+//!
 //! The engine depends on those abstractions only, never on IPC or a UI.
 //!
 //! # Known gaps
@@ -29,6 +35,7 @@ mod agent;
 mod authentication;
 mod blocking;
 mod client_config;
+mod clock;
 mod connection_chain;
 mod connector;
 mod error;
@@ -36,12 +43,14 @@ mod handshake;
 mod host_config;
 mod host_key;
 mod prompter;
+mod runtime;
 mod session;
 mod store;
 mod transport;
 
 pub use agent::{AgentEndpoint, AgentLocator, SystemAgentLocator};
 pub use authentication::AuthenticationMethod;
+pub use clock::{Clock, SystemClock};
 pub use connector::{Connector, ConnectorDependencies};
 pub use error::{ConnectError, HostKeyFailure, JumpChainError, SessionError, TransportError};
 pub use host_config::{HostConfigError, HostConfigResolver, SshConfigResolver};
@@ -51,6 +60,11 @@ pub use host_key::{
 pub use prompter::{
     CredentialPrompter, KeyboardInteractiveRequest, PassphraseRequest, PasswordRequest, Prompt,
     PromptError,
+};
+pub use runtime::{
+    Engine, EngineDependencies, EngineError, EngineEvent, EngineOptions, EngineSnapshot,
+    FailureReason, LogLevel, NewTunnel, TargetHealth, TunnelLogEntry, TunnelMetrics,
+    TunnelSnapshot, TunnelState, TunnelStatus,
 };
 pub use session::SshSession;
 pub use store::{

@@ -112,6 +112,7 @@ const BOOLEAN_LIKE_KEYS: &[&str] = &[
     "addkeystoagent",
     "forwardagent",
 ];
+const OPENSSH_DEFAULT_SERVER_ALIVE_COUNT_MAX: u32 = 3;
 const EXPECTED_SSH_VERSION_PREFIX: &str = "OpenSSH_10.0";
 const SKIP_NOTE: &str = "skipping differential tests";
 const SSH_AUTH_SOCK: &str = "SSH_AUTH_SOCK";
@@ -431,11 +432,17 @@ fn render_scalars(config: &ResolvedConfig) -> Vec<Line> {
         ),
         (
             "serveralivecountmax",
-            config.server_alive_count_max.to_string(),
+            config
+                .server_alive_count_max
+                .unwrap_or(OPENSSH_DEFAULT_SERVER_ALIVE_COUNT_MAX)
+                .to_string(),
         ),
         (
             "serveraliveinterval",
-            config.server_alive_interval.as_secs().to_string(),
+            config
+                .server_alive_interval
+                .map_or(0, |interval| interval.as_secs())
+                .to_string(),
         ),
         ("addkeystoagent", render_add_keys_to_agent(config)),
         ("forwardagent", forward_agent),

@@ -6,6 +6,8 @@
 
 #[cfg(unix)]
 mod agent;
+mod clock;
+mod engine_harness;
 mod environment;
 mod keys;
 mod listeners;
@@ -15,9 +17,11 @@ mod workspace;
 
 #[cfg(unix)]
 pub use agent::{FixedAgentLocator, TestAgent};
+pub use clock::ManualClock;
+pub use engine_harness::{wait_for_event, wait_for_state, wait_until};
 pub use environment::FakeEnvironment;
 pub use keys::{fingerprint_of, fixture_key, generate_key, write_private_key};
-pub use listeners::{EchoServer, SilentListener};
+pub use listeners::{EchoServer, SilentListener, free_port};
 pub use scripted::{ScriptedPrompter, ScriptedVerifier};
 pub use server::{TestServer, TestServerBuilder, TestUser};
 pub use workspace::{

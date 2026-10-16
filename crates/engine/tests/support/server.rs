@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -7,12 +8,14 @@ use std::time::Duration;
 use russh::keys::{HashAlg, PrivateKey, PublicKey};
 use russh::server::{self, Auth, Config, Msg, Server, Session};
 use russh::{Channel, ChannelOpenFailure, MethodKind, MethodSet};
-use tokio::io::copy_bidirectional;
+use tokio::io::{copy_bidirectional, duplex};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::task::JoinHandle;
+use tokio::sync::watch;
+use tokio::task::{AbortHandle, JoinHandle};
 
 const REJECTION_DELAY: Duration = Duration::from_millis(1);
 const MAXIMUM_AUTH_ATTEMPTS: usize = 100;
+const BRIDGE_BUFFER_SIZE: usize = 64 * 1024;
 
 /// What one account of the test server accepts.
 #[derive(Clone, Default)]
@@ -29,7 +32,55 @@ struct Behavior {
     allows_direct_tcpip: bool,
     connection_count: Arc<AtomicUsize>,
     direct_tcpip_targets: Arc<Mutex<Vec<(String, u16)>>>,
+    direct_tcpip_originators: Arc<Mutex<Vec<(String, u32)>>>,
     offered_fingerprints: Arc<Mutex<Vec<String>>>,
+}
+
+/// The live connections of the server, so that they can be cut.
+struct Connections {
+    abort_handles: Mutex<Vec<AbortHandle>>,
+    open: AtomicUsize,
+    stall_generation: watch::Sender<u64>,
+}
+
+impl Default for Connections {
+    fn default() -> Self {
+        Self {
+            abort_handles: Mutex::new(Vec::new()),
+            open: AtomicUsize::new(0),
+            stall_generation: watch::channel(0).0,
+        }
+    }
+}
+
+impl Connections {
+    fn track(&self, handle: AbortHandle) {
+        let mut handles = self.abort_handles.lock().unwrap();
+        handles.retain(|tracked| !tracked.is_finished());
+        handles.push(handle);
+    }
+
+    fn cut_all(&self) {
+        for handle in self.abort_handles.lock().unwrap().drain(..) {
+            handle.abort();
+        }
+    }
+}
+
+/// Counts a connection as open until it is dropped.
+struct OpenConnection(Arc<Connections>);
+
+impl OpenConnection {
+    fn begin(connections: &Arc<Connections>) -> Self {
+        connections.open.fetch_add(1, Ordering::SeqCst);
+        Self(Arc::clone(connections))
+    }
+}
+
+impl Drop for OpenConnection {
+    fn drop(&mut self) {
+        self.0.open.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 pub struct TestServerBuilder {
@@ -77,30 +128,38 @@ impl TestServerBuilder {
         let port = listener.local_addr().unwrap().port();
         let connection_count = Arc::new(AtomicUsize::new(0));
         let direct_tcpip_targets = Arc::new(Mutex::new(Vec::new()));
+        let direct_tcpip_originators = Arc::new(Mutex::new(Vec::new()));
         let offered_fingerprints = Arc::new(Mutex::new(Vec::new()));
         let config = self.server_config();
         let offered_methods = config.methods.clone();
-        let config = Arc::new(config);
-        let mut acceptor = Acceptor {
-            behavior: Arc::new(Behavior {
-                offered_methods,
-                users: self.users,
-                requires_publickey_then_password: self.requires_publickey_then_password,
-                allows_direct_tcpip: self.allows_direct_tcpip,
-                connection_count: Arc::clone(&connection_count),
-                direct_tcpip_targets: Arc::clone(&direct_tcpip_targets),
-                offered_fingerprints: Arc::clone(&offered_fingerprints),
-            }),
-        };
-        let task = tokio::spawn(async move {
-            let _ = acceptor.run_on_socket(config, &listener).await;
+        let behavior = Arc::new(Behavior {
+            offered_methods,
+            users: self.users,
+            requires_publickey_then_password: self.requires_publickey_then_password,
+            allows_direct_tcpip: self.allows_direct_tcpip,
+            connection_count: Arc::clone(&connection_count),
+            direct_tcpip_targets: Arc::clone(&direct_tcpip_targets),
+            direct_tcpip_originators: Arc::clone(&direct_tcpip_originators),
+            offered_fingerprints: Arc::clone(&offered_fingerprints),
         });
+        let config = Arc::new(config);
+        let connections = Arc::new(Connections::default());
+        let task = spawn_acceptor(
+            listener,
+            Arc::clone(&behavior),
+            Arc::clone(&config),
+            Arc::clone(&connections),
+        );
         TestServer {
             port,
             host_keys: self.host_keys,
             connection_count,
             direct_tcpip_targets,
+            direct_tcpip_originators,
             offered_fingerprints,
+            behavior,
+            config,
+            connections,
             task,
         }
     }
@@ -131,7 +190,11 @@ pub struct TestServer {
     pub host_keys: Vec<PrivateKey>,
     connection_count: Arc<AtomicUsize>,
     direct_tcpip_targets: Arc<Mutex<Vec<(String, u16)>>>,
+    direct_tcpip_originators: Arc<Mutex<Vec<(String, u32)>>>,
     offered_fingerprints: Arc<Mutex<Vec<String>>>,
+    behavior: Arc<Behavior>,
+    config: Arc<Config>,
+    connections: Arc<Connections>,
     task: JoinHandle<()>,
 }
 
@@ -160,6 +223,52 @@ impl TestServer {
         self.direct_tcpip_targets.lock().unwrap().clone()
     }
 
+    /// The originator address and port clients reported in `direct-tcpip`
+    /// requests.
+    pub fn direct_tcpip_originators(&self) -> Vec<(String, u32)> {
+        self.direct_tcpip_originators.lock().unwrap().clone()
+    }
+
+    /// The connections that are open right now.
+    pub fn open_connection_count(&self) -> usize {
+        self.connections.open.load(Ordering::SeqCst)
+    }
+
+    /// Drops every live connection without a goodbye, like a network drop.
+    /// New connections are still accepted.
+    pub fn cut_connections(&self) {
+        self.connections.cut_all();
+    }
+
+    /// Makes every live connection go silent without closing it: nothing
+    /// more is read or written, like a network that swallows packets.
+    /// Connections accepted afterwards behave normally.
+    pub fn stall_connections(&self) {
+        self.connections
+            .stall_generation
+            .send_modify(|generation| *generation += 1);
+    }
+
+    /// Stops accepting and cuts every live connection. The port is free
+    /// when this returns.
+    pub async fn stop(&mut self) {
+        self.task.abort();
+        let _ = (&mut self.task).await;
+        self.connections.cut_all();
+    }
+
+    /// Listens again on the same port, with the same keys and users, after
+    /// [`TestServer::stop`].
+    pub async fn restart(&mut self) {
+        let listener = TcpListener::bind(("127.0.0.1", self.port)).await.unwrap();
+        self.task = spawn_acceptor(
+            listener,
+            Arc::clone(&self.behavior),
+            Arc::clone(&self.config),
+            Arc::clone(&self.connections),
+        );
+    }
+
     /// The SHA-256 fingerprints of the public keys clients offered.
     pub fn offered_fingerprints(&self) -> Vec<String> {
         self.offered_fingerprints.lock().unwrap().clone()
@@ -169,6 +278,49 @@ impl TestServer {
 impl Drop for TestServer {
     fn drop(&mut self) {
         self.task.abort();
+        self.connections.cut_all();
+    }
+}
+
+fn spawn_acceptor(
+    listener: TcpListener,
+    behavior: Arc<Behavior>,
+    config: Arc<Config>,
+    connections: Arc<Connections>,
+) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut acceptor = Acceptor { behavior };
+        while let Ok((socket, peer)) = listener.accept().await {
+            let handler = acceptor.new_client(Some(peer));
+            let open = OpenConnection::begin(&connections);
+            let task = tokio::spawn(serve_connection(socket, handler, Arc::clone(&config), open));
+            connections.track(task.abort_handle());
+        }
+    })
+}
+
+/// Runs one SSH session over a socket, through an in-memory bridge, so that
+/// aborting the task drops the socket and the client sees the connection die.
+async fn serve_connection(
+    mut socket: TcpStream,
+    handler: ConnectionHandler,
+    config: Arc<Config>,
+    open: OpenConnection,
+) {
+    let mut stalls = open.0.stall_generation.subscribe();
+    let started_at = *stalls.borrow_and_update();
+    let (server_side, mut bridge_side) = duplex(BRIDGE_BUFFER_SIZE);
+    let session = async {
+        if let Ok(running) = server::run_stream(config, server_side, handler).await {
+            let _ = running.await;
+        }
+    };
+    tokio::select! {
+        _ = copy_bidirectional(&mut socket, &mut bridge_side) => {}
+        () = session => {}
+        () = wait_for_stall(&mut stalls, started_at) => {
+            std::future::pending::<()>().await;
+        }
     }
 }
 
@@ -179,7 +331,7 @@ struct Acceptor {
 impl Server for Acceptor {
     type Handler = ConnectionHandler;
 
-    fn new_client(&mut self, _peer_address: Option<std::net::SocketAddr>) -> Self::Handler {
+    fn new_client(&mut self, _peer_address: Option<SocketAddr>) -> Self::Handler {
         self.behavior
             .connection_count
             .fetch_add(1, Ordering::SeqCst);
@@ -320,11 +472,16 @@ impl server::Handler for ConnectionHandler {
         channel: Channel<Msg>,
         host_to_connect: &str,
         port_to_connect: u32,
-        _originator_address: &str,
-        _originator_port: u32,
+        originator_address: &str,
+        originator_port: u32,
         reply: server::ChannelOpenHandle,
         _session: &mut Session,
     ) -> Result<(), Self::Error> {
+        self.behavior
+            .direct_tcpip_originators
+            .lock()
+            .unwrap()
+            .push((originator_address.to_owned(), originator_port));
         if let Ok(port) = u16::try_from(port_to_connect) {
             self.behavior
                 .direct_tcpip_targets
@@ -354,4 +511,10 @@ impl server::Handler for ConnectionHandler {
         }
         Ok(())
     }
+}
+
+async fn wait_for_stall(stalls: &mut watch::Receiver<u64>, started_at: u64) {
+    let _ = stalls
+        .wait_for(|generation| *generation != started_at)
+        .await;
 }

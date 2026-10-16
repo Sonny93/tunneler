@@ -113,17 +113,33 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Choix techniques** : russh 0.64 sans features par défaut, backend `ring` (pas d'aws-lc → pas de cmake sous Windows), `flate2`, `rsa`. 132 tests engine (76 unitaires + 56 intégration), suite en quelques secondes. Rien de vérifié sous Windows.
 
-## Phase 4 — Engine : forwards locaux & cycle de vie
-- [ ] 4.1 `SessionManager` : une session par alias, refcount, délai de grâce avant fermeture
-- [ ] 4.2 Forward local : listener → `direct-tcpip` par connexion, copie bidirectionnelle
-- [ ] 4.3 Machine à états des tunnels + événements de changement
-- [ ] 4.4 Reconnexion : backoff exponentiel + jitter, plafond configurable
-  - Introduire ici l'abstraction `Clock` reportée de 3.1.
-- [ ] 4.5 Santé de la cible : passive (`ConnectFailed`) + sonde active optionnelle
-- [ ] 4.6 Métriques (connexions, octets, dernière activité) + logs ring buffer par tunnel
-- [ ] 4.7 Store TOML : modèle, défauts (`listen_address`, `target_port = listen_port`), validation, écriture atomique, migrations, rechargement à chaud
-- [ ] 4.8 Toggle par tag
-- [ ] 4.9 Tests d'intégration : toggle isolé, reconnexion après coupure, port déjà pris
+## Phase 4 — Engine : forwards locaux & cycle de vie ✔
+- [x] 4.1 `SessionManager` : une session par alias, refcount, délai de grâce avant fermeture
+  - `acquire(alias)` → bail libéré au drop ; acquisitions concurrentes = **une seule connexion en vol** (donc un seul prompt). Session morte (`SshSession::closed()`, y compris perte d'un saut) → retirée, prochaine acquisition reconnecte. Settings appliqués aux nouvelles sessions seulement.
+  - Les sessions de saut restent possédées par leur cible : deux cibles derrière le même bastion ouvrent chacune leur connexion au bastion.
+- [x] 4.2 Forward local : listener → `direct-tcpip` par connexion, copie bidirectionnelle
+  - Bind **avant** la session (port pris → `Failed { PortInUse }` sans SSH). Listener conservé pendant `Reconnecting` (connexions acceptées fermées aussitôt). Adresse d'origine réelle transmise au serveur.
+- [x] 4.3 Machine à états des tunnels + événements de changement
+  - Un acteur par tunnel ; bus `broadcast` d'`EngineEvent::{TunnelChanged, TunnelMetrics, TunnelLog, ConfigReloaded, ConfigInvalid}`. `ConfigReloaded` aussi émis après create/update/delete.
+  - **Écart PLAN** : `Active` sans compteur de connexions (sinon un `TunnelChanged` par connexion) ; le compteur vit dans `TunnelMetrics.active_connections`, throttlé. `External`/`Conflict` arrivent en phase 8.
+- [x] 4.4 Reconnexion : backoff exponentiel + jitter, plafond configurable
+  - `min(initial × 2^(n−1), max)` avec equal jitter, fonction pure. Classification exhaustive (match sans joker) : transport, timeouts, perte de session et erreurs d'E/S du handshake → retry ; clé d'hôte, auth, config, chaîne de sauts, prompt, agent, violations de protocole → `Failed` sans retry (pas de tempête de prompts).
+  - `Clock` (reporté de 3.1) introduit ici, uniquement pour les horodatages visibles ; les attentes passent par `tokio::time`.
+  - Keepalive effectif = `ServerAlive*` de la config résolue s'ils sont définis (`ResolvedConfig` les expose désormais en `Option`), sinon `settings.keepalive_*` ; `ServerAliveInterval 0` explicite désactive. Testé : serveur muet → perte de session → `Reconnecting`.
+- [x] 4.5 Santé de la cible : passive (`ConnectFailed`) + sonde active optionnelle
+  - Sonde active toutes les 30 s si `settings.health_probe` **et** `Engine::set_health_probing(true)` (le daemon l'activera quand une UI est connectée).
+- [x] 4.6 Métriques (connexions, octets, dernière activité) + logs ring buffer par tunnel
+  - `TunnelMetrics { active_connections, total_connections, bytes_in, bytes_out, last_activity }`, remis à zéro à chaque démarrage, événement ≤ 1/s par tunnel et seulement si changé. Ring buffer de 500 entrées par tunnel.
+- [x] 4.7 Store TOML : modèle, défauts (`listen_address`, `target_port = listen_port`), validation, écriture atomique, migrations, rechargement à chaud
+  - `toml_edit` : commentaires et mise en forme préservés lors des écritures de l'app (tunnels appariés par `id`). Clés inconnues = erreur avec ligne/colonne. Tunnel sans `id` → id généré et fichier réécrit (par l'engine au démarrage et au rechargement). Version plus récente que l'app → refus, fichier jamais réécrit.
+  - Validation exhaustive (toutes les erreurs) : ids/noms dupliqués (noms insensibles à la casse), ports, conflits d'écoute effectifs (sans détecter `0.0.0.0` vs `127.0.0.1`), tags, settings.
+  - Watcher : dossier parent, debounce 200 ms, ignore nos propres écritures (hash), fichier invalide → dernier document valide conservé. `Store` synchrone (à appeler via `run_blocking` depuis l'async).
+  - Helper d'écriture atomique dupliqué depuis `known-hosts` (2ᵉ copie : la prochaine justifie un crate partagé).
+- [x] 4.8 Toggle par tag
+- [x] 4.9 Tests d'intégration : toggle isolé, reconnexion après coupure, port déjà pris
+  - 58 tests runtime (+ unitaires : backoff, classification, diff de définitions, throttling, ring buffer), stables sur 13 exécutions dont 4 en parallèle. Les assertions négatives (pas de retry, pas de sonde) reposent sur de courtes fenêtres de silence.
+
+**Lacunes connues** : partage des sauts entre cibles ; Windows/macOS non vérifiés. Rechargement : un changement `None` → valeur par défaut explicite redémarre le tunnel (comparaison des champs bruts).
 
 ## Phase 5 — IPC, daemon, CLI
 - [ ] 5.1 Types du protocole (serde) + versionnage + handshake

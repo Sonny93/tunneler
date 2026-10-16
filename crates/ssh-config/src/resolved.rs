@@ -74,10 +74,11 @@ pub struct ResolvedConfig {
     pub forward_x11_trusted: bool,
     /// `ForwardAgent`.
     pub forward_agent: ForwardAgent,
-    /// Zero disables keepalive messages.
-    pub server_alive_interval: Duration,
-    /// `ServerAliveCountMax`; 3 by default.
-    pub server_alive_count_max: u32,
+    /// `ServerAliveInterval`; zero disables keepalive messages. `None` when no
+    /// line sets it, so the caller can apply its own default.
+    pub server_alive_interval: Option<Duration>,
+    /// `ServerAliveCountMax`. `None` when no line sets it (OpenSSH then uses 3).
+    pub server_alive_count_max: Option<u32>,
     /// `StrictHostKeyChecking`; `Ask` by default.
     pub strict_host_key_checking: StrictHostKeyChecking,
     /// Empty when `none`.

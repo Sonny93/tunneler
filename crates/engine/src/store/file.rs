@@ -49,6 +49,7 @@ impl ContentFingerprint {
 struct StoreState {
     document: StoreDocument,
     fingerprint: Option<ContentFingerprint>,
+    is_normalization_pending: bool,
 }
 
 /// The state shared between a [`Store`] and its watcher.
@@ -85,6 +86,7 @@ impl SharedStore {
         match parse_content(&self.path, &content) {
             Ok(outcome) => {
                 state.document = outcome.document.clone();
+                state.is_normalization_pending = outcome.was_normalized;
                 Some(StoreEvent::Reloaded(outcome))
             }
             Err(error) => Some(StoreEvent::Invalid(error)),
@@ -120,6 +122,7 @@ impl Store {
         let state = StoreState {
             document: outcome.document.clone(),
             fingerprint: content.as_deref().map(ContentFingerprint::of),
+            is_normalization_pending: outcome.was_normalized,
         };
         let store = Self {
             shared: Arc::new(SharedStore {
@@ -140,6 +143,13 @@ impl Store {
         self.shared.lock().document.clone()
     }
 
+    /// Whether the last document read from the file had gaps filled in (ids
+    /// generated for hand-written tunnels) that the file does not have yet.
+    /// A successful [`save`](Self::save) clears it.
+    pub fn has_pending_normalization(&self) -> bool {
+        self.shared.lock().is_normalization_pending
+    }
+
     /// Validates `document` and writes it to the file.
     ///
     /// The existing file is updated in place, keeping comments and formatting;
@@ -157,6 +167,7 @@ impl Store {
         replace_contents(self.path(), text.as_bytes())?;
         state.fingerprint = Some(ContentFingerprint::of(text.as_bytes()));
         state.document = document;
+        state.is_normalization_pending = false;
         Ok(())
     }
 
@@ -459,5 +470,35 @@ mod tests {
 
             assert_eq!(mode_of(path.parent().unwrap()), 0o700);
         }
+    }
+
+    #[test]
+    fn should_remember_the_pending_normalization_when_opening_a_file_without_ids() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = write_store_file(&directory, HAND_WRITTEN);
+
+        let (store, _) = Store::open(path).unwrap();
+
+        assert!(store.has_pending_normalization());
+    }
+
+    #[test]
+    fn should_have_no_pending_normalization_when_the_file_is_missing() {
+        let directory = tempfile::tempdir().unwrap();
+
+        let (store, _) = Store::open(store_path(&directory)).unwrap();
+
+        assert!(!store.has_pending_normalization());
+    }
+
+    #[test]
+    fn should_clear_the_pending_normalization_when_the_document_is_saved() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = write_store_file(&directory, HAND_WRITTEN);
+        let (store, _) = Store::open(path).unwrap();
+
+        store.save(store.document()).unwrap();
+
+        assert!(!store.has_pending_normalization());
     }
 }

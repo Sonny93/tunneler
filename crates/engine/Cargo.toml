@@ -12,6 +12,7 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 directories.workspace = true
+getrandom.workspace = true
 known-hosts.workspace = true
 notify.workspace = true
 notify-debouncer-mini.workspace = true
