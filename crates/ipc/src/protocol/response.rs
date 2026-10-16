@@ -15,6 +15,14 @@ pub struct LogsResult {
     pub entries: Vec<LogEntryDto>,
 }
 
+/// The result of `hosts.list`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostsResult {
+    /// The concrete `Host` aliases, in the order the `ssh_config` declares them.
+    pub hosts: Vec<String>,
+}
+
 /// What a handler answers on success; serialized as the bare `result` value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
@@ -29,6 +37,8 @@ pub enum ResponsePayload {
     Tunnel(TunnelDto),
     /// The answer to `tunnel.logs`.
     Logs(LogsResult),
+    /// The answer to `hosts.list`.
+    Hosts(HostsResult),
 }
 
 impl ResponsePayload {

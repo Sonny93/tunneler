@@ -3,9 +3,9 @@
 use ipc::protocol::{
     ClientKind, ConfigInvalidEvent, CredentialAnswer, CredentialRequestDto, CredentialRequestEvent,
     CredentialResponseParams, EventMessage, FailureReasonDto, Hello, HostKeyAlertReasonDto,
-    HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, IpcError, LogEntryDto,
-    LogLevelDto, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, PROTOCOL_VERSION, PromptDto,
-    PromptResolvedEvent, QuitParams, Request, RequestEnvelope, ResponsePayload, Secret,
+    HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, HostsResult, IpcError,
+    LogEntryDto, LogLevelDto, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, PROTOCOL_VERSION,
+    PromptDto, PromptResolvedEvent, QuitParams, Request, RequestEnvelope, ResponsePayload, Secret,
     ServerFrame, SettingsDto, SnapshotDto, TagParams, TargetHealthDto, TunnelChangedEvent,
     TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto, TunnelLogEvent,
     TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, encode_event, encode_response,
@@ -90,6 +90,7 @@ fn every_request() -> Vec<Request> {
         Request::TunnelStop(tunnel_id.clone()),
         Request::TunnelRestart(tunnel_id.clone()),
         Request::TunnelLogs(tunnel_id),
+        Request::HostsList {},
         Request::TagStart(tag.clone()),
         Request::TagStop(tag),
         Request::SettingsUpdate(settings()),
@@ -240,6 +241,43 @@ fn should_serialize_tunnel_create_as_documented() {
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
         r#"{"id":2,"method":"tunnel.create","params":{"name":"adonis","host":"nova","kind":"local","listenPort":3333,"targetHost":"db.internal","targetPort":5432,"tags":["dev"]}}"#
+    );
+}
+
+#[test]
+fn should_serialize_hosts_list_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 6,
+        request: Request::HostsList {},
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":6,"method":"hosts.list","params":{}}"#
+    );
+}
+
+#[test]
+fn should_deserialize_hosts_list_when_params_are_omitted() {
+    let line = br#"{"id":6,"method":"hosts.list"}"#;
+
+    assert_eq!(
+        RequestEnvelope::parse(line).unwrap().request,
+        Request::HostsList {}
+    );
+}
+
+#[test]
+fn should_serialize_a_hosts_response_as_documented() {
+    let hosts = HostsResult {
+        hosts: vec!["nova".to_owned(), "db".to_owned()],
+    };
+
+    let line = encode_response(Some(7), &Ok(ResponsePayload::Hosts(hosts))).unwrap();
+
+    assert_eq!(
+        line,
+        "{\"id\":7,\"result\":{\"hosts\":[\"nova\",\"db\"]}}\n"
     );
 }
 

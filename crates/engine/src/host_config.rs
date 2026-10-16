@@ -1,4 +1,4 @@
-use ssh_config::{ConfigSources, LocalEnvironment, ResolvedConfig, resolve};
+use ssh_config::{ConfigSources, LocalEnvironment, ResolvedConfig, list_hosts, resolve};
 use thiserror::Error;
 use tracing::warn;
 
@@ -13,12 +13,22 @@ pub enum HostConfigError {
         /// The underlying failure.
         source: Box<ssh_config::Error>,
     },
+    /// The `ssh_config` files are unreadable or invalid.
+    #[error("cannot list the ssh_config hosts: {source}")]
+    Listing {
+        /// The underlying failure.
+        source: Box<ssh_config::Error>,
+    },
 }
 
 /// Where the effective configuration of a host alias comes from.
 pub trait HostConfigResolver: Send + Sync {
     /// The configuration `ssh -G <alias>` would report.
     fn resolve(&self, alias: &str) -> Result<ResolvedConfig, HostConfigError>;
+
+    /// The concrete `Host` aliases the configuration declares, without
+    /// wildcard patterns.
+    fn list_hosts(&self) -> Result<Vec<String>, HostConfigError>;
 }
 
 /// Resolves aliases from `ssh_config` files, logging the warnings of the
@@ -54,6 +64,12 @@ where
             warn!(alias, %warning, "ssh_config warning");
         }
         Ok(resolution.config)
+    }
+
+    fn list_hosts(&self) -> Result<Vec<String>, HostConfigError> {
+        list_hosts(&self.sources, &self.environment).map_err(|source| HostConfigError::Listing {
+            source: Box::new(source),
+        })
     }
 }
 
@@ -110,6 +126,15 @@ mod tests {
         let (_directory, resolver) = resolver_for("Host web\n  HostName 198.51.100.10\n  Port 2200\n");
         let config = resolver.resolve("web").unwrap();
         assert_eq!((config.hostname.as_str(), config.port), ("198.51.100.10", 2200));
+    }
+
+    #[test]
+    fn should_list_the_concrete_aliases_when_the_configuration_has_wildcards() {
+        let (_directory, resolver) = resolver_for(
+            "Host web db\n  Port 22\nHost *.internal\n  Port 2200\nHost *\n  User me\n",
+        );
+
+        assert_eq!(resolver.list_hosts().unwrap(), vec!["web", "db"]);
     }
 
     #[test]

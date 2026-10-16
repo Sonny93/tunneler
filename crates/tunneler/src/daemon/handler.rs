@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use engine::{Engine, EngineError, StoreError, TunnelId};
+use engine::{Engine, EngineError, HostConfigResolver, StoreError, TunnelId};
 use ipc::protocol::{
-    IpcError, LogsResult, QuitParams, Request, ResponsePayload, SettingsDto, TunnelIdParams,
+    HostsResult, IpcError, LogsResult, QuitParams, Request, ResponsePayload, SettingsDto,
+    TunnelIdParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio_util::sync::CancellationToken;
@@ -21,6 +22,7 @@ const UI_UNAVAILABLE_MESSAGE: &str = "the UI is not available yet";
 pub(crate) struct DaemonHandler {
     engine: Engine,
     prompts: Arc<PromptBroker>,
+    hosts: Arc<dyn HostConfigResolver>,
     quit_requested: CancellationToken,
 }
 
@@ -28,11 +30,13 @@ impl DaemonHandler {
     pub(crate) fn new(
         engine: Engine,
         prompts: Arc<PromptBroker>,
+        hosts: Arc<dyn HostConfigResolver>,
         quit_requested: CancellationToken,
     ) -> Self {
         Self {
             engine,
             prompts,
+            hosts,
             quit_requested,
         }
     }
@@ -56,6 +60,7 @@ impl DaemonHandler {
             Request::TunnelStop(params) => self.stop_tunnel(&params),
             Request::TunnelRestart(params) => self.restart_tunnel(&params),
             Request::TunnelLogs(params) => self.tunnel_logs(&params),
+            Request::HostsList {} => self.list_hosts().await,
             Request::TagStart(params) => self.start_tag(&params.tag),
             Request::TagStop(params) => self.stop_tag(&params.tag),
             Request::SettingsUpdate(settings) => self.update_settings(settings).await,
@@ -136,6 +141,16 @@ impl DaemonHandler {
         Ok(ResponsePayload::Logs(LogsResult {
             entries: entries.iter().map(log_entry_to_dto).collect(),
         }))
+    }
+
+    async fn list_hosts(&self) -> Result<ResponsePayload, IpcError> {
+        let hosts = Arc::clone(&self.hosts);
+        let listing = tokio::task::spawn_blocking(move || hosts.list_hosts())
+            .await
+            .map_err(|error| IpcError::internal(error.to_string()))?;
+        listing
+            .map(|hosts| ResponsePayload::Hosts(HostsResult { hosts }))
+            .map_err(|error| IpcError::internal(error.to_string()))
     }
 
     fn start_tag(&self, tag: &str) -> Result<ResponsePayload, IpcError> {
@@ -259,7 +274,9 @@ mod tests {
         let ssh_config = directory.path().join("ssh_config");
         std::fs::write(
             &ssh_config,
-            format!("Host dead\n  HostName 127.0.0.1\n  Port {UNREACHABLE_SSH_PORT}\n"),
+            format!(
+                "Host dead\n  HostName 127.0.0.1\n  Port {UNREACHABLE_SSH_PORT}\nHost *.internal\n  User me\n"
+            ),
         )
         .unwrap();
         let store_path = directory.path().join("tunnels.toml");
@@ -269,12 +286,13 @@ mod tests {
             server.handle.clone(),
             tokio::sync::broadcast::channel(8).0,
         ));
+        let hosts: Arc<dyn HostConfigResolver> = Arc::new(SshConfigResolver::new(
+            ConfigSources::user_only(&ssh_config),
+            SystemEnvironment::new().unwrap(),
+        ));
         let engine = Engine::start(EngineDependencies {
             connector: ConnectorDependencies {
-                resolver: Arc::new(SshConfigResolver::new(
-                    ConfigSources::user_only(&ssh_config),
-                    SystemEnvironment::new().unwrap(),
-                )),
+                resolver: hosts.clone(),
                 prompter: prompts.clone(),
                 verifier: prompts.clone(),
                 agent_locator: Arc::new(SystemAgentLocator),
@@ -284,7 +302,7 @@ mod tests {
         })
         .unwrap();
         let quit_requested = CancellationToken::new();
-        let handler = DaemonHandler::new(engine.clone(), prompts, quit_requested.clone());
+        let handler = DaemonHandler::new(engine.clone(), prompts, hosts, quit_requested.clone());
         Fixture {
             handler,
             engine,
@@ -339,6 +357,22 @@ mod tests {
             panic!("expected a snapshot");
         };
         assert_eq!(snapshot.tunnels[0].definition.spec.name, "Web");
+    }
+
+    #[tokio::test]
+    async fn should_list_only_the_concrete_aliases_when_listing_hosts() {
+        let fixture = fixture();
+
+        let response = fixture
+            .handler
+            .dispatch(None, Request::HostsList {})
+            .await
+            .unwrap();
+
+        let ResponsePayload::Hosts(result) = response else {
+            panic!("expected hosts");
+        };
+        assert_eq!(result.hosts, vec!["dead"]);
     }
 
     #[tokio::test]

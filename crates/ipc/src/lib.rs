@@ -19,12 +19,14 @@
 mod client;
 mod endpoint;
 mod error;
+mod launcher;
 pub mod protocol;
 mod server;
 
 pub use client::{EventReceiver, IpcClient};
 pub use endpoint::{Endpoint, default_endpoint};
-pub use error::{BindError, ClientError, EndpointError, SendError};
+pub use error::{BindError, ClientError, EndpointError, LaunchError, SendError};
+pub use launcher::{DEFAULT_DAEMON_START_TIMEOUT, ensure_daemon_running};
 pub use server::{
     ConnectionId, ConnectionInfo, ConnectionNotification, IpcServer, OUTBOUND_QUEUE_CAPACITY,
     PeerInfo, RequestHandler, ServerHandle, ServerOptions,

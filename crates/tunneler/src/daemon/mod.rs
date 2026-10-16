@@ -21,8 +21,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use engine::{
-    ConnectorDependencies, Engine, EngineDependencies, SshConfigResolver, Store,
-    SystemAgentLocator, SystemClock,
+    ConnectorDependencies, Engine, EngineDependencies, HostConfigResolver, SshConfigResolver,
+    Store, SystemAgentLocator, SystemClock,
 };
 use ipc::Endpoint;
 use ssh_config::{ConfigSources, SystemEnvironment};
@@ -66,8 +66,9 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
     let server = bind_single_instance(&options.endpoint).await?;
     let (wire_events, wire_receiver) = broadcast::channel(WIRE_EVENT_CAPACITY);
     let prompts = Arc::new(PromptBroker::new(server.handle(), wire_events.clone()));
+    let hosts = host_config_resolver(options.ssh_config.as_deref())?;
     let engine = Engine::start(EngineDependencies {
-        connector: connector_dependencies(options.ssh_config.as_deref(), &prompts)?,
+        connector: connector_dependencies(hosts.clone(), &prompts),
         clock: Arc::new(SystemClock),
         store,
     })?;
@@ -77,6 +78,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
     let handler = Arc::new(DaemonHandler::new(
         engine.clone(),
         prompts,
+        hosts,
         quit_requested.clone(),
     ));
     let health = spawn_health_probing_follower(engine.clone(), server.handle(), shutdown.clone());
@@ -99,18 +101,24 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
     Ok(())
 }
 
-fn connector_dependencies(
+fn host_config_resolver(
     ssh_config: Option<&Path>,
-    prompts: &Arc<PromptBroker>,
-) -> Result<ConnectorDependencies, DaemonError> {
+) -> Result<Arc<dyn HostConfigResolver>, DaemonError> {
     let environment = SystemEnvironment::new()?;
     let sources = config_sources(ssh_config, &environment);
-    Ok(ConnectorDependencies {
-        resolver: Arc::new(SshConfigResolver::new(sources, environment)),
+    Ok(Arc::new(SshConfigResolver::new(sources, environment)))
+}
+
+fn connector_dependencies(
+    resolver: Arc<dyn HostConfigResolver>,
+    prompts: &Arc<PromptBroker>,
+) -> ConnectorDependencies {
+    ConnectorDependencies {
+        resolver,
         prompter: prompts.clone(),
         verifier: prompts.clone(),
         agent_locator: Arc::new(SystemAgentLocator),
-    })
+    }
 }
 
 fn config_sources(ssh_config: Option<&Path>, environment: &SystemEnvironment) -> ConfigSources {

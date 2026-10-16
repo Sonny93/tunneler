@@ -1,5 +1,6 @@
 use std::io;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use serde_json::Value;
 use thiserror::Error;
@@ -103,4 +104,24 @@ impl From<serde_json::Error> for ClientError {
     fn from(error: serde_json::Error) -> Self {
         Self::InvalidResponse(format!("unexpected result shape: {error}"))
     }
+}
+
+/// Why a daemon could not be started in the background.
+#[derive(Debug, Error)]
+pub enum LaunchError {
+    /// The daemon process could not even be spawned.
+    #[error("cannot start the daemon: {0}")]
+    Spawn(#[source] io::Error),
+    /// The spawned daemon ended right away.
+    #[error("the daemon stopped right after starting ({status})")]
+    Exited {
+        /// How it ended, ready to be shown.
+        status: String,
+    },
+    /// The spawned daemon did not answer in time.
+    #[error("the daemon did not answer within {} seconds", .waited.as_secs())]
+    TimedOut {
+        /// How long it was waited for.
+        waited: Duration,
+    },
 }

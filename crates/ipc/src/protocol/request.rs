@@ -11,7 +11,7 @@ const METHOD_KEY: &str = "method";
 const PARAMS_KEY: &str = "params";
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 16] = [
+pub const METHOD_NAMES: [&str; 17] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -21,6 +21,7 @@ pub const METHOD_NAMES: [&str; 16] = [
     "tunnel.stop",
     "tunnel.restart",
     "tunnel.logs",
+    "hosts.list",
     "tag.start",
     "tag.stop",
     "settings.update",
@@ -117,6 +118,9 @@ pub enum Request {
     /// Reads the recent log of a tunnel.
     #[serde(rename = "tunnel.logs")]
     TunnelLogs(TunnelIdParams),
+    /// Lists the concrete `Host` aliases of the user's `ssh_config`.
+    #[serde(rename = "hosts.list")]
+    HostsList {},
     /// Starts every tunnel carrying a tag.
     #[serde(rename = "tag.start")]
     TagStart(TagParams),

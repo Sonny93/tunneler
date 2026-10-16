@@ -17,9 +17,9 @@ use crate::endpoint::Endpoint;
 use crate::error::ClientError;
 use crate::protocol::{
     CredentialAnswer, CredentialResponseParams, EventMessage, Hello, HostKeyDecisionDto,
-    HostKeyResponseParams, LogEntryDto, LogsResult, QuitParams, Request, RequestEnvelope,
-    SettingsDto, SnapshotDto, TagParams, TunnelDefinitionDto, TunnelDto, TunnelIdParams,
-    TunnelSpecDto, encode_line,
+    HostKeyResponseParams, HostsResult, LogEntryDto, LogsResult, QuitParams, Request,
+    RequestEnvelope, SettingsDto, SnapshotDto, TagParams, TunnelDefinitionDto, TunnelDto,
+    TunnelIdParams, TunnelSpecDto, encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -188,6 +188,17 @@ impl IpcClient {
     pub async fn tunnel_logs(&self, id: &str) -> Result<Vec<LogEntryDto>, ClientError> {
         let logs: LogsResult = self.call(Request::TunnelLogs(tunnel_id(id))).await?;
         Ok(logs.entries)
+    }
+
+    /// Lists the concrete `Host` aliases of the daemon user's `ssh_config`.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. A daemon older than
+    /// this method answers `unknown_method`.
+    pub async fn list_hosts(&self) -> Result<Vec<String>, ClientError> {
+        let hosts: HostsResult = self.call(Request::HostsList {}).await?;
+        Ok(hosts.hosts)
     }
 
     /// Starts every tunnel carrying a tag.

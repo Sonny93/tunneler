@@ -30,5 +30,5 @@ pub use request::{
     CredentialAnswer, CredentialResponseParams, HostKeyResponseParams, METHOD_NAMES, QuitParams,
     Request, RequestEnvelope, RequestRejection, TagParams, TunnelIdParams,
 };
-pub use response::{EmptyResult, LogsResult, ResponsePayload};
+pub use response::{EmptyResult, HostsResult, LogsResult, ResponsePayload};
 pub use secret::Secret;
