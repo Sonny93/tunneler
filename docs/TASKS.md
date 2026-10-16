@@ -27,17 +27,38 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Reste ouvert** : compilation de `app/src-tauri` non vérifiée en local (libs webkit2gtk-4.1 absentes de la machine de dev) — première vérification réelle = premier run CI, ou après installation des deps listées dans le README.
 
-## Phase 1 — Crate `ssh-config`
-- [ ] 1.1 Lexer : commentaires, `key value` / `key=value`, guillemets, échappements, insensibilité à la casse des clés
-- [ ] 1.2 Modèle typé des directives utiles (Hostname, Port, User, IdentityFile, IdentitiesOnly, IdentityAgent, ProxyJump, ProxyCommand, LocalForward, RemoteForward, DynamicForward, ForwardX11, ServerAliveInterval/CountMax, StrictHostKeyChecking, UserKnownHostsFile, GlobalKnownHostsFile, HashKnownHosts, PreferredAuthentications, ConnectTimeout, AddKeysToAgent…) + conservation brute des inconnues
-- [ ] 1.3 `Host` : motifs, wildcards `*` `?`, négation `!`
-- [ ] 1.4 `Match` : `all`, `host`, `originalhost`, `user`, `localuser`, `exec`, `final`, `canonical`, négation
-- [ ] 1.5 `Include` : chemins relatifs à `~/.ssh`, globs, récursion bornée, détection de cycles
-- [ ] 1.6 Sémantique first-match-wins + directives cumulatives (IdentityFile, *Forward, CertificateFile, SendEnv)
-- [ ] 1.7 Tokens `%h %p %r %u %n %d %C %L %l %i %%` + `~` + variables d'environnement `${VAR}`
-- [ ] 1.8 API : `parse_file`, `list_hosts` (alias concrets, hors wildcards), `resolve(alias) -> ResolvedConfig`
-- [ ] 1.9 Erreurs typées avec fichier + ligne ; directives non supportées remontées en warnings
-- [ ] 1.10 Tests unitaires + tests différentiels contre `ssh -G` sur un corpus
+## Phase 1 — Crate `ssh-config` ✔
+- [x] 1.1 Lexer : commentaires, `key value` / `key=value`, guillemets, échappements, insensibilité à la casse des clés
+  - Portage de `strdelim` + `argv_split` d'OpenSSH : un token commençant par `#` termine la ligne (commentaire de fin), sauf pour `ProxyCommand` qui garde tout.
+- [x] 1.2 Modèle typé des directives utiles (Hostname, Port, User, IdentityFile, IdentitiesOnly, IdentityAgent, ProxyJump, ProxyCommand, LocalForward, RemoteForward, DynamicForward, ForwardX11, ServerAliveInterval/CountMax, StrictHostKeyChecking, UserKnownHostsFile, GlobalKnownHostsFile, HashKnownHosts, PreferredAuthentications, ConnectTimeout, AddKeysToAgent…) + conservation brute des inconnues
+  - Modélisé en plus : CertificateFile, ForwardX11Trusted, ForwardAgent, HostKeyAlias, Pubkey/Password/KbdInteractiveAuthentication, NumberOfPasswordPrompts, ConnectionAttempts, AddressFamily, BatchMode, ExitOnForwardFailure, GatewayPorts, ClearAllForwardings, TCPKeepAlive, Compression, SendEnv, SetEnv, IgnoreUnknown, Tag.
+  - Mots-clés OpenSSH connus non modélisés → `ResolvedConfig::other` (bruts, sans validation), silencieux. Mots-clés inconnus (hors `IgnoreUnknown`) → warning, pas erreur.
+- [x] 1.3 `Host` : motifs, wildcards `*` `?`, négation `!`
+  - `Host` : motifs séparés par espaces, **sensible à la casse**, pas de virgule. `Match host/originalhost` : listes à virgules, insensibles à la casse.
+- [x] 1.4 `Match` : `all`, `host`, `originalhost`, `user`, `localuser`, `exec`, `final`, `canonical`, négation
+  - + `tagged` (avec `Tag`). `localnetwork`, `version`, `sessiontype`, `command` → warning, ne matchent jamais (même niés).
+  - `Match exec` via `$SHELL -c` (repli `/bin/sh`), stdio nul ; `cmd /C` sous Windows (non vérifié).
+- [x] 1.5 `Include` : chemins relatifs à `~/.ssh`, globs, récursion bornée, détection de cycles
+  - Profondeur max 16 (`READCONF_MAX_DEPTH`). Un Include dans un bloc inactif est parsé mais rien ne s'applique (NEVERMATCH) ; l'état du bloc englobant est restauré après chaque fichier.
+  - Tokens/env expansés avec l'état courant ; `${VAR}` indéfinie → include ignoré (comme OpenSSH) + `WarningKind::IncludeSkipped`.
+- [x] 1.6 Sémantique first-match-wins + directives cumulatives (IdentityFile, *Forward, CertificateFile, SendEnv)
+  - Passe finale (déclenchée par `Match final`/`canonical`, même dans un include inactif) : les lignes `Host` matchent alors le **hostname résolu** (minuscule sauf IP), plus l'alias.
+  - `ProxyJump none` ne bloque pas un `ProxyCommand` ultérieur (comportement du binaire 10.0p2, différent de la lecture du source).
+  - `CanonicalizeHostname` ≠ `no` → warning, traité comme `no`.
+- [x] 1.7 Tokens `%h %p %r %u %n %d %C %L %l %i %%` + `~` + variables d'environnement `${VAR}`
+  - + `%j` (hôte du dernier saut) et `%k`. `%C` = SHA-1 hex de `%l%h%p%r%j`. Jeu de tokens autorisé par directive ; token invalide = erreur typée **dès la résolution** (ssh ne valide `IdentityFile` qu'à la connexion).
+  - `ResolvedConfig` contient les valeurs finales expansées (hostname, identity/certificate files, known hosts, agent, proxy command, sockets unix). `ProxyJump` non expansé (comme `ssh -G`).
+- [x] 1.8 API : `parse_file`, `list_hosts` (alias concrets, hors wildcards), `resolve(alias) -> ResolvedConfig`
+  - `resolve(&ConfigSources, alias, &impl LocalEnvironment) -> Result<Resolution { config, warnings }>`. `ConfigSources::{platform_default, user_only}` (équivalent `-F`). Fichier racine absent = vide (≠ `ssh -F absent`, fatal).
+  - `LocalEnvironment` (env, user, home, hostname, uid, dossier config système, `Match exec`) ; `SystemEnvironment::new()` faillible (échoue tôt).
+  - `pub mod differential_support` caché (`#[doc(hidden)]`) : expose l'expander de tokens et le parser ProxyJump au test différentiel uniquement, pas une API stable.
+- [x] 1.9 Erreurs typées avec fichier + ligne ; directives non supportées remontées en warnings
+- [x] 1.10 Tests unitaires + tests différentiels contre `ssh -G` sur un corpus
+  - 436 tests unitaires ; corpus de 33 fichiers / 81 cas (fichier, alias), cas d'erreur inclus (les deux côtés doivent échouer).
+  - Oracle = **OpenSSH 10.0p2 Debian** : le test est `cfg(target_os = "linux")` et s'ignore si `ssh -V` ≠ `OpenSSH_10.0`. Patches Debian neutralisés dans la comparaison (`ForwardX11Trusted` par défaut `yes`, `BatchMode` → keepalive 300) ; on garde les défauts upstream.
+  - CI : job dédié `ssh-config-differential` dans un conteneur `debian:trixie`, rouge si le test est ignoré. Jamais exécuté sur GitHub à ce stade.
+
+**Lacunes connues** : ports nommés (`getservbyname`), `~user/`, contrôles de permissions des fichiers (`SSHCONF_CHECKPERM`), `ForwardAgent no` suivi d'un chemin. Comportements Windows (chemins `%PROGRAMDATA%`, `cmd /C`, uid 0, globs) non vérifiés.
 
 ## Phase 2 — Crate `known-hosts`
 - [ ] 2.1 Parser : hostnames, `[host]:port`, wildcards, négation, entrées hashées `|1|salt|hash`

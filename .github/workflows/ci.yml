@@ -29,6 +29,28 @@ jobs:
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
 
+  ssh-config-differential:
+    name: ssh-config differential (OpenSSH 10.0 on Debian)
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - run: |
+          apt-get update
+          apt-get install -y openssh-client curl ca-certificates build-essential git
+      - run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+      - name: Run the differential test and fail if it was skipped
+        shell: bash
+        run: |
+          cargo test --locked -p ssh-config --test differential -- --nocapture 2>&1 | tee differential.log
+          if grep -q "skipping differential tests" differential.log; then
+            echo "::error::the differential test was skipped; the oracle is not OpenSSH 10.0"
+            exit 1
+          fi
+
   app:
     name: app (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

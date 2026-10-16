@@ -9,6 +9,15 @@ edition = "2024"
 rust-version = "1.99"
 publish = false
 
+[workspace.dependencies]
+glob = "0.3"
+pretty_assertions = "1"
+rustix = { version = "1", features = ["process"] }
+sha1_smol = "1"
+tempfile = "3"
+thiserror = "2"
+whoami = "2"
+
 [workspace.lints.rust]
 unsafe_code = "deny"
 
