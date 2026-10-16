@@ -25,7 +25,7 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
   - Jobs `rust` (fmt sur Linux, clippy, test) et `app` (deps Tauri apt sur Linux, `pnpm check` + `pnpm test` sur Linux, `pnpm build` puis clippy + build de `tunneler-ui` partout). Validé par `actionlint` uniquement : **jamais exécutée sur GitHub** à ce stade.
 - [x] 0.5 `.gitignore`, `README.md`, `CLAUDE.md` projet (commandes, conventions, pointeur vers ce plan)
 
-**Reste ouvert** : compilation de `app/src-tauri` non vérifiée en local (libs webkit2gtk-4.1 absentes de la machine de dev) — première vérification réelle = premier run CI, ou après installation des deps listées dans le README.
+**Vérifié a posteriori (2026-10-16)** : une fois les deps webkit2gtk-4.1 installées, `app/src-tauri` passe `cargo clippy -p tunneler-ui --all-targets -- -D warnings` et `cargo build -p tunneler-ui` sous Linux. Fenêtre jamais lancée (`pnpm tauri dev`) à ce stade.
 
 ## Phase 1 — Crate `ssh-config` ✔
 - [x] 1.1 Lexer : commentaires, `key value` / `key=value`, guillemets, échappements, insensibilité à la casse des clés
