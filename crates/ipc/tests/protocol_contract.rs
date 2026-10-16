@@ -6,9 +6,10 @@ use ipc::protocol::{
     HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, HostsResult, IpcError,
     LogEntryDto, LogLevelDto, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, PROTOCOL_VERSION,
     PromptDto, PromptResolvedEvent, QuitParams, Request, RequestEnvelope, ResponsePayload, Secret,
-    ServerFrame, SettingsDto, SnapshotDto, TagParams, TargetHealthDto, TunnelChangedEvent,
-    TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto, TunnelLogEvent,
-    TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, encode_event, encode_response,
+    ServerFrame, SettingsDto, SnapshotDto, TagParams, TargetHealthDto, TrayChangedEvent,
+    TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelIdParams,
+    TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, encode_event,
+    encode_response,
 };
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -170,6 +171,10 @@ fn every_event() -> Vec<EventMessage> {
             presented_fingerprint: "SHA256:new".to_owned(),
         }),
         EventMessage::QuitRequested {},
+        EventMessage::TrayChanged(TrayChangedEvent {
+            status: TrayStatusDto::MissingHost,
+        }),
+        EventMessage::ShowRequested {},
         EventMessage::PromptResolved(PromptResolvedEvent {
             prompt_id: "p1".to_owned(),
         }),
@@ -344,6 +349,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
     let snapshot = SnapshotDto {
         tunnels: vec![tunnel()],
         settings: settings(),
+        tray: TrayStatusDto::Active,
     };
 
     let line = encode_response(Some(4), &Ok(ResponsePayload::Snapshot(snapshot))).unwrap();
@@ -355,9 +361,66 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000}}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"healthProbe":true,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false}}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"healthProbe":true,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false},"tray":{"kind":"active"}}}"#,
             "\n"
         )
+    );
+}
+
+#[test]
+fn should_serialize_every_tray_status_with_a_kind_tag() {
+    assert_eq!(
+        [
+            to_json(&TrayStatusDto::Active),
+            to_json(&TrayStatusDto::MissingHost),
+            to_json(&TrayStatusDto::Failed {
+                message: "no icon".to_owned()
+            }),
+            to_json(&TrayStatusDto::Disabled),
+        ],
+        [
+            json!({"kind":"active"}),
+            json!({"kind":"missingHost"}),
+            json!({"kind":"failed","message":"no icon"}),
+            json!({"kind":"disabled"}),
+        ]
+    );
+}
+
+#[test]
+fn should_deserialize_a_snapshot_without_tray_as_disabled() {
+    let mut snapshot = to_json(&SnapshotDto {
+        tunnels: Vec::new(),
+        settings: settings(),
+        tray: TrayStatusDto::Active,
+    });
+    snapshot.as_object_mut().unwrap().remove("tray");
+
+    let parsed: SnapshotDto = serde_json::from_value(snapshot).unwrap();
+
+    assert_eq!(parsed.tray, TrayStatusDto::Disabled);
+}
+
+#[test]
+fn should_serialize_a_tray_changed_event_as_documented() {
+    let event = EventMessage::TrayChanged(TrayChangedEvent {
+        status: TrayStatusDto::MissingHost,
+    });
+
+    assert_eq!(
+        encode_event(&event).unwrap(),
+        concat!(
+            r#"{"event":"tray.changed","data":{"status":{"kind":"missingHost"}}}"#,
+            "\n"
+        )
+    );
+}
+
+#[test]
+fn should_serialize_a_show_requested_event_with_an_empty_data_object() {
+    assert_eq!(
+        encode_event(&EventMessage::ShowRequested {}).unwrap(),
+        "{\"event\":\"show.requested\",\"data\":{}}\n"
     );
 }
 

@@ -29,6 +29,14 @@ tracing-subscriber.workspace = true
 ulid.workspace = true
 zeroize.workspace = true
 
+[target.'cfg(target_os = "linux")'.dependencies]
+tray-icon = { workspace = true, features = ["ksni"] }
+zbus.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+tray-icon.workspace = true
+winit.workspace = true
+
 [dev-dependencies]
 pretty_assertions.workspace = true
 russh.workspace = true

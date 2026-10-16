@@ -1,5 +1,6 @@
 //! The daemon: the composition root that wires the engine, the IPC server, the
-//! prompt broker and the signal handling together.
+//! prompt broker, the UI coordinator, the tray and the signal handling
+//! together.
 //!
 //! [`run`] makes the process the single daemon of its endpoint, then serves
 //! until a termination signal or an accepted `daemon.quit` stops it.
@@ -15,6 +16,8 @@ mod signals;
 #[cfg(test)]
 #[cfg(unix)]
 mod testing;
+mod tray;
+mod ui;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -35,6 +38,8 @@ use handler::DaemonHandler;
 use health::spawn_health_probing_follower;
 use instance::bind_single_instance;
 use prompts::PromptBroker;
+use tray::{TrayService, TrayStatus, TrayStatusCell, spawn_tray_status_publisher};
+use ui::{ProcessUiLauncher, UiCoordinator};
 
 /// How many wire events may wait for the IPC server before the oldest are lost.
 const WIRE_EVENT_CAPACITY: usize = 1024;
@@ -53,6 +58,10 @@ pub struct DaemonOptions {
     /// A user `ssh_config` that replaces the platform's default files, like
     /// `ssh -F`.
     pub ssh_config: Option<PathBuf>,
+    /// Whether the daemon shows its notification-area icon.
+    pub is_tray_enabled: bool,
+    /// Whether the daemon opens the UI once it serves.
+    pub should_open_ui_on_start: bool,
 }
 
 /// Runs the daemon in the foreground until it is asked to stop.
@@ -65,40 +74,101 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
     let (store, _) = Store::open(options.store_path.clone())?;
     let server = bind_single_instance(&options.endpoint).await?;
     let (wire_events, wire_receiver) = broadcast::channel(WIRE_EVENT_CAPACITY);
-    let prompts = Arc::new(PromptBroker::new(server.handle(), wire_events.clone()));
+    let ui = Arc::new(UiCoordinator::new(
+        server.handle(),
+        Arc::new(ProcessUiLauncher::new(
+            options.endpoint.socket_path().map(Path::to_path_buf),
+        )),
+    ));
+    let prompts = Arc::new(PromptBroker::new(
+        server.handle(),
+        wire_events.clone(),
+        ui.clone(),
+    ));
     let hosts = host_config_resolver(options.ssh_config.as_deref())?;
     let engine = Engine::start(EngineDependencies {
         connector: connector_dependencies(hosts.clone(), &prompts),
         clock: Arc::new(SystemClock),
         store,
     })?;
-    let bridge = spawn_event_bridge(engine.subscribe(), wire_events);
+    let bridge = spawn_event_bridge(engine.subscribe(), wire_events.clone());
     let shutdown = CancellationToken::new();
     let quit_requested = CancellationToken::new();
+    let tray_status = Arc::new(TrayStatusCell::new(TrayStatus::Disabled));
     let handler = Arc::new(DaemonHandler::new(
         engine.clone(),
         prompts,
         hosts,
         quit_requested.clone(),
+        ui.clone(),
+        tray_status.subscribe(),
     ));
     let health = spawn_health_probing_follower(engine.clone(), server.handle(), shutdown.clone());
+    let ui_follower = ui.spawn_follower(shutdown.clone());
+    let status_publisher =
+        spawn_tray_status_publisher(tray_status.subscribe(), wire_events, shutdown.clone());
     let serving = server.serve(handler, wire_receiver, shutdown.clone());
+    let tray = start_tray_service(
+        &options,
+        &engine,
+        &tray_status,
+        &ui,
+        &quit_requested,
+        &shutdown,
+    )
+    .await;
     tracing::info!(
         store = %options.store_path.display(),
         version = env!("CARGO_PKG_VERSION"),
         "the daemon is serving"
     );
+    if options.should_open_ui_on_start {
+        open_ui(&ui);
+    }
     wait_for_stop_request(&quit_requested).await;
     tracing::info!("the daemon is shutting down");
     engine.shutdown().await;
     shutdown.cancel();
     bridge.abort();
-    for task in [serving, health] {
+    if let Some(tray) = tray {
+        tray.stop().await;
+    }
+    for task in [serving, health, ui_follower, status_publisher] {
         if let Err(error) = task.await {
             tracing::warn!(%error, "a daemon task ended abnormally");
         }
     }
     Ok(())
+}
+
+async fn start_tray_service(
+    options: &DaemonOptions,
+    engine: &Engine,
+    status: &Arc<TrayStatusCell>,
+    ui: &Arc<UiCoordinator>,
+    quit_requested: &CancellationToken,
+    shutdown: &CancellationToken,
+) -> Option<TrayService> {
+    if !options.is_tray_enabled {
+        tracing::info!("the tray icon is disabled");
+        return None;
+    }
+    Some(
+        TrayService::start(
+            engine,
+            Arc::clone(status),
+            Arc::clone(ui),
+            quit_requested.clone(),
+            shutdown.clone(),
+        )
+        .await,
+    )
+}
+
+fn open_ui(ui: &UiCoordinator) {
+    if let Err(error) = ui.show() {
+        tracing::warn!(%error, "the UI did not open at start");
+    }
 }
 
 fn host_config_resolver(

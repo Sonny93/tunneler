@@ -10,6 +10,8 @@ use super::exit_code;
 use super::target::ResolveError;
 use crate::daemon::DaemonError;
 
+const UI_UNAVAILABLE_HINT: &str = "the UI program `tunneler-ui` must sit next to `tunneler`, be on your PATH, or be set with TUNNELER_UI_BINARY";
+
 /// Why a command failed. Each variant has an exit code and, usually, a hint on
 /// what to do next.
 #[derive(Debug, Error)]
@@ -78,6 +80,12 @@ pub enum CliError {
         /// How many tunnels run.
         running: usize,
     },
+    /// The running daemon could not launch the UI.
+    #[error("{message}")]
+    UiUnavailable {
+        /// What the daemon reported.
+        message: String,
+    },
     /// The tunnel cannot be opened in a browser.
     #[error("the tunnel \"{name}\" is a {kind} tunnel: there is nothing to open on this machine")]
     NotOpenable {
@@ -126,6 +134,7 @@ impl CliError {
             | Self::ConnectionLost
             | Self::NotOpenable { .. }
             | Self::OpenFailed { .. }
+            | Self::UiUnavailable { .. }
             | Self::Terminal(_)
             | Self::Encoding(_)
             | Self::Runtime(_) => exit_code::ERROR,
@@ -167,6 +176,7 @@ impl CliError {
             ),
             Self::OpenFailed { url, .. } => Some(format!("open {url} in your browser yourself")),
             Self::NotOpenable { .. } => Some("run `tunneler list` to see the kinds".to_owned()),
+            Self::UiUnavailable { .. } => Some(UI_UNAVAILABLE_HINT.to_owned()),
             Self::DaemonSpawn(_)
             | Self::Daemon(_)
             | Self::Endpoint(_)
@@ -301,6 +311,38 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "timed out after 30 seconds waiting for: Adonis, Mail"
+        );
+    }
+
+    #[test]
+    fn should_exit_with_1_when_the_ui_cannot_be_launched() {
+        let error = CliError::UiUnavailable {
+            message: "boom".to_owned(),
+        };
+
+        assert_eq!(error.exit_code(), exit_code::ERROR);
+    }
+
+    #[test]
+    fn should_say_where_the_ui_program_must_be_when_the_ui_cannot_be_launched() {
+        let hint = CliError::UiUnavailable {
+            message: "boom".to_owned(),
+        }
+        .hint()
+        .unwrap();
+
+        assert!(hint.contains("TUNNELER_UI_BINARY"));
+    }
+
+    #[test]
+    fn should_carry_the_daemon_message_when_the_ui_cannot_be_launched() {
+        let error = CliError::UiUnavailable {
+            message: "cannot start the UI program `tunneler-ui`".to_owned(),
+        };
+
+        assert_eq!(
+            error.to_string(),
+            "cannot start the UI program `tunneler-ui`"
         );
     }
 

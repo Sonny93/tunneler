@@ -17,7 +17,7 @@ La liste des tâches à cocher vit dans [`TASKS.md`](./TASKS.md). Ce fichier dé
 | D4 | **Parser `known_hosts` maison** | `russh::keys::known_hosts` : pas de wildcards/négation, pas de `@cert-authority`/`@revoked`, chemin figé, écrit en clair |
 | D5 | **UI : Tauri 2 + React 19 + TypeScript + Vite + UnoCSS + `@minimalstuff/ui`** | Rendu soigné, stack maîtrisée, lib de composants maison (UnoCSS, React 19, base ARIA correcte). Le coût RAM du webview (~100-200 Mo) n'est payé que fenêtre ouverte (D2) |
 | D12 | **Outillage front : oxlint + oxfmt via `@minimalstuff/tooling`** (+ plugin `jsx-a11y` d'oxlint, absent du preset React) | Presets partagés, rapide, cohérent avec les autres projets. Rust : `rustfmt` + `clippy` |
-| D6 | **Tray : `tray-icon` avec feature `ksni` sur Linux** | Win32 natif sous Windows, StatusNotifierItem D-Bus pur Rust sous Linux (pas de GTK dans le daemon) |
+| D6 | **Tray : `tray-icon` avec feature `ksni` sur Linux** | Win32 natif sous Windows (boucle `winit`), StatusNotifierItem D-Bus pur Rust sous Linux (pas de GTK dans le daemon). Pas de tray sous macOS (la boucle exigerait le thread principal) |
 | D7 | **IPC : `interprocess` (local socket / named pipe), JSON lines** | Cross-platform, restreint à l'utilisateur courant. Même protocole pour l'UI et la CLI |
 | D8 | **Persistance TOML lisible à la main** dans le dossier de config utilisateur | Éditable, diffable, rechargé à chaud |
 | D9 | **Tags (n-n) plutôt que groupes (1-n)** | Un tunnel peut appartenir à plusieurs ensembles (`dev`, `adonis`, `mail`...) ; toggle d'un tag = toggle de ses tunnels |
@@ -63,7 +63,7 @@ Les tunnels vivent *dans* le daemon : ils ne peuvent pas survivre à sa fermetur
 
 ### Démarrage / single instance
 1. `tunneler` (sans argument) tente de binder le socket IPC.
-2. Succès → devient le daemon. Échec car un daemon répond → client : envoie `ui.show` et quitte.
+2. Succès → devient le daemon et ouvre l'UI (`tunneler daemon` : daemon seul). Échec car un daemon répond → client : envoie `ui.show` et quitte.
 3. Socket orphelin (daemon crashé) → reclaim (`reclaim_name`).
 4. `tunneler-ui` lancé seul sans daemon → spawn `tunneler daemon` détaché, puis se connecte.
 
@@ -186,7 +186,7 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 
 | Méthodes | |
 |---|---|
-| `state.snapshot` | tunnels + états + santé + métriques + settings + hosts |
+| `state.snapshot` | tunnels + états + santé + métriques + settings + statut du tray |
 | `tunnel.create` / `update` / `delete` / `start` / `stop` / `restart` | |
 | `tag.start` / `tag.stop` | |
 | `external.adopt` / `kill` / `ignore` / `import` | |
@@ -196,9 +196,9 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 | `x11.start` / `x11.stop` / `x11.launch` | |
 | `import.ssh_config` / `import.script` | |
 | `daemon.quit { force }` | refusé sans `force` si des tunnels tournent → l'UI demande confirmation |
-| `ui.show` | utilisé par la 2ᵉ instance et le tray |
+| `ui.show` | utilisé par la 2ᵉ instance et le tray : `show.requested` aux UI connectées, sinon lancement de `tunneler-ui` |
 
-Événements : `tunnel.changed`, `tunnel.metrics` (throttlé), `tunnel.log`, `credential.request`, `hostkey.request`, `config.reloaded`, `quit.requested`.
+Événements : `tunnel.changed`, `tunnel.metrics` (throttlé), `tunnel.log`, `credential.request`, `hostkey.request`, `prompt.resolved`, `config.reloaded`, `config.invalid`, `quit.requested`, `show.requested`, `tray.changed`.
 
 ---
 
@@ -283,7 +283,7 @@ Le détail coché est dans [`TASKS.md`](./TASKS.md). Les phases UI/CLI ne sont c
 
 | Risque | Mitigation |
 |---|---|
-| GNOME sans extension AppIndicator → pas de tray | Détecter l'absence de StatusNotifierHost, prévenir, l'UI reste accessible via `tunneler` |
+| GNOME sans extension AppIndicator → pas de tray | Absence de propriétaire de `org.kde.StatusNotifierWatcher` détectée et suivie, bandeau dans l'UI, l'UI reste accessible via `tunneler` |
 | RAM WebKitGTK élevée | UI à la demande (D2) ; mesurer en phase 13 |
 | PID introuvable pour sockets d'autres utilisateurs (Linux) | État « process inconnu », actions limitées |
 | Parité `ssh_config` avec OpenSSH (`Match exec`, `canonical`, `final`) | Tests différentiels ; directives non supportées listées et signalées dans l'UI |

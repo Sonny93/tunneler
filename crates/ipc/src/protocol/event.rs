@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::protocol::dto::{
     CredentialRequestDto, HostKeyAlertReasonDto, LogEntryDto, MetricsDto, TargetHealthDto,
-    TunnelStateDto,
+    TrayStatusDto, TunnelStateDto,
 };
 
 /// The state or the target health of a tunnel changed.
@@ -96,6 +96,14 @@ pub struct PromptResolvedEvent {
     pub prompt_id: String,
 }
 
+/// The tray icon status changed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrayChangedEvent {
+    /// The new status.
+    pub status: TrayStatusDto,
+}
+
 /// What the daemon pushes: `{"event": "...", "data": {...}}`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "event", content = "data")]
@@ -124,6 +132,13 @@ pub enum EventMessage {
     /// Somebody asked the daemon to quit; the UI should confirm.
     #[serde(rename = "quit.requested")]
     QuitRequested {},
+    /// The tray icon status changed.
+    #[serde(rename = "tray.changed")]
+    TrayChanged(TrayChangedEvent),
+    /// Somebody asked to see the UI; a connected UI should bring its window to
+    /// the front.
+    #[serde(rename = "show.requested")]
+    ShowRequested {},
     /// A prompt was answered elsewhere; close its dialog.
     #[serde(rename = "prompt.resolved")]
     PromptResolved(PromptResolvedEvent),

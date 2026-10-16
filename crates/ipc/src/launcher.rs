@@ -1,5 +1,8 @@
 //! Starts the daemon in the background on behalf of a client.
 
+use std::env::consts::EXE_SUFFIX;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
@@ -80,5 +83,76 @@ async fn wait_until_alive(
             return Err(LaunchError::TimedOut { waited: timeout });
         }
         sleep(DAEMON_START_POLL_INTERVAL).await;
+    }
+}
+
+/// A program shipped next to the running one: `override_path` when set, else
+/// `<directory of current_executable>/<name><EXE_SUFFIX>` when it exists, else
+/// `name`, resolved through `PATH`.
+pub fn locate_companion_binary(
+    name: &str,
+    override_path: Option<OsString>,
+    current_executable: Option<&Path>,
+    exists: impl Fn(&Path) -> bool,
+) -> PathBuf {
+    if let Some(path) = override_path {
+        return PathBuf::from(path);
+    }
+    let sibling = current_executable
+        .and_then(Path::parent)
+        .map(|directory| directory.join(format!("{name}{EXE_SUFFIX}")));
+    match sibling {
+        Some(path) if exists(&path) => path,
+        _ => PathBuf::from(name),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const COMPANION_NAME: &str = "companion";
+
+    fn sibling_name() -> String {
+        format!("{COMPANION_NAME}{EXE_SUFFIX}")
+    }
+
+    #[test]
+    fn should_use_the_override_when_it_is_set() {
+        let located = locate_companion_binary(
+            COMPANION_NAME,
+            Some(OsString::from("/opt/custom/companion")),
+            Some(Path::new("/app/runner")),
+            |_| true,
+        );
+
+        assert_eq!(located, PathBuf::from("/opt/custom/companion"));
+    }
+
+    #[test]
+    fn should_use_the_sibling_when_it_exists() {
+        let located =
+            locate_companion_binary(COMPANION_NAME, None, Some(Path::new("/app/runner")), |_| {
+                true
+            });
+
+        assert_eq!(located, Path::new("/app").join(sibling_name()));
+    }
+
+    #[test]
+    fn should_fall_back_to_the_path_lookup_when_the_sibling_is_missing() {
+        let located =
+            locate_companion_binary(COMPANION_NAME, None, Some(Path::new("/app/runner")), |_| {
+                false
+            });
+
+        assert_eq!(located, PathBuf::from(COMPANION_NAME));
+    }
+
+    #[test]
+    fn should_fall_back_to_the_path_lookup_when_the_executable_is_unknown() {
+        let located = locate_companion_binary(COMPANION_NAME, None, None, |_| true);
+
+        assert_eq!(located, PathBuf::from(COMPANION_NAME));
     }
 }

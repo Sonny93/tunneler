@@ -2,6 +2,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 use clap::Args;
+use clap::builder::FalseyValueParser;
 use engine::default_store_path;
 use ipc::{Endpoint, default_endpoint};
 
@@ -26,6 +27,14 @@ pub struct Locations {
         value_name = "PATH"
     )]
     pub ssh_config: Option<PathBuf>,
+    /// Do not show the notification-area icon
+    #[arg(
+        long = "no-tray",
+        global = true,
+        env = "TUNNELER_NO_TRAY",
+        value_parser = FalseyValueParser::new()
+    )]
+    pub no_tray: bool,
 }
 
 impl Locations {
@@ -47,13 +56,15 @@ impl Locations {
             endpoint: self.endpoint()?,
             store_path,
             ssh_config: self.ssh_config.clone(),
+            is_tray_enabled: !self.no_tray,
+            should_open_ui_on_start: false,
         })
     }
 
     /// The options to pass to a daemon spawned on behalf of this command, so
     /// that it uses the same locations.
     pub fn as_arguments(&self) -> Vec<OsString> {
-        [
+        let mut arguments: Vec<OsString> = [
             ("--socket", &self.socket),
             ("--config", &self.config),
             ("--ssh-config", &self.ssh_config),
@@ -61,7 +72,11 @@ impl Locations {
         .into_iter()
         .filter_map(|(option, path)| path.as_ref().map(|path| (option, path)))
         .flat_map(|(option, path)| [OsString::from(option), path.clone().into_os_string()])
-        .collect()
+        .collect();
+        if self.no_tray {
+            arguments.push(OsString::from("--no-tray"));
+        }
+        arguments
     }
 }
 
@@ -80,6 +95,7 @@ mod tests {
             socket: Some(PathBuf::from("/run/t.sock")),
             config: None,
             ssh_config: Some(PathBuf::from("/home/me/ssh_config")),
+            no_tray: false,
         };
 
         assert_eq!(
@@ -91,6 +107,37 @@ mod tests {
                 OsString::from("/home/me/ssh_config"),
             ]
         );
+    }
+
+    #[test]
+    fn should_pass_no_tray_when_the_tray_is_disabled() {
+        let locations = Locations {
+            no_tray: true,
+            ..Locations::default()
+        };
+
+        assert_eq!(locations.as_arguments(), vec![OsString::from("--no-tray")]);
+    }
+
+    #[test]
+    fn should_disable_the_tray_of_the_daemon_when_no_tray_is_set() {
+        let locations = Locations {
+            socket: Some(PathBuf::from("/run/t.sock")),
+            no_tray: true,
+            ..Locations::default()
+        };
+
+        assert!(!locations.daemon_options().unwrap().is_tray_enabled);
+    }
+
+    #[test]
+    fn should_enable_the_tray_of_the_daemon_by_default() {
+        let locations = Locations {
+            socket: Some(PathBuf::from("/run/t.sock")),
+            ..Locations::default()
+        };
+
+        assert!(locations.daemon_options().unwrap().is_tray_enabled);
     }
 
     #[test]
@@ -112,6 +159,7 @@ mod tests {
             socket: Some(PathBuf::from("/run/t.sock")),
             config: Some(PathBuf::from("/tmp/tunnels.toml")),
             ssh_config: None,
+            no_tray: false,
         };
 
         assert_eq!(

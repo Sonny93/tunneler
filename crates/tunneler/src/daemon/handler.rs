@@ -7,6 +7,7 @@ use ipc::protocol::{
     TunnelIdParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
+use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use super::mapping::{
@@ -14,16 +15,18 @@ use super::mapping::{
     snapshot_to_dto, tunnel_to_dto,
 };
 use super::prompts::PromptBroker;
+use super::tray::TrayStatus;
+use super::ui::UiCoordinator;
 
-const UI_UNAVAILABLE_MESSAGE: &str = "the UI is not available yet";
-
-/// Maps each IPC request to calls on the engine, the store and the prompt
-/// broker.
+/// Maps each IPC request to calls on the engine, the store, the prompt broker
+/// and the UI coordinator.
 pub(crate) struct DaemonHandler {
     engine: Engine,
     prompts: Arc<PromptBroker>,
     hosts: Arc<dyn HostConfigResolver>,
     quit_requested: CancellationToken,
+    ui: Arc<UiCoordinator>,
+    tray_status: watch::Receiver<TrayStatus>,
 }
 
 impl DaemonHandler {
@@ -32,12 +35,16 @@ impl DaemonHandler {
         prompts: Arc<PromptBroker>,
         hosts: Arc<dyn HostConfigResolver>,
         quit_requested: CancellationToken,
+        ui: Arc<UiCoordinator>,
+        tray_status: watch::Receiver<TrayStatus>,
     ) -> Self {
         Self {
             engine,
             prompts,
             hosts,
             quit_requested,
+            ui,
+            tray_status,
         }
     }
 
@@ -50,9 +57,7 @@ impl DaemonHandler {
     ) -> Result<ResponsePayload, IpcError> {
         match request {
             Request::Hello(_) => Err(IpcError::invalid_request("`hello` was already received")),
-            Request::StateSnapshot {} => Ok(ResponsePayload::Snapshot(snapshot_to_dto(
-                &self.engine.snapshot(),
-            ))),
+            Request::StateSnapshot {} => Ok(self.snapshot()),
             Request::TunnelCreate(spec) => self.create_tunnel(spec).await,
             Request::TunnelUpdate(definition) => self.update_tunnel(definition).await,
             Request::TunnelDelete(params) => self.delete_tunnel(params).await,
@@ -73,8 +78,20 @@ impl DaemonHandler {
                 .respond_host_key(requester, &params)
                 .map(|()| ResponsePayload::empty()),
             Request::DaemonQuit(params) => self.quit(params),
-            Request::UiShow {} => Err(IpcError::ui_unavailable(UI_UNAVAILABLE_MESSAGE)),
+            Request::UiShow {} => self.show_ui(),
         }
+    }
+
+    fn snapshot(&self) -> ResponsePayload {
+        let tray_status = self.tray_status.borrow().clone();
+        ResponsePayload::Snapshot(snapshot_to_dto(&self.engine.snapshot(), &tray_status))
+    }
+
+    fn show_ui(&self) -> Result<ResponsePayload, IpcError> {
+        self.ui
+            .show()
+            .map(|()| ResponsePayload::empty())
+            .map_err(|error| IpcError::ui_unavailable(error.to_string()))
     }
 
     async fn create_tunnel(
@@ -254,7 +271,10 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+    use crate::daemon::prompts::NoResponderSource;
     use crate::daemon::testing::TestServer;
+    use crate::daemon::tray::TrayStatusCell;
+    use crate::daemon::ui::testing::FakeLauncher;
 
     const WAIT: Duration = Duration::from_secs(10);
     const POLL_INTERVAL: Duration = Duration::from_millis(25);
@@ -264,12 +284,18 @@ mod tests {
         handler: DaemonHandler,
         engine: Engine,
         quit_requested: CancellationToken,
+        launcher: Arc<FakeLauncher>,
+        tray_status: Arc<TrayStatusCell>,
         store_path: PathBuf,
         _directory: TempDir,
         _server: TestServer,
     }
 
     fn fixture() -> Fixture {
+        fixture_with_launcher(FakeLauncher::succeeding())
+    }
+
+    fn fixture_with_launcher(launcher: Arc<FakeLauncher>) -> Fixture {
         let directory = tempfile::tempdir().unwrap();
         let ssh_config = directory.path().join("ssh_config");
         std::fs::write(
@@ -285,6 +311,7 @@ mod tests {
         let prompts = Arc::new(PromptBroker::new(
             server.handle.clone(),
             tokio::sync::broadcast::channel(8).0,
+            Arc::new(NoResponderSource),
         ));
         let hosts: Arc<dyn HostConfigResolver> = Arc::new(SshConfigResolver::new(
             ConfigSources::user_only(&ssh_config),
@@ -302,11 +329,22 @@ mod tests {
         })
         .unwrap();
         let quit_requested = CancellationToken::new();
-        let handler = DaemonHandler::new(engine.clone(), prompts, hosts, quit_requested.clone());
+        let ui = Arc::new(UiCoordinator::new(server.handle.clone(), launcher.clone()));
+        let tray_status = Arc::new(TrayStatusCell::new(TrayStatus::Disabled));
+        let handler = DaemonHandler::new(
+            engine.clone(),
+            prompts,
+            hosts,
+            quit_requested.clone(),
+            ui,
+            tray_status.subscribe(),
+        );
         Fixture {
             handler,
             engine,
             quit_requested,
+            launcher,
+            tray_status,
             store_path,
             _directory: directory,
             _server: server,
@@ -448,8 +486,21 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_answer_ui_unavailable_when_asked_to_show_the_ui() {
+    async fn should_launch_the_ui_when_asked_to_show_it_and_none_is_connected() {
         let fixture = fixture();
+
+        fixture
+            .handler
+            .dispatch(None, Request::UiShow {})
+            .await
+            .unwrap();
+
+        assert_eq!(fixture.launcher.launch_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn should_answer_ui_unavailable_when_the_ui_cannot_be_launched() {
+        let fixture = fixture_with_launcher(FakeLauncher::failing());
 
         let error = fixture
             .handler
@@ -458,6 +509,23 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(error.code, ErrorCode::UiUnavailable);
+    }
+
+    #[tokio::test]
+    async fn should_report_the_tray_status_when_taking_a_snapshot() {
+        let fixture = fixture();
+        fixture.tray_status.set(TrayStatus::MissingHost);
+
+        let response = fixture
+            .handler
+            .dispatch(None, Request::StateSnapshot {})
+            .await
+            .unwrap();
+
+        let ResponsePayload::Snapshot(snapshot) = response else {
+            panic!("expected a snapshot");
+        };
+        assert_eq!(snapshot.tray, ipc::protocol::TrayStatusDto::MissingHost);
     }
 
     #[tokio::test]

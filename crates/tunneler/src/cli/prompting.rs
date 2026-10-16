@@ -211,6 +211,8 @@ impl LocalPrompts {
             | EventMessage::TunnelLog(_)
             | EventMessage::ConfigReloaded {}
             | EventMessage::ConfigInvalid(_)
+            | EventMessage::TrayChanged(_)
+            | EventMessage::ShowRequested {}
             | EventMessage::QuitRequested {} => {}
         }
     }

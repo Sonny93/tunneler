@@ -133,8 +133,8 @@ pub fn describe_step(tunnel_name: &str, state: &TunnelStateDto, style: Style) ->
 #[cfg(test)]
 mod tests {
     use ipc::protocol::{
-        FailureReasonDto, MetricsDto, SettingsDto, TargetHealthDto, TunnelDefinitionDto, TunnelDto,
-        TunnelKindDto, TunnelSpecDto,
+        FailureReasonDto, MetricsDto, SettingsDto, TargetHealthDto, TrayStatusDto,
+        TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelSpecDto,
     };
 
     use super::*;
@@ -178,6 +178,7 @@ mod tests {
 
     fn snapshot_of(tunnels: Vec<TunnelDto>) -> SnapshotDto {
         SnapshotDto {
+            tray: TrayStatusDto::default(),
             tunnels,
             settings: SettingsDto {
                 default_bind_address: "127.0.0.1".to_owned(),

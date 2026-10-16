@@ -222,12 +222,29 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
     - `ThemeToggle` : `document.startViewTransition` fait planter WebKitGTK 2.54 ; l'app passe `isTransitionEnabled={false}`. Détecter/éviter côté lib.
   - Vérifiés conformes : `aria-invalid` + erreur liée sur `Input`/`Switch`, focus restauré par `Modal`, raccourcis globaux désactivés pendant une modale.
 
-## Phase 7 — Tray
-- [ ] 7.1 `tray-icon` (feature `ksni` Linux), boucle d'événements par OS
-- [ ] 7.2 Icône selon l'état global (forme distincte par état, pas seulement la couleur) + tooltip textuel, menu tags cochables avec état en texte + Ouvrir + Quitter
-- [ ] 7.3 Lancement de `tunneler-ui` à la demande, focus si déjà ouverte
-- [ ] 7.4 Quitter depuis le tray → confirmation via UI si tunnels actifs
-- [ ] 7.5 Détection d'absence de StatusNotifierHost (GNOME) + message
+## Phase 7 — Tray ✔ (Windows jamais exécuté, macOS sans tray)
+- [x] 7.1 `tray-icon` (feature `ksni` Linux), boucle d'événements par OS
+  - `tray-icon` 0.26 sans features par défaut : `ksni` sous Linux (D-Bus pur Rust, **aucune dépendance GTK** vérifiée par `cargo tree`, un seul `zbus` partagé), backend Win32 sous Windows. `TrayIcon` et les items muda sont `!Send` (`Rc`) → un thread std « tray » les possède sur chaque OS ; le reste du daemon lui envoie `Render(TrayView)` / `Shutdown`, les clics reviennent par un mpsc tokio (handlers globaux `MenuEvent` / `TrayIconEvent`).
+  - Linux : pas de boucle d'événements (ksni a son propre thread). Windows : boucle `winit` 0.30 (`with_any_thread`), commandes en user events via `EventLoopProxy` — **seulement cross-linté, jamais exécuté**.
+  - **Écart PLAN** : macOS n'a pas de tray (il exigerait la boucle sur le thread principal, occupé par tokio) ; statut `disabled`, rien d'autre ne change (« sans régression »).
+  - `--no-tray` / `TUNNELER_NO_TRAY` (propagé au daemon lancé par la CLI) ; les tests E2E l'utilisent toujours, avec un `TUNNELER_UI_BINARY` inexistant, pour ne jamais ouvrir d'icône ni de fenêtre.
+- [x] 7.2 Icône selon l'état global (forme distincte par état, pas seulement la couleur) + tooltip textuel, menu tags cochables avec état en texte + Ouvrir + Quitter
+  - Icônes 32×32 dessinées en code (pas de fichiers), contour sombre : repos = anneau gris, OK = disque vert, dégradé = triangle ambre, erreur = losange rouge. Précédence : un `Failed` → erreur ; sinon reconnexion ou cible injoignable d'un tunnel lancé → dégradé ; sinon `Active`/`Starting` → OK ; sinon repos. Icônes définitives en phase 13.
+  - Tooltip « Tunneler — 3 tunnels actifs, 1 en reconnexion » (+ « N en démarrage », « N en échec », « N cibles injoignables »). Menu : ligne de résumé désactivée (l'état global est aussi lisible au clavier/lecteur d'écran dans le menu), tags en cases à cocher « dev — 3 sur 5 actifs » (cochée si tous lancés, même règle et même formulation que la sidebar), « Ouvrir Tunneler », « Quitter ». Clic gauche sur l'icône = ouvrir. Menu reconstruit à chaque changement de vue (ids stables `tag:<nom>`, `open`, `quit`).
+- [x] 7.3 Lancement de `tunneler-ui` à la demande, focus si déjà ouverte
+  - `UiCoordinator` : une UI = une connexion `kind: ui`. `ui.show` (2ᵉ instance, tray) → événement **`show.requested`** aux UI connectées (le pont Tauri fait `unminimize`/`show`/`set_focus`), sinon lancement de `tunneler-ui` (`TUNNELER_UI_BINARY`, sinon à côté de `tunneler`, sinon `PATH` ; détaché, récolté, `TUNNELER_SOCKET` et `TUNNELER_DAEMON_BINARY` transmis). Pas de 2ᵉ lancement pendant 30 s tant que l'UI ne s'est pas connectée. Échec → `ui_unavailable`, et la CLI sort en 1 avec un indice.
+  - Localisation des binaires compagnons factorisée dans `ipc::locate_companion_binary` (daemon → UI, UI → daemon).
+  - Prompt sans répondeur (PLAN §3) : le daemon lance l'UI et attend un client `canPrompt`, le tout borné par les 120 s du prompt. Le pont Tauri demande l'attention (clignotement de la barre des tâches, sans voler le focus) sur une demande de secret ou de clé d'hôte quand la fenêtre n'a pas le focus.
+  - `tunneler` sans argument qui devient le daemon ouvre aussi l'UI (lancement manuel = « montre-moi Tunneler ») ; `tunneler daemon` non.
+  - Vérifié en vrai sous Xvfb + bus D-Bus privé : la 2ᵉ instance lance l'UI, qui se connecte (`kind=Ui`) ; une 3ᵉ invocation n'ouvre pas de 2ᵉ UI. Rendu de la fenêtre non capturé (capture `xwd` blanche) ; le focus réel n'est pas vérifiable sans gestionnaire de fenêtres. Rappel : un `cargo build -p tunneler-ui` sans `--features tauri/custom-protocol` charge `devUrl` (fenêtre blanche sans `pnpm dev`).
+- [x] 7.4 Quitter depuis le tray → confirmation via UI si tunnels actifs
+  - Aucun tunnel actif → arrêt direct. Sinon `quit.requested` aux UI connectées (qui affichent la confirmation existante et se mettent au premier plan), ou lancement de l'UI avec la confirmation délivrée à sa connexion — valable seulement pendant la fenêtre de lancement, jamais livrée à une UI ouverte plus tard. UI impossible à lancer → erreur loguée, le daemon continue (jamais d'arrêt des tunnels sans confirmation).
+- [x] 7.5 Détection d'absence de StatusNotifierHost (GNOME) + message
+  - `tray-icon` crée ksni avec `assume_sni_available(true)` et `IsStatusNotifierHostRegistered` vaut toujours vrai sous KDE et GNOME : le vrai signal est la présence d'un propriétaire du nom `org.kde.StatusNotifierWatcher`, suivi en continu (`NameOwnerChanged`, thread dédié, `zbus` bloquant).
+  - **Ajout protocole** (additif, `PROTOCOL_VERSION` inchangé) : `SnapshotDto.tray` (`active` | `missingHost` | `failed { message }` | `disabled`) et l'événement `tray.changed`. L'UI affiche un bandeau (section titrée, non live, « Masquer » pour la session) pour `missingHost` (rouvrir via `tunneler`, extension GNOME AppIndicator) et `failed`. `status --json` contient aussi `tray`.
+  - Vérifié en vrai sur bus privé avec un faux watcher (Python/Gio) piloté via `com.canonical.dbusmenu` : `missingHost` → `active` à l'arrivée du watcher → `missingHost` à son départ ; titre, tooltip, icône 32×32, menu, clic sur un tag (démarre puis arrête), « Quitter » avec/sans tunnel actif. Sur le GNOME de dev, l'extension AppIndicator est installée mais `INACTIVE` (installée après l'ouverture de session) : bandeau `missingHost` attendu jusqu'à une reconnexion. **Icône jamais vue sur un vrai panneau** (GNOME/KDE/Windows).
+
+**Vérifications** : fmt, clippy (workspace + `tunneler-ui` + cross-clippy Windows) et tous les tests verts (277 unitaires tunneler, 18 E2E CLI, 571 tests front). Rien d'exécuté sous Windows ni macOS.
 
 ## Phase 8 — Tunnels externes
 - [ ] 8.1 `PortScanner` (`listeners` + `sysinfo`) avec cadence liée à la présence d'une UI

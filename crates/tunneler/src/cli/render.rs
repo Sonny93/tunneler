@@ -286,7 +286,8 @@ struct ListJson<'a> {
 }
 
 /// The `status --json` output: `{"daemonVersion", "tunnels": [TunnelDto…],
-/// "settings": SettingsDto}` on a single line.
+/// "settings": SettingsDto, "tray": TrayStatusDto}` on a single
+/// line.
 pub fn render_status_json(
     daemon_version: &str,
     snapshot: &SnapshotDto,
@@ -311,7 +312,7 @@ pub fn render_list_json(snapshot: &SnapshotDto) -> Result<String, serde_json::Er
 
 #[cfg(test)]
 mod tests {
-    use ipc::protocol::TunnelSpecDto;
+    use ipc::protocol::{TrayStatusDto, TunnelSpecDto};
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -372,6 +373,7 @@ mod tests {
         SnapshotDto {
             tunnels,
             settings: settings(),
+            tray: TrayStatusDto::default(),
         }
     }
 

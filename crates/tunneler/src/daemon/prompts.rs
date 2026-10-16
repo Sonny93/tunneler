@@ -2,12 +2,14 @@
 //! decisions on behalf of the engine.
 //!
 //! A prompt goes to every connection that declared `can_prompt`. The first
-//! answer wins, the others are told through `prompt.resolved`. A prompt nobody
-//! answers within [`PROMPT_TIMEOUT`], or whose responders all disconnect, is
-//! cancelled. Secrets stay in wiping containers and are never logged.
+//! answer wins, the others are told through `prompt.resolved`. When nobody can
+//! be asked, the broker has a [`PromptResponderSource`] summon a client (the
+//! daemon launches the UI). A prompt nobody answers within [`PROMPT_TIMEOUT`],
+//! summoning included, or whose responders all disconnect, is cancelled.
+//! Secrets stay in wiping containers and are never logged.
 
 use std::collections::HashMap;
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -23,6 +25,7 @@ use ipc::protocol::{
 use ipc::{ConnectionId, ConnectionNotification, ServerHandle};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, oneshot};
+use tokio::time::Instant;
 use ulid::Ulid;
 use zeroize::Zeroizing;
 
@@ -30,6 +33,14 @@ use super::mapping::{host_key_decision_from_dto, rejection_to_alert};
 
 /// How long a prompt waits for an answer before it is cancelled.
 pub(crate) const PROMPT_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Gets a client that can answer prompts to connect, when none is.
+#[async_trait]
+pub(crate) trait PromptResponderSource: Send + Sync {
+    /// Tries to bring a client that can answer prompts to connect within
+    /// `patience`; tells whether one is connected afterwards.
+    async fn summon_responder(&self, patience: Duration) -> bool;
+}
 
 struct PendingPrompt<Answer> {
     responders: Vec<ConnectionId>,
@@ -86,6 +97,7 @@ impl<Answer> PendingPrompts<Answer> {
 pub(crate) struct PromptBroker {
     server: ServerHandle,
     events: broadcast::Sender<EventMessage>,
+    responder_source: Arc<dyn PromptResponderSource>,
     timeout: Duration,
     credentials: PendingPrompts<Option<CredentialAnswer>>,
     host_keys: PendingPrompts<HostKeyDecisionDto>,
@@ -93,11 +105,17 @@ pub(crate) struct PromptBroker {
 
 impl PromptBroker {
     /// A broker that talks to clients through `server`; `events` carries the
-    /// alerts that are broadcast to every subscriber.
-    pub(crate) fn new(server: ServerHandle, events: broadcast::Sender<EventMessage>) -> Self {
+    /// alerts that are broadcast to every subscriber, and `responder_source`
+    /// is asked for a client when none can answer.
+    pub(crate) fn new(
+        server: ServerHandle,
+        events: broadcast::Sender<EventMessage>,
+        responder_source: Arc<dyn PromptResponderSource>,
+    ) -> Self {
         Self {
             server,
             events,
+            responder_source,
             timeout: PROMPT_TIMEOUT,
             credentials: PendingPrompts::default(),
             host_keys: PendingPrompts::default(),
@@ -142,9 +160,10 @@ impl PromptBroker {
         pending: &PendingPrompts<Answer>,
         build_event: impl FnOnce(String) -> EventMessage,
     ) -> Option<Answer> {
-        let responders = self.prompt_responders();
+        let deadline = Instant::now() + self.timeout;
+        let responders = self.find_responders(deadline).await;
         if responders.is_empty() {
-            return without_responder();
+            return warn_unanswerable();
         }
         let mut notifications = self.server.subscribe_connections();
         let prompt_id = Ulid::generate().to_string();
@@ -155,7 +174,7 @@ impl PromptBroker {
             pending.withdraw(&prompt_id);
             return None;
         }
-        let answer = tokio::time::timeout(self.timeout, async {
+        let answer = tokio::time::timeout_at(deadline, async {
             tokio::select! {
                 answer = receiver => answer.ok(),
                 () = self.wait_until_disconnected(&reached, &mut notifications) => None,
@@ -168,6 +187,16 @@ impl PromptBroker {
             self.notify_resolved(&prompt_id, &remaining, None);
         }
         answer
+    }
+
+    async fn find_responders(&self, deadline: Instant) -> Vec<ConnectionId> {
+        let responders = self.prompt_responders();
+        if !responders.is_empty() {
+            return responders;
+        }
+        let patience = deadline.saturating_duration_since(Instant::now());
+        self.responder_source.summon_responder(patience).await;
+        self.prompt_responders()
     }
 
     fn prompt_responders(&self) -> Vec<ConnectionId> {
@@ -236,10 +265,9 @@ impl PromptBroker {
     }
 }
 
-/// The single place that decides what happens when no client can be asked.
-///
-/// Cancelling is the behaviour until the daemon can launch a UI to ask.
-fn without_responder<Answer>() -> Option<Answer> {
+/// The single place that decides what happens when no client could be asked,
+/// even after one was summoned: the prompt is cancelled.
+fn warn_unanswerable<Answer>() -> Option<Answer> {
     tracing::warn!("a prompt was cancelled because no connected client can answer it");
     None
 }
@@ -349,14 +377,29 @@ impl HostKeyVerifier for PromptBroker {
     }
 }
 
+/// A source that never brings anybody, for the tests.
+#[cfg(test)]
+#[cfg(unix)]
+pub(crate) struct NoResponderSource;
+
+#[cfg(test)]
+#[cfg(unix)]
+#[async_trait]
+impl PromptResponderSource for NoResponderSource {
+    async fn summon_responder(&self, _patience: Duration) -> bool {
+        false
+    }
+}
+
 #[cfg(test)]
 #[cfg(unix)]
 mod tests {
-    use std::sync::Arc;
+    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
 
-    use ipc::protocol::{ClientKind, ErrorCode, Secret};
-    use ipc::{EventReceiver, IpcClient};
+    use ipc::protocol::{ClientKind, ErrorCode, Hello, Secret};
+    use ipc::{Endpoint, EventReceiver, IpcClient};
     use pretty_assertions::assert_eq;
     use tokio::task::JoinHandle;
     use tokio::time::timeout;
@@ -367,6 +410,60 @@ mod tests {
     const WAIT: Duration = Duration::from_secs(5);
     const SHORT_TIMEOUT: Duration = Duration::from_millis(100);
     const SECRET_TEXT: &str = "hunter2";
+
+    /// Counts the summons; connects a UI that can answer when told to.
+    struct RecordingSource {
+        summons: AtomicUsize,
+        connecting: Option<(Endpoint, ServerHandle)>,
+        connected: Mutex<Option<IpcClient>>,
+    }
+
+    impl RecordingSource {
+        fn idle() -> Arc<Self> {
+            Arc::new(Self {
+                summons: AtomicUsize::new(0),
+                connecting: None,
+                connected: Mutex::new(None),
+            })
+        }
+
+        fn connecting_a_ui(server: &TestServer) -> Arc<Self> {
+            Arc::new(Self {
+                summons: AtomicUsize::new(0),
+                connecting: Some((server.endpoint.clone(), server.handle.clone())),
+                connected: Mutex::new(None),
+            })
+        }
+
+        fn summon_count(&self) -> usize {
+            self.summons.load(Ordering::SeqCst)
+        }
+
+        fn has_client(&self) -> bool {
+            self.connected.lock().unwrap().is_some()
+        }
+
+        fn take_client(&self) -> IpcClient {
+            self.connected.lock().unwrap().take().unwrap()
+        }
+    }
+
+    #[async_trait]
+    impl PromptResponderSource for RecordingSource {
+        async fn summon_responder(&self, _patience: Duration) -> bool {
+            self.summons.fetch_add(1, Ordering::SeqCst);
+            let Some((endpoint, handle)) = &self.connecting else {
+                return false;
+            };
+            let hello = Hello::new(ClientKind::Ui, "test", true, true);
+            let client = IpcClient::connect(endpoint, hello).await.unwrap();
+            *self.connected.lock().unwrap() = Some(client);
+            while handle.connections().is_empty() {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            true
+        }
+    }
 
     struct Responder {
         _client: IpcClient,
@@ -386,8 +483,22 @@ mod tests {
     }
 
     fn broker(server: &TestServer) -> Arc<PromptBroker> {
-        let (events, _) = broadcast::channel(8);
-        Arc::new(PromptBroker::new(server.handle.clone(), events))
+        Arc::new(PromptBroker::new(
+            server.handle.clone(),
+            broadcast::channel(8).0,
+            Arc::new(NoResponderSource),
+        ))
+    }
+
+    fn broker_with_source(
+        server: &TestServer,
+        source: Arc<dyn PromptResponderSource>,
+    ) -> Arc<PromptBroker> {
+        Arc::new(PromptBroker::new(
+            server.handle.clone(),
+            broadcast::channel(8).0,
+            source,
+        ))
     }
 
     fn passphrase_request() -> PassphraseRequest {
@@ -446,6 +557,53 @@ mod tests {
         let outcome = broker.passphrase(passphrase_request()).await;
 
         assert_eq!(outcome, Ok(None));
+    }
+
+    #[tokio::test]
+    async fn should_not_summon_anybody_when_a_responder_is_already_connected() {
+        let server = TestServer::start();
+        let mut responder = connect_responder(&server).await;
+        let source = RecordingSource::idle();
+        let broker = broker_with_source(&server, source.clone());
+        let asking = ask_passphrase(&broker);
+        let prompt_id = received_prompt_id(&mut responder).await;
+        broker
+            .respond_credential(None, answer(&prompt_id, SECRET_TEXT))
+            .unwrap();
+        asking.await.unwrap().unwrap();
+
+        assert_eq!(source.summon_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn should_summon_a_responder_when_nobody_can_answer() {
+        let server = TestServer::start();
+        let source = RecordingSource::idle();
+        let broker = broker_with_source(&server, source.clone());
+
+        broker.passphrase(passphrase_request()).await.unwrap();
+
+        assert_eq!(source.summon_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn should_send_the_prompt_to_a_responder_that_connects_after_the_summon() {
+        let server = TestServer::start();
+        let source = RecordingSource::connecting_a_ui(&server);
+        let broker = broker_with_source(&server, source.clone());
+        let asking = ask_passphrase(&broker);
+        let mut summoned = loop {
+            if source.has_client() {
+                break source.take_client();
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        };
+        let mut events = summoned.take_events().unwrap();
+
+        let event = timeout(WAIT, events.recv()).await.unwrap().unwrap();
+
+        asking.abort();
+        assert!(matches!(event, EventMessage::CredentialRequest(_)));
     }
 
     #[tokio::test]
@@ -597,8 +755,12 @@ mod tests {
         let server = TestServer::start();
         let _responder = connect_responder(&server).await;
         let broker = Arc::new(
-            PromptBroker::new(server.handle.clone(), broadcast::channel(8).0)
-                .with_timeout(SHORT_TIMEOUT),
+            PromptBroker::new(
+                server.handle.clone(),
+                broadcast::channel(8).0,
+                Arc::new(NoResponderSource),
+            )
+            .with_timeout(SHORT_TIMEOUT),
         );
 
         let outcome = broker.passphrase(passphrase_request()).await;
@@ -611,8 +773,12 @@ mod tests {
         let server = TestServer::start();
         let mut responder = connect_responder(&server).await;
         let broker = Arc::new(
-            PromptBroker::new(server.handle.clone(), broadcast::channel(8).0)
-                .with_timeout(SHORT_TIMEOUT),
+            PromptBroker::new(
+                server.handle.clone(),
+                broadcast::channel(8).0,
+                Arc::new(NoResponderSource),
+            )
+            .with_timeout(SHORT_TIMEOUT),
         );
 
         broker.passphrase(passphrase_request()).await.unwrap();
@@ -774,7 +940,7 @@ mod tests {
     async fn should_broadcast_an_alert_when_a_host_key_is_rejected() {
         let server = TestServer::start();
         let (events, mut alerts) = broadcast::channel(8);
-        let broker = PromptBroker::new(server.handle.clone(), events);
+        let broker = PromptBroker::new(server.handle.clone(), events, Arc::new(NoResponderSource));
 
         broker
             .report_rejected(RejectedHostKey {

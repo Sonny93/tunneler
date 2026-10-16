@@ -33,9 +33,9 @@ Examples:
   tunneler status               Show the daemon version and every tunnel with its state
   tunneler status --json        The same as one line of JSON, for scripts
 
-With --json the output is {\"daemonVersion\": ..., \"tunnels\": [...], \"settings\": {...}}:
-the tunnels and settings are the objects of the IPC protocol, with their state, target
-health and traffic, in camelCase.";
+With --json the output is {\"daemonVersion\": ..., \"tunnels\": [...], \"settings\": {...}, \"tray\": {...}}:
+the tunnels, settings and tray status are the objects of the IPC protocol, with their
+state, target health and traffic, in camelCase.";
 
 const LIST_EXAMPLES: &str = "\
 Examples:
@@ -82,7 +82,9 @@ Environment:
   TUNNELER_LOG         log filter for the daemon and the commands, such as debug
   TUNNELER_SOCKET      same as --socket
   TUNNELER_CONFIG      same as --config
-  TUNNELER_SSH_CONFIG  same as --ssh-config",
+  TUNNELER_SSH_CONFIG  same as --ssh-config
+  TUNNELER_NO_TRAY     same as --no-tray
+  TUNNELER_UI_BINARY   the tunneler-ui program the daemon launches",
         describe_exit_codes()
     )
 }

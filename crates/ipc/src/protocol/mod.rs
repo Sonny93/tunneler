@@ -16,12 +16,12 @@ mod secret;
 pub use dto::{
     CredentialRequestDto, EpochMillis, FailureReasonDto, HostKeyAlertReasonDto, HostKeyDecisionDto,
     LogEntryDto, LogLevelDto, MetricsDto, PromptDto, SettingsDto, SnapshotDto, TargetHealthDto,
-    TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto,
+    TrayStatusDto, TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto,
 };
 pub use error::{ErrorCode, IpcError};
 pub use event::{
     ConfigInvalidEvent, CredentialRequestEvent, EventMessage, HostKeyRequestEvent,
-    PromptResolvedEvent, TunnelChangedEvent, TunnelLogEvent, TunnelMetricsEvent,
+    PromptResolvedEvent, TrayChangedEvent, TunnelChangedEvent, TunnelLogEvent, TunnelMetricsEvent,
 };
 pub use frame::{MalformedFrame, Outcome, ServerFrame, encode_event, encode_response};
 pub use hello::{ClientKind, Hello, HelloResult, PROTOCOL_VERSION};

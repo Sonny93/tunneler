@@ -115,6 +115,7 @@ mod tests {
 
     use super::*;
     use crate::protocol::error::ErrorCode;
+    use crate::protocol::{TrayChangedEvent, TrayStatusDto};
 
     #[test]
     fn should_encode_a_success_with_its_result() {
@@ -168,6 +169,31 @@ mod tests {
         assert_eq!(
             frame,
             ServerFrame::Event(Some(EventMessage::QuitRequested {}))
+        );
+    }
+
+    #[test]
+    fn should_parse_a_tray_changed_event() {
+        let frame = ServerFrame::parse(
+            br#"{"event":"tray.changed","data":{"status":{"kind":"missingHost"}}}"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            frame,
+            ServerFrame::Event(Some(EventMessage::TrayChanged(TrayChangedEvent {
+                status: TrayStatusDto::MissingHost
+            })))
+        );
+    }
+
+    #[test]
+    fn should_parse_a_show_requested_event() {
+        let frame = ServerFrame::parse(br#"{"event":"show.requested","data":{}}"#).unwrap();
+
+        assert_eq!(
+            frame,
+            ServerFrame::Event(Some(EventMessage::ShowRequested {}))
         );
     }
 

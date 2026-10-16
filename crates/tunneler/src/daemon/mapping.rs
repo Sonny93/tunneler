@@ -13,9 +13,11 @@ use engine::{
 use ipc::protocol::{
     ConfigInvalidEvent, EpochMillis, EventMessage, FailureReasonDto, HostKeyAlertReasonDto,
     HostKeyDecisionDto, HostKeyRequestEvent, LogEntryDto, LogLevelDto, MetricsDto, SettingsDto,
-    SnapshotDto, TargetHealthDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
-    TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto,
+    SnapshotDto, TargetHealthDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto,
+    TunnelDto, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto,
 };
+
+use super::tray::TrayStatus;
 
 pub(crate) fn to_epoch_millis(time: SystemTime) -> EpochMillis {
     let elapsed = time.duration_since(UNIX_EPOCH).unwrap_or_default();
@@ -193,10 +195,22 @@ pub(crate) fn settings_from_dto(dto: SettingsDto) -> Settings {
     }
 }
 
-pub(crate) fn snapshot_to_dto(snapshot: &EngineSnapshot) -> SnapshotDto {
+pub(crate) fn tray_status_to_dto(status: &TrayStatus) -> TrayStatusDto {
+    match status {
+        TrayStatus::Active => TrayStatusDto::Active,
+        TrayStatus::MissingHost => TrayStatusDto::MissingHost,
+        TrayStatus::Failed { message } => TrayStatusDto::Failed {
+            message: message.clone(),
+        },
+        TrayStatus::Disabled => TrayStatusDto::Disabled,
+    }
+}
+
+pub(crate) fn snapshot_to_dto(snapshot: &EngineSnapshot, tray: &TrayStatus) -> SnapshotDto {
     SnapshotDto {
         tunnels: snapshot.tunnels.iter().map(tunnel_to_dto).collect(),
         settings: settings_to_dto(&snapshot.settings),
+        tray: tray_status_to_dto(tray),
     }
 }
 
@@ -286,6 +300,27 @@ mod tests {
     use super::*;
 
     const SECONDS_AFTER_EPOCH: u64 = 1_700_000_000;
+
+    #[test]
+    fn should_map_every_tray_status_to_its_wire_status() {
+        let statuses = [
+            (TrayStatus::Active, TrayStatusDto::Active),
+            (TrayStatus::MissingHost, TrayStatusDto::MissingHost),
+            (
+                TrayStatus::Failed {
+                    message: "no bus".to_owned(),
+                },
+                TrayStatusDto::Failed {
+                    message: "no bus".to_owned(),
+                },
+            ),
+            (TrayStatus::Disabled, TrayStatusDto::Disabled),
+        ];
+
+        for (status, expected) in statuses {
+            assert_eq!(tray_status_to_dto(&status), expected);
+        }
+    }
 
     fn at(seconds: u64) -> SystemTime {
         UNIX_EPOCH + Duration::from_secs(seconds)

@@ -27,6 +27,9 @@ const EXIT_DAEMON_NOT_RUNNING: i32 = 3;
 const EXIT_TARGETS_FAILED: i32 = 4;
 const EXIT_CONFIRMATION_REQUIRED: i32 = 5;
 const ESCAPE: char = '\x1b';
+const MISSING_UI_BINARY_NAME: &str = "no-such-tunneler-ui";
+const FAKE_UI_SCRIPT_NAME: &str = "fake-tunneler-ui";
+const UI_MARKER_NAME: &str = "ui-marker";
 
 struct Fixture {
     workspace: Workspace,
@@ -91,6 +94,10 @@ impl Fixture {
         ]
     }
 
+    fn missing_ui_binary(&self) -> PathBuf {
+        self.workspace.file(MISSING_UI_BINARY_NAME)
+    }
+
     fn command(&self, arguments: &[&str]) -> Command {
         let mut command = Command::new(BINARY);
         command
@@ -99,6 +106,8 @@ impl Fixture {
             .stdin(Stdio::null())
             .env("HOME", self.workspace.file("home"))
             .env("XDG_DATA_HOME", self.workspace.file("data"))
+            .env("TUNNELER_NO_TRAY", "1")
+            .env("TUNNELER_UI_BINARY", self.missing_ui_binary())
             .env_remove("SSH_AUTH_SOCK")
             .env_remove("TUNNELER_LOG")
             .env_remove("NO_COLOR")
@@ -123,11 +132,31 @@ impl Fixture {
     }
 
     fn spawn_daemon(&self) -> Child {
-        self.command(&["daemon"])
+        self.spawn_daemon_with_environment(&[])
+    }
+
+    fn spawn_daemon_with_environment(&self, variables: &[(&str, &Path)]) -> Child {
+        let mut command = self.command(&["daemon"]);
+        command.envs(variables.iter().copied());
+        command
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
             .unwrap()
+    }
+
+    fn write_fake_ui(&self) -> (PathBuf, PathBuf) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let script = self.workspace.file(FAKE_UI_SCRIPT_NAME);
+        let marker = self.workspace.file(UI_MARKER_NAME);
+        let body = format!(
+            "#!/bin/sh\nprintf '%s' \"$TUNNELER_SOCKET\" > '{}'\n",
+            marker.display()
+        );
+        std::fs::write(&script, body).unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        (script, marker)
     }
 
     async fn wait_until_daemon_answers(&self) {
@@ -152,6 +181,8 @@ impl Drop for Fixture {
             .args(["quit", "--yes"])
             .env("HOME", self.workspace.file("home"))
             .env("XDG_DATA_HOME", self.workspace.file("data"))
+            .env("TUNNELER_NO_TRAY", "1")
+            .env("TUNNELER_UI_BINARY", self.missing_ui_binary())
             .stdin(Stdio::null())
             .output();
         let _ = StdCommand::new("pkill")
@@ -451,17 +482,53 @@ async fn should_refuse_to_start_when_a_daemon_already_runs() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn should_say_it_is_already_running_when_launched_without_a_command() {
+async fn should_exit_with_1_and_a_hint_when_the_ui_program_cannot_be_launched() {
     let fixture = Fixture::start().await;
     fixture.run(&["up", "Gamma"]).await;
 
     let output = fixture.run(&[]).await;
 
-    assert_eq!(code(&output), 0, "{}", stderr(&output));
-    assert_eq!(
-        stdout(&output).trim(),
-        "Tunneler is already running (the UI is not available yet)."
+    assert_eq!(code(&output), EXIT_ERROR);
+    assert!(
+        stderr(&output).contains("hint: the UI program `tunneler-ui` must sit next to `tunneler`"),
+        "{}",
+        stderr(&output)
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_name_the_missing_ui_program_when_it_cannot_be_launched() {
+    let fixture = Fixture::start().await;
+    fixture.run(&["up", "Gamma"]).await;
+
+    let output = fixture.run(&[]).await;
+
+    assert!(
+        stderr(&output).contains(MISSING_UI_BINARY_NAME),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_launch_the_ui_program_with_the_socket_when_launched_without_a_command() {
+    let fixture = Fixture::start().await;
+    let (script, marker) = fixture.write_fake_ui();
+    let mut daemon = fixture.spawn_daemon_with_environment(&[("TUNNELER_UI_BINARY", &script)]);
+    fixture.wait_until_daemon_answers().await;
+
+    let output = fixture.run(&[]).await;
+
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    wait_until("the UI program wrote its marker", || {
+        std::fs::read_to_string(&marker).is_ok_and(|content| !content.is_empty())
+    })
+    .await;
+    assert_eq!(
+        std::fs::read_to_string(&marker).unwrap(),
+        fixture.socket_path().display().to_string()
+    );
+    daemon.kill().await.unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread")]

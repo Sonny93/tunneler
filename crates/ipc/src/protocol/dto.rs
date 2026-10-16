@@ -220,6 +220,30 @@ pub struct SettingsDto {
     pub x11_display: Option<String>,
 }
 
+/// Whether the daemon shows its notification-area (tray) icon.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum TrayStatusDto {
+    /// The icon is shown.
+    Active,
+    /// The icon exists but no notification area hosts it (Linux: no
+    /// `org.kde.StatusNotifierWatcher` on the session bus, e.g. GNOME without
+    /// the `AppIndicator` extension).
+    MissingHost,
+    /// The icon could not be created.
+    Failed {
+        /// The explanation.
+        message: String,
+    },
+    /// No icon on purpose: disabled by the user or unsupported on this platform.
+    #[default]
+    Disabled,
+}
+
 /// Everything a client needs to draw its first screen.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -228,6 +252,9 @@ pub struct SnapshotDto {
     pub tunnels: Vec<TunnelDto>,
     /// The settings.
     pub settings: SettingsDto,
+    /// Whether the daemon shows its tray icon.
+    #[serde(default)]
+    pub tray: TrayStatusDto,
 }
 
 /// One question of a keyboard-interactive exchange.
