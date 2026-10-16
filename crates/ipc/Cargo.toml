@@ -8,3 +8,24 @@ publish.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+async-trait.workspace = true
+interprocess.workspace = true
+rustix.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt", "net", "time", "sync", "macros", "io-util"] }
+tokio-util = { workspace = true, features = ["rt"] }
+tracing.workspace = true
+zeroize = { workspace = true, features = ["serde"] }
+
+[target.'cfg(windows)'.dependencies]
+whoami.workspace = true
+widestring = "1"
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "test-util"] }

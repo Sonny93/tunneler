@@ -1,0 +1,39 @@
+use serde::{Deserialize, Serialize};
+
+use crate::protocol::dto::{LogEntryDto, SnapshotDto, TunnelDto};
+use crate::protocol::hello::HelloResult;
+
+/// The result of a method that has nothing to return: `{}`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EmptyResult {}
+
+/// The result of `tunnel.logs`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogsResult {
+    /// The recent entries, oldest first.
+    pub entries: Vec<LogEntryDto>,
+}
+
+/// What a handler answers on success; serialized as the bare `result` value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum ResponsePayload {
+    /// Nothing to report.
+    Empty(EmptyResult),
+    /// The answer to `hello`.
+    Hello(HelloResult),
+    /// The answer to `state.snapshot`.
+    Snapshot(SnapshotDto),
+    /// The answer to `tunnel.create` and `tunnel.update`.
+    Tunnel(TunnelDto),
+    /// The answer to `tunnel.logs`.
+    Logs(LogsResult),
+}
+
+impl ResponsePayload {
+    /// The payload of methods that have nothing to return.
+    pub const fn empty() -> Self {
+        Self::Empty(EmptyResult {})
+    }
+}

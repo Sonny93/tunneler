@@ -1,0 +1,438 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
+use ipc::protocol::{
+    ClientKind, ConfigInvalidEvent, CredentialAnswer, CredentialRequestDto, CredentialRequestEvent,
+    CredentialResponseParams, EventMessage, FailureReasonDto, Hello, HostKeyAlertReasonDto,
+    HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, IpcError, LogEntryDto,
+    LogLevelDto, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, PROTOCOL_VERSION, PromptDto,
+    PromptResolvedEvent, QuitParams, Request, RequestEnvelope, ResponsePayload, Secret,
+    ServerFrame, SettingsDto, SnapshotDto, TagParams, TargetHealthDto, TunnelChangedEvent,
+    TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto, TunnelLogEvent,
+    TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, encode_event, encode_response,
+};
+use pretty_assertions::assert_eq;
+use serde_json::{Value, json};
+
+const TUNNEL_ID: &str = "01J9ZK3Q8M5N7R2T4V6X8Y0ABC";
+
+fn spec() -> TunnelSpecDto {
+    TunnelSpecDto {
+        name: "adonis".to_owned(),
+        host: "nova".to_owned(),
+        kind: TunnelKindDto::Local,
+        listen_port: 3333,
+        listen_address: None,
+        target_host: Some("db.internal".to_owned()),
+        target_port: Some(5432),
+        tags: vec!["dev".to_owned()],
+    }
+}
+
+fn definition() -> TunnelDefinitionDto {
+    TunnelDefinitionDto {
+        id: TUNNEL_ID.to_owned(),
+        spec: spec(),
+    }
+}
+
+fn settings() -> SettingsDto {
+    SettingsDto {
+        default_bind_address: "127.0.0.1".to_owned(),
+        default_remote_bind_address: "127.0.0.1".to_owned(),
+        keepalive_interval_ms: 30_000,
+        keepalive_max: 3,
+        session_idle_grace_ms: 60_000,
+        reconnect_initial_delay_ms: 1_000,
+        reconnect_max_delay_ms: 60_000,
+        health_probe: true,
+        restore_on_launch: true,
+        start_on_launch_tags: vec!["dev".to_owned()],
+        launch_at_login: false,
+        x11_display: None,
+    }
+}
+
+fn tunnel() -> TunnelDto {
+    TunnelDto {
+        definition: definition(),
+        state: TunnelStateDto::Reconnecting {
+            attempt: 2,
+            next_retry_at: 1_700_000_005_000,
+        },
+        health: TargetHealthDto::Unreachable {
+            since: 1_700_000_000_000,
+            error: "connection refused".to_owned(),
+        },
+        metrics: MetricsDto {
+            active_connections: 1,
+            total_connections: 4,
+            bytes_in: 10,
+            bytes_out: 20,
+            last_activity: Some(1_700_000_001_000),
+        },
+    }
+}
+
+fn every_request() -> Vec<Request> {
+    let tunnel_id = TunnelIdParams {
+        id: TUNNEL_ID.to_owned(),
+    };
+    let tag = TagParams {
+        tag: "dev".to_owned(),
+    };
+    vec![
+        Request::Hello(Hello::new(ClientKind::Ui, "0.1.0", true, true)),
+        Request::StateSnapshot {},
+        Request::TunnelCreate(spec()),
+        Request::TunnelUpdate(definition()),
+        Request::TunnelDelete(tunnel_id.clone()),
+        Request::TunnelStart(tunnel_id.clone()),
+        Request::TunnelStop(tunnel_id.clone()),
+        Request::TunnelRestart(tunnel_id.clone()),
+        Request::TunnelLogs(tunnel_id),
+        Request::TagStart(tag.clone()),
+        Request::TagStop(tag),
+        Request::SettingsUpdate(settings()),
+        Request::CredentialRespond(CredentialResponseParams {
+            prompt_id: "p1".to_owned(),
+            answer: Some(CredentialAnswer::Single(Secret::new("hunter2".to_owned()))),
+        }),
+        Request::HostKeyRespond(HostKeyResponseParams {
+            prompt_id: "p2".to_owned(),
+            decision: HostKeyDecisionDto::AcceptAndSave,
+        }),
+        Request::DaemonQuit(QuitParams { force: false }),
+        Request::UiShow {},
+    ]
+}
+
+fn every_event() -> Vec<EventMessage> {
+    vec![
+        EventMessage::TunnelChanged(TunnelChangedEvent {
+            id: TUNNEL_ID.to_owned(),
+            state: TunnelStateDto::Failed {
+                reason: FailureReasonDto::PortInUse {
+                    address: "127.0.0.1:3333".to_owned(),
+                },
+            },
+            health: TargetHealthDto::Reachable,
+        }),
+        EventMessage::TunnelMetrics(TunnelMetricsEvent {
+            id: TUNNEL_ID.to_owned(),
+            metrics: MetricsDto::default(),
+        }),
+        EventMessage::TunnelLog(TunnelLogEvent {
+            id: TUNNEL_ID.to_owned(),
+            entry: LogEntryDto {
+                at: 1_700_000_000_000,
+                level: LogLevelDto::Warn,
+                message: "session lost".to_owned(),
+            },
+        }),
+        EventMessage::ConfigReloaded {},
+        EventMessage::ConfigInvalid(ConfigInvalidEvent {
+            messages: vec!["line 3: bad port".to_owned()],
+        }),
+        EventMessage::CredentialRequest(CredentialRequestEvent {
+            prompt_id: "p1".to_owned(),
+            request: CredentialRequestDto::Passphrase {
+                alias: "nova".to_owned(),
+                key_path: "/home/me/.ssh/id_ed25519".to_owned(),
+            },
+        }),
+        EventMessage::CredentialRequest(CredentialRequestEvent {
+            prompt_id: "p3".to_owned(),
+            request: CredentialRequestDto::KeyboardInteractive {
+                alias: "nova".to_owned(),
+                name: String::new(),
+                instructions: String::new(),
+                prompts: vec![PromptDto {
+                    text: "Code: ".to_owned(),
+                    echo: true,
+                }],
+            },
+        }),
+        EventMessage::HostKeyRequest(HostKeyRequestEvent::Prompt {
+            prompt_id: "p2".to_owned(),
+            alias: "nova".to_owned(),
+            lookup_name: "[nova]:2222".to_owned(),
+            algorithm: "ssh-ed25519".to_owned(),
+            fingerprint_sha256: "SHA256:abc".to_owned(),
+        }),
+        EventMessage::HostKeyRequest(HostKeyRequestEvent::Alert {
+            alias: "nova".to_owned(),
+            reason: HostKeyAlertReasonDto::Changed {
+                known_fingerprint: "SHA256:old".to_owned(),
+                path: "/home/me/.ssh/known_hosts".to_owned(),
+                line: 12,
+            },
+            presented_fingerprint: "SHA256:new".to_owned(),
+        }),
+        EventMessage::QuitRequested {},
+        EventMessage::PromptResolved(PromptResolvedEvent {
+            prompt_id: "p1".to_owned(),
+        }),
+    ]
+}
+
+fn to_json<T: serde::Serialize>(value: &T) -> Value {
+    serde_json::to_value(value).unwrap()
+}
+
+#[test]
+fn should_name_every_method_in_the_method_list() {
+    let mut serialized: Vec<String> = every_request()
+        .iter()
+        .map(|request| to_json(request)["method"].as_str().unwrap().to_owned())
+        .collect();
+    let mut declared: Vec<String> = METHOD_NAMES.iter().map(ToString::to_string).collect();
+    serialized.sort();
+    declared.sort();
+
+    assert_eq!(serialized, declared);
+}
+
+#[test]
+fn should_round_trip_every_request() {
+    for (index, request) in every_request().into_iter().enumerate() {
+        let envelope = RequestEnvelope {
+            id: u64::try_from(index).unwrap(),
+            request,
+        };
+        let line = serde_json::to_vec(&envelope).unwrap();
+
+        assert_eq!(RequestEnvelope::parse(&line).unwrap(), envelope);
+    }
+}
+
+#[test]
+fn should_round_trip_every_event() {
+    for event in every_event() {
+        let line = encode_event(&event).unwrap();
+
+        assert_eq!(
+            ServerFrame::parse(line.as_bytes()).unwrap(),
+            ServerFrame::Event(Some(event))
+        );
+    }
+}
+
+#[test]
+fn should_serialize_hello_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 1,
+        request: Request::Hello(Hello::new(ClientKind::Cli, "0.1.0", false, false)),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":1,"method":"hello","params":{"protocolVersion":1,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
+    );
+}
+
+#[test]
+fn should_serialize_tunnel_create_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 2,
+        request: Request::TunnelCreate(spec()),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":2,"method":"tunnel.create","params":{"name":"adonis","host":"nova","kind":"local","listenPort":3333,"targetHost":"db.internal","targetPort":5432,"tags":["dev"]}}"#
+    );
+}
+
+#[test]
+fn should_serialize_a_credential_answer_as_a_plain_string() {
+    let envelope = RequestEnvelope {
+        id: 3,
+        request: Request::CredentialRespond(CredentialResponseParams {
+            prompt_id: "p1".to_owned(),
+            answer: Some(CredentialAnswer::Single(Secret::new("hunter2".to_owned()))),
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":3,"method":"credential.respond","params":{"promptId":"p1","answer":"hunter2"}}"#
+    );
+}
+
+#[test]
+fn should_deserialize_a_cancelled_credential_answer_as_none() {
+    let line =
+        br#"{"id":3,"method":"credential.respond","params":{"promptId":"p1","answer":null}}"#;
+
+    assert_eq!(
+        RequestEnvelope::parse(line).unwrap().request,
+        Request::CredentialRespond(CredentialResponseParams {
+            prompt_id: "p1".to_owned(),
+            answer: None
+        })
+    );
+}
+
+#[test]
+fn should_deserialize_keyboard_interactive_answers_as_a_list() {
+    let line =
+        br#"{"id":3,"method":"credential.respond","params":{"promptId":"p1","answer":["a","b"]}}"#;
+
+    let Request::CredentialRespond(params) = RequestEnvelope::parse(line).unwrap().request else {
+        panic!("not a credential response");
+    };
+
+    assert_eq!(
+        params.answer,
+        Some(CredentialAnswer::Multiple(vec![
+            Secret::new("a".to_owned()),
+            Secret::new("b".to_owned())
+        ]))
+    );
+}
+
+#[test]
+fn should_not_leak_a_secret_when_a_request_is_formatted_with_debug() {
+    let request = Request::CredentialRespond(CredentialResponseParams {
+        prompt_id: "p1".to_owned(),
+        answer: Some(CredentialAnswer::Single(Secret::new("hunter2".to_owned()))),
+    });
+
+    assert!(!format!("{request:?}").contains("hunter2"));
+}
+
+#[test]
+fn should_serialize_a_snapshot_response_as_documented() {
+    let snapshot = SnapshotDto {
+        tunnels: vec![tunnel()],
+        settings: settings(),
+    };
+
+    let line = encode_response(Some(4), &Ok(ResponsePayload::Snapshot(snapshot))).unwrap();
+
+    assert_eq!(
+        line,
+        concat!(
+            r#"{"id":4,"result":{"tunnels":[{"id":"01J9ZK3Q8M5N7R2T4V6X8Y0ABC","name":"adonis","host":"nova","kind":"local","listenPort":3333,"targetHost":"db.internal","targetPort":5432,"tags":["dev"],"#,
+            r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
+            r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
+            r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000}}],"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"healthProbe":true,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false}}}"#,
+            "\n"
+        )
+    );
+}
+
+#[test]
+fn should_serialize_an_error_response_with_its_data() {
+    let line = encode_response(Some(5), &Err(IpcError::tunnels_running(2))).unwrap();
+
+    assert_eq!(
+        line,
+        "{\"id\":5,\"error\":{\"code\":\"tunnels_running\",\"message\":\"2 tunnels are still running\",\"data\":2}}\n"
+    );
+}
+
+#[test]
+fn should_serialize_a_protocol_mismatch_with_both_versions() {
+    let line = encode_response(
+        Some(1),
+        &Err(IpcError::protocol_mismatch(PROTOCOL_VERSION, 9)),
+    )
+    .unwrap();
+
+    assert_eq!(
+        line,
+        concat!(
+            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 1, the client protocol 9","data":{"client":9,"daemon":1}}}"#,
+            "\n"
+        )
+    );
+}
+
+#[test]
+fn should_serialize_tunnel_changed_as_documented() {
+    let event = EventMessage::TunnelChanged(TunnelChangedEvent {
+        id: TUNNEL_ID.to_owned(),
+        state: TunnelStateDto::Reconnecting {
+            attempt: 2,
+            next_retry_at: 1_700_000_005_000,
+        },
+        health: TargetHealthDto::Unknown,
+    });
+
+    assert_eq!(
+        encode_event(&event).unwrap(),
+        concat!(
+            r#"{"event":"tunnel.changed","data":{"id":"01J9ZK3Q8M5N7R2T4V6X8Y0ABC","state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"health":{"kind":"unknown"}}}"#,
+            "\n"
+        )
+    );
+}
+
+#[test]
+fn should_serialize_a_credential_request_as_one_flat_object() {
+    let event = EventMessage::CredentialRequest(CredentialRequestEvent {
+        prompt_id: "p1".to_owned(),
+        request: CredentialRequestDto::Password {
+            alias: "nova".to_owned(),
+            user: "me".to_owned(),
+            host: "nova.example.org".to_owned(),
+        },
+    });
+
+    assert_eq!(
+        encode_event(&event).unwrap(),
+        concat!(
+            r#"{"event":"credential.request","data":{"promptId":"p1","kind":"password","alias":"nova","user":"me","host":"nova.example.org"}}"#,
+            "\n"
+        )
+    );
+}
+
+#[test]
+fn should_serialize_a_host_key_alert_without_a_prompt_id() {
+    let event = EventMessage::HostKeyRequest(HostKeyRequestEvent::Alert {
+        alias: "nova".to_owned(),
+        reason: HostKeyAlertReasonDto::Revoked {
+            path: "/k".to_owned(),
+            line: 3,
+        },
+        presented_fingerprint: "SHA256:new".to_owned(),
+    });
+
+    assert_eq!(
+        encode_event(&event).unwrap(),
+        concat!(
+            r#"{"event":"hostkey.request","data":{"kind":"alert","alias":"nova","reason":{"kind":"revoked","path":"/k","line":3},"presentedFingerprint":"SHA256:new"}}"#,
+            "\n"
+        )
+    );
+}
+
+#[test]
+fn should_serialize_an_event_without_fields_with_an_empty_data_object() {
+    assert_eq!(
+        encode_event(&EventMessage::QuitRequested {}).unwrap(),
+        "{\"event\":\"quit.requested\",\"data\":{}}\n"
+    );
+}
+
+#[test]
+fn should_serialize_a_failure_reason_with_camel_case_fields() {
+    let state = TunnelStateDto::Failed {
+        reason: FailureReasonDto::UnsupportedKind {
+            tunnel_kind: TunnelKindDto::Remote,
+        },
+    };
+
+    assert_eq!(
+        to_json(&state),
+        json!({"kind":"failed","reason":{"kind":"unsupportedKind","tunnelKind":"remote"}})
+    );
+}
+
+#[test]
+fn should_limit_lines_to_one_mebibyte() {
+    assert_eq!(MAX_LINE_BYTES, 1_048_576);
+}
