@@ -60,13 +60,25 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Lacunes connues** : ports nommés (`getservbyname`), `~user/`, contrôles de permissions des fichiers (`SSHCONF_CHECKPERM`), `ForwardAgent no` suivi d'un chemin. Comportements Windows (chemins `%PROGRAMDATA%`, `cmd /C`, uid 0, globs) non vérifiés.
 
-## Phase 2 — Crate `known-hosts`
-- [ ] 2.1 Parser : hostnames, `[host]:port`, wildcards, négation, entrées hashées `|1|salt|hash`
-- [ ] 2.2 Marqueurs `@cert-authority`, `@revoked`
-- [ ] 2.3 Sources multiples (`UserKnownHostsFile`, `GlobalKnownHostsFile`) depuis `ResolvedConfig`
-- [ ] 2.4 Vérification : `Match` / `Unknown` / `Changed { line }` / `Revoked`
-- [ ] 2.5 Ajout d'entrée (hashée si `HashKnownHosts`), écriture atomique
-- [ ] 2.6 Tests sur fichiers générés par `ssh-keygen -H` / `ssh-keyscan`
+## Phase 2 — Crate `known-hosts` ✔
+- [x] 2.1 Parser : hostnames, `[host]:port`, wildcards, négation, entrées hashées `|1|salt|hash`
+  - Lignes invalides (base64, champs manquants, hash, algorithme du blob ≠ type déclaré) → warning + ligne ignorée, jamais d'échec du fichier. Sel hashé = exactement 20 octets. CRLF toléré.
+- [x] 2.2 Marqueurs `@cert-authority`, `@revoked`
+  - Un seul marqueur ; inconnu ou dupliqué → ligne invalide. `@revoked` est **filtré par les motifs d'hôte** (comme `load_hostkeys`), pas global.
+- [x] 2.3 Sources multiples (`UserKnownHostsFile`, `GlobalKnownHostsFile`) depuis `ResolvedConfig`
+  - Écart : le crate ne dépend ni de `ssh-config` ni de `russh`. `KnownHosts::load(user_files, global_files)` ; c'est l'engine (3.9) qui mappe `ResolvedConfig` (`*_known_hosts_files`, `host_key_alias`, `hash_known_hosts`).
+- [x] 2.4 Vérification : `Match` / `Unknown` / `Changed { line }` / `Revoked`
+  - `Verdict::{Trusted, Unknown, Changed { known }, Revoked}`. Précédence (OpenSSH `check_hostkeys_by_key_or_type`) : révoqué > clé égale dans n'importe quel fichier > **toute autre entrée, quel que soit l'algorithme → `Changed`** > `Unknown`. Volontairement strict : pas de prompt « nouvel hôte » pour un algorithme non enregistré (vecteur MITM).
+  - Nom de recherche : `HostKeyAlias` tel quel (sans port), sinon `[host]:port` si port ≠ 22, avec repli sur le nom nu quand le résultat est `Unknown` (comme `check_host_key`).
+  - `KnownHosts::known_algorithms(lookup)` pour que l'engine ordonne les algorithmes de clé d'hôte comme `order_hostkeyalgs` (évite les faux `Changed`).
+  - Certificats : `PresentedKey::Certificate { signing_authority }` — l'engine valide le certificat, ce crate dit seulement si la CA est de confiance pour l'hôte.
+- [x] 2.5 Ajout d'entrée (hashée si `HashKnownHosts`), écriture atomique
+  - `append_entry(path, lookup, key, Hashing::{Plain, Hashed})` : temp + fsync + rename, permissions conservées, nouveau fichier `0600` / dossier `0700`, suit les symlinks, n'altère jamais les lignes existantes. Noms contenant espaces ou `@?*#[]|'"\!,` refusés.
+- [x] 2.6 Tests sur fichiers générés par `ssh-keygen -H` / `ssh-keyscan`
+  - 130 tests unitaires + 9 d'intégration : `check` comparé à `ssh-keygen -F` (fichiers plain, multi-motifs, wildcards, négation, `-H`), empreintes comparées à `ssh-keygen -l`, nos entrées écrites retrouvées par `ssh-keygen -F`.
+  - `ssh-keyscan` non utilisé (nécessite un sshd) : même format de ligne que les `.pub` testés.
+
+**Lacunes connues** : révocation de la clé du certificat elle-même (seule la CA est vérifiée) ; marqueurs testés uniquement en unitaire (`ssh-keygen -F` les ignore) ; Windows non vérifié.
 
 ## Phase 3 — Engine : connexion & auth
 - [ ] 3.1 Abstractions : `CredentialPrompter`, `HostKeyVerifier`, `Clock`
@@ -78,6 +90,7 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 - [ ] 3.7 Auth clés (`IdentityFile`, passphrase via prompter, RSA hash via `best_supported_rsa_hash`)
 - [ ] 3.8 Auth keyboard-interactive + password
 - [ ] 3.9 Vérification clé d'hôte (known-hosts + `StrictHostKeyChecking`), refus dur si changée/révoquée
+  - Ordonner les algorithmes de clé d'hôte proposés selon `KnownHosts::known_algorithms` (cf. `order_hostkeyalgs`), sinon un serveur qui propose d'abord un autre type donne un faux `Changed`.
 - [ ] 3.10 Keepalive depuis la config résolue
 
 ## Phase 4 — Engine : forwards locaux & cycle de vie
