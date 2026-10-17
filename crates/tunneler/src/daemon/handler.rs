@@ -6,8 +6,8 @@ use engine::{
     preview_ssh_config,
 };
 use ipc::protocol::{
-    AdoptResult, HostsResult, IpcError, LogsResult, ProcessParams, QuitParams, Request,
-    ResponsePayload, SettingsDto, TunnelIdParams, X11HostParams, X11LaunchParams,
+    AdoptResult, ForgetSecretsResult, HostsResult, IpcError, LogsResult, ProcessParams, QuitParams,
+    Request, ResponsePayload, SettingsDto, TunnelIdParams, X11HostParams, X11LaunchParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
@@ -91,6 +91,7 @@ impl DaemonHandler {
             Request::X11Start(params) => self.start_x11(&params),
             Request::X11Stop(params) => self.stop_x11(&params),
             Request::X11Launch(params) => self.launch_x11(&params).await,
+            Request::SecretsForget {} => Ok(self.forget_secrets().await),
         }
     }
 
@@ -146,6 +147,13 @@ impl DaemonHandler {
             .await
             .map(|()| ResponsePayload::empty())
             .map_err(engine_error_to_ipc)
+    }
+
+    async fn forget_secrets(&self) -> ResponsePayload {
+        let forgotten = self.engine.forget_secrets().await;
+        ResponsePayload::ForgetSecrets(ForgetSecretsResult {
+            forgotten_count: u64::try_from(forgotten).unwrap_or(u64::MAX),
+        })
     }
 
     fn show_ui(&self) -> Result<ResponsePayload, IpcError> {
@@ -378,16 +386,18 @@ fn store_error_to_ipc(error: StoreError) -> IpcError {
 #[cfg(test)]
 #[cfg(unix)]
 mod tests {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::time::Duration;
 
     use engine::{
-        ConnectorDependencies, EngineDependencies, SshConfigResolver, Store, SystemAgentLocator,
-        SystemClock, SystemX11Environment,
+        AppState, ConnectorDependencies, EngineDependencies, FileStateStore, KeyringError,
+        SecretKeyring, SshConfigResolver, StateStore, Store, SystemAgentLocator, SystemClock,
+        SystemX11Environment,
     };
     use ipc::protocol::{ErrorCode, TunnelDto, TunnelKindDto, TunnelSpecDto};
     use ssh_config::{ConfigSources, SystemEnvironment};
     use tempfile::TempDir;
+    use zeroize::Zeroizing;
 
     use super::*;
     use crate::daemon::prompts::NoResponderSource;
@@ -399,8 +409,29 @@ mod tests {
     const POLL_INTERVAL: Duration = Duration::from_millis(25);
     const UNREACHABLE_SSH_PORT: u16 = 1;
 
+    #[derive(Default)]
+    struct RecordingKeyring {
+        deleted: std::sync::Mutex<Vec<PathBuf>>,
+    }
+
+    impl SecretKeyring for RecordingKeyring {
+        fn load(&self, _key_path: &Path) -> Result<Option<Zeroizing<String>>, KeyringError> {
+            Ok(None)
+        }
+
+        fn store(&self, _key_path: &Path, _passphrase: &str) -> Result<(), KeyringError> {
+            Ok(())
+        }
+
+        fn delete(&self, key_path: &Path) -> Result<(), KeyringError> {
+            self.deleted.lock().unwrap().push(key_path.to_owned());
+            Ok(())
+        }
+    }
+
     struct Fixture {
         handler: DaemonHandler,
+        keyring: Arc<RecordingKeyring>,
         engine: Engine,
         quit_requested: CancellationToken,
         launcher: Arc<FakeLauncher>,
@@ -415,6 +446,10 @@ mod tests {
     }
 
     fn fixture_with_launcher(launcher: Arc<FakeLauncher>) -> Fixture {
+        fixture_with(launcher, &AppState::default())
+    }
+
+    fn fixture_with(launcher: Arc<FakeLauncher>, saved_state: &AppState) -> Fixture {
         let directory = tempfile::tempdir().unwrap();
         let ssh_config = directory.path().join("ssh_config");
         std::fs::write(
@@ -426,6 +461,9 @@ mod tests {
         .unwrap();
         let store_path = directory.path().join("tunnels.toml");
         let (store, _) = Store::open(store_path.clone()).unwrap();
+        let state_store = FileStateStore::new(directory.path().join("state.toml"));
+        state_store.save(saved_state).unwrap();
+        let keyring = Arc::new(RecordingKeyring::default());
         let server = TestServer::start();
         let prompts = Arc::new(PromptBroker::new(
             server.handle.clone(),
@@ -447,6 +485,8 @@ mod tests {
             store,
             port_scanner: Arc::new(EmptyPortScanner),
             x11_environment: Arc::new(SystemX11Environment),
+            state_store: Arc::new(state_store),
+            keyring: Some(keyring.clone()),
         })
         .unwrap();
         let quit_requested = CancellationToken::new();
@@ -462,6 +502,7 @@ mod tests {
         );
         Fixture {
             handler,
+            keyring,
             engine,
             quit_requested,
             launcher,
@@ -499,6 +540,46 @@ mod tests {
 
     async fn free_port() -> u16 {
         test_support::free_port().await
+    }
+
+    #[tokio::test]
+    async fn should_report_nothing_forgotten_when_no_passphrase_was_remembered() {
+        let fixture = fixture();
+
+        let response = fixture
+            .handler
+            .dispatch(None, Request::SecretsForget {})
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response,
+            ResponsePayload::ForgetSecrets(ForgetSecretsResult { forgotten_count: 0 })
+        );
+    }
+
+    #[tokio::test]
+    async fn should_delete_the_recorded_keyring_entries_when_secrets_are_forgotten() {
+        let key_path = PathBuf::from("/home/me/.ssh/id_ed25519");
+        let saved_state = AppState {
+            keyring_entries: [key_path.clone()].into(),
+            ..AppState::default()
+        };
+        let fixture = fixture_with(FakeLauncher::succeeding(), &saved_state);
+
+        let response = fixture
+            .handler
+            .dispatch(None, Request::SecretsForget {})
+            .await
+            .unwrap();
+
+        assert_eq!(
+            (response, fixture.keyring.deleted.lock().unwrap().clone()),
+            (
+                ResponsePayload::ForgetSecrets(ForgetSecretsResult { forgotten_count: 1 }),
+                vec![key_path]
+            )
+        );
     }
 
     #[tokio::test]

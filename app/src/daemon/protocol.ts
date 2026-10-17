@@ -111,6 +111,7 @@ export type SettingsDto = {
 	restoreOnLaunch: boolean;
 	startOnLaunchTags: string[];
 	launchAtLogin: boolean;
+	useOsKeyring: boolean;
 	x11Display?: string;
 };
 
@@ -168,6 +169,11 @@ export type CredentialRequestDto =
 			instructions: string;
 			prompts: PromptDto[];
 	  };
+
+/** How long the daemon keeps a passphrase the user just typed. */
+export type RememberDto = 'session' | 'keyring';
+
+export type ForgetSecretsResultDto = { forgottenCount: number };
 
 export type HostKeyDecisionDto = 'acceptAndSave' | 'acceptOnce' | 'reject';
 

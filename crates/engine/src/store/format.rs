@@ -63,6 +63,7 @@ struct StoredSettings {
     restore_on_launch: Option<bool>,
     start_on_launch_tags: Option<Vec<String>>,
     launch_at_login: Option<bool>,
+    use_os_keyring: Option<bool>,
     x11_display: Option<String>,
 }
 
@@ -225,6 +226,7 @@ impl StoredSettings {
                 .start_on_launch_tags
                 .unwrap_or(defaults.start_on_launch_tags),
             launch_at_login: self.launch_at_login.unwrap_or(defaults.launch_at_login),
+            use_os_keyring: self.use_os_keyring.unwrap_or(defaults.use_os_keyring),
             x11_display: self.x11_display.filter(|display| !display.is_empty()),
         }
     }
@@ -404,6 +406,32 @@ mod tests {
             ),
             (Duration::from_secs(20), Duration::from_millis(250))
         );
+    }
+
+    #[test]
+    fn should_leave_the_os_keyring_off_when_the_setting_is_omitted() {
+        assert!(
+            !parse("version = 1\n")
+                .unwrap()
+                .document
+                .settings
+                .use_os_keyring
+        );
+    }
+
+    #[test]
+    fn should_read_the_os_keyring_setting_when_it_is_given() {
+        let outcome = parse("[settings]\nuse_os_keyring = true\n").unwrap();
+
+        assert!(outcome.document.settings.use_os_keyring);
+    }
+
+    #[test]
+    fn should_write_the_os_keyring_setting_when_rendering() {
+        let mut document = StoreDocument::default();
+        document.settings.use_os_keyring = true;
+
+        assert!(render(None, &document).contains("use_os_keyring = true"));
     }
 
     #[test]

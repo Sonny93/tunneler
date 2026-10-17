@@ -126,6 +126,8 @@ impl HarnessBuilder {
                 store,
                 port_scanner: Arc::new(FakePortScanner::default()),
                 x11_environment: Arc::new(environment),
+                state_store: Arc::new(support::MemoryStateStore::default()),
+                keyring: None,
             },
             EngineOptions::default(),
         )

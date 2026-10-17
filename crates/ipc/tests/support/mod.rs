@@ -8,9 +8,9 @@ use interprocess::local_socket::tokio::Stream;
 use interprocess::local_socket::traits::tokio::Stream as _;
 use interprocess::local_socket::{GenericFilePath, ToFsName};
 use ipc::protocol::{
-    AdoptResult, ClientKind, ConfigInvalidEvent, EventMessage, Hello, HostOptionDto,
-    ImportCandidateDto, ImportPreviewDto, IpcError, LogEntryDto, LogLevelDto, LogsResult, Request,
-    RequestEnvelope, ResolvedHostDto, ResponsePayload, TunnelKindDto,
+    AdoptResult, ClientKind, ConfigInvalidEvent, EventMessage, ForgetSecretsResult, Hello,
+    HostOptionDto, ImportCandidateDto, ImportPreviewDto, IpcError, LogEntryDto, LogLevelDto,
+    LogsResult, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload, TunnelKindDto,
 };
 use ipc::{
     ConnectionInfo, Endpoint, IpcClient, IpcServer, RequestHandler, ServerHandle, ServerOptions,
@@ -28,6 +28,7 @@ pub const SLOW_TUNNEL_ID: &str = "slow";
 pub const MISSING_TUNNEL_ID: &str = "missing";
 pub const MISSING_LAUNCHER_NAME: &str = "missing";
 pub const UNKILLABLE_PID: u32 = 1;
+pub const FORGOTTEN_COUNT: u64 = 3;
 pub const SLOW_DELAY: Duration = Duration::from_millis(300);
 const EVENT_BUS_CAPACITY: usize = 16;
 
@@ -83,6 +84,9 @@ impl RequestHandler for FakeHandler {
             })),
             Request::ExternalAdopt(params) => Ok(ResponsePayload::Adopt(AdoptResult {
                 ids: vec![params.id],
+            })),
+            Request::SecretsForget {} => Ok(ResponsePayload::ForgetSecrets(ForgetSecretsResult {
+                forgotten_count: FORGOTTEN_COUNT,
             })),
             Request::ExternalKill(params) if params.pid == UNKILLABLE_PID => {
                 Err(IpcError::kill_failed("process still running"))

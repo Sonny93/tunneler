@@ -76,6 +76,7 @@ export function buildSettings(
 		restoreOnLaunch: true,
 		startOnLaunchTags: [],
 		launchAtLogin: false,
+		useOsKeyring: false,
 		...overrides,
 	};
 }

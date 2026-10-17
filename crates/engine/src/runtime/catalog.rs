@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 
 use tokio::sync::watch;
@@ -107,6 +107,31 @@ impl Catalog {
         self.entries
             .iter()
             .map(|entry| entry.definition.clone())
+            .collect()
+    }
+
+    pub(crate) fn ids(&self) -> Vec<TunnelId> {
+        self.entries
+            .iter()
+            .map(|entry| entry.definition.id)
+            .collect()
+    }
+
+    /// The tunnels to start at launch, in configuration order: those in
+    /// `restored` and those carrying one of `tags`.
+    pub(crate) fn ids_to_start_on_launch(
+        &self,
+        restored: Option<&BTreeSet<TunnelId>>,
+        tags: &[String],
+    ) -> Vec<TunnelId> {
+        self.entries
+            .iter()
+            .filter(|entry| {
+                let definition = &entry.definition;
+                restored.is_some_and(|ids| ids.contains(&definition.id))
+                    || definition.tags.iter().any(|tag| tags.contains(tag))
+            })
+            .map(|entry| entry.definition.id)
             .collect()
     }
 

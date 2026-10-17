@@ -1,4 +1,4 @@
-import type { CredentialRequestDto } from '#/daemon/protocol';
+import type { CredentialRequestDto, RememberDto } from '#/daemon/protocol';
 
 export type CredentialField = {
 	id: string;
@@ -67,4 +67,34 @@ export function buildCredentialAnswer(
 ): string | string[] {
 	if (request.kind === 'keyboardInteractive') return [...answers];
 	return answers[0] ?? '';
+}
+
+export type RememberChoice = 'none' | RememberDto;
+
+export const DEFAULT_REMEMBER_CHOICE: RememberChoice = 'session';
+
+export type RememberOption = { value: RememberChoice; label: string };
+
+/** Only passphrases can be remembered. */
+export function canRemember(request: Readonly<CredentialRequestDto>): boolean {
+	return request.kind === 'passphrase';
+}
+
+/** The system keyring option is offered only when the settings enable it. */
+export function getRememberOptions(
+	isKeyringEnabled: boolean
+): RememberOption[] {
+	const options: RememberOption[] = [
+		{ value: 'none', label: 'Ne pas mémoriser' },
+		{ value: 'session', label: "Jusqu'à la fermeture de Tunneler" },
+	];
+	if (!isKeyringEnabled) return options;
+	return [
+		...options,
+		{ value: 'keyring', label: 'Dans le trousseau du système' },
+	];
+}
+
+export function toRemember(choice: RememberChoice): RememberDto | undefined {
+	return choice === 'none' ? undefined : choice;
 }

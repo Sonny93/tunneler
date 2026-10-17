@@ -41,6 +41,7 @@ fn main() -> tauri::Result<()> {
             commands::ignore_external,
             commands::update_settings,
             commands::respond_credential,
+            commands::forget_secrets,
             commands::respond_host_key,
             commands::quit_daemon,
         ])

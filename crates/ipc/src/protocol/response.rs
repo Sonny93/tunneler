@@ -33,6 +33,14 @@ pub struct AdoptResult {
     pub ids: Vec<String>,
 }
 
+/// The result of `secrets.forget`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForgetSecretsResult {
+    /// How many identity files had a remembered passphrase.
+    pub forgotten_count: u64,
+}
+
 /// What a handler answers on success; serialized as the bare `result` value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
@@ -55,6 +63,8 @@ pub enum ResponsePayload {
     ImportPreview(ImportPreviewDto),
     /// The answer to `external.adopt`.
     Adopt(AdoptResult),
+    /// The answer to `secrets.forget`.
+    ForgetSecrets(ForgetSecretsResult),
 }
 
 impl ResponsePayload {

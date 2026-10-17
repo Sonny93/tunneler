@@ -347,10 +347,23 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows) et tests verts (1972 tests Rust, 926 tests front). Rien d'exécuté dans une vraie webview (tiroirs, palette, ouverture du navigateur), ni sous Windows.
 
-## Phase 12 — Démarrage & secrets
-- [ ] 12.1 Lancement au login (registre `Run` Windows, XDG autostart Linux)
-- [ ] 12.2 `start_on_launch_tags` + `restore_on_launch` (`state.toml`)
-- [ ] 12.3 Cache de passphrase en mémoire (`zeroize`) + trousseau OS optionnel (`keyring`)
+## Phase 12 — Démarrage & secrets ✔ (code Windows jamais exécuté, rendu réel non vérifié)
+- [x] 12.1 Lancement au login (registre `Run` Windows, XDG autostart Linux)
+  - `daemon/login_launch/` (trait `LoginLaunch`) : commande = exécutable courant + `daemon` (daemon + tray, sans fenêtre). Linux : `$XDG_CONFIG_HOME/autostart/tunneler.desktop` écrit atomiquement, `Exec` cité selon la spec, marqueur `X-Tunneler-Autostart=true` pour ne jamais toucher un fichier étranger. Windows : valeur `Tunneler` sous `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (`winreg`). macOS : non supporté, avertissement unique.
+  - Appliqué au démarrage du daemon (rafraîchit aussi un chemin d'exécutable périmé) et à chaque `config.reloaded` (`settings.update` ou édition à la main) ; échec loggé, réessayé au changement suivant. Pas de retour d'erreur dans l'UI.
+- [x] 12.2 `start_on_launch_tags` + `restore_on_launch` (`state.toml`)
+  - `state.toml` (`BaseDirs::state_dir()` sous Linux, dossier de données local ailleurs, `tunneler/state.toml` ; option `--state` / `TUNNELER_STATE` comme `--config`) : `version = 1`, `running` (tunnels voulus actifs), `keyring_entries` (12.3). Écriture atomique hors executor, toujours l'état le plus récent, échec loggé sans faire échouer la commande ; fichier illisible → état vide + avertissement ; vidé (flush) à l'arrêt.
+  - Intention enregistrée dans l'engine (UI, CLI et tray passent par lui) : `start_tunnel`/`start_tag`/`adopt_external` ajoutent, `stop_tunnel`/`stop_tag`/`delete_tunnel` retirent, `restart` et `shutdown` (« Tout arrêter et quitter », signaux) ne changent rien. Un tunnel en échec ou externe reste voulu.
+  - Au lancement (`Engine::start_launch_tunnels`, une fois le daemon à l'écoute) : union de `running` (si `restore_on_launch`) et des tunnels portant un tag de `start_on_launch_tags`, ordre de la config, sans doublon. Ces démarrages ne sont pas enregistrés comme intention (un tunnel lancé seulement par tag n'entre pas dans `running`). Ancres X11 non restaurées.
+  - UI : section « Démarrage » des paramètres (lancement à l'ouverture de session, rétablir les tunnels, tags démarrés au lancement).
+- [x] 12.3 Cache de passphrase en mémoire (`zeroize`) + trousseau OS optionnel (`keyring`)
+  - `PassphraseVault` (engine) : cache mémoire par chemin canonique de clé (`Zeroizing`, durée de vie du daemon), puis trousseau si `settings.use_os_keyring` (nouveau réglage, défaut `false`). Passphrase mémorisée refusée → évincée (mémoire + trousseau) puis invite. Appels au trousseau hors executor sous `DeadlinePause` (un déverrouillage du trousseau est une étape humaine) ; erreur du trousseau loggée = non trouvée. Sous `BatchMode`, les passphrases mémorisées ne sont pas essayées non plus (garde existante).
+  - Prompt : `CredentialPrompter::passphrase` rend `PassphraseAnswer { passphrase, retention: Never | Session | Keyring }`. Protocole : `credential.respond` accepte `remember: "session" | "keyring"` (absent = pas mémorisé), `secrets.forget` → `{ forgottenCount }` (vide le cache et supprime les entrées listées dans `state.toml`). Mots de passe et keyboard-interactive jamais mémorisés.
+  - Trousseau : `keyring` 4 (fonctionnalités par défaut = stores natifs : Credential Manager Windows, Secret Service via zbus en Rust pur sous Linux, Keychain macOS), service `tunneler`, compte `passphrase:<chemin>`. Sans Secret Service, avertissement à chaque appel et mémoire seule.
+  - UI : choix « Mémoriser la passphrase » dans l'invite (Ne pas mémoriser / Jusqu'à la fermeture de Tunneler (défaut) / Trousseau, ce dernier seulement si le réglage est actif), section « Secrets » des paramètres (réglage trousseau + « Oublier les passphrases mémorisées » avec confirmation). La CLI répond sans `remember` (jamais mémorisé) ; pas de sous-commande CLI pour l'oubli.
+  - Entrée pour valider une invite de passphrase non testée (jsdom ne soumet pas un formulaire dont le bouton est hors du `<form>`) : à vérifier à la main.
+
+**Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows) et tests verts (2059 tests Rust, 949 tests front). Code Windows (`winreg`, Credential Manager) compilé mais jamais exécuté ; macOS jamais compilé.
 
 ## Phase 13 — Packaging & release
 - [ ] 13.1 Windows : zip portable (`tunneler.exe` + `tunneler-ui.exe`), icônes, métadonnées

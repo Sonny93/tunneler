@@ -16,9 +16,9 @@ use tokio::task::JoinHandle;
 use crate::endpoint::Endpoint;
 use crate::error::ClientError;
 use crate::protocol::{
-    AdoptResult, CredentialAnswer, CredentialResponseParams, EventMessage, Hello,
-    HostKeyDecisionDto, HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto,
-    ImportScriptParams, LogEntryDto, LogsResult, ProcessParams, QuitParams, Request,
+    AdoptResult, CredentialAnswer, CredentialResponseParams, EventMessage, ForgetSecretsResult,
+    Hello, HostKeyDecisionDto, HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto,
+    ImportScriptParams, LogEntryDto, LogsResult, ProcessParams, QuitParams, RememberDto, Request,
     RequestEnvelope, ResolvedHostDto, SettingsDto, SnapshotDto, TagParams, TunnelDefinitionDto,
     TunnelDto, TunnelIdParams, TunnelSpecDto, X11HostParams, X11LaunchParams, encode_line,
 };
@@ -269,7 +269,9 @@ impl IpcClient {
             .await
     }
 
-    /// Answers a credential prompt; `None` means the user cancelled.
+    /// Answers a credential prompt; `None` means the user cancelled. `remember`
+    /// asks the daemon to keep a passphrase that unlocks its key; it is ignored
+    /// for the other prompts.
     ///
     /// # Errors
     ///
@@ -278,10 +280,12 @@ impl IpcClient {
         &self,
         prompt_id: &str,
         answer: Option<CredentialAnswer>,
+        remember: Option<RememberDto>,
     ) -> Result<(), ClientError> {
         let params = CredentialResponseParams {
             prompt_id: prompt_id.to_owned(),
             answer,
+            remember,
         };
         self.call_without_result(Request::CredentialRespond(params))
             .await
@@ -388,6 +392,16 @@ impl IpcClient {
             name: name.to_owned(),
         };
         self.call_without_result(Request::X11Launch(params)).await
+    }
+
+    /// Forgets every remembered passphrase, in the daemon's memory and in the
+    /// OS keyring.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn forget_secrets(&self) -> Result<ForgetSecretsResult, ClientError> {
+        self.call(Request::SecretsForget {}).await
     }
 
     async fn call_without_result(&self, request: Request) -> Result<(), ClientError> {

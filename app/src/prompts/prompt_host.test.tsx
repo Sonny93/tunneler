@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { act, screen, waitFor } from '@testing-library/react';
 
 import { PromptHost } from '#/prompts/prompt_host';
+import { buildSettings } from '#/testing/factories';
 import { useDaemonStore } from '#/state/daemon_store';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { useToastStore } from '#/shared/toasts/toast_store';
@@ -98,15 +99,20 @@ describe('PromptHost credential prompts', () => {
 		expect(await findSecretInput()).toHaveAttribute('type', 'password');
 	});
 
-	it('should send the passphrase on Enter and dismiss the prompt', async () => {
+	it('should send the passphrase and dismiss the prompt', async () => {
 		const user = userEvent.setup();
 		const { receive, gateway } = renderHost();
 		receive(credentialEvent('p1', passphraseRequest));
 
-		await user.type(await findSecretInput(), 's3cret{Enter}');
+		await user.type(await findSecretInput(), 's3cret');
+		await user.click(screen.getByRole('button', { name: 'Valider' }));
 
 		await waitFor(() =>
-			expect(gateway.respondCredential).toHaveBeenCalledWith('p1', 's3cret')
+			expect(gateway.respondCredential).toHaveBeenCalledWith(
+				'p1',
+				's3cret',
+				'session'
+			)
 		);
 		await waitFor(() =>
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -123,7 +129,11 @@ describe('PromptHost credential prompts', () => {
 		await user.click(screen.getByRole('button', { name: 'Valider' }));
 
 		await waitFor(() =>
-			expect(gateway.respondCredential).toHaveBeenCalledWith('p1', 'abc')
+			expect(gateway.respondCredential).toHaveBeenCalledWith(
+				'p1',
+				'abc',
+				'session'
+			)
 		);
 	});
 
@@ -135,7 +145,11 @@ describe('PromptHost credential prompts', () => {
 		await user.click(await screen.findByRole('button', { name: 'Annuler' }));
 
 		await waitFor(() =>
-			expect(gateway.respondCredential).toHaveBeenCalledWith('p1', null)
+			expect(gateway.respondCredential).toHaveBeenCalledWith(
+				'p1',
+				null,
+				undefined
+			)
 		);
 	});
 
@@ -148,9 +162,117 @@ describe('PromptHost credential prompts', () => {
 		await user.keyboard('{Escape}');
 
 		await waitFor(() =>
-			expect(gateway.respondCredential).toHaveBeenCalledWith('p1', null)
+			expect(gateway.respondCredential).toHaveBeenCalledWith(
+				'p1',
+				null,
+				undefined
+			)
 		);
 		expect(gateway.respondCredential).toHaveBeenCalledOnce();
+	});
+
+	it('should offer to remember a passphrase until Tunneler closes by default', async () => {
+		const { receive } = renderHost();
+
+		receive(credentialEvent('p1', passphraseRequest));
+
+		expect(
+			await screen.findByRole('radio', {
+				name: "Jusqu'à la fermeture de Tunneler",
+			})
+		).toBeChecked();
+	});
+
+	it('should hide the keyring option when the keyring is disabled', async () => {
+		const { receive } = renderHost();
+
+		receive(credentialEvent('p1', passphraseRequest));
+		await findSecretInput();
+
+		expect(
+			screen.queryByRole('radio', { name: 'Dans le trousseau du système' })
+		).not.toBeInTheDocument();
+	});
+
+	it('should show the keyring option when the keyring is enabled', async () => {
+		useDaemonStore.setState({
+			settings: buildSettings({ useOsKeyring: true }),
+		});
+		const { receive } = renderHost();
+
+		receive(credentialEvent('p1', passphraseRequest));
+
+		expect(
+			await screen.findByRole('radio', { name: 'Dans le trousseau du système' })
+		).toBeInTheDocument();
+	});
+
+	it('should send keyring retention when chosen', async () => {
+		useDaemonStore.setState({
+			settings: buildSettings({ useOsKeyring: true }),
+		});
+		const user = userEvent.setup();
+		const { receive, gateway } = renderHost();
+		receive(credentialEvent('p1', passphraseRequest));
+
+		await user.type(await findSecretInput(), 'abc');
+		await user.click(
+			screen.getByRole('radio', { name: 'Dans le trousseau du système' })
+		);
+		await user.click(screen.getByRole('button', { name: 'Valider' }));
+
+		await waitFor(() =>
+			expect(gateway.respondCredential).toHaveBeenCalledWith(
+				'p1',
+				'abc',
+				'keyring'
+			)
+		);
+	});
+
+	it('should send no retention when asked not to remember', async () => {
+		const user = userEvent.setup();
+		const { receive, gateway } = renderHost();
+		receive(credentialEvent('p1', passphraseRequest));
+
+		await user.type(await findSecretInput(), 'abc');
+		await user.click(screen.getByRole('radio', { name: 'Ne pas mémoriser' }));
+		await user.click(screen.getByRole('button', { name: 'Valider' }));
+
+		await waitFor(() =>
+			expect(gateway.respondCredential).toHaveBeenCalledWith(
+				'p1',
+				'abc',
+				undefined
+			)
+		);
+	});
+
+	it('should not offer retention for a password request', async () => {
+		const { receive } = renderHost();
+
+		receive(
+			credentialEvent('p1', {
+				kind: 'password',
+				alias: 'nova',
+				user: 'jules',
+				host: 'nova.example.com',
+			})
+		);
+		await screen.findByRole('dialog', { name: 'Mot de passe' });
+
+		expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+	});
+
+	it('should have no axe violations on a passphrase prompt', async () => {
+		useDaemonStore.setState({
+			settings: buildSettings({ useOsKeyring: true }),
+		});
+		const { receive } = renderHost();
+		receive(credentialEvent('p1', passphraseRequest));
+		await findSecretInput();
+
+		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
 	it('should describe a password request', async () => {
@@ -191,10 +313,11 @@ describe('PromptHost credential prompts', () => {
 		await user.click(screen.getByRole('button', { name: 'Valider' }));
 
 		await waitFor(() =>
-			expect(gateway.respondCredential).toHaveBeenCalledWith('p1', [
-				'123',
-				'9876',
-			])
+			expect(gateway.respondCredential).toHaveBeenCalledWith(
+				'p1',
+				['123', '9876'],
+				undefined
+			)
 		);
 	});
 
@@ -238,7 +361,11 @@ describe('PromptHost credential prompts', () => {
 		await user.click(screen.getByRole('button', { name: 'Continuer' }));
 
 		await waitFor(() =>
-			expect(gateway.respondCredential).toHaveBeenCalledWith('p1', [])
+			expect(gateway.respondCredential).toHaveBeenCalledWith(
+				'p1',
+				[],
+				undefined
+			)
 		);
 	});
 
@@ -251,7 +378,8 @@ describe('PromptHost credential prompts', () => {
 		const { receive } = renderHost(gateway);
 		receive(credentialEvent('p1', passphraseRequest));
 
-		await user.type(await findSecretInput(), 'x{Enter}');
+		await user.type(await findSecretInput(), 'x');
+		await user.click(screen.getByRole('button', { name: 'Valider' }));
 
 		await waitFor(() => expect(useDaemonStore.getState().prompts).toEqual([]));
 		expect(useToastStore.getState().toasts).toEqual([]);
@@ -266,7 +394,8 @@ describe('PromptHost credential prompts', () => {
 		const { receive } = renderHost(gateway);
 		receive(credentialEvent('p1', passphraseRequest));
 
-		await user.type(await findSecretInput(), 'x{Enter}');
+		await user.type(await findSecretInput(), 'x');
+		await user.click(screen.getByRole('button', { name: 'Valider' }));
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts[0]?.message).toBe(
@@ -294,7 +423,8 @@ describe('PromptHost credential prompts', () => {
 		const { receive } = renderHost();
 		receive(credentialEvent('p1', passphraseRequest));
 		receive(hostKeyEvent('p2'));
-		await user.type(await findSecretInput(), 'x{Enter}');
+		await user.type(await findSecretInput(), 'x');
+		await user.click(screen.getByRole('button', { name: 'Valider' }));
 
 		expect(
 			await screen.findByRole('dialog', { name: 'Hôte inconnu' })

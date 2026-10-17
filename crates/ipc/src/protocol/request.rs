@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::protocol::dto::{HostKeyDecisionDto, SettingsDto, TunnelDefinitionDto, TunnelSpecDto};
+use crate::protocol::dto::{
+    HostKeyDecisionDto, RememberDto, SettingsDto, TunnelDefinitionDto, TunnelSpecDto,
+};
 use crate::protocol::error::IpcError;
 use crate::protocol::hello::Hello;
 use crate::protocol::secret::Secret;
@@ -14,7 +16,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 26] = [
+pub const METHOD_NAMES: [&str; 27] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -41,6 +43,7 @@ pub const METHOD_NAMES: [&str; 26] = [
     "x11.start",
     "x11.stop",
     "x11.launch",
+    "secrets.forget",
 ];
 
 /// The parameters of the methods that address one tunnel.
@@ -119,6 +122,10 @@ pub struct CredentialResponseParams {
     pub prompt_id: String,
     /// The secret, or `None` when the user cancelled.
     pub answer: Option<CredentialAnswer>,
+    /// How long to keep a passphrase that unlocks its key; absent means not
+    /// at all. Ignored for the other kinds of prompts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remember: Option<RememberDto>,
 }
 
 /// The parameters of `hostkey.respond`.
@@ -227,6 +234,9 @@ pub enum Request {
     /// `not_found` when the launcher is unknown.
     #[serde(rename = "x11.launch")]
     X11Launch(X11LaunchParams),
+    /// Forgets every remembered passphrase, in memory and in the OS keyring.
+    #[serde(rename = "secrets.forget")]
+    SecretsForget {},
 }
 
 /// A [`Request`] and the identifier its response will carry.

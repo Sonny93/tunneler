@@ -5,7 +5,8 @@ use zeroize::Zeroizing;
 
 use crate::bounded::DeadlinePause;
 use crate::prompter::{
-    CredentialPrompter, KeyboardInteractiveRequest, PassphraseRequest, PasswordRequest, PromptError,
+    CredentialPrompter, KeyboardInteractiveRequest, PassphraseAnswer, PassphraseRequest,
+    PasswordRequest, PromptError,
 };
 
 /// Pauses a deadline for as long as a question to the user is pending, so
@@ -26,7 +27,7 @@ impl CredentialPrompter for PausingPrompter {
     async fn passphrase(
         &self,
         request: PassphraseRequest,
-    ) -> Result<Option<Zeroizing<String>>, PromptError> {
+    ) -> Result<Option<PassphraseAnswer>, PromptError> {
         let _pause = self.pause.pause();
         self.inner.passphrase(request).await
     }
@@ -65,7 +66,7 @@ mod tests {
         async fn passphrase(
             &self,
             _request: PassphraseRequest,
-        ) -> Result<Option<Zeroizing<String>>, PromptError> {
+        ) -> Result<Option<PassphraseAnswer>, PromptError> {
             sleep(DECISION_DELAY).await;
             Ok(None)
         }

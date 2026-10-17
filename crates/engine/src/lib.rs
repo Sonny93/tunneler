@@ -29,6 +29,14 @@
 //! needed. [`Engine::launch_x11`] runs a saved command in such a session. The
 //! local display and the files are reached through an [`X11Environment`].
 //!
+//! Passphrases of encrypted identity files can be remembered: in memory for
+//! the life of the engine, and in an OS keyring behind [`SecretKeyring`] when
+//! `Settings::use_os_keyring` is on; [`Engine::forget_secrets`] erases both.
+//! The tunnels the user wants running and the keyring entries are kept in an
+//! [`AppState`], behind a [`StateStore`], apart from the hand-edited
+//! configuration; [`Engine::start_launch_tunnels`] starts the ones that
+//! `Settings::restore_on_launch` and `Settings::start_on_launch_tags` select.
+//!
 //! The engine depends on those abstractions only, never on IPC or a UI.
 //!
 //! # Known gaps
@@ -57,10 +65,13 @@ mod handshake;
 mod host_config;
 mod host_key;
 mod import;
+mod keyring;
+mod passphrase_vault;
 mod prompter;
 mod remote_forwards;
 mod runtime;
 mod session;
+mod state_tracker;
 mod store;
 mod transport;
 mod x11;
@@ -83,9 +94,10 @@ pub use host_key::{
 pub use import::{
     ImportCandidate, ImportPreview, ImportWarning, preview_script, preview_ssh_config,
 };
+pub use keyring::{KeyringError, SecretKeyring};
 pub use prompter::{
-    CredentialPrompter, KeyboardInteractiveRequest, PassphraseRequest, PasswordRequest, Prompt,
-    PromptError,
+    CredentialPrompter, KeyboardInteractiveRequest, PassphraseAnswer, PassphraseRequest,
+    PasswordRequest, Prompt, PromptError, Retention,
 };
 pub use runtime::{
     Engine, EngineDependencies, EngineError, EngineEvent, EngineOptions, EngineSnapshot,
@@ -94,8 +106,9 @@ pub use runtime::{
 };
 pub use session::SshSession;
 pub use store::{
-    HostOverrides, InvalidTunnelId, LoadOutcome, Settings, SourceLocation, Store, StoreDocument,
-    StoreError, StoreEvent, StoreWatcher, TagProblem, TunnelDefinition, TunnelId, TunnelKind,
-    TunnelReference, ValidationError, X11Launcher, default_store_path,
+    AppState, FileStateStore, HostOverrides, InvalidTunnelId, LoadOutcome, Settings,
+    SourceLocation, StateStore, Store, StoreDocument, StoreError, StoreEvent, StoreWatcher,
+    TagProblem, TunnelDefinition, TunnelId, TunnelKind, TunnelReference, ValidationError,
+    X11Launcher, default_state_path, default_store_path,
 };
 pub use x11::{DisplayPlatform, SystemX11Environment, X11Environment, X11Error};

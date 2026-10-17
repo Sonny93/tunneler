@@ -59,6 +59,7 @@ export function createFakeGateway(
 		ignoreExternal: vi.fn(() => Promise.resolve()),
 		updateSettings: vi.fn(() => Promise.resolve()),
 		respondCredential: vi.fn(() => Promise.resolve()),
+		forgetSecrets: vi.fn(() => Promise.resolve({ forgottenCount: 0 })),
 		respondHostKey: vi.fn(() => Promise.resolve()),
 		quit: vi.fn(() => Promise.resolve()),
 		onEvent: vi.fn((listener) => {

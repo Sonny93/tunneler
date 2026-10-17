@@ -2,7 +2,9 @@ import type {
 	EventMessage,
 	HostKeyDecisionDto,
 	ImportPreviewDto,
+	ForgetSecretsResultDto,
 	LogEntryDto,
+	RememberDto,
 	ResolvedHostDto,
 	SettingsDto,
 	SnapshotDto,
@@ -42,7 +44,12 @@ export type DaemonGateway = {
 	killExternal(pid: number): Promise<void>;
 	ignoreExternal(pid: number): Promise<void>;
 	updateSettings(settings: SettingsDto): Promise<void>;
-	respondCredential(promptId: string, answer: CredentialAnswer): Promise<void>;
+	respondCredential(
+		promptId: string,
+		answer: CredentialAnswer,
+		remember?: RememberDto
+	): Promise<void>;
+	forgetSecrets(): Promise<ForgetSecretsResultDto>;
 	respondHostKey(promptId: string, decision: HostKeyDecisionDto): Promise<void>;
 	/** On success the native side exits the app. */
 	quit(force: boolean): Promise<void>;

@@ -112,6 +112,10 @@ impl TunnelDefinition {
 
 /// Application-wide settings.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "each flag is an independent user setting"
+)]
 pub struct Settings {
     /// Bind address of local and dynamic tunnels without an override.
     pub default_bind_address: String,
@@ -135,6 +139,8 @@ pub struct Settings {
     pub start_on_launch_tags: Vec<String>,
     /// Whether the daemon starts at login.
     pub launch_at_login: bool,
+    /// Whether passphrases the user asked to remember are kept in the OS keyring.
+    pub use_os_keyring: bool,
     /// The local X11 display; `None` means `$DISPLAY`.
     pub x11_display: Option<String>,
 }
@@ -153,6 +159,7 @@ impl Default for Settings {
             restore_on_launch: true,
             start_on_launch_tags: Vec::new(),
             launch_at_login: false,
+            use_os_keyring: false,
             x11_display: None,
         }
     }

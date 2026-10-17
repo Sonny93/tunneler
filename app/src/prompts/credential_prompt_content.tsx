@@ -1,18 +1,24 @@
-import { Button, Input, ModalFooter } from '@minimalstuff/ui';
 import { useId, useState, type ChangeEvent, type FormEvent } from 'react';
+import { Button, Input, ModalFooter, RadioOptions } from '@minimalstuff/ui';
 
-import type { CredentialRequestDto } from '#/daemon/protocol';
+import { useDaemonStore } from '#/state/daemon_store';
 import type { CredentialAnswer } from '#/daemon/daemon_gateway';
+import type { CredentialRequestDto, RememberDto } from '#/daemon/protocol';
 import {
+	DEFAULT_REMEMBER_CHOICE,
 	buildCredentialAnswer,
+	canRemember,
 	getCredentialDescription,
 	getCredentialFields,
 	getCredentialSubmitLabel,
+	getRememberOptions,
+	toRemember,
+	type RememberChoice,
 } from '#/prompts/credential_prompt_text';
 
 type CredentialPromptContentProps = {
 	request: CredentialRequestDto;
-	onSubmit: (answer: CredentialAnswer) => void;
+	onSubmit: (answer: CredentialAnswer, remember?: RememberDto) => void;
 	onCancel: () => void;
 };
 
@@ -23,8 +29,15 @@ export function CredentialPromptContent({
 	onCancel,
 }: Readonly<CredentialPromptContentProps>) {
 	const formId = useId();
+	const submitLabel = getCredentialSubmitLabel(request);
 	const fields = getCredentialFields(request);
 	const description = getCredentialDescription(request);
+	const isKeyringEnabled = useDaemonStore(
+		(state) => state.settings?.useOsKeyring ?? false
+	);
+	const [rememberChoice, setRememberChoice] = useState<RememberChoice>(
+		DEFAULT_REMEMBER_CHOICE
+	);
 	const [answers, setAnswers] = useState<readonly string[]>(() =>
 		fields.map(() => '')
 	);
@@ -36,9 +49,19 @@ export function CredentialPromptContent({
 					index === position ? event.target.value : answer
 				)
 			);
+	const rememberOptions = getRememberOptions(isKeyringEnabled);
+	const changeRememberChoice = (selected: string) => {
+		const option = rememberOptions.find(({ value }) => value === selected);
+		if (option) setRememberChoice(option.value);
+	};
 	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		onSubmit(buildCredentialAnswer(request, answers));
+		const answer = buildCredentialAnswer(request, answers);
+		if (!canRemember(request)) {
+			onSubmit(answer);
+			return;
+		}
+		onSubmit(answer, toRemember(rememberChoice));
 	};
 
 	return (
@@ -55,13 +78,22 @@ export function CredentialPromptContent({
 						autoComplete="off"
 					/>
 				))}
+				{canRemember(request) && (
+					<RadioOptions
+						name="remember"
+						label="Mémoriser la passphrase"
+						options={rememberOptions}
+						value={rememberChoice}
+						onChange={changeRememberChoice}
+					/>
+				)}
 			</form>
 			<ModalFooter>
 				<Button variant="outline" color="neutral" onClick={onCancel}>
 					Annuler
 				</Button>
 				<Button type="submit" form={formId}>
-					{getCredentialSubmitLabel(request)}
+					{submitLabel}
 				</Button>
 			</ModalFooter>
 		</>

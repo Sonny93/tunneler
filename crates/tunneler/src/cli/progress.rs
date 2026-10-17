@@ -219,6 +219,7 @@ mod tests {
                 restore_on_launch: true,
                 start_on_launch_tags: Vec::new(),
                 launch_at_login: false,
+                use_os_keyring: false,
                 x11_display: None,
             },
         }

@@ -1,3 +1,4 @@
+use std::collections::{BTreeSet, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
@@ -9,6 +10,8 @@ use crate::blocking::run_blocking;
 use crate::clock::Clock;
 use crate::connector::{Connector, ConnectorDependencies};
 use crate::external::{PortScanner, ScanError, TerminateError, UnmanagedProcess};
+use crate::keyring::SecretKeyring;
+use crate::passphrase_vault::PassphraseVault;
 use crate::runtime::catalog::{Catalog, TunnelFactory, TunnelSnapshot};
 use crate::runtime::events::{EngineEvent, EventBus};
 use crate::runtime::log_buffer::TunnelLogEntry;
@@ -20,8 +23,9 @@ use crate::runtime::tunnel_actor::TunnelCommand;
 use crate::runtime::x11_anchors::X11Anchors;
 use crate::runtime::x11_launcher::X11Launches;
 use crate::runtime::x11_state::X11AnchorSnapshot;
+use crate::state_tracker::StateTracker;
 use crate::store::{
-    Settings, Store, StoreError, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
+    Settings, StateStore, Store, StoreError, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
 };
 use crate::x11::{LocalX11Resolver, X11Environment, X11Error};
 
@@ -83,6 +87,12 @@ pub struct EngineDependencies {
     /// apart from the SSH configuration environment: it reads `$DISPLAY`,
     /// `$XAUTHORITY` and the `Xauthority` location, nothing else.
     pub x11_environment: Arc<dyn X11Environment>,
+    /// Where the tunnels the user wants running and the keyring entries are
+    /// remembered between two runs.
+    pub state_store: Arc<dyn StateStore>,
+    /// The OS keyring that holds remembered passphrases while
+    /// `Settings::use_os_keyring` is on; `None` when there is none.
+    pub keyring: Option<Arc<dyn SecretKeyring>>,
 }
 
 /// A tunnel to create; the engine generates its id.
@@ -147,6 +157,8 @@ pub(crate) struct EngineInner {
     pub(crate) port_watch: Arc<PortWatch>,
     x11_anchors: X11Anchors,
     x11_launches: X11Launches,
+    state: Arc<StateTracker>,
+    passphrases: Arc<PassphraseVault>,
     catalog: Mutex<Catalog>,
     pub(crate) mutation: tokio::sync::Mutex<()>,
     reload_task: Mutex<Option<JoinHandle<()>>>,
@@ -157,6 +169,28 @@ pub(crate) struct EngineInner {
 impl EngineInner {
     pub(crate) fn catalog(&self) -> MutexGuard<'_, Catalog> {
         self.catalog.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Remembers that the user wants these tunnels running.
+    pub(crate) fn record_wanted(&self, ids: &[TunnelId]) {
+        self.update_wanted(|running| running.extend(ids.iter().copied()));
+    }
+
+    /// Remembers that the user no longer wants these tunnels running.
+    pub(crate) fn record_unwanted(&self, ids: &[TunnelId]) {
+        self.update_wanted(|running| {
+            for id in ids {
+                running.remove(id);
+            }
+        });
+    }
+
+    fn update_wanted(&self, change: impl FnOnce(&mut BTreeSet<TunnelId>)) {
+        let known: HashSet<TunnelId> = self.catalog().ids().into_iter().collect();
+        self.state.update(|state| {
+            change(&mut state.running);
+            state.running.retain(|id| known.contains(id));
+        });
     }
 
     pub(crate) async fn persist_tunnels(
@@ -201,6 +235,8 @@ impl Engine {
             store,
             port_scanner,
             x11_environment,
+            state_store,
+            keyring,
         } = dependencies;
         let store = Arc::new(store);
         if store.has_pending_normalization() {
@@ -214,9 +250,16 @@ impl Engine {
         let port_watch = Arc::new(PortWatch::new(port_scanner));
         let options = options.sanitized();
         let bus = EventBus::new();
+        let state = StateTracker::load(state_store);
+        let passphrases = Arc::new(PassphraseVault::new(
+            keyring,
+            settings.clone(),
+            Arc::clone(&state),
+        ));
         let sessions = SessionManager::new(
             Connector::with_settings(connector, settings.clone())
-                .with_timeouts(options.connect_timeouts),
+                .with_timeouts(options.connect_timeouts)
+                .with_passphrase_vault(Arc::clone(&passphrases)),
             settings.clone(),
         );
         let x11_resolver = Arc::new(LocalX11Resolver::new(
@@ -251,6 +294,8 @@ impl Engine {
             port_watch,
             x11_anchors,
             x11_launches,
+            state,
+            passphrases,
             catalog: Mutex::new(Catalog::new(factory, document.tunnels)),
             mutation: tokio::sync::Mutex::new(()),
             reload_task: Mutex::new(None),
@@ -359,6 +404,7 @@ impl Engine {
         tunnels.retain(|definition| definition.id != id);
         self.inner.persist_tunnels(tunnels).await?;
         let stopping = self.inner.catalog().remove(id);
+        self.inner.record_unwanted(&[id]);
         if let Some(task) = stopping {
             let _ = task.await;
         }
@@ -368,12 +414,16 @@ impl Engine {
 
     /// Starts the tunnel. Does nothing when it already runs.
     pub fn start_tunnel(&self, id: TunnelId) -> Result<(), EngineError> {
-        self.send(id, TunnelCommand::Start)
+        self.send(id, TunnelCommand::Start)?;
+        self.inner.record_wanted(&[id]);
+        Ok(())
     }
 
     /// Stops the tunnel. Does nothing when it is already stopped.
     pub fn stop_tunnel(&self, id: TunnelId) -> Result<(), EngineError> {
-        self.send(id, TunnelCommand::Stop)
+        self.send(id, TunnelCommand::Stop)?;
+        self.inner.record_unwanted(&[id]);
+        Ok(())
     }
 
     /// Stops the tunnel and starts it again; starts it when it was stopped.
@@ -383,12 +433,41 @@ impl Engine {
 
     /// Starts every tunnel carrying the tag and returns their ids.
     pub fn start_tag(&self, tag: &str) -> Result<Vec<TunnelId>, EngineError> {
-        self.send_to_tag(tag, || TunnelCommand::Start)
+        let ids = self.send_to_tag(tag, || TunnelCommand::Start)?;
+        self.inner.record_wanted(&ids);
+        Ok(ids)
     }
 
     /// Stops every tunnel carrying the tag and returns their ids.
     pub fn stop_tag(&self, tag: &str) -> Result<Vec<TunnelId>, EngineError> {
-        self.send_to_tag(tag, || TunnelCommand::Stop)
+        let ids = self.send_to_tag(tag, || TunnelCommand::Stop)?;
+        self.inner.record_unwanted(&ids);
+        Ok(ids)
+    }
+
+    /// Starts the tunnels selected for the launch of the daemon: those the
+    /// user wanted running at the last exit when `Settings::restore_on_launch`
+    /// is on, and those carrying a tag of `Settings::start_on_launch_tags`.
+    /// Each starts once, in configuration order; the ids are returned. The
+    /// starts are not recorded as wishes of the user. X11 anchors are not
+    /// restored.
+    pub fn start_launch_tunnels(&self) -> Result<Vec<TunnelId>, EngineError> {
+        self.ensure_running()?;
+        let settings = self.inner.settings.borrow().clone();
+        let wanted = self.inner.state.snapshot().running;
+        let restored = settings.restore_on_launch.then_some(&wanted);
+        let catalog = self.inner.catalog();
+        let ids = catalog.ids_to_start_on_launch(restored, &settings.start_on_launch_tags);
+        for id in &ids {
+            catalog.send(*id, TunnelCommand::Start);
+        }
+        Ok(ids)
+    }
+
+    /// Forgets every remembered passphrase: the ones in memory and the ones
+    /// stored in the OS keyring. Returns how many identity files had one.
+    pub async fn forget_secrets(&self) -> usize {
+        self.inner.passphrases.forget_all().await
     }
 
     /// The most recent log entries of the tunnel, oldest first.
@@ -516,6 +595,7 @@ impl Engine {
             let _ = task.await;
         }
         self.inner.sessions.shutdown().await;
+        self.inner.state.flush().await;
     }
 
     fn ensure_running(&self) -> Result<(), EngineError> {

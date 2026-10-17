@@ -1,6 +1,8 @@
 import type { SettingsDto } from '#/daemon/protocol';
+import { parseTags } from '#/tunnel_form/parse_tags';
 
 const MILLISECONDS_PER_SECOND = 1000;
+const TAGS_SEPARATOR = ', ';
 
 export type SettingsFormValues = {
 	defaultBindAddress: string;
@@ -11,6 +13,10 @@ export type SettingsFormValues = {
 	reconnectInitialDelaySeconds: string;
 	reconnectMaxDelaySeconds: string;
 	healthProbe: boolean;
+	launchAtLogin: boolean;
+	restoreOnLaunch: boolean;
+	startOnLaunchTags: string;
+	useOsKeyring: boolean;
 	x11Display: string;
 };
 
@@ -42,11 +48,15 @@ export function toSettingsFormValues(
 			settings.reconnectMaxDelayMs
 		),
 		healthProbe: settings.healthProbe,
+		launchAtLogin: settings.launchAtLogin,
+		restoreOnLaunch: settings.restoreOnLaunch,
+		startOnLaunchTags: settings.startOnLaunchTags.join(TAGS_SEPARATOR),
+		useOsKeyring: settings.useOsKeyring,
 		x11Display: settings.x11Display ?? '',
 	};
 }
 
-/** Applies valid form values on top of `base`, which keeps the settings the form does not expose. */
+/** Applies valid form values on top of `base`, which keeps any setting the form does not expose. */
 export function toSettings(
 	values: Readonly<SettingsFormValues>,
 	base: Readonly<SettingsDto>
@@ -64,6 +74,10 @@ export function toSettings(
 		),
 		reconnectMaxDelayMs: secondsToMilliseconds(values.reconnectMaxDelaySeconds),
 		healthProbe: values.healthProbe,
+		launchAtLogin: values.launchAtLogin,
+		restoreOnLaunch: values.restoreOnLaunch,
+		startOnLaunchTags: parseTags(values.startOnLaunchTags),
+		useOsKeyring: values.useOsKeyring,
 		x11Display: x11Display === '' ? undefined : x11Display,
 	};
 }

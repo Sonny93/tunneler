@@ -1,16 +1,26 @@
 import { axe } from 'vitest-axe';
 import { describe, expect, it } from 'vitest';
+import { ModalProvider } from '@minimalstuff/ui';
 import userEvent from '@testing-library/user-event';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 
 import { useUiStore } from '#/state/ui_store';
-import { buildSettings } from '#/testing/factories';
 import { useDaemonStore } from '#/state/daemon_store';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { SettingsDrawer } from '#/settings/settings_drawer';
+import { buildSettings, buildTunnel } from '#/testing/factories';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
+
+const renderDrawerWithModals = (gateway = createFakeGateway()) =>
+	renderWithGateway(
+		<>
+			<ModalProvider />
+			<SettingsDrawer />
+		</>,
+		gateway
+	);
 
 function openSettings(settings = buildSettings()) {
 	useDaemonStore.setState({ settings });
@@ -39,10 +49,16 @@ describe('SettingsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			['Adresses', 'Connexion', 'Reconnexion', 'X11', 'Santé'].map(
-				(name) => screen.queryByRole('group', { name }) !== null
-			)
-		).toEqual([true, true, true, true, true]);
+			[
+				'Adresses',
+				'Connexion',
+				'Reconnexion',
+				'X11',
+				'Santé',
+				'Démarrage',
+				'Secrets',
+			].map((name) => screen.queryByRole('group', { name }) !== null)
+		).toEqual([true, true, true, true, true, true, true]);
 	});
 
 	it('should show durations in seconds', () => {
@@ -70,12 +86,8 @@ describe('SettingsDrawer', () => {
 		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
-	it('should save the edited settings in milliseconds and keep hidden fields', async () => {
-		const settings = buildSettings({
-			restoreOnLaunch: false,
-			startOnLaunchTags: ['db'],
-			launchAtLogin: true,
-		});
+	it('should save the edited settings in milliseconds', async () => {
+		const settings = buildSettings();
 		openSettings(settings);
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
@@ -85,7 +97,9 @@ describe('SettingsDrawer', () => {
 
 		await user.clear(grace);
 		await user.type(grace, '90');
-		await user.click(screen.getByRole('switch'));
+		await user.click(
+			screen.getByRole('switch', { name: 'Sonder la cible périodiquement' })
+		);
 		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
@@ -183,5 +197,155 @@ describe('SettingsDrawer', () => {
 		const alert = await screen.findByRole('alert');
 		expect(alert).toHaveTextContent('Adresse invalide.');
 		expect(alert).toHaveFocus();
+	});
+
+	it('should describe the start-up switches', () => {
+		openSettings();
+		renderDrawer();
+
+		expect(
+			screen.getByRole('switch', {
+				name: "Lancer Tunneler à l'ouverture de session",
+			})
+		).toHaveAccessibleDescription(
+			'Démarre le daemon et son icône, sans ouvrir la fenêtre.'
+		);
+	});
+
+	it('should list the existing tags in the start-up tags hint', () => {
+		useDaemonStore.setState({
+			tunnels: [
+				buildTunnel({ id: 'a', tags: ['dev'] }),
+				buildTunnel({ id: 'b', tags: ['adonis', 'dev'] }),
+			],
+		});
+		openSettings();
+		renderDrawer();
+
+		expect(
+			screen.getByRole('textbox', { name: 'Tags démarrés au lancement' })
+		).toHaveAccessibleDescription(
+			'Séparés par des virgules. Tags existants : adonis, dev.'
+		);
+	});
+
+	it('should save the toggled start-up and secrets switches', async () => {
+		const settings = buildSettings();
+		openSettings(settings);
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+
+		await user.click(
+			screen.getByRole('switch', {
+				name: "Lancer Tunneler à l'ouverture de session",
+			})
+		);
+		await user.click(
+			screen.getByRole('switch', {
+				name: 'Rétablir les tunnels actifs au lancement',
+			})
+		);
+		await user.click(
+			screen.getByRole('switch', {
+				name: 'Mémoriser les passphrases dans le trousseau du système',
+			})
+		);
+		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith({
+			...settings,
+			launchAtLogin: true,
+			restoreOnLaunch: false,
+			useOsKeyring: true,
+		});
+	});
+
+	it('should save the start-up tags parsed from the text', async () => {
+		openSettings();
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+
+		await user.type(
+			screen.getByRole('textbox', { name: 'Tags démarrés au lancement' }),
+			'dev, adonis, dev'
+		);
+		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith(
+			expect.objectContaining({ startOnLaunchTags: ['dev', 'adonis'] })
+		);
+	});
+
+	describe('forgetting remembered passphrases', () => {
+		const clickForget = async (user: ReturnType<typeof userEvent.setup>) =>
+			user.click(
+				screen.getByRole('button', {
+					name: 'Oublier les passphrases mémorisées',
+				})
+			);
+
+		it('should ask for confirmation before forgetting', async () => {
+			openSettings();
+			const user = userEvent.setup();
+			const { gateway } = renderDrawerWithModals();
+
+			await clickForget(user);
+
+			expect(
+				await screen.findByRole('alertdialog', {
+					name: 'Oublier les passphrases mémorisées ?',
+				})
+			).toBeInTheDocument();
+			expect(gateway.forgetSecrets).not.toHaveBeenCalled();
+		});
+
+		it('should not forget when cancelled', async () => {
+			openSettings();
+			const user = userEvent.setup();
+			const { gateway } = renderDrawerWithModals();
+			await clickForget(user);
+
+			const dialog = await screen.findByRole('alertdialog');
+			await user.click(within(dialog).getByRole('button', { name: 'Annuler' }));
+
+			expect(gateway.forgetSecrets).not.toHaveBeenCalled();
+		});
+
+		it('should forget and toast the count when confirmed', async () => {
+			openSettings();
+			const user = userEvent.setup();
+			const gateway = createFakeGateway();
+			gateway.forgetSecrets.mockResolvedValue({ forgottenCount: 3 });
+			renderDrawerWithModals(gateway);
+			await clickForget(user);
+
+			await user.click(await screen.findByRole('button', { name: 'Oublier' }));
+
+			await waitFor(() =>
+				expect(useToastStore.getState().toasts[0]?.message).toBe(
+					'3 passphrases oubliées'
+				)
+			);
+		});
+
+		it('should toast an error when forgetting fails', async () => {
+			openSettings();
+			const user = userEvent.setup();
+			const gateway = createFakeGateway();
+			gateway.forgetSecrets.mockRejectedValue(
+				new DaemonCommandError('internal', 'trousseau verrouillé')
+			);
+			renderDrawerWithModals(gateway);
+			await clickForget(user);
+
+			await user.click(await screen.findByRole('button', { name: 'Oublier' }));
+
+			await waitFor(() =>
+				expect(useToastStore.getState().toasts[0]).toMatchObject({
+					tone: 'error',
+					message: 'Oubli impossible : trousseau verrouillé',
+				})
+			);
+		});
 	});
 });

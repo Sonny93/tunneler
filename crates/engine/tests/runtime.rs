@@ -9,18 +9,18 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use engine::{
-    Clock, ConnectTimeouts, Engine, EngineDependencies, EngineError, EngineEvent, EngineOptions,
-    FailureReason, HostKeyDecision, LogLevel, NewTunnel, PortOwner, PortScanner, Settings, Store,
-    StoreError, SystemClock, SystemPortScanner, SystemScan, TargetHealth, TunnelId, TunnelKind,
-    TunnelState, UnmanagedProcess,
+    AppState, Clock, ConnectTimeouts, Engine, EngineDependencies, EngineError, EngineEvent,
+    EngineOptions, FailureReason, HostKeyDecision, LogLevel, NewTunnel, PortOwner, PortScanner,
+    Settings, Store, StoreError, SystemClock, SystemPortScanner, SystemScan, TargetHealth,
+    TunnelId, TunnelKind, TunnelState, UnmanagedProcess,
 };
 use fast_socks5::client::{Config as SocksConfig, Socks5Stream};
 use fast_socks5::{ReplyError, SocksError};
 use russh::keys::{Algorithm, PrivateKey};
 use support::{
-    EchoServer, FakePortScanner, FakeX11Environment, ScriptedPrompter, ScriptedVerifier,
-    TestServer, TestUser, Workspace, foreign_scan, free_port, generate_key, identity_of, ssh_scan,
-    wait_for_event, wait_for_state, wait_until, write_private_key,
+    EchoServer, FakePortScanner, FakeX11Environment, MemoryStateStore, ScriptedPrompter,
+    ScriptedVerifier, TestServer, TestUser, Workspace, foreign_scan, free_port, generate_key,
+    identity_of, ssh_scan, wait_for_event, wait_for_state, wait_until, write_private_key,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -77,6 +77,7 @@ struct HarnessBuilder {
     verifier: ScriptedVerifier,
     clock: Arc<dyn Clock>,
     port_scanner: Option<Arc<dyn PortScanner>>,
+    previously_running: Vec<&'static str>,
 }
 
 struct Harness {
@@ -91,6 +92,7 @@ struct Harness {
     specs: Vec<TunnelSpec>,
     timing: Timing,
     scanner: Arc<FakePortScanner>,
+    state_store: Arc<MemoryStateStore>,
 }
 
 impl HarnessBuilder {
@@ -113,6 +115,7 @@ impl HarnessBuilder {
             verifier: ScriptedVerifier::default(),
             clock: Arc::new(SystemClock),
             port_scanner: None,
+            previously_running: Vec::new(),
         }
     }
 
@@ -189,6 +192,11 @@ impl HarnessBuilder {
         self
     }
 
+    fn previously_running(mut self, names: &[&'static str]) -> Self {
+        self.previously_running = names.to_vec();
+        self
+    }
+
     async fn start(self) -> Harness {
         let client_key = generate_key(Algorithm::Ed25519);
         let server = server_authorizing(
@@ -232,6 +240,19 @@ impl HarnessBuilder {
             self.is_health_probe_enabled,
             self.keepalive,
         );
+        let state_store = Arc::new(MemoryStateStore::holding(AppState {
+            running: self
+                .previously_running
+                .iter()
+                .map(|name| {
+                    specs
+                        .iter()
+                        .find(|spec| spec.name == *name)
+                        .map_or_else(TunnelId::generate, |spec| spec.id)
+                })
+                .collect(),
+            ..AppState::default()
+        }));
         let scanner = Arc::new(FakePortScanner::default());
         let port_scanner = self
             .port_scanner
@@ -243,6 +264,8 @@ impl HarnessBuilder {
                 store,
                 port_scanner,
                 x11_environment: Arc::new(FakeX11Environment::default()),
+                state_store: state_store.clone(),
+                keyring: None,
             },
             EngineOptions {
                 health_probe_interval: PROBE_INTERVAL,
@@ -265,6 +288,7 @@ impl HarnessBuilder {
             specs,
             timing: self.timing,
             scanner,
+            state_store,
         }
     }
 
@@ -2108,6 +2132,8 @@ async fn should_save_the_generated_ids_when_the_engine_starts_on_a_file_without_
         store,
         port_scanner: Arc::new(FakePortScanner::default()),
         x11_environment: Arc::new(FakeX11Environment::default()),
+        state_store: Arc::new(MemoryStateStore::default()),
+        keyring: None,
     })
     .unwrap();
 
@@ -2622,4 +2648,242 @@ async fn should_list_a_real_ssh_process_when_its_forward_matches_no_tunnel() {
     let listed = processes.iter().find(|process| process.pid == pid).unwrap();
     assert_eq!(listed.forwards[0].listen_port, other_port);
     assert_eq!(harness.state_of("alpha"), TunnelState::Stopped);
+}
+
+fn wanted_ids(harness: &Harness) -> Vec<TunnelId> {
+    harness.state_store.state().running.into_iter().collect()
+}
+
+fn sorted(mut ids: Vec<TunnelId>) -> Vec<TunnelId> {
+    ids.sort();
+    ids
+}
+
+async fn wait_until_wanted(harness: &Harness, name: &str, is_expected: bool) {
+    let id = harness.id(name);
+    let store = Arc::clone(&harness.state_store);
+    wait_until(WAIT, "the saved state to follow the command", move || {
+        store.state().running.contains(&id) == is_expected
+    })
+    .await;
+}
+
+async fn configure_launch(harness: &Harness, is_restore_enabled: bool, tags: &[&str]) {
+    let settings = Settings {
+        restore_on_launch: is_restore_enabled,
+        start_on_launch_tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
+        ..harness.engine.snapshot().settings
+    };
+    harness.engine.update_settings(settings).await.unwrap();
+}
+
+#[tokio::test]
+async fn should_record_the_tunnel_as_wanted_when_it_is_started() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    harness.start_tunnel("alpha");
+
+    wait_until_wanted(&harness, "alpha", true).await;
+}
+
+#[tokio::test]
+async fn should_forget_the_tunnel_when_it_is_stopped() {
+    let harness = HarnessBuilder::new(&["alpha"])
+        .previously_running(&["alpha"])
+        .start()
+        .await;
+
+    harness.stop_tunnel("alpha");
+
+    wait_until_wanted(&harness, "alpha", false).await;
+}
+
+#[tokio::test]
+async fn should_record_the_started_tunnels_when_a_tag_is_started() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev"]), ("beta", &["web"])])
+        .start()
+        .await;
+
+    harness.engine.start_tag("dev").unwrap();
+
+    wait_until_wanted(&harness, "alpha", true).await;
+    assert!(!wanted_ids(&harness).contains(&harness.id("beta")));
+}
+
+#[tokio::test]
+async fn should_forget_the_stopped_tunnels_when_a_tag_is_stopped() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev"]), ("beta", &["web"])])
+        .previously_running(&["alpha", "beta"])
+        .start()
+        .await;
+
+    harness.engine.stop_tag("dev").unwrap();
+
+    wait_until_wanted(&harness, "alpha", false).await;
+    assert!(wanted_ids(&harness).contains(&harness.id("beta")));
+}
+
+#[tokio::test]
+async fn should_forget_the_tunnel_when_it_is_deleted() {
+    let harness = HarnessBuilder::new(&["alpha"])
+        .previously_running(&["alpha"])
+        .start()
+        .await;
+
+    harness
+        .engine
+        .delete_tunnel(harness.id("alpha"))
+        .await
+        .unwrap();
+
+    wait_until_wanted(&harness, "alpha", false).await;
+}
+
+#[tokio::test]
+async fn should_keep_the_tunnel_wanted_when_it_is_restarted() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.start_and_wait_active("alpha").await;
+    wait_until_wanted(&harness, "alpha", true).await;
+
+    harness.engine.restart_tunnel(harness.id("alpha")).unwrap();
+    harness
+        .wait_for("alpha", |state| matches!(state, TunnelState::Active))
+        .await;
+
+    assert!(wanted_ids(&harness).contains(&harness.id("alpha")));
+}
+
+#[tokio::test]
+async fn should_keep_the_tunnel_wanted_when_it_fails() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .with_unauthorized_client_key()
+        .start()
+        .await;
+
+    harness.start_tunnel("alpha");
+    harness
+        .wait_for("alpha", |state| matches!(state, TunnelState::Failed { .. }))
+        .await;
+
+    assert!(wanted_ids(&harness).contains(&harness.id("alpha")));
+}
+
+#[tokio::test]
+async fn should_record_the_adopted_tunnels_when_adopting_an_external() {
+    let mut harness = HarnessBuilder::new(&["alpha", "beta"]).start().await;
+    harness.set_scan(harness.scan_with_ssh_providing(SSH_PID, &["alpha", "beta"]));
+    harness.engine.set_port_scanning(true);
+    harness.wait_for("alpha", is_external).await;
+    harness.wait_for("beta", is_external).await;
+
+    harness
+        .engine
+        .adopt_external(harness.id("alpha"))
+        .await
+        .unwrap();
+
+    wait_until_wanted(&harness, "alpha", true).await;
+    wait_until_wanted(&harness, "beta", true).await;
+}
+
+#[tokio::test]
+async fn should_not_forget_the_running_tunnels_when_the_engine_shuts_down() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.start_and_wait_active("alpha").await;
+    wait_until_wanted(&harness, "alpha", true).await;
+
+    harness.engine.shutdown().await;
+
+    assert_eq!(wanted_ids(&harness), vec![harness.id("alpha")]);
+}
+
+#[tokio::test]
+async fn should_drop_the_ids_that_left_the_configuration_when_the_state_is_next_written() {
+    let harness = HarnessBuilder::new(&["alpha", "beta"])
+        .previously_running(&["alpha", "ghost"])
+        .start()
+        .await;
+
+    harness.start_tunnel("beta");
+
+    wait_until_wanted(&harness, "beta", true).await;
+    assert_eq!(
+        wanted_ids(&harness),
+        sorted(vec![harness.id("alpha"), harness.id("beta")])
+    );
+}
+
+#[tokio::test]
+async fn should_start_the_previously_running_tunnels_when_restoring_on_launch() {
+    let mut harness = HarnessBuilder::new(&["alpha", "beta"])
+        .previously_running(&["alpha", "ghost"])
+        .start()
+        .await;
+    configure_launch(&harness, true, &[]).await;
+
+    let started = harness.engine.start_launch_tunnels().unwrap();
+
+    harness.wait_all_active(&["alpha"]).await;
+    assert_eq!(started, vec![harness.id("alpha")]);
+    assert_eq!(harness.state_of("beta"), TunnelState::Stopped);
+}
+
+#[tokio::test]
+async fn should_start_nothing_when_restoring_on_launch_is_off() {
+    let harness = HarnessBuilder::new(&["alpha"])
+        .previously_running(&["alpha"])
+        .start()
+        .await;
+    configure_launch(&harness, false, &[]).await;
+
+    let started = harness.engine.start_launch_tunnels().unwrap();
+
+    assert_eq!(started, Vec::<TunnelId>::new());
+}
+
+#[tokio::test]
+async fn should_start_the_tagged_tunnels_when_their_tag_starts_on_launch() {
+    let mut harness = HarnessBuilder::tagged(&[
+        ("alpha", &["dev"]),
+        ("beta", &["web"]),
+        ("gamma", &["dev", "web"]),
+    ])
+    .start()
+    .await;
+    configure_launch(&harness, false, &["dev"]).await;
+
+    let started = harness.engine.start_launch_tunnels().unwrap();
+
+    harness.wait_all_active(&["alpha", "gamma"]).await;
+    assert_eq!(started, vec![harness.id("alpha"), harness.id("gamma")]);
+}
+
+#[tokio::test]
+async fn should_start_each_tunnel_once_when_restored_and_tagged() {
+    let mut harness =
+        HarnessBuilder::tagged(&[("alpha", &["dev"]), ("beta", &[]), ("gamma", &["dev"])])
+            .previously_running(&["alpha", "beta"])
+            .start()
+            .await;
+    configure_launch(&harness, true, &["dev"]).await;
+
+    let started = harness.engine.start_launch_tunnels().unwrap();
+
+    harness.wait_all_active(&["alpha", "beta", "gamma"]).await;
+    assert_eq!(
+        started,
+        vec![harness.id("alpha"), harness.id("beta"), harness.id("gamma")]
+    );
+}
+
+#[tokio::test]
+async fn should_not_record_the_launch_starts_as_wishes_of_the_user() {
+    let mut harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+    configure_launch(&harness, false, &["dev"]).await;
+
+    harness.engine.start_launch_tunnels().unwrap();
+    harness.wait_all_active(&["alpha"]).await;
+    sleep(QUIET_PERIOD).await;
+
+    assert_eq!(wanted_ids(&harness), Vec::<TunnelId>::new());
 }

@@ -82,6 +82,7 @@ Environment:
   TUNNELER_LOG         log filter for the daemon and the commands, such as debug
   TUNNELER_SOCKET      same as --socket
   TUNNELER_CONFIG      same as --config
+  TUNNELER_STATE       same as --state
   TUNNELER_SSH_CONFIG  same as --ssh-config
   TUNNELER_NO_TRAY     same as --no-tray
   TUNNELER_UI_BINARY   the tunneler-ui program the daemon launches",

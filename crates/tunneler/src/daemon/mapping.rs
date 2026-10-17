@@ -8,18 +8,18 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use engine::{
     EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision, ImportCandidate, ImportPreview,
     ImportWarning, InvalidTunnelId, LogLevel, NewTunnel, PortOwner, RejectedHostKey,
-    RejectionReason, Settings, SshForward, TargetHealth, TunnelDefinition, TunnelId, TunnelKind,
-    TunnelLogEntry, TunnelMetrics, TunnelSnapshot, TunnelState, UnmanagedProcess,
+    RejectionReason, Retention, Settings, SshForward, TargetHealth, TunnelDefinition, TunnelId,
+    TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot, TunnelState, UnmanagedProcess,
     X11AnchorSnapshot, X11AnchorState, X11Launcher,
 };
 use ipc::protocol::{
     ConfigInvalidEvent, EpochMillis, EventMessage, ExternalForwardDto, ExternalProcessDto,
     ExternalsChangedEvent, FailureReasonDto, HostKeyAlertReasonDto, HostKeyDecisionDto,
     HostKeyRequestEvent, HostOptionDto, ImportCandidateDto, ImportPreviewDto, ImportWarningDto,
-    LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, ResolvedHostDto, SettingsDto, SnapshotDto,
-    TargetHealthDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
-    TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
-    X11ChangedEvent, X11LauncherDto, X11StateDto,
+    LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, RememberDto, ResolvedHostDto, SettingsDto,
+    SnapshotDto, TargetHealthDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto,
+    TunnelDto, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto,
+    X11AnchorDto, X11ChangedEvent, X11LauncherDto, X11StateDto,
 };
 
 use ssh_config::Resolution;
@@ -216,6 +216,7 @@ pub(crate) fn settings_to_dto(settings: &Settings) -> SettingsDto {
         restore_on_launch: settings.restore_on_launch,
         start_on_launch_tags: settings.start_on_launch_tags.clone(),
         launch_at_login: settings.launch_at_login,
+        use_os_keyring: settings.use_os_keyring,
         x11_display: settings.x11_display.clone(),
     }
 }
@@ -233,6 +234,7 @@ pub(crate) fn settings_from_dto(dto: SettingsDto) -> Settings {
         restore_on_launch: dto.restore_on_launch,
         start_on_launch_tags: dto.start_on_launch_tags,
         launch_at_login: dto.launch_at_login,
+        use_os_keyring: dto.use_os_keyring,
         x11_display: dto.x11_display,
     }
 }
@@ -420,6 +422,15 @@ pub(crate) fn host_key_decision_from_dto(decision: HostKeyDecisionDto) -> HostKe
         HostKeyDecisionDto::AcceptAndSave => HostKeyDecision::AcceptAndSave,
         HostKeyDecisionDto::AcceptOnce => HostKeyDecision::AcceptOnce,
         HostKeyDecisionDto::Reject => HostKeyDecision::Reject,
+    }
+}
+
+/// How long the engine keeps a passphrase, from what the client asked.
+pub(crate) fn retention_from_dto(remember: Option<RememberDto>) -> Retention {
+    match remember {
+        None => Retention::Never,
+        Some(RememberDto::Session) => Retention::Session,
+        Some(RememberDto::Keyring) => Retention::Keyring,
     }
 }
 
@@ -1019,6 +1030,14 @@ mod tests {
                 HostKeyDecision::AcceptOnce,
                 HostKeyDecision::Reject
             ]
+        );
+    }
+
+    #[test]
+    fn should_map_the_remember_choice_to_the_retention() {
+        assert_eq!(
+            [None, Some(RememberDto::Session), Some(RememberDto::Keyring)].map(retention_from_dto),
+            [Retention::Never, Retention::Session, Retention::Keyring]
         );
     }
 

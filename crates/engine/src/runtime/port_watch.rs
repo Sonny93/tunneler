@@ -188,6 +188,8 @@ impl EngineInner {
         for adopted_id in &adopted {
             catalog.send(*adopted_id, TunnelCommand::Start);
         }
+        drop(catalog);
+        self.record_wanted(&adopted);
         Ok(adopted)
     }
 

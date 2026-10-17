@@ -5,7 +5,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 use engine::{
     CredentialPrompter, HostKeyDecision, HostKeyVerifier, KeyboardInteractiveRequest,
-    PassphraseRequest, PasswordRequest, PromptError, RejectedHostKey, UnknownHostKey,
+    PassphraseAnswer, PassphraseRequest, PasswordRequest, PromptError, RejectedHostKey, Retention,
+    UnknownHostKey,
 };
 use zeroize::Zeroizing;
 
@@ -17,6 +18,7 @@ pub struct ScriptedPrompter {
     passphrase_answers: Mutex<VecDeque<Option<String>>>,
     password_answers: Mutex<VecDeque<Option<String>>>,
     keyboard_interactive_answers: Mutex<VecDeque<Option<Vec<String>>>>,
+    passphrase_retention: Mutex<Retention>,
     answer_delay: Mutex<Duration>,
     passphrase_requests: Mutex<Vec<PassphraseRequest>>,
     password_requests: Mutex<Vec<PasswordRequest>>,
@@ -26,6 +28,12 @@ pub struct ScriptedPrompter {
 impl ScriptedPrompter {
     pub fn with_passphrases(self, answers: &[Option<&str>]) -> Self {
         *self.passphrase_answers.lock().unwrap() = owned_answers(answers);
+        self
+    }
+
+    /// Asks the engine to remember every passphrase this prompter gives.
+    pub fn with_passphrase_retention(self, retention: Retention) -> Self {
+        *self.passphrase_retention.lock().unwrap() = retention;
         self
     }
 
@@ -84,7 +92,7 @@ impl CredentialPrompter for ScriptedPrompter {
     async fn passphrase(
         &self,
         request: PassphraseRequest,
-    ) -> Result<Option<Zeroizing<String>>, PromptError> {
+    ) -> Result<Option<PassphraseAnswer>, PromptError> {
         self.passphrase_requests.lock().unwrap().push(request);
         self.wait_for_user().await;
         let answer = self
@@ -93,7 +101,11 @@ impl CredentialPrompter for ScriptedPrompter {
             .unwrap()
             .pop_front()
             .flatten();
-        Ok(answer.map(Zeroizing::new))
+        let retention = *self.passphrase_retention.lock().unwrap();
+        Ok(answer.map(|passphrase| PassphraseAnswer {
+            passphrase: Zeroizing::new(passphrase),
+            retention,
+        }))
     }
 
     async fn password(

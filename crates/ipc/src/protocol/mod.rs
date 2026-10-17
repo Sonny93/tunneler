@@ -16,7 +16,7 @@ mod secret;
 pub use dto::{
     CredentialRequestDto, EpochMillis, ExternalForwardDto, ExternalProcessDto, FailureReasonDto,
     HostKeyAlertReasonDto, HostKeyDecisionDto, HostOptionDto, ImportCandidateDto, ImportPreviewDto,
-    ImportWarningDto, LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, PromptDto,
+    ImportWarningDto, LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, PromptDto, RememberDto,
     ResolvedHostDto, SettingsDto, SnapshotDto, TargetHealthDto, TrayStatusDto, TunnelDefinitionDto,
     TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11LauncherDto,
     X11StateDto,
@@ -35,5 +35,7 @@ pub use request::{
     ImportScriptParams, MAX_IMPORT_SCRIPT_BYTES, METHOD_NAMES, ProcessParams, QuitParams, Request,
     RequestEnvelope, RequestRejection, TagParams, TunnelIdParams, X11HostParams, X11LaunchParams,
 };
-pub use response::{AdoptResult, EmptyResult, HostsResult, LogsResult, ResponsePayload};
+pub use response::{
+    AdoptResult, EmptyResult, ForgetSecretsResult, HostsResult, LogsResult, ResponsePayload,
+};
 pub use secret::Secret;

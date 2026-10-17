@@ -15,6 +15,7 @@ clap.workspace = true
 directories.workspace = true
 engine = { path = "../engine" }
 ipc = { path = "../ipc" }
+keyring.workspace = true
 open.workspace = true
 rpassword.workspace = true
 serde.workspace = true
@@ -36,6 +37,7 @@ zbus.workspace = true
 [target.'cfg(windows)'.dependencies]
 tray-icon.workspace = true
 winit.workspace = true
+winreg.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true

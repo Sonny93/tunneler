@@ -44,8 +44,13 @@ export function createTauriGateway(): DaemonGateway {
 		killExternal: (pid) => call('kill_external', { pid }),
 		ignoreExternal: (pid) => call('ignore_external', { pid }),
 		updateSettings: (settings) => call('update_settings', { settings }),
-		respondCredential: (promptId, answer) =>
-			call('respond_credential', { promptId, answer }),
+		respondCredential: (promptId, answer, remember) =>
+			call('respond_credential', {
+				promptId,
+				answer,
+				remember: remember ?? null,
+			}),
+		forgetSecrets: () => call('forget_secrets'),
 		respondHostKey: (promptId, decision) =>
 			call('respond_host_key', { promptId, decision }),
 		quit: (force) => call('quit_daemon', { force }),

@@ -13,6 +13,37 @@ pub struct PassphraseRequest {
     pub key_path: PathBuf,
 }
 
+/// How long the engine keeps a passphrase after it unlocked the identity file.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Retention {
+    /// Forget it right away; the next connection asks again.
+    #[default]
+    Never,
+    /// Keep it in memory until the daemon stops.
+    Session,
+    /// Keep it in memory and in the OS keyring, when the keyring is enabled.
+    Keyring,
+}
+
+/// The passphrase the user typed and how long to remember it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PassphraseAnswer {
+    /// The passphrase of the identity file.
+    pub passphrase: Zeroizing<String>,
+    /// Whether and where to remember it once it unlocked the file.
+    pub retention: Retention,
+}
+
+impl PassphraseAnswer {
+    /// An answer that is used once and forgotten.
+    pub fn without_retention(passphrase: Zeroizing<String>) -> Self {
+        Self {
+            passphrase,
+            retention: Retention::Never,
+        }
+    }
+}
+
 /// Why a password is needed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PasswordRequest {
@@ -77,7 +108,7 @@ pub trait CredentialPrompter: Send + Sync {
     async fn passphrase(
         &self,
         request: PassphraseRequest,
-    ) -> Result<Option<Zeroizing<String>>, PromptError>;
+    ) -> Result<Option<PassphraseAnswer>, PromptError>;
 
     /// The account password.
     async fn password(

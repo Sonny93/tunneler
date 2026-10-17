@@ -73,6 +73,7 @@ fn settings_entries(settings: &Settings) -> Vec<(&'static str, Value)> {
             string_array(&settings.start_on_launch_tags),
         ),
         ("launch_at_login", Value::from(settings.launch_at_login)),
+        ("use_os_keyring", Value::from(settings.use_os_keyring)),
         (
             X11_DISPLAY_KEY,
             Value::from(settings.x11_display.as_deref().unwrap_or_default()),

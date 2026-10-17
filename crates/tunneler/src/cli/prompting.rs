@@ -334,7 +334,10 @@ impl PromptContext {
     }
 
     async fn send_credential(&self, prompt_id: &str, answer: Option<CredentialAnswer>) {
-        let outcome = self.client.respond_credential(prompt_id, answer).await;
+        let outcome = self
+            .client
+            .respond_credential(prompt_id, answer, None)
+            .await;
         self.report(outcome);
     }
 

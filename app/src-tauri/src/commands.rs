@@ -1,8 +1,8 @@
 //! The commands the front end invokes; each one forwards to the daemon.
 
 use ipc::protocol::{
-    HostKeyDecisionDto, ImportPreviewDto, LogEntryDto, ResolvedHostDto, SettingsDto, SnapshotDto,
-    TunnelDefinitionDto, TunnelDto, TunnelSpecDto,
+    ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto, LogEntryDto, RememberDto,
+    ResolvedHostDto, SettingsDto, SnapshotDto, TunnelDefinitionDto, TunnelDto, TunnelSpecDto,
 };
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
@@ -166,12 +166,18 @@ pub async fn respond_credential(
     state: State<'_, BridgeState>,
     prompt_id: String,
     answer: Option<CredentialAnswerInput>,
+    remember: Option<RememberDto>,
 ) -> CommandResult<()> {
     let answer = answer.map(Into::into);
     Ok(state
         .client()?
-        .respond_credential(&prompt_id, answer)
+        .respond_credential(&prompt_id, answer, remember)
         .await?)
+}
+
+#[tauri::command]
+pub async fn forget_secrets(state: State<'_, BridgeState>) -> CommandResult<ForgetSecretsResult> {
+    Ok(state.client()?.forget_secrets().await?)
 }
 
 #[tauri::command]

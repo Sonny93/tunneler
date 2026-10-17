@@ -85,7 +85,7 @@ Ordre conforme à OpenSSH, filtré par `PreferredAuthentications` / `IdentitiesO
 2. `IdentityFile` (OpenSSH, PKCS#8, PuTTY `.ppk`) ; clé chiffrée → demande de passphrase.
 3. `keyboard-interactive`, puis `password`.
 
-Les prompts passent par le trait `CredentialPrompter` → événement IPC `credential.request`. Si aucune UI n'est connectée, le daemon la lance. Secrets en mémoire `zeroize`, cache optionnel pour la durée de la session ; trousseau OS (`keyring`) en option plus tard.
+Les prompts passent par le trait `CredentialPrompter` → événement IPC `credential.request`. Si aucune UI n'est connectée, le daemon la lance. Secrets en mémoire `zeroize`. Passphrase de clé mémorisable au choix dans l'invite : pas du tout, jusqu'à l'arrêt du daemon, ou dans le trousseau OS (`keyring`, si `use_os_keyring`) ; une passphrase mémorisée refusée est oubliée puis redemandée. Mots de passe jamais mémorisés.
 
 ### Vérification de la clé d'hôte
 - Connue et identique → OK. Inconnue → prompt UI (empreinte SHA256, type) : *Accepter et enregistrer* / *Accepter une fois* / *Refuser*. Respecte `StrictHostKeyChecking`.
@@ -140,6 +140,7 @@ health_probe = true
 restore_on_launch = true          # relance les tunnels actifs à la fermeture précédente
 start_on_launch_tags = []         # tags démarrés au lancement du daemon
 launch_at_login = false
+use_os_keyring = false            # passphrases mémorisables dans le trousseau du système
 x11_display = ""                  # vide = $DISPLAY, ou 127.0.0.1:0.0 sous Windows
 
 [[tunnels]]
@@ -162,7 +163,7 @@ name = "VS Code"
 command = "code --wait"
 ```
 
-L'état courant (tunnels actifs, pour `restore_on_launch`) est stocké à part dans `state.toml` (dossier state/data) pour ne pas polluer le fichier édité à la main.
+L'état courant est stocké à part dans `state.toml` (dossier state/data) pour ne pas polluer le fichier édité à la main : `running` (tunnels démarrés par l'utilisateur, pas vidé par « Tout arrêter et quitter », relancés si `restore_on_launch`) et `keyring_entries` (passphrases déposées dans le trousseau, pour pouvoir les oublier).
 
 ---
 
@@ -193,7 +194,8 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 | `external.adopt` / `kill` / `ignore` | `import` passe par le formulaire de création prérempli (`tunnel.create`) |
 | `hosts.list` / `hosts.resolve` | alias de `ssh_config` + config résolue (équivalent `ssh -G`) |
 | `settings.update` | |
-| `credential.respond` / `hostkey.respond` | réponses aux prompts |
+| `credential.respond` / `hostkey.respond` | réponses aux prompts (`remember` pour une passphrase) |
+| `secrets.forget` | oublie les passphrases mémorisées (mémoire + trousseau) |
 | `x11.start` / `x11.stop` / `x11.launch` | |
 | `import.ssh_config` / `import.script` | |
 | `daemon.quit { force }` | refusé sans `force` si des tunnels tournent → l'UI demande confirmation |

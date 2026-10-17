@@ -14,7 +14,9 @@ use super::identity::{Identity, IdentitySource};
 use super::identity_files::identity_file_public_key;
 use super::offered_keys::OfferedKeys;
 use crate::blocking::run_blocking;
+use crate::bounded::DeadlinePause;
 use crate::error::ConnectError;
+use crate::passphrase_vault::PassphraseVault;
 use crate::prompter::{CredentialPrompter, PassphraseRequest, PromptError};
 
 const ENCRYPTED_PEM_MARKER: &str = "ENCRYPTED";
@@ -29,6 +31,9 @@ pub(crate) struct FileIdentityOptions {
     pub(crate) is_prompting_allowed: bool,
     pub(crate) passphrase_attempts: u32,
     pub(crate) offered: Arc<OfferedKeys>,
+    pub(crate) passphrases: Arc<PassphraseVault>,
+    /// The clock of the authentication phase, paused while the keyring is read.
+    pub(crate) deadline_pause: Arc<DeadlinePause>,
 }
 
 enum KeyFile {
@@ -51,6 +56,8 @@ pub(crate) struct FileIdentitySource {
     is_prompting_allowed: bool,
     passphrase_attempts: u32,
     offered: Arc<OfferedKeys>,
+    passphrases: Arc<PassphraseVault>,
+    deadline_pause: Arc<DeadlinePause>,
     pending: VecDeque<Identity>,
 }
 
@@ -65,6 +72,8 @@ impl FileIdentitySource {
             is_prompting_allowed: options.is_prompting_allowed,
             passphrase_attempts: options.passphrase_attempts,
             offered: options.offered,
+            passphrases: options.passphrases,
+            deadline_pause: options.deadline_pause,
             pending: VecDeque::new(),
         }
     }
@@ -104,20 +113,48 @@ impl FileIdentitySource {
             debug!(path = %path.display(), "skipping an encrypted identity file: prompts are disabled");
             return Ok(None);
         }
+        if let Some(key) = self.unlock_with_remembered(path, &contents).await {
+            return Ok(Some(key));
+        }
+        self.unlock_with_prompts(path, contents).await
+    }
+
+    async fn unlock_with_remembered(
+        &self,
+        path: &Path,
+        contents: &Arc<Zeroizing<String>>,
+    ) -> Option<PrivateKey> {
+        let passphrase = self.passphrases.recall(path, &self.deadline_pause).await?;
+        let (decrypted, _) = decrypt_off_executor(Arc::clone(contents), passphrase).await;
+        if decrypted.is_none() {
+            warn!(path = %path.display(), "the remembered passphrase was refused, forgetting it");
+            self.passphrases.evict(path, &self.deadline_pause).await;
+        }
+        decrypted
+    }
+
+    async fn unlock_with_prompts(
+        &self,
+        path: &Path,
+        contents: Arc<Zeroizing<String>>,
+    ) -> Result<Option<PrivateKey>, PromptError> {
         for _ in 0..self.passphrase_attempts {
             let request = PassphraseRequest {
                 alias: self.alias.clone(),
                 key_path: path.to_owned(),
             };
-            let Some(passphrase) = self.prompter.passphrase(request).await? else {
+            let Some(answer) = self.prompter.passphrase(request).await? else {
                 return Ok(None);
             };
-            if passphrase.is_empty() {
+            if answer.passphrase.is_empty() {
                 return Ok(None);
             }
-            let attempt_contents = Arc::clone(&contents);
-            let decrypted = run_blocking(move || decrypt_key(&attempt_contents, &passphrase)).await;
+            let (decrypted, passphrase) =
+                decrypt_off_executor(Arc::clone(&contents), answer.passphrase).await;
             if decrypted.is_some() {
+                self.passphrases
+                    .remember(path, &passphrase, answer.retention, &self.deadline_pause)
+                    .await;
                 return Ok(decrypted);
             }
             debug!(path = %path.display(), "passphrase refused");
@@ -189,6 +226,13 @@ fn inspect_key_file(path: &Path) -> KeyFile {
     }
 }
 
+async fn decrypt_off_executor(
+    contents: Arc<Zeroizing<String>>,
+    passphrase: Zeroizing<String>,
+) -> (Option<PrivateKey>, Zeroizing<String>) {
+    run_blocking(move || (decrypt_key(&contents, &passphrase), passphrase)).await
+}
+
 fn decrypt_key(contents: &Zeroizing<String>, passphrase: &Zeroizing<String>) -> Option<PrivateKey> {
     decode_secret_key(contents, Some(passphrase)).ok()
 }
@@ -243,18 +287,29 @@ mod tests {
     use zeroize::Zeroizing;
 
     use super::*;
-    use crate::prompter::{KeyboardInteractiveRequest, PasswordRequest};
+    use crate::prompter::{
+        KeyboardInteractiveRequest, PassphraseAnswer, PasswordRequest, Retention,
+    };
+    use crate::store::Settings;
 
     const PASSPHRASE: &str = "correct horse";
 
     #[derive(Default)]
     struct StubPrompter {
         passphrases: Mutex<VecDeque<Option<String>>>,
+        retention: Retention,
     }
 
     impl StubPrompter {
         fn answering(answers: &[Option<&str>]) -> Arc<Self> {
-            let prompter = Self::default();
+            Self::answering_with(Retention::Never, answers)
+        }
+
+        fn answering_with(retention: Retention, answers: &[Option<&str>]) -> Arc<Self> {
+            let prompter = Self {
+                retention,
+                ..Self::default()
+            };
             *prompter.passphrases.lock().unwrap() = answers
                 .iter()
                 .map(|answer| answer.map(str::to_owned))
@@ -268,14 +323,17 @@ mod tests {
         async fn passphrase(
             &self,
             _request: PassphraseRequest,
-        ) -> Result<Option<Zeroizing<String>>, PromptError> {
+        ) -> Result<Option<PassphraseAnswer>, PromptError> {
             Ok(self
                 .passphrases
                 .lock()
                 .unwrap()
                 .pop_front()
                 .flatten()
-                .map(Zeroizing::new))
+                .map(|passphrase| PassphraseAnswer {
+                    passphrase: Zeroizing::new(passphrase),
+                    retention: self.retention,
+                }))
         }
 
         async fn password(
@@ -304,10 +362,24 @@ mod tests {
         path
     }
 
+    fn new_vault() -> Arc<PassphraseVault> {
+        let (_, settings) = tokio::sync::watch::channel(Settings::default());
+        Arc::new(PassphraseVault::in_memory(settings))
+    }
+
     fn source(
         key_paths: Vec<PathBuf>,
         prompter: Arc<StubPrompter>,
         is_prompting_allowed: bool,
+    ) -> FileIdentitySource {
+        source_with_vault(key_paths, prompter, is_prompting_allowed, new_vault())
+    }
+
+    fn source_with_vault(
+        key_paths: Vec<PathBuf>,
+        prompter: Arc<StubPrompter>,
+        is_prompting_allowed: bool,
+        passphrases: Arc<PassphraseVault>,
     ) -> FileIdentitySource {
         FileIdentitySource::new(FileIdentityOptions {
             alias: "host".to_owned(),
@@ -317,6 +389,8 @@ mod tests {
             is_prompting_allowed,
             passphrase_attempts: 3,
             offered: Arc::new(OfferedKeys::default()),
+            passphrases,
+            deadline_pause: Arc::new(DeadlinePause::default()),
         })
     }
 
@@ -386,6 +460,78 @@ mod tests {
         let path = write_key(&directory, "locked", Some(PASSPHRASE));
         let identities = source(vec![path], StubPrompter::answering(&[Some("")]), true);
         assert_eq!(count_identities(identities).await, 0);
+    }
+
+    #[tokio::test]
+    async fn should_not_prompt_again_when_the_passphrase_is_kept_for_the_session() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = write_key(&directory, "locked", Some(PASSPHRASE));
+        let vault = new_vault();
+        let first_prompter = StubPrompter::answering_with(Retention::Session, &[Some(PASSPHRASE)]);
+        count_identities(source_with_vault(
+            vec![path.clone()],
+            first_prompter,
+            true,
+            Arc::clone(&vault),
+        ))
+        .await;
+        let second_prompter = StubPrompter::answering(&[]);
+
+        let identities = source_with_vault(vec![path], Arc::clone(&second_prompter), true, vault);
+
+        assert_eq!(count_identities(identities).await, 1);
+    }
+
+    #[tokio::test]
+    async fn should_prompt_again_when_the_passphrase_was_not_kept() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = write_key(&directory, "locked", Some(PASSPHRASE));
+        let vault = new_vault();
+        let first_prompter = StubPrompter::answering(&[Some(PASSPHRASE)]);
+        count_identities(source_with_vault(
+            vec![path.clone()],
+            first_prompter,
+            true,
+            Arc::clone(&vault),
+        ))
+        .await;
+        let second_prompter = StubPrompter::answering(&[Some(PASSPHRASE)]);
+
+        let identities = source_with_vault(vec![path], Arc::clone(&second_prompter), true, vault);
+        count_identities(identities).await;
+
+        assert_eq!(second_prompter.passphrases.lock().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn should_prompt_and_forget_when_the_kept_passphrase_is_refused() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = write_key(&directory, "locked", Some(PASSPHRASE));
+        let vault = new_vault();
+        vault
+            .remember(
+                &path,
+                &Zeroizing::new("stale".to_owned()),
+                Retention::Session,
+                &DeadlinePause::default(),
+            )
+            .await;
+        let prompter = StubPrompter::answering(&[Some(PASSPHRASE)]);
+
+        let identities = source_with_vault(
+            vec![path.clone()],
+            Arc::clone(&prompter),
+            true,
+            Arc::clone(&vault),
+        );
+
+        assert_eq!(count_identities(identities).await, 1);
+        assert!(
+            vault
+                .recall(&path, &DeadlinePause::default())
+                .await
+                .is_none()
+        );
     }
 
     #[test]

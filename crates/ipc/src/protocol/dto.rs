@@ -221,6 +221,10 @@ pub struct LogEntryDto {
 /// The application settings. Durations are in milliseconds.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "each flag is a setting of the wire contract"
+)]
 pub struct SettingsDto {
     /// Bind address of local and dynamic tunnels without an override.
     pub default_bind_address: String,
@@ -244,6 +248,8 @@ pub struct SettingsDto {
     pub start_on_launch_tags: Vec<String>,
     /// Whether the daemon starts at login.
     pub launch_at_login: bool,
+    /// Whether remembered passphrases are kept in the OS keyring.
+    pub use_os_keyring: bool,
     /// The local X11 display; absent means `$DISPLAY`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub x11_display: Option<String>,
@@ -440,6 +446,16 @@ pub enum HostKeyDecisionDto {
     AcceptOnce,
     /// Refuse the key.
     Reject,
+}
+
+/// How long the daemon keeps a passphrase the user just typed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RememberDto {
+    /// Keep it in memory until the daemon stops.
+    Session,
+    /// Keep it in memory and in the OS keyring, when the keyring is enabled.
+    Keyring,
 }
 
 /// Why a host key was refused without asking.

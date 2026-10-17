@@ -68,8 +68,15 @@ describe('createTauriGateway', () => {
 			'respondCredential',
 			['p1', 'secret'],
 			'respond_credential',
-			{ promptId: 'p1', answer: 'secret' },
+			{ promptId: 'p1', answer: 'secret', remember: null },
 		],
+		[
+			'respondCredential',
+			['p1', 'secret', 'keyring'],
+			'respond_credential',
+			{ promptId: 'p1', answer: 'secret', remember: 'keyring' },
+		],
+		['forgetSecrets', [], 'forget_secrets', undefined],
 		[
 			'respondHostKey',
 			['p1', 'reject'],

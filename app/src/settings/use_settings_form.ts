@@ -5,7 +5,10 @@ import type { SettingsDto } from '#/daemon/protocol';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
-import type { SettingsTextField } from '#/settings/settings_field_specs';
+import type {
+	SettingsTextField,
+	SettingsToggleField,
+} from '#/settings/settings_field_specs';
 import {
 	toSettings,
 	toSettingsFormValues,
@@ -23,7 +26,7 @@ type UseSettingsFormReturn = {
 	isSaving: boolean;
 	summary: ReturnType<typeof useFormErrorSummary>;
 	changeText: (field: SettingsTextField, value: string) => void;
-	changeHealthProbe: (isEnabled: boolean) => void;
+	changeToggle: (field: SettingsToggleField, isEnabled: boolean) => void;
 	submit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
@@ -43,8 +46,8 @@ export function useSettingsForm(
 
 	const changeText = (field: SettingsTextField, value: string) =>
 		setValues((current) => ({ ...current, [field]: value }));
-	const changeHealthProbe = (healthProbe: boolean) =>
-		setValues((current) => ({ ...current, healthProbe }));
+	const changeToggle = (field: SettingsToggleField, isEnabled: boolean) =>
+		setValues((current) => ({ ...current, [field]: isEnabled }));
 
 	const save = async () => {
 		setIsSaving(true);
@@ -81,7 +84,7 @@ export function useSettingsForm(
 		isSaving,
 		summary,
 		changeText,
-		changeHealthProbe,
+		changeToggle,
 		submit,
 	};
 }

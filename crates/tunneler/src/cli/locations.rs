@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 use clap::builder::FalseyValueParser;
-use engine::default_store_path;
+use engine::{default_state_path, default_store_path};
 use ipc::{Endpoint, default_endpoint};
 
 use super::error::CliError;
@@ -19,6 +19,9 @@ pub struct Locations {
     /// The tunnels file
     #[arg(long, global = true, env = "TUNNELER_CONFIG", value_name = "PATH")]
     pub config: Option<PathBuf>,
+    /// The file that remembers which tunnels run between two runs
+    #[arg(long, global = true, env = "TUNNELER_STATE", value_name = "PATH")]
+    pub state: Option<PathBuf>,
     /// Read this `ssh_config` instead of ~/.ssh/config and the system one, like `ssh -F`
     #[arg(
         long = "ssh-config",
@@ -52,9 +55,14 @@ impl Locations {
             Some(path) => path.clone(),
             None => default_store_path()?,
         };
+        let state_path = match &self.state {
+            Some(path) => path.clone(),
+            None => default_state_path()?,
+        };
         Ok(DaemonOptions {
             endpoint: self.endpoint()?,
             store_path,
+            state_path,
             ssh_config: self.ssh_config.clone(),
             is_tray_enabled: !self.no_tray,
             should_open_ui_on_start: false,
@@ -67,6 +75,7 @@ impl Locations {
         let mut arguments: Vec<OsString> = [
             ("--socket", &self.socket),
             ("--config", &self.config),
+            ("--state", &self.state),
             ("--ssh-config", &self.ssh_config),
         ]
         .into_iter()
@@ -94,6 +103,7 @@ mod tests {
         let locations = Locations {
             socket: Some(PathBuf::from("/run/t.sock")),
             config: None,
+            state: Some(PathBuf::from("/home/me/state.toml")),
             ssh_config: Some(PathBuf::from("/home/me/ssh_config")),
             no_tray: false,
         };
@@ -103,6 +113,8 @@ mod tests {
             vec![
                 OsString::from("--socket"),
                 OsString::from("/run/t.sock"),
+                OsString::from("--state"),
+                OsString::from("/home/me/state.toml"),
                 OsString::from("--ssh-config"),
                 OsString::from("/home/me/ssh_config"),
             ]
@@ -154,10 +166,25 @@ mod tests {
     }
 
     #[test]
+    fn should_use_the_given_state_file_when_building_the_daemon_options() {
+        let locations = Locations {
+            socket: Some(PathBuf::from("/run/t.sock")),
+            state: Some(PathBuf::from("/tmp/state.toml")),
+            ..Locations::default()
+        };
+
+        assert_eq!(
+            locations.daemon_options().unwrap().state_path,
+            PathBuf::from("/tmp/state.toml")
+        );
+    }
+
+    #[test]
     fn should_use_the_given_config_when_building_the_daemon_options() {
         let locations = Locations {
             socket: Some(PathBuf::from("/run/t.sock")),
             config: Some(PathBuf::from("/tmp/tunnels.toml")),
+            state: None,
             ssh_config: None,
             no_tray: false,
         };

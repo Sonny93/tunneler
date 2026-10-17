@@ -28,7 +28,9 @@ export function buildPromptModalRequest(
 					children: (
 						<CredentialPromptContent
 							request={prompt.request}
-							onSubmit={(answer) => void actions.answerCredential(id, answer)}
+							onSubmit={(answer, remember) =>
+								void actions.answerCredential(id, answer, remember)
+							}
 							onCancel={() => void actions.answerCredential(id, null)}
 						/>
 					),

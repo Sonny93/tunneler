@@ -6,6 +6,12 @@ export type SettingsTextField = {
 		: never;
 }[keyof SettingsFormValues];
 
+export type SettingsToggleField = {
+	[TKey in keyof SettingsFormValues]: SettingsFormValues[TKey] extends boolean
+		? TKey
+		: never;
+}[keyof SettingsFormValues];
+
 export type SettingsFieldSpec = {
 	field: SettingsTextField;
 	label: string;
@@ -19,7 +25,7 @@ export type SettingsSectionSpec = {
 	fields: readonly SettingsFieldSpec[];
 };
 
-/** Text fields in display order; the health probe switch is rendered apart. */
+/** Validated text fields in display order; the switches and the start-up tags are rendered apart. */
 export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
 	{
 		legend: 'Adresses',

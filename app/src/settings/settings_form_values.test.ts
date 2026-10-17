@@ -35,12 +35,45 @@ describe('settings round trip', () => {
 		expect(values.keepaliveIntervalSeconds).toBe('30');
 	});
 
-	it('should preserve the settings the form does not expose', () => {
-		const settings = buildSettings({
-			restoreOnLaunch: false,
-			startOnLaunchTags: ['db'],
+	it('should show the start-up tags as a comma-separated text', () => {
+		const values = toSettingsFormValues(
+			buildSettings({ startOnLaunchTags: ['dev', 'adonis'] })
+		);
+
+		expect(values.startOnLaunchTags).toBe('dev, adonis');
+	});
+
+	it('should parse the start-up tags text', () => {
+		const settings = buildSettings();
+		const values = {
+			...toSettingsFormValues(settings),
+			startOnLaunchTags: ' dev, ,adonis,dev ',
+		};
+
+		expect(toSettings(values, settings).startOnLaunchTags).toEqual([
+			'dev',
+			'adonis',
+		]);
+	});
+
+	it('should apply the edited switches', () => {
+		const settings = buildSettings();
+		const values = {
+			...toSettingsFormValues(settings),
 			launchAtLogin: true,
+			restoreOnLaunch: false,
+			useOsKeyring: true,
+		};
+
+		expect(toSettings(values, settings)).toMatchObject({
+			launchAtLogin: true,
+			restoreOnLaunch: false,
+			useOsKeyring: true,
 		});
+	});
+
+	it('should keep the settings it is not given values for', () => {
+		const settings = buildSettings({ keepaliveMax: 7 });
 		const values = { ...toSettingsFormValues(settings), healthProbe: false };
 
 		expect(toSettings(values, settings)).toEqual({

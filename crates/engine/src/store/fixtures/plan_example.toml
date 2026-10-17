@@ -12,6 +12,7 @@ health_probe = true
 restore_on_launch = true          # restarts the tunnels that were active at the last exit
 start_on_launch_tags = []         # tags started when the daemon launches
 launch_at_login = false
+use_os_keyring = false            # keeps remembered passphrases in the OS keyring
 x11_display = ""                  # empty = $DISPLAY, or 127.0.0.1:0.0 on Windows
 
 [[tunnels]]

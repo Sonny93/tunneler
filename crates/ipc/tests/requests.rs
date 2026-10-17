@@ -11,8 +11,8 @@ use ipc::protocol::{ClientKind, ErrorCode, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYT
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use support::{
-    MISSING_LAUNCHER_NAME, MISSING_TUNNEL_ID, SLOW_DELAY, SLOW_TUNNEL_ID, TestDaemon,
-    UNKILLABLE_PID,
+    FORGOTTEN_COUNT, MISSING_LAUNCHER_NAME, MISSING_TUNNEL_ID, SLOW_DELAY, SLOW_TUNNEL_ID,
+    TestDaemon, UNKILLABLE_PID,
 };
 use tokio::task::JoinSet;
 
@@ -44,6 +44,16 @@ async fn should_return_the_started_ids_when_an_external_tunnel_is_adopted() {
     let ids = client.adopt_external("abc").await.unwrap();
 
     assert_eq!(ids, vec!["abc".to_owned()]);
+}
+
+#[tokio::test]
+async fn should_return_the_forgotten_count_when_secrets_are_forgotten() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let result = client.forget_secrets().await.unwrap();
+
+    assert_eq!(result.forgotten_count, FORGOTTEN_COUNT);
 }
 
 #[tokio::test]

@@ -23,6 +23,7 @@ use crate::host_key::{
     AcceptedOnceStore, ClientHandler, HandshakeState, HostKeyChecker, HostKeyPolicy,
     HostKeyVerifier,
 };
+use crate::passphrase_vault::PassphraseVault;
 use crate::prompter::CredentialPrompter;
 use crate::remote_forwards::RemoteForwardRegistry;
 use crate::session::SshSession;
@@ -54,6 +55,7 @@ pub struct Connector {
     accepted_once: Arc<AcceptedOnceStore>,
     settings: watch::Receiver<Settings>,
     timeouts: ConnectTimeouts,
+    passphrases: Arc<PassphraseVault>,
 }
 
 impl Connector {
@@ -73,9 +75,18 @@ impl Connector {
         Self {
             dependencies,
             accepted_once: Arc::new(AcceptedOnceStore::default()),
+            passphrases: Arc::new(PassphraseVault::in_memory(settings.clone())),
             settings,
             timeouts: ConnectTimeouts::default(),
         }
+    }
+
+    /// A connector that remembers passphrases in `passphrases` instead of in
+    /// a vault of its own.
+    #[must_use]
+    pub(crate) fn with_passphrase_vault(mut self, passphrases: Arc<PassphraseVault>) -> Self {
+        self.passphrases = passphrases;
+        self
     }
 
     /// A connector that bounds the steps of opening a session by `timeouts`.
@@ -255,6 +266,8 @@ impl Connector {
             is_prompting_allowed: !resolved.batch_mode,
             passphrase_attempts: resolved.number_of_password_prompts,
             offered,
+            passphrases: Arc::clone(&self.passphrases),
+            deadline_pause: Arc::clone(&context.deadline_pause),
         });
         vec![Box::new(agent), Box::new(files)]
     }

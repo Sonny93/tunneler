@@ -15,12 +15,13 @@ use std::time::Duration;
 use async_trait::async_trait;
 use engine::{
     CredentialPrompter, HostKeyDecision, HostKeyVerifier, KeyboardInteractiveRequest,
-    PassphraseRequest, PasswordRequest, PromptError, RejectedHostKey, UnknownHostKey,
+    PassphraseAnswer, PassphraseRequest, PasswordRequest, PromptError, RejectedHostKey,
+    UnknownHostKey,
 };
 use ipc::protocol::{
     CredentialAnswer, CredentialRequestDto, CredentialRequestEvent, CredentialResponseParams,
     EventMessage, HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, IpcError,
-    PromptDto, PromptResolvedEvent,
+    PromptDto, PromptResolvedEvent, RememberDto,
 };
 use ipc::{ConnectionId, ConnectionNotification, ServerHandle};
 use tokio::sync::broadcast::error::RecvError;
@@ -29,7 +30,7 @@ use tokio::time::Instant;
 use ulid::Ulid;
 use zeroize::Zeroizing;
 
-use super::mapping::{host_key_decision_from_dto, rejection_to_alert};
+use super::mapping::{host_key_decision_from_dto, rejection_to_alert, retention_from_dto};
 
 /// How long a prompt waits for an answer before it is cancelled.
 pub(crate) const PROMPT_TIMEOUT: Duration = Duration::from_secs(120);
@@ -40,6 +41,14 @@ pub(crate) trait PromptResponderSource: Send + Sync {
     /// Tries to bring a client that can answer prompts to connect within
     /// `patience`; tells whether one is connected afterwards.
     async fn summon_responder(&self, patience: Duration) -> bool;
+}
+
+/// What a client answered to a credential prompt.
+#[derive(Default)]
+struct CredentialReply {
+    /// `None` when the user cancelled.
+    answer: Option<CredentialAnswer>,
+    remember: Option<RememberDto>,
 }
 
 struct PendingPrompt<Answer> {
@@ -117,7 +126,7 @@ pub(crate) struct PromptBroker {
     events: broadcast::Sender<EventMessage>,
     responder_source: Arc<dyn PromptResponderSource>,
     timeout: Duration,
-    credentials: PendingPrompts<Option<CredentialAnswer>>,
+    credentials: PendingPrompts<CredentialReply>,
     host_keys: PendingPrompts<HostKeyDecisionDto>,
 }
 
@@ -155,7 +164,11 @@ impl PromptBroker {
         answerer: Option<ConnectionId>,
         params: CredentialResponseParams,
     ) -> Result<(), IpcError> {
-        let responders = self.credentials.resolve(&params.prompt_id, params.answer)?;
+        let reply = CredentialReply {
+            answer: params.answer,
+            remember: params.remember,
+        };
+        let responders = self.credentials.resolve(&params.prompt_id, reply)?;
         self.notify_resolved(&params.prompt_id, &responders, answerer);
         Ok(())
     }
@@ -272,13 +285,12 @@ impl PromptBroker {
             .any(|connection| responders.contains(&connection.id))
     }
 
-    async fn ask_credential(&self, request: CredentialRequestDto) -> Option<CredentialAnswer> {
-        let answer = self
-            .ask(&self.credentials, |prompt_id| {
-                EventMessage::CredentialRequest(CredentialRequestEvent { prompt_id, request })
-            })
-            .await;
-        answer.flatten()
+    async fn ask_credential(&self, request: CredentialRequestDto) -> CredentialReply {
+        self.ask(&self.credentials, |prompt_id| {
+            EventMessage::CredentialRequest(CredentialRequestEvent { prompt_id, request })
+        })
+        .await
+        .unwrap_or_default()
     }
 }
 
@@ -322,35 +334,41 @@ impl CredentialPrompter for PromptBroker {
     async fn passphrase(
         &self,
         request: PassphraseRequest,
-    ) -> Result<Option<Zeroizing<String>>, PromptError> {
-        let answer = self
+    ) -> Result<Option<PassphraseAnswer>, PromptError> {
+        let reply = self
             .ask_credential(CredentialRequestDto::Passphrase {
                 alias: request.alias,
                 key_path: request.key_path.display().to_string(),
             })
             .await;
-        single_secret(answer)
+        let retention = retention_from_dto(reply.remember);
+        Ok(
+            single_secret(reply.answer)?.map(|passphrase| PassphraseAnswer {
+                passphrase,
+                retention,
+            }),
+        )
     }
 
     async fn password(
         &self,
         request: PasswordRequest,
     ) -> Result<Option<Zeroizing<String>>, PromptError> {
-        let answer = self
+        let reply = self
             .ask_credential(CredentialRequestDto::Password {
                 alias: request.alias,
                 user: request.user,
                 host: request.host,
             })
             .await;
-        single_secret(answer)
+        single_secret(reply.answer)
     }
 
     async fn keyboard_interactive(
         &self,
         request: KeyboardInteractiveRequest,
     ) -> Result<Option<Vec<Zeroizing<String>>>, PromptError> {
-        let answer = self
+        let reply = self
             .ask_credential(CredentialRequestDto::KeyboardInteractive {
                 alias: request.alias,
                 name: request.name,
@@ -365,7 +383,7 @@ impl CredentialPrompter for PromptBroker {
                     .collect(),
             })
             .await;
-        Ok(many_secrets(answer))
+        Ok(many_secrets(reply.answer))
     }
 }
 
@@ -415,6 +433,7 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
 
+    use engine::Retention;
     use ipc::protocol::{ClientKind, ErrorCode, Hello, Secret};
     use ipc::{Endpoint, EventReceiver, IpcClient};
     use pretty_assertions::assert_eq;
@@ -536,7 +555,7 @@ mod tests {
 
     fn ask_passphrase(
         broker: &Arc<PromptBroker>,
-    ) -> JoinHandle<Result<Option<Zeroizing<String>>, PromptError>> {
+    ) -> JoinHandle<Result<Option<PassphraseAnswer>, PromptError>> {
         let broker = Arc::clone(broker);
         tokio::spawn(async move { broker.passphrase(passphrase_request()).await })
     }
@@ -562,7 +581,47 @@ mod tests {
         CredentialResponseParams {
             prompt_id: prompt_id.to_owned(),
             answer: Some(CredentialAnswer::Single(Secret::new(text.to_owned()))),
+            remember: None,
         }
+    }
+
+    async fn retention_after_answering(remember: Option<RememberDto>) -> Retention {
+        let server = TestServer::start();
+        let mut responder = connect_responder(&server).await;
+        let broker = broker(&server);
+        let asking = ask_passphrase(&broker);
+        let prompt_id = received_prompt_id(&mut responder).await;
+        broker
+            .respond_credential(
+                None,
+                CredentialResponseParams {
+                    remember,
+                    ..answer(&prompt_id, SECRET_TEXT)
+                },
+            )
+            .unwrap();
+        asking.await.unwrap().unwrap().unwrap().retention
+    }
+
+    #[tokio::test]
+    async fn should_not_retain_the_passphrase_when_the_client_does_not_ask_to_remember_it() {
+        assert_eq!(retention_after_answering(None).await, Retention::Never);
+    }
+
+    #[tokio::test]
+    async fn should_retain_the_passphrase_for_the_session_when_the_client_asks_for_it() {
+        assert_eq!(
+            retention_after_answering(Some(RememberDto::Session)).await,
+            Retention::Session
+        );
+    }
+
+    #[tokio::test]
+    async fn should_retain_the_passphrase_in_the_keyring_when_the_client_asks_for_it() {
+        assert_eq!(
+            retention_after_answering(Some(RememberDto::Keyring)).await,
+            Retention::Keyring
+        );
     }
 
     #[tokio::test]
@@ -702,7 +761,7 @@ mod tests {
             .unwrap();
 
         let secret = asking.await.unwrap().unwrap().unwrap();
-        assert_eq!(secret.as_str(), SECRET_TEXT);
+        assert_eq!(secret.passphrase.as_str(), SECRET_TEXT);
     }
 
     #[tokio::test]
@@ -868,7 +927,7 @@ mod tests {
             .unwrap();
 
         let secret = asking.await.unwrap().unwrap().unwrap();
-        assert_eq!(secret.as_str(), SECRET_TEXT);
+        assert_eq!(secret.passphrase.as_str(), SECRET_TEXT);
     }
 
     #[tokio::test]
@@ -902,6 +961,7 @@ mod tests {
                     answer: Some(CredentialAnswer::Multiple(vec![Secret::new(
                         "123456".to_owned(),
                     )])),
+                    remember: None,
                 },
             )
             .unwrap();
@@ -927,6 +987,7 @@ mod tests {
                         Secret::new("a".to_owned()),
                         Secret::new("b".to_owned()),
                     ])),
+                    remember: None,
                 },
             )
             .unwrap();

@@ -204,6 +204,8 @@ impl StuckTunnel {
                 store,
                 port_scanner: Arc::new(FakePortScanner::default()),
                 x11_environment: Arc::new(FakeX11Environment::default()),
+                state_store: Arc::new(support::MemoryStateStore::default()),
+                keyring: None,
             },
             EngineOptions {
                 connect_timeouts: timeouts,

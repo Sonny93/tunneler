@@ -9,7 +9,9 @@ mod error;
 mod events;
 mod handler;
 mod instance;
+mod login_launch;
 mod mapping;
+mod os_keyring;
 mod prompts;
 mod signals;
 #[cfg(test)]
@@ -24,8 +26,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use engine::{
-    ConnectorDependencies, Engine, EngineDependencies, HostConfigResolver, SshConfigResolver,
-    Store, SystemAgentLocator, SystemClock, SystemPortScanner, SystemX11Environment,
+    ConnectorDependencies, Engine, EngineDependencies, FileStateStore, HostConfigResolver,
+    SshConfigResolver, Store, SystemAgentLocator, SystemClock, SystemPortScanner,
+    SystemX11Environment,
 };
 use ipc::Endpoint;
 use ssh_config::{ConfigSources, SystemEnvironment};
@@ -36,6 +39,8 @@ pub use error::DaemonError;
 use events::spawn_event_bridge;
 use handler::DaemonHandler;
 use instance::bind_single_instance;
+use login_launch::{spawn_login_launch_follower, system_login_launch};
+use os_keyring::OsKeyring;
 use prompts::PromptBroker;
 use tray::{TrayService, TrayStatus, TrayStatusCell, spawn_tray_status_publisher};
 use ui::{ProcessUiLauncher, UiCoordinator};
@@ -55,6 +60,8 @@ pub struct DaemonOptions {
     pub endpoint: Endpoint,
     /// The tunnels file.
     pub store_path: PathBuf,
+    /// The file that remembers the running tunnels and the keyring entries.
+    pub state_path: PathBuf,
     /// A user `ssh_config` that replaces the platform's default files, like
     /// `ssh -F`.
     pub ssh_config: Option<PathBuf>,
@@ -92,10 +99,21 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         store,
         port_scanner: Arc::new(SystemPortScanner),
         x11_environment: Arc::new(SystemX11Environment),
+        state_store: Arc::new(FileStateStore::new(options.state_path.clone())),
+        keyring: Some(Arc::new(OsKeyring)),
     })?;
     let bridge = spawn_event_bridge(engine.subscribe(), wire_events.clone());
     let shutdown = CancellationToken::new();
     let quit_requested = CancellationToken::new();
+    let login_launch = spawn_login_launch_follower(
+        engine.subscribe(),
+        {
+            let engine = engine.clone();
+            move || engine.snapshot().settings.launch_at_login
+        },
+        system_login_launch(),
+        shutdown.clone(),
+    );
     let tray_status = Arc::new(TrayStatusCell::new(TrayStatus::Disabled));
     let handler = Arc::new(DaemonHandler::new(
         engine.clone(),
@@ -119,6 +137,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         &shutdown,
     )
     .await;
+    start_launch_tunnels(&engine);
     tracing::info!(
         store = %options.store_path.display(),
         version = env!("CARGO_PKG_VERSION"),
@@ -135,7 +154,13 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
     if let Some(tray) = tray {
         tray.stop().await;
     }
-    for task in [serving, ui_presence, ui_follower, status_publisher] {
+    for task in [
+        serving,
+        ui_presence,
+        ui_follower,
+        status_publisher,
+        login_launch,
+    ] {
         if let Err(error) = task.await {
             tracing::warn!(%error, "a daemon task ended abnormally");
         }
@@ -165,6 +190,17 @@ async fn start_tray_service(
         )
         .await,
     )
+}
+
+fn start_launch_tunnels(engine: &Engine) {
+    match engine.start_launch_tunnels() {
+        Ok(started) if started.is_empty() => tracing::info!("no tunnel to start at launch"),
+        Ok(started) => {
+            let ids: Vec<String> = started.iter().map(ToString::to_string).collect();
+            tracing::info!(tunnels = ?ids, "starting the tunnels selected for the launch");
+        }
+        Err(error) => tracing::warn!(%error, "cannot start the tunnels selected for the launch"),
+    }
 }
 
 fn open_ui(ui: &UiCoordinator) {

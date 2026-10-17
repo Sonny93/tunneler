@@ -16,6 +16,7 @@ mod file;
 mod format;
 mod migration;
 mod model;
+mod state;
 #[cfg(test)]
 pub(crate) mod test_support;
 mod validation;
@@ -28,5 +29,6 @@ pub use model::{
     HostOverrides, InvalidTunnelId, Settings, StoreDocument, TunnelDefinition, TunnelId,
     TunnelKind, X11Launcher,
 };
+pub use state::{AppState, FileStateStore, StateStore, default_state_path};
 pub use validation::{TagProblem, TunnelReference, ValidationError};
 pub use watch::{StoreEvent, StoreWatcher};

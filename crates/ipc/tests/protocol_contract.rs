@@ -3,17 +3,17 @@
 use ipc::protocol::{
     AdoptResult, ClientKind, ConfigInvalidEvent, CredentialAnswer, CredentialRequestDto,
     CredentialRequestEvent, CredentialResponseParams, ErrorCode, EventMessage, ExternalForwardDto,
-    ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto, Hello, HostKeyAlertReasonDto,
-    HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, HostOptionDto, HostParams,
-    HostsResult, ImportCandidateDto, ImportPreviewDto, ImportScriptParams, ImportWarningDto,
-    IpcError, LogEntryDto, LogLevelDto, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES,
-    MetricsDto, PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent,
-    QuitParams, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload, Secret, ServerFrame,
-    SettingsDto, SnapshotDto, TagParams, TargetHealthDto, TrayChangedEvent, TrayStatusDto,
-    TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto,
-    TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
-    X11ChangedEvent, X11HostParams, X11LaunchParams, X11LauncherDto, X11StateDto, encode_event,
-    encode_response,
+    ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto, ForgetSecretsResult, Hello,
+    HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams,
+    HostOptionDto, HostParams, HostsResult, ImportCandidateDto, ImportPreviewDto,
+    ImportScriptParams, ImportWarningDto, IpcError, LogEntryDto, LogLevelDto,
+    MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, PROTOCOL_VERSION,
+    PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent, QuitParams, RememberDto, Request,
+    RequestEnvelope, ResolvedHostDto, ResponsePayload, Secret, ServerFrame, SettingsDto,
+    SnapshotDto, TagParams, TargetHealthDto, TrayChangedEvent, TrayStatusDto, TunnelChangedEvent,
+    TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto, TunnelLogEvent,
+    TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11ChangedEvent,
+    X11HostParams, X11LaunchParams, X11LauncherDto, X11StateDto, encode_event, encode_response,
 };
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -53,6 +53,7 @@ fn settings() -> SettingsDto {
         restore_on_launch: true,
         start_on_launch_tags: vec!["dev".to_owned()],
         launch_at_login: false,
+        use_os_keyring: false,
         x11_display: None,
     }
 }
@@ -170,6 +171,7 @@ fn every_request() -> Vec<Request> {
         Request::CredentialRespond(CredentialResponseParams {
             prompt_id: "p1".to_owned(),
             answer: Some(CredentialAnswer::Single(Secret::new("hunter2".to_owned()))),
+            remember: None,
         }),
         Request::HostKeyRespond(HostKeyResponseParams {
             prompt_id: "p2".to_owned(),
@@ -185,6 +187,7 @@ fn every_request() -> Vec<Request> {
         Request::X11Start(x11_host()),
         Request::X11Stop(x11_host()),
         Request::X11Launch(x11_launch()),
+        Request::SecretsForget {},
     ]
 }
 
@@ -558,6 +561,7 @@ fn should_serialize_a_credential_answer_as_a_plain_string() {
         request: Request::CredentialRespond(CredentialResponseParams {
             prompt_id: "p1".to_owned(),
             answer: Some(CredentialAnswer::Single(Secret::new("hunter2".to_owned()))),
+            remember: None,
         }),
     };
 
@@ -565,6 +569,98 @@ fn should_serialize_a_credential_answer_as_a_plain_string() {
         serde_json::to_string(&envelope).unwrap(),
         r#"{"id":3,"method":"credential.respond","params":{"promptId":"p1","answer":"hunter2"}}"#
     );
+}
+
+fn credential_response_line(remember_member: &str) -> String {
+    format!(
+        r#"{{"id":3,"method":"credential.respond","params":{{"promptId":"p1","answer":"hunter2"{remember_member}}}}}"#
+    )
+}
+
+fn remembered_as(remember_member: &str) -> Option<RememberDto> {
+    let line = credential_response_line(remember_member);
+    let Request::CredentialRespond(params) =
+        RequestEnvelope::parse(line.as_bytes()).unwrap().request
+    else {
+        panic!("not a credential response");
+    };
+    params.remember
+}
+
+#[test]
+fn should_serialize_the_remember_choice_when_a_passphrase_is_kept() {
+    let envelope = RequestEnvelope {
+        id: 3,
+        request: Request::CredentialRespond(CredentialResponseParams {
+            prompt_id: "p1".to_owned(),
+            answer: Some(CredentialAnswer::Single(Secret::new("hunter2".to_owned()))),
+            remember: Some(RememberDto::Session),
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        credential_response_line(r#","remember":"session""#)
+    );
+}
+
+#[test]
+fn should_deserialize_the_session_remember_choice() {
+    assert_eq!(
+        remembered_as(r#","remember":"session""#),
+        Some(RememberDto::Session)
+    );
+}
+
+#[test]
+fn should_deserialize_the_keyring_remember_choice() {
+    assert_eq!(
+        remembered_as(r#","remember":"keyring""#),
+        Some(RememberDto::Keyring)
+    );
+}
+
+#[test]
+fn should_not_remember_when_the_remember_choice_is_absent() {
+    assert_eq!(remembered_as(""), None);
+}
+
+#[test]
+fn should_not_remember_when_the_remember_choice_is_null() {
+    assert_eq!(remembered_as(r#","remember":null"#), None);
+}
+
+#[test]
+fn should_reject_an_unknown_remember_choice() {
+    let line = credential_response_line(r#","remember":"forever""#);
+
+    let rejection = RequestEnvelope::parse(line.as_bytes()).unwrap_err();
+
+    assert_eq!(rejection.error.code, ErrorCode::InvalidRequest);
+}
+
+#[test]
+fn should_serialize_the_secrets_forget_request_as_documented() {
+    assert_eq!(
+        to_json(&Request::SecretsForget {}),
+        json!({"method":"secrets.forget","params":{}})
+    );
+}
+
+#[test]
+fn should_accept_secrets_forget_without_params() {
+    let envelope = RequestEnvelope::parse(br#"{"id":5,"method":"secrets.forget"}"#).unwrap();
+
+    assert_eq!(envelope.request, Request::SecretsForget {});
+}
+
+#[test]
+fn should_serialize_a_forget_secrets_response_as_documented() {
+    let result = ForgetSecretsResult { forgotten_count: 2 };
+
+    let line = encode_response(Some(6), &Ok(ResponsePayload::ForgetSecrets(result))).unwrap();
+
+    assert_eq!(line, "{\"id\":6,\"result\":{\"forgottenCount\":2}}\n");
 }
 
 #[test]
@@ -576,7 +672,8 @@ fn should_deserialize_a_cancelled_credential_answer_as_none() {
         RequestEnvelope::parse(line).unwrap().request,
         Request::CredentialRespond(CredentialResponseParams {
             prompt_id: "p1".to_owned(),
-            answer: None
+            answer: None,
+            remember: None,
         })
     );
 }
@@ -604,6 +701,7 @@ fn should_not_leak_a_secret_when_a_request_is_formatted_with_debug() {
     let request = Request::CredentialRespond(CredentialResponseParams {
         prompt_id: "p1".to_owned(),
         answer: Some(CredentialAnswer::Single(Secret::new("hunter2".to_owned()))),
+        remember: None,
     });
 
     assert!(!format!("{request:?}").contains("hunter2"));
@@ -629,7 +727,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000}}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"healthProbe":true,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[]}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"healthProbe":true,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[]}}"#,
             "\n"
         )
     );
@@ -994,8 +1092,8 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_twenty_six_methods() {
-    assert_eq!(METHOD_NAMES.len(), 26);
+fn should_list_twenty_seven_methods() {
+    assert_eq!(METHOD_NAMES.len(), 27);
 }
 
 #[test]
