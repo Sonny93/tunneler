@@ -208,12 +208,12 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 - **Style** : sombre/clair selon le système (`useThemeStore` / `ThemeToggle` de la lib), dense et calme (esprit Linear/Raycast), composants `@minimalstuff/ui` + utilitaires UnoCSS, police système + mono pour les ports.
 - **Composants absents de la lib, construits dans l'app** : drawer (panneau latéral), toasts + annonceur `aria-live`, palette de commandes, liste de tunnels navigable (roving tabindex), badge d'état icône + texte. Ceux qui sont génériques (drawer, toasts, palette) sont candidats à remonter dans `@minimalstuff/ui` une fois stabilisés.
 - **Layout** : sidebar (tags avec toggle d'ensemble + compteur actifs/total, hosts, « Externes »), liste principale groupée par host, une ligne par tunnel : switch, nom, `3333 → nova:3333`, badge d'état, pastille de santé, mini-métriques.
-- **Panneau détail** (drawer) : édition, logs live, métriques, actions (restart, ouvrir dans le navigateur, copier `-L` équivalent).
+- **Panneau détail** (drawer « Détails », séparé du drawer d'édition) : état, logs live, métriques, actions (restart, modifier, ouvrir dans le navigateur, copier la commande `ssh` équivalente).
 - **Création rapide** : formulaire minimal (host, port) ; le port cible suit le port d'écoute tant qu'il n'est pas modifié ; bind pré-rempli par le défaut, surchargeable.
 - **Palette de commandes** `Ctrl+K` (motif combobox + listbox, raccourcis via `useGlobalHotkeysStore`) : démarrer/arrêter tunnel ou tag, ouvrir, créer.
 - **Prompts modaux** : passphrase/mot de passe, clé d'hôte inconnue, confirmation de sortie.
 - **Tray** : icône selon l'état global (gris = rien, vert = actifs OK, orange = reconnexion/cible down, rouge = erreur) — chaque état a aussi une **forme/pictogramme distinct** et un tooltip textuel (« 3 tunnels actifs, 1 en reconnexion »). Menu : tags (toggle), *Ouvrir Tunneler*, *Quitter*.
-- **Ouvrir dans le navigateur** : clic sur le port → `http://localhost:<port>`.
+- **Ouvrir dans le navigateur** : `http://localhost:<port>` pour un tunnel local actif, depuis le menu de ligne, le panneau détail ou la palette (pas de clic sur le port : la liste garde un arrêt de tabulation par contrôle). L'URL est construite côté natif, limitée aux adresses locales/IP.
 
 ---
 

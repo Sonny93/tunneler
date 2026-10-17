@@ -315,14 +315,37 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows) et tests verts (1845 tests Rust ×2, 716 tests front).
 
-## Phase 11 — Confort
-- [ ] 11.1 Import des `LocalForward`/`RemoteForward`/`DynamicForward` de `~/.ssh/config`
-- [ ] 11.2 Import par collage (script PS, liste de ports, specs `-L a:b:c`)
-- [ ] 11.3 Palette de commandes `Ctrl+K`
-- [ ] 11.4 Panneau logs live + métriques dans le drawer
-- [ ] 11.5 Ouvrir dans le navigateur, copier la commande `ssh` équivalente
-- [ ] 11.6 Vue « config résolue » d'un host (équivalent `ssh -G`)
-- [ ] 11.7 Authentification bloquée : délai sur les étapes non humaines (connexion, signature par l'agent SSH), jamais sur une saisie de passphrase/mot de passe ; échec explicite (« l'agent SSH ne répond pas ») au lieu d'un « Démarrage… » sans fin ; arrêt possible pendant le démarrage. Vu en 6.14 avec un agent transféré qui attend une confirmation.
+## Phase 11 — Confort ✔ (rendu réel dans une webview non vérifié)
+- [x] 11.1 Import des `LocalForward`/`RemoteForward`/`DynamicForward` de `~/.ssh/config`
+  - `engine::import::preview_ssh_config` : forwards résolus de chaque alias concret (`list_hosts`), forwards de `Host *` donc répétés par alias (signalés en doublon par l'UI). Socket Unix et `RemoteForward` sans cible (SOCKS distant) → avertissement `unsupportedForward` ; alias illisible → `hostResolutionFailed`.
+- [x] 11.2 Import par collage (script PS, liste de ports, specs `-L a:b:c`)
+  - `engine::import::preview_script`, parser maison sans dépendance : commentaires PS `<# … #>` et `#`, continuations (backtick, `\`), tableaux `@( … )` (virgules optionnelles) / `name=( … )` / lignes de ports, specs `-L/-R/-D` partout (y compris dans des chaînes), modèles à variable (`-L ${_}:127.0.0.1:${_}`) appliqués à la liste de ports, lignes `a:b:c` nues. Le commentaire d'un port devient le nom proposé. Toutes les specs passent par les parsers `ssh-config` (avertissement `malformedForward` si illisible) ; `parse_ssh_command_line` ne sert qu'à la destination (variables/splats `@forwards` ignorés).
+  - Destination → alias : alias identique, sinon premier alias dont `hostname` (+ `user`/`port` si donnés, `-l`/`-p` compris) correspond ; sinon `unknownDestination` et l'UI demande l'hôte. `SshInvocation.destination` devient `SshDestination { user, host, port }`. Script PowerShell d'origine en test (8 tunnels locaux nommés d'après les commentaires).
+  - Sur ce poste `nova` n'a pas de `HostName` (résolu par DNS) : le script d'origine (`jules@198.51.100.157`) y donne l'avertissement « aucun alias » et l'hôte se choisit dans l'UI.
+  - Protocole (additif, version inchangée) : `import.ssh_config`, `import.script { text }` (≤ 256 Kio, sinon `invalid_request`) → `ImportPreviewDto { candidates, warnings }`. L'aperçu ne crée rien.
+  - UI : tiroir « Importer des tunnels » (bouton d'en-tête, raccourci `i`, palette), onglets « Coller un script » / « Depuis ~/.ssh/config », aperçu avec cases à cocher, noms proposés uniques, conflits détectés côté UI (déjà configuré, port déjà utilisé, doublon dans l'import → décochés par défaut), hôte par défaut pour les candidats sans destination, tags communs. Création séquentielle par `tunnel.create` (pas de méthode groupée) : les échecs restent listés dans le tiroir, le daemon reste l'arbitre.
+  - Non fait : `$env:DISPLAY` du script n'est pas repris en `hosts.<alias>.x11_display` ; pas de sous-commande CLI d'import.
+- [x] 11.3 Palette de commandes `Ctrl+K`
+  - Construite dans l'app (le `Combobox` de la lib est un select) : `Modal` de la lib + motif combobox/listbox (`aria-activedescendant`), filtre insensible à la casse et aux accents (tous les mots), 50 résultats max, compteur annoncé. Commandes générales, par tunnel (démarrer/arrêter, détails, modifier, navigateur), par tag, par hôte (config résolue, X11). `Ctrl+K`/`Meta+K` même depuis un champ, jamais par-dessus une modale ; bouton d'en-tête avec `aria-keyshortcuts`.
+- [x] 11.4 Panneau logs live + métriques dans le drawer
+  - Nouveau tiroir « Tunnel <nom> » (entrée « Détails » du menu de ligne, palette) : état + santé, métriques live, actions, journal (`tunnel.logs` puis événements `tunnel.log`, 500 entrées max, `role="log"` en `aria-live="off"` car les changements d'état sont déjà annoncés, messages moteur en `lang="en"`, défilement collé au bas sauf si l'utilisateur remonte). L'édition reste un tiroir séparé.
+  - Le moteur journalise désormais l'échec définitif d'une connexion (« cannot connect: … »).
+- [x] 11.5 Ouvrir dans le navigateur, copier la commande `ssh` équivalente
+  - **Écart PLAN §7** : pas de clic sur le port dans la ligne (évite un arrêt de tabulation de plus dans la liste à tabindex itinérant) ; « Ouvrir dans le navigateur » est dans le menu de ligne, le tiroir de détails et la palette (tunnels locaux, actifs).
+  - Commande Tauri `open_in_browser { host, port }` : URL construite côté natif, hôte limité à `localhost` ou une IP littérale (`invalid_target` sinon), `tauri-plugin-opener` utilisé depuis Rust seulement (aucune permission d'ouverture d'URL donnée à la webview). Adresse d'écoute joker → `localhost`.
+  - Commande copiée : `ssh -N -L [addr:]port:cible:port hôte` (`-R`/`-D` selon le type), adresse de bind seulement si le tunnel en fixe une.
+- [x] 11.6 Vue « config résolue » d'un host (équivalent `ssh -G`)
+  - Rendu `ssh -G` sorti des tests différentiels vers `ssh-config` (`ResolvedConfig::ssh_g_options`, directives non modélisées en fin de liste) ; le test différentiel l'utilise. `HostConfigResolver::resolve_with_warnings` (implémentation par défaut sans avertissement).
+  - Protocole : `hosts.resolve { host }` → `{ host, options: [{ key, value }], warnings }` (avertissements en anglais, affichés en `lang="en"`).
+  - UI : bouton « Configuration de <hôte> » dans l'en-tête de chaque groupe + palette (tous les alias, y compris ceux sans tunnel) ; tableau filtrable, compteur annoncé, copie, avertissements.
+- [x] 11.7 Authentification bloquée : délai sur les étapes non humaines (connexion, signature par l'agent SSH), jamais sur une saisie de passphrase/mot de passe ; échec explicite (« l'agent SSH ne répond pas ») au lieu d'un « Démarrage… » sans fin ; arrêt possible pendant le démarrage. Vu en 6.14 avec un agent transféré qui attend une confirmation.
+  - `ConnectTimeouts { connect, authentication_step, agent_response }`, 30 s chacun (constantes, injectables pour les tests, pas de réglage utilisateur). `connect` sert de `ConnectTimeout` quand l'hôte n'en fixe pas (TCP, handshake, ProxyCommand, sauts).
+  - `bounded` + `DeadlinePause` (généralise le mécanisme du handshake) : l'horloge s'arrête pendant toute question à l'utilisateur (`PausingPrompter`) et repart pleine ensuite. Authentification sans réponse du serveur → `AuthenticationTimeout`, relancée (réseau).
+  - Agent : connexion, `request_identities` et chaque signature (`BoundedAgentSigner`, seule la réponse de l'agent est bornée) → `AgentUnresponsive`, **jamais relancé** (une relance redemanderait une confirmation). Nouveau `FailureReason::AgentUnresponsive` / DTO `{ kind: "agentUnresponsive", timeoutMs }` ; UI « L'agent SSH ne répond pas (aucune réponse en 30 s) : attend-il une confirmation ? », CLI idem en anglais. Les étapes de l'agent suspendent aussi l'horloge d'authentification (sinon le délai d'authentification, relancé, partirait avant celui de l'agent).
+  - Arrêt pendant `Starting` : déjà possible côté tunnel ; en plus, la tentative de connexion partagée du `SessionManager` est abandonnée quand plus personne ne l'attend (tunnels et ancres X11), et une invite en attente est retirée (`prompt.resolved`) quand sa tâche est abandonnée (garde au drop dans le daemon).
+  - 8 tests d'intégration (agent muet, serveur muet, mot de passe saisi après le délai, arrêt pendant le démarrage, nouvelle tentative), 5 runs consécutifs verts.
+
+**Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows) et tests verts (1972 tests Rust, 926 tests front). Rien d'exécuté dans une vraie webview (tiroirs, palette, ouverture du navigateur), ni sous Windows.
 
 ## Phase 12 — Démarrage & secrets
 - [ ] 12.1 Lancement au login (registre `Run` Windows, XDG autostart Linux)
