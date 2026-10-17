@@ -20,6 +20,15 @@
 //! [`TunnelState::Conflict`], and the other `ssh` forwards are listed in
 //! [`EngineSnapshot::externals`].
 //!
+//! [`Engine::start_x11`] keeps an X11 anchor per host: a session channel that
+//! asks the server for X11 forwarding with a throwaway cookie and reports the
+//! remote `DISPLAY`. The X11 channels the server then opens reach the local X
+//! server, found through the `x11_display` setting, the per-host override or
+//! `$DISPLAY`; the throwaway cookie of the X client's setup packet is swapped
+//! for the real one read from the `Xauthority` file, so no `xauth` binary is
+//! needed. [`Engine::launch_x11`] runs a saved command in such a session. The
+//! local display and the files are reached through an [`X11Environment`].
+//!
 //! The engine depends on those abstractions only, never on IPC or a UI.
 //!
 //! # Known gaps
@@ -54,6 +63,7 @@ mod runtime;
 mod session;
 mod store;
 mod transport;
+mod x11;
 
 pub use agent::{AgentEndpoint, AgentLocator, SystemAgentLocator};
 pub use authentication::AuthenticationMethod;
@@ -76,7 +86,7 @@ pub use prompter::{
 pub use runtime::{
     Engine, EngineDependencies, EngineError, EngineEvent, EngineOptions, EngineSnapshot,
     FailureReason, LogLevel, NewTunnel, TargetHealth, TunnelLogEntry, TunnelMetrics,
-    TunnelSnapshot, TunnelState, TunnelStatus,
+    TunnelSnapshot, TunnelState, TunnelStatus, X11AnchorSnapshot, X11AnchorState,
 };
 pub use session::SshSession;
 pub use store::{
@@ -84,3 +94,4 @@ pub use store::{
     StoreError, StoreEvent, StoreWatcher, TagProblem, TunnelDefinition, TunnelId, TunnelKind,
     TunnelReference, ValidationError, X11Launcher, default_store_path,
 };
+pub use x11::{DisplayPlatform, SystemX11Environment, X11Environment, X11Error};

@@ -11,6 +11,7 @@ export type SettingsFieldSpec = {
 	label: string;
 	hint?: string;
 	inputMode?: 'decimal' | 'numeric';
+	isOptional?: boolean;
 };
 
 export type SettingsSectionSpec = {
@@ -67,6 +68,17 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
 				field: 'reconnectMaxDelaySeconds',
 				label: 'Délai maximal de reconnexion (secondes)',
 				inputMode: 'decimal',
+			},
+		],
+	},
+	{
+		legend: 'X11',
+		fields: [
+			{
+				field: 'x11Display',
+				label: 'Display X11 local',
+				hint: 'Vide : variable DISPLAY (127.0.0.1:0.0 sous Windows)',
+				isOptional: true,
 			},
 		],
 	},

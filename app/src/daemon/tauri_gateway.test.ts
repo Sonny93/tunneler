@@ -45,6 +45,14 @@ describe('createTauriGateway', () => {
 		['restartTunnel', ['1'], 'restart_tunnel', { id: '1' }],
 		['startTag', ['dev'], 'start_tag', { tag: 'dev' }],
 		['stopTag', ['dev'], 'stop_tag', { tag: 'dev' }],
+		['startX11', ['nova'], 'start_x11', { host: 'nova' }],
+		['stopX11', ['nova'], 'stop_x11', { host: 'nova' }],
+		[
+			'launchX11',
+			['nova', 'VS Code'],
+			'launch_x11',
+			{ host: 'nova', name: 'VS Code' },
+		],
 		['updateSettings', [{ a: 1 }], 'update_settings', { settings: { a: 1 } }],
 		[
 			'respondCredential',

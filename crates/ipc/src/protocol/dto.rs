@@ -301,6 +301,60 @@ pub struct ExternalProcessDto {
     pub forwards: Vec<ExternalForwardDto>,
 }
 
+/// Where the X11 anchor of a host is in its life.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum X11StateDto {
+    /// Not running.
+    Stopped,
+    /// Connecting.
+    Starting,
+    /// Forwarding X11.
+    Active {
+        /// The remote `DISPLAY` other remote sessions can use.
+        display: String,
+    },
+    /// The session was lost; trying again.
+    Reconnecting {
+        /// The number of the upcoming attempt, starting at 1.
+        attempt: u32,
+        /// When the next attempt is due.
+        next_retry_at: EpochMillis,
+    },
+    /// Gave up.
+    Failed {
+        /// Why.
+        message: String,
+    },
+}
+
+/// The X11 anchor of a host alias: a session with X11 forwarding whose remote
+/// `DISPLAY` other remote sessions can use.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct X11AnchorDto {
+    /// The `ssh_config` alias.
+    pub host: String,
+    /// Where the anchor is in its life.
+    pub state: X11StateDto,
+}
+
+/// A saved command run with X11 on a host.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct X11LauncherDto {
+    /// The `ssh_config` alias the command runs on.
+    pub host: String,
+    /// Unique, human-readable name.
+    pub name: String,
+    /// The command line.
+    pub command: String,
+}
+
 /// Everything a client needs to draw its first screen.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -315,6 +369,12 @@ pub struct SnapshotDto {
     /// The ssh processes with forwards that match no configured tunnel.
     #[serde(default)]
     pub externals: Vec<ExternalProcessDto>,
+    /// The X11 anchors that are not stopped.
+    #[serde(default)]
+    pub x11_anchors: Vec<X11AnchorDto>,
+    /// The saved X11 launchers.
+    #[serde(default)]
+    pub x11_launchers: Vec<X11LauncherDto>,
 }
 
 /// One question of a keyboard-interactive exchange.

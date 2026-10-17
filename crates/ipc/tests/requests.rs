@@ -10,7 +10,10 @@ use ipc::ClientError;
 use ipc::protocol::{ClientKind, ErrorCode, MAX_LINE_BYTES};
 use pretty_assertions::assert_eq;
 use serde_json::json;
-use support::{MISSING_TUNNEL_ID, SLOW_DELAY, SLOW_TUNNEL_ID, TestDaemon, UNKILLABLE_PID};
+use support::{
+    MISSING_LAUNCHER_NAME, MISSING_TUNNEL_ID, SLOW_DELAY, SLOW_TUNNEL_ID, TestDaemon,
+    UNKILLABLE_PID,
+};
 use tokio::task::JoinSet;
 
 const CONCURRENT_CALLS: u32 = 50;
@@ -73,6 +76,49 @@ async fn should_return_unit_when_an_external_process_is_ignored() {
     let client = daemon.connect(ClientKind::Ui, false).await;
 
     assert!(client.ignore_external(4242).await.is_ok());
+}
+
+#[tokio::test]
+async fn should_return_unit_when_an_x11_anchor_is_started() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    assert!(client.start_x11("nova").await.is_ok());
+}
+
+#[tokio::test]
+async fn should_return_unit_when_an_x11_anchor_is_stopped() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    assert!(client.stop_x11("nova").await.is_ok());
+}
+
+#[tokio::test]
+async fn should_return_unit_when_an_x11_launcher_runs() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    assert!(client.launch_x11("nova", "xterm").await.is_ok());
+}
+
+#[tokio::test]
+async fn should_fail_with_not_found_when_the_x11_launcher_is_unknown() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let error = client
+        .launch_x11("nova", MISSING_LAUNCHER_NAME)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(
+        error,
+        ClientError::Remote {
+            code: ErrorCode::NotFound,
+            ..
+        }
+    ));
 }
 
 #[tokio::test]

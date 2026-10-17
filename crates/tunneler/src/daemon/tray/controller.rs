@@ -28,8 +28,8 @@ pub(crate) trait TunnelControl: Send + Sync + 'static {
     fn start_tag(&self, tag: &str) -> Result<(), EngineError>;
     /// Stops every tunnel of a tag.
     fn stop_tag(&self, tag: &str) -> Result<(), EngineError>;
-    /// How many tunnels hold resources.
-    fn active_tunnel_count(&self) -> usize;
+    /// How many tunnels and X11 anchors hold resources.
+    fn active_count(&self) -> usize;
 }
 
 impl TunnelControl for Engine {
@@ -49,8 +49,8 @@ impl TunnelControl for Engine {
         Engine::stop_tag(self, tag).map(|_| ())
     }
 
-    fn active_tunnel_count(&self) -> usize {
-        Engine::active_tunnel_count(self)
+    fn active_count(&self) -> usize {
+        Engine::active_tunnel_count(self) + Engine::active_x11_count(self)
     }
 }
 
@@ -218,7 +218,7 @@ impl TrayController {
     }
 
     fn quit(&self) {
-        if self.engine.active_tunnel_count() == 0 {
+        if self.engine.active_count() == 0 {
             self.quit_requested.cancel();
             return;
         }
@@ -306,6 +306,8 @@ mod tests {
                 tunnels: self.tunnels.lock().unwrap().clone(),
                 settings: Settings::default(),
                 externals: Vec::new(),
+                x11_anchors: Vec::new(),
+                x11_launchers: Vec::new(),
             }
         }
 
@@ -323,7 +325,7 @@ mod tests {
             Ok(())
         }
 
-        fn active_tunnel_count(&self) -> usize {
+        fn active_count(&self) -> usize {
             self.active_tunnels.load(Ordering::SeqCst)
         }
     }

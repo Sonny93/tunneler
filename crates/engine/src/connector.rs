@@ -27,6 +27,7 @@ use crate::remote_forwards::RemoteForwardRegistry;
 use crate::session::SshSession;
 use crate::store::Settings;
 use crate::transport::{BoxedTransport, open_transport};
+use crate::x11::X11Router;
 
 type ConnectFuture<'a> =
     Pin<Box<dyn Future<Output = Result<SshSession, ConnectError>> + Send + 'a>>;
@@ -179,10 +180,16 @@ impl Connector {
         };
         let (closed_signal, closed) = watch::channel(false);
         let remote_forwards = Arc::new(RemoteForwardRegistry::default());
+        let x11 = Arc::new(X11Router::default());
         let mut handle = perform_handshake(
             client_config,
             transport,
-            ClientHandler::new(checker, closed_signal, Arc::clone(&remote_forwards)),
+            ClientHandler::new(
+                checker,
+                closed_signal,
+                Arc::clone(&remote_forwards),
+                Arc::clone(&x11),
+            ),
             &state,
             resolved.connect_timeout,
         )
@@ -197,6 +204,7 @@ impl Connector {
             handle,
             closed,
             remote_forwards,
+            x11,
             jumps,
         ))
     }

@@ -17,7 +17,13 @@ use crate::runtime::port_watch::{PortWatch, run_scan_loop};
 use crate::runtime::reload::run_reload_loop;
 use crate::runtime::session_manager::SessionManager;
 use crate::runtime::tunnel_actor::TunnelCommand;
-use crate::store::{Settings, Store, StoreError, TunnelDefinition, TunnelId, TunnelKind};
+use crate::runtime::x11_anchors::X11Anchors;
+use crate::runtime::x11_launcher::X11Launches;
+use crate::runtime::x11_state::X11AnchorSnapshot;
+use crate::store::{
+    Settings, Store, StoreError, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
+};
+use crate::x11::{LocalX11Resolver, X11Environment, X11Error};
 
 /// Why an engine operation failed.
 #[derive(Debug, Error)]
@@ -49,6 +55,17 @@ pub enum EngineError {
     /// The listening ports could not be scanned.
     #[error(transparent)]
     PortScan(#[from] ScanError),
+    /// The host has no X11 launcher with this name.
+    #[error("host {host} has no X11 launcher named \"{name}\"")]
+    UnknownLauncher {
+        /// The host alias.
+        host: String,
+        /// The launcher name.
+        name: String,
+    },
+    /// X11 forwarding could not be set up.
+    #[error(transparent)]
+    X11(#[from] X11Error),
 }
 
 /// What the engine is built from.
@@ -62,6 +79,10 @@ pub struct EngineDependencies {
     pub store: Store,
     /// Where the listening ports and their processes are read from.
     pub port_scanner: Arc<dyn PortScanner>,
+    /// Where the local X display and its credentials are read from. Kept
+    /// apart from the SSH configuration environment: it reads `$DISPLAY`,
+    /// `$XAUTHORITY` and the `Xauthority` location, nothing else.
+    pub x11_environment: Arc<dyn X11Environment>,
 }
 
 /// A tunnel to create; the engine generates its id.
@@ -110,6 +131,10 @@ pub struct EngineSnapshot {
     pub settings: Settings,
     /// The `ssh` processes forwarding ports that match no configured tunnel.
     pub externals: Vec<UnmanagedProcess>,
+    /// The X11 anchors that are not stopped, sorted by host.
+    pub x11_anchors: Vec<X11AnchorSnapshot>,
+    /// The saved X11 launchers.
+    pub x11_launchers: Vec<X11Launcher>,
 }
 
 pub(crate) struct EngineInner {
@@ -120,6 +145,8 @@ pub(crate) struct EngineInner {
     probing: watch::Sender<bool>,
     scanning: watch::Sender<bool>,
     pub(crate) port_watch: Arc<PortWatch>,
+    x11_anchors: X11Anchors,
+    x11_launches: X11Launches,
     catalog: Mutex<Catalog>,
     pub(crate) mutation: tokio::sync::Mutex<()>,
     reload_task: Mutex<Option<JoinHandle<()>>>,
@@ -173,6 +200,7 @@ impl Engine {
             clock,
             store,
             port_scanner,
+            x11_environment,
         } = dependencies;
         let store = Arc::new(store);
         if store.has_pending_normalization() {
@@ -190,6 +218,19 @@ impl Engine {
             Connector::with_settings(connector, settings.clone()),
             settings.clone(),
         );
+        let x11_resolver = Arc::new(LocalX11Resolver::new(
+            Arc::clone(&store),
+            settings.clone(),
+            x11_environment,
+        ));
+        let x11_anchors = X11Anchors::new(
+            bus.clone(),
+            Arc::clone(&clock),
+            sessions.clone(),
+            Arc::clone(&x11_resolver),
+            settings.clone(),
+        );
+        let x11_launches = X11Launches::new(sessions.clone(), x11_resolver);
         let factory = TunnelFactory {
             bus: bus.clone(),
             clock,
@@ -207,6 +248,8 @@ impl Engine {
             probing: probing_sender,
             scanning: scanning_sender,
             port_watch,
+            x11_anchors,
+            x11_launches,
             catalog: Mutex::new(Catalog::new(factory, document.tunnels)),
             mutation: tokio::sync::Mutex::new(()),
             reload_task: Mutex::new(None),
@@ -236,6 +279,8 @@ impl Engine {
             tunnels: self.inner.catalog().snapshots(),
             settings: self.inner.settings.borrow().clone(),
             externals: self.inner.port_watch.externals(),
+            x11_anchors: self.inner.x11_anchors.snapshots(),
+            x11_launchers: self.inner.store.document().x11_launchers,
         }
     }
 
@@ -399,6 +444,46 @@ impl Engine {
         self.inner.catalog().active_count()
     }
 
+    /// Starts the X11 anchor of the host: a session channel that asks the
+    /// server for X11 forwarding and reports the remote `DISPLAY`. Does
+    /// nothing when it already runs.
+    pub fn start_x11(&self, host: &str) -> Result<(), EngineError> {
+        self.ensure_running()?;
+        self.inner.x11_anchors.start(host);
+        Ok(())
+    }
+
+    /// Stops the X11 anchor of the host. Does nothing when it is stopped.
+    pub fn stop_x11(&self, host: &str) -> Result<(), EngineError> {
+        self.ensure_running()?;
+        self.inner.x11_anchors.stop(host);
+        Ok(())
+    }
+
+    /// Runs the saved X11 launcher `name` of the host in a session with X11
+    /// forwarding, and returns once the server accepted the command. It does
+    /// not need the anchor of the host.
+    pub async fn launch_x11(&self, host: &str, name: &str) -> Result<(), EngineError> {
+        self.ensure_running()?;
+        let launcher = self
+            .inner
+            .store
+            .document()
+            .x11_launchers
+            .into_iter()
+            .find(|launcher| launcher.host == host && launcher.name == name)
+            .ok_or_else(|| EngineError::UnknownLauncher {
+                host: host.to_owned(),
+                name: name.to_owned(),
+            })?;
+        Ok(self.inner.x11_launches.launch(launcher).await?)
+    }
+
+    /// How many X11 anchors hold resources: starting, active or reconnecting.
+    pub fn active_x11_count(&self) -> usize {
+        self.inner.x11_anchors.active_count()
+    }
+
     /// Stops every tunnel, closes every session and waits for the tasks to
     /// end. The engine accepts no further changes.
     pub async fn shutdown(&self) {
@@ -423,7 +508,10 @@ impl Engine {
         }
         let _serialized = self.inner.mutation.lock().await;
         let stopping = self.inner.catalog().terminate_all();
-        for task in stopping {
+        for task in stopping
+            .into_iter()
+            .chain(self.inner.x11_anchors.terminate_all())
+        {
             let _ = task.await;
         }
         self.inner.sessions.shutdown().await;

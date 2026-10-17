@@ -6,6 +6,7 @@ import {
 	buildExternalProcess,
 	buildMetrics,
 	buildTunnel,
+	buildX11Anchor,
 } from '#/testing/factories';
 
 const stateWithTunnels = (...tunnels: DaemonState['tunnels'][number][]) => ({
@@ -269,5 +270,50 @@ describe('reduceDaemonEvent', () => {
 		});
 
 		expect(next.isQuitRequested).toBe(true);
+	});
+
+	it('should add the anchor of a host on x11.changed', () => {
+		const next = reduceDaemonEvent(INITIAL_DAEMON_STATE, {
+			event: 'x11.changed',
+			data: { host: 'nova', state: { kind: 'starting' } },
+		});
+
+		expect(next.x11Anchors).toEqual([
+			{ host: 'nova', state: { kind: 'starting' } },
+		]);
+	});
+
+	it('should replace the anchor of the same host on x11.changed', () => {
+		const state = {
+			...INITIAL_DAEMON_STATE,
+			x11Anchors: [
+				buildX11Anchor({ host: 'other' }),
+				buildX11Anchor({ state: { kind: 'starting' } }),
+			],
+		};
+
+		const next = reduceDaemonEvent(state, {
+			event: 'x11.changed',
+			data: { host: 'nova', state: { kind: 'active', display: ':11.0' } },
+		});
+
+		expect(next.x11Anchors).toEqual([
+			buildX11Anchor({ host: 'other' }),
+			{ host: 'nova', state: { kind: 'active', display: ':11.0' } },
+		]);
+	});
+
+	it('should remove the anchor of a host stopped on x11.changed', () => {
+		const state = {
+			...INITIAL_DAEMON_STATE,
+			x11Anchors: [buildX11Anchor(), buildX11Anchor({ host: 'other' })],
+		};
+
+		const next = reduceDaemonEvent(state, {
+			event: 'x11.changed',
+			data: { host: 'nova', state: { kind: 'stopped' } },
+		});
+
+		expect(next.x11Anchors).toEqual([buildX11Anchor({ host: 'other' })]);
 	});
 });

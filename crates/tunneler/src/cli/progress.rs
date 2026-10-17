@@ -204,6 +204,8 @@ mod tests {
         SnapshotDto {
             tray: TrayStatusDto::default(),
             externals: Vec::new(),
+            x11_anchors: Vec::new(),
+            x11_launchers: Vec::new(),
             tunnels,
             settings: SettingsDto {
                 default_bind_address: "127.0.0.1".to_owned(),

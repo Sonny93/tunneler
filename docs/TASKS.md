@@ -292,13 +292,28 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows) et tests verts (1706 tests Rust ×3, 654 tests front).
 
-## Phase 10 — X11
-- [ ] 10.1 Parser `Xauthority` local + résolution du display (TCP / socket Unix)
-- [ ] 10.2 Ancre X11 par host (`request_x11` cookie factice, lecture du `DISPLAY` distant)
-- [ ] 10.3 Canaux entrants : substitution du cookie dans le setup X11 (ou auth vide)
-- [ ] 10.4 Lanceurs X11 par host
-- [ ] 10.5 UI : display distant + copier `export DISPLAY`, lanceurs, avertissement sécurité
+## Phase 10 — X11 (reste : validation manuelle 10.6)
+- [x] 10.1 Parser `Xauthority` local + résolution du display (TCP / socket Unix)
+  - Display local : `hosts.<alias>.x11_display` > `settings.x11_display` > `$DISPLAY` > `127.0.0.1:0.0` sous Windows > erreur. Syntaxe `[host[/unix]]:N[.S]`, `unix:N`, IPv6 entre crochets ; host vide/`unix` → `/tmp/.X11-unix/XN` (Unix), sinon TCP `6000+N`. `host/unix:N` traité comme `unix:N` ; le chemin launchd de macOS n'est pas supporté.
+  - Parser binaire maison, tolérant (entrée finale tronquée ignorée avec avertissement, fichier absent = pas de cookie → auth vidée, cas VcXsrv « Disable access control »). Recherche `MIT-MAGIC-COOKIE-1` par numéro de display : Local (nom d'hôte) ou Wild pour un display local, Internet/Internet6 pour TCP (+ Local pour `localhost`/`127.0.0.1`). Wild correspond à tout display, comme le serveur X.
+  - Environnement (`DISPLAY`, `XAUTHORITY`, home, nom d'hôte, plateforme) derrière le trait `X11Environment` (`EngineDependencies.x11_environment`) ; `whoami` ajouté pour le nom d'hôte.
+- [x] 10.2 Ancre X11 par host (`request_x11` cookie factice, lecture du `DISPLAY` distant)
+  - Un acteur par host (comme les tunnels) : bail de session, `request_x11` (cookie factice 16 octets aléatoires, multi-connexions), `echo "$DISPLAY"; exec sleep 2147483647`, première ligne → `Active { display }`. Refus → `Failed`, `DISPLAY` vide → `Failed` (« X11Forwarding activé sur le serveur ? »), perte de session/canal → `Reconnecting` (mêmes backoff/classification que les tunnels). Redémarrable depuis `Failed`.
+  - **Écart PLAN** : quitter avec des ancres actives demande confirmation comme pour les tunnels (le compteur `tunnels_running` inclut les sessions X11 ; libellés CLI/UI adaptés : « tunnels ou sessions X11 »).
+- [x] 10.3 Canaux entrants : substitution du cookie dans le setup X11 (ou auth vide)
+  - `X11Router` par session : **tout canal X11 est refusé tant que X11 n'a pas été activé** sur la session (le comportement par défaut de russh acceptait). Le display et le cookie réel sont figés à la première activation : un changement de `x11_display` ne vaut que pour les nouvelles sessions.
+  - Display local contacté avant d'accepter le canal (sinon `ConnectFailed`) ; préfixe de setup vérifié (nom `MIT-MAGIC-COOKIE-1`, cookie comparé en temps constant, champs ≤ 256 octets, 10 s max) puis réécrit avec le vrai cookie ou une auth vide ; sinon canal fermé, rien n'atteint le serveur X.
+- [x] 10.4 Lanceurs X11 par host
+  - `x11.launch { host, name }` : lanceur pris dans `[[x11_launchers]]`, session X11 dédiée, réponse dès l'`exec` accepté ; sorties journalisées (stdout info, stderr warn, champs `host`/`launcher`) via `tracing` seulement, pas dans les logs de tunnel. Les lanceurs s'éditent dans `tunnels.toml` (pas de CRUD UI).
+- [x] 10.5 UI : display distant + copier `export DISPLAY`, lanceurs, avertissement sécurité
+  - Bouton « X11 pour nova » dans l'en-tête de chaque groupe d'hôte + statut texte/icône (« X11 actif : localhost:10.0 »). Drawer « X11 : nova » : note de sécurité toujours visible (`role="note"`), état (badge icône + texte), *Démarrer/Arrêter X11* avec confirmation `alertdialog` au premier démarrage par hôte et par session UI, « Copier export DISPLAY=… », lanceurs avec *Lancer*, extrait `[[x11_launchers]]` si aucun. Annonces live polies. Champ « Display X11 local » dans les réglages.
+  - Limite : un hôte sans tunnel n'a pas de groupe, donc pas d'accès X11 depuis l'UI.
+  - Protocole : `x11.start`/`stop`/`launch`, `x11.changed`, `SnapshotDto.x11Anchors`/`x11Launchers` (additif, protocole v2 non publié). CLI `status` : bloc « X11: » ; `UnknownLauncher` → `not_found`, problèmes de display/refus → `invalid_state`.
+  - Tests : 28 tests d'intégration X11 (ancre, refus, DISPLAY vide, arrêt, reconnexion, canal relayé vers un faux serveur X avec cookie remplacé, mauvais cookie, sans Xauthority, canal non sollicité refusé, lanceurs), ~70 unitaires, ~45 front.
 - [ ] 10.6 Validation manuelle : VcXsrv (Windows) + Xorg/Xwayland (Linux)
+  - À faire par un humain : aucun sshd réel utilisable ici (l'authentification vers le sshd local attend une confirmation de l'agent). Socket Unix testé en connexion seulement ; rien d'exécuté sous Windows.
+
+**Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows) et tests verts (1845 tests Rust ×2, 716 tests front).
 
 ## Phase 11 — Confort
 - [ ] 11.1 Import des `LocalForward`/`RemoteForward`/`DynamicForward` de `~/.ssh/config`

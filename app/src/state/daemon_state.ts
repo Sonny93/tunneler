@@ -5,6 +5,8 @@ import type {
 	SettingsDto,
 	TrayStatusDto,
 	TunnelDto,
+	X11AnchorDto,
+	X11LauncherDto,
 } from '#/daemon/protocol';
 
 export type ConnectionState =
@@ -38,6 +40,8 @@ export type DaemonState = {
 	connection: ConnectionState;
 	tunnels: readonly TunnelDto[];
 	externals: readonly ExternalProcessDto[];
+	x11Anchors: readonly X11AnchorDto[];
+	x11Launchers: readonly X11LauncherDto[];
 	settings: SettingsDto | null;
 	hosts: readonly string[];
 	/** First-in first-out: the first prompt is the one shown. */
@@ -52,6 +56,8 @@ export const INITIAL_DAEMON_STATE: DaemonState = {
 	connection: { status: 'connecting' },
 	tunnels: [],
 	externals: [],
+	x11Anchors: [],
+	x11Launchers: [],
 	settings: null,
 	hosts: [],
 	prompts: [],

@@ -39,10 +39,10 @@ describe('SettingsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			['Adresses', 'Connexion', 'Reconnexion', 'Santé'].map(
+			['Adresses', 'Connexion', 'Reconnexion', 'X11', 'Santé'].map(
 				(name) => screen.queryByRole('group', { name }) !== null
 			)
-		).toEqual([true, true, true, true]);
+		).toEqual([true, true, true, true, true]);
 	});
 
 	it('should show durations in seconds', () => {
@@ -75,7 +75,6 @@ describe('SettingsDrawer', () => {
 			restoreOnLaunch: false,
 			startOnLaunchTags: ['db'],
 			launchAtLogin: true,
-			x11Display: ':1',
 		});
 		openSettings(settings);
 		const user = userEvent.setup();
@@ -94,6 +93,48 @@ describe('SettingsDrawer', () => {
 			sessionIdleGraceMs: 90_000,
 			healthProbe: false,
 		});
+	});
+
+	it('should describe the X11 display field', () => {
+		openSettings();
+		renderDrawer();
+
+		expect(
+			screen.getByRole('textbox', { name: 'Display X11 local' })
+		).toHaveAccessibleDescription(
+			'Vide : variable DISPLAY (127.0.0.1:0.0 sous Windows)'
+		);
+	});
+
+	it('should save the edited X11 display', async () => {
+		openSettings();
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+
+		await user.type(
+			screen.getByRole('textbox', { name: 'Display X11 local' }),
+			'203.0.113.20:0.0'
+		);
+		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith(
+			expect.objectContaining({ x11Display: '203.0.113.20:0.0' })
+		);
+	});
+
+	it('should save an emptied X11 display as unset', async () => {
+		openSettings(buildSettings({ x11Display: ':1' }));
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+
+		await user.clear(
+			screen.getByRole('textbox', { name: 'Display X11 local' })
+		);
+		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith(
+			expect.objectContaining({ x11Display: undefined })
+		);
 	});
 
 	it('should close and toast after saving', async () => {

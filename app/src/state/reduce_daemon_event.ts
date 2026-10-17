@@ -21,6 +21,18 @@ function patchTunnel(
 	};
 }
 
+function reduceX11Changed(
+	state: DaemonState,
+	{ host, state: x11State }: EventOf<'x11.changed'>
+): DaemonState {
+	const otherAnchors = state.x11Anchors.filter(
+		(anchor) => anchor.host !== host
+	);
+	if (x11State.kind === 'stopped')
+		return { ...state, x11Anchors: otherAnchors };
+	return { ...state, x11Anchors: [...otherAnchors, { host, state: x11State }] };
+}
+
 function appendPrompt(
 	state: DaemonState,
 	prompt: Readonly<PendingPrompt>
@@ -71,6 +83,8 @@ export function reduceDaemonEvent(
 			return patchTunnel(state, event.data.id, { metrics: event.data.metrics });
 		case 'externals.changed':
 			return { ...state, externals: event.data.processes };
+		case 'x11.changed':
+			return reduceX11Changed(state, event.data);
 		case 'config.invalid':
 			return { ...state, configErrors: event.data.messages };
 		case 'credential.request':

@@ -36,7 +36,7 @@ function SettingsField({
 				value={value}
 				onChange={handleChange}
 				error={error}
-				required
+				required={!spec.isOptional}
 				inputMode={spec.inputMode}
 				autoComplete="off"
 				aria-describedby={spec.hint ? hintId : undefined}

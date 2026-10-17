@@ -213,6 +213,7 @@ impl LocalPrompts {
             | EventMessage::ConfigInvalid(_)
             | EventMessage::TrayChanged(_)
             | EventMessage::ExternalsChanged(_)
+            | EventMessage::X11Changed(_)
             | EventMessage::ShowRequested {}
             | EventMessage::QuitRequested {} => {}
         }

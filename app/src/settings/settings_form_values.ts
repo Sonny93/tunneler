@@ -11,6 +11,7 @@ export type SettingsFormValues = {
 	reconnectInitialDelaySeconds: string;
 	reconnectMaxDelaySeconds: string;
 	healthProbe: boolean;
+	x11Display: string;
 };
 
 export function millisecondsToSeconds(milliseconds: number): string {
@@ -41,6 +42,7 @@ export function toSettingsFormValues(
 			settings.reconnectMaxDelayMs
 		),
 		healthProbe: settings.healthProbe,
+		x11Display: settings.x11Display ?? '',
 	};
 }
 
@@ -49,6 +51,7 @@ export function toSettings(
 	values: Readonly<SettingsFormValues>,
 	base: Readonly<SettingsDto>
 ): SettingsDto {
+	const x11Display = values.x11Display.trim();
 	return {
 		...base,
 		defaultBindAddress: values.defaultBindAddress.trim(),
@@ -61,5 +64,6 @@ export function toSettings(
 		),
 		reconnectMaxDelayMs: secondsToMilliseconds(values.reconnectMaxDelaySeconds),
 		healthProbe: values.healthProbe,
+		x11Display: x11Display === '' ? undefined : x11Display,
 	};
 }

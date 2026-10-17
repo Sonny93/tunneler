@@ -25,6 +25,8 @@ export const useDaemonStore = create<DaemonState & DaemonActions>()((set) => ({
 		set({
 			tunnels: snapshot.tunnels,
 			externals: snapshot.externals,
+			x11Anchors: snapshot.x11Anchors,
+			x11Launchers: snapshot.x11Launchers,
 			settings: snapshot.settings,
 			tray: snapshot.tray,
 			configErrors: [],

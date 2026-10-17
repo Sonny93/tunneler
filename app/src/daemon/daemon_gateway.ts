@@ -26,6 +26,9 @@ export type DaemonGateway = {
 	restartTunnel(id: string): Promise<void>;
 	startTag(tag: string): Promise<void>;
 	stopTag(tag: string): Promise<void>;
+	startX11(host: string): Promise<void>;
+	stopX11(host: string): Promise<void>;
+	launchX11(host: string, name: string): Promise<void>;
 	adoptExternal(id: string): Promise<readonly string[]>;
 	killExternal(pid: number): Promise<void>;
 	ignoreExternal(pid: number): Promise<void>;

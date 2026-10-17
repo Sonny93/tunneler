@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::protocol::dto::{
     CredentialRequestDto, ExternalProcessDto, HostKeyAlertReasonDto, LogEntryDto, MetricsDto,
-    TargetHealthDto, TrayStatusDto, TunnelStateDto,
+    TargetHealthDto, TrayStatusDto, TunnelStateDto, X11StateDto,
 };
 
 /// The state or the target health of a tunnel changed.
@@ -112,6 +112,16 @@ pub struct ExternalsChangedEvent {
     pub processes: Vec<ExternalProcessDto>,
 }
 
+/// The state of the X11 anchor of a host changed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct X11ChangedEvent {
+    /// The host alias.
+    pub host: String,
+    /// The new state of its anchor.
+    pub state: X11StateDto,
+}
+
 /// What the daemon pushes: `{"event": "...", "data": {...}}`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "event", content = "data")]
@@ -153,4 +163,7 @@ pub enum EventMessage {
     /// The ssh processes with unmatched forwards changed.
     #[serde(rename = "externals.changed")]
     ExternalsChanged(ExternalsChangedEvent),
+    /// The state of the X11 anchor of a host changed.
+    #[serde(rename = "x11.changed")]
+    X11Changed(X11ChangedEvent),
 }

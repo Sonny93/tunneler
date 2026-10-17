@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use engine::{Engine, EngineError, HostConfigResolver, StoreError, TunnelId};
+use engine::{Engine, EngineError, HostConfigResolver, StoreError, TunnelId, X11Error};
 use ipc::protocol::{
     AdoptResult, HostsResult, IpcError, LogsResult, ProcessParams, QuitParams, Request,
-    ResponsePayload, SettingsDto, TunnelIdParams,
+    ResponsePayload, SettingsDto, TunnelIdParams, X11HostParams, X11LaunchParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
@@ -82,6 +82,9 @@ impl DaemonHandler {
             Request::ExternalAdopt(params) => self.adopt_external(&params).await,
             Request::ExternalKill(params) => self.kill_external(params).await,
             Request::ExternalIgnore(params) => self.ignore_external(params).await,
+            Request::X11Start(params) => self.start_x11(&params),
+            Request::X11Stop(params) => self.stop_x11(&params),
+            Request::X11Launch(params) => self.launch_x11(&params).await,
         }
     }
 
@@ -112,6 +115,28 @@ impl DaemonHandler {
     async fn ignore_external(&self, params: ProcessParams) -> Result<ResponsePayload, IpcError> {
         self.engine
             .ignore_external(params.pid)
+            .await
+            .map(|()| ResponsePayload::empty())
+            .map_err(engine_error_to_ipc)
+    }
+
+    fn start_x11(&self, params: &X11HostParams) -> Result<ResponsePayload, IpcError> {
+        self.engine
+            .start_x11(&params.host)
+            .map(|()| ResponsePayload::empty())
+            .map_err(engine_error_to_ipc)
+    }
+
+    fn stop_x11(&self, params: &X11HostParams) -> Result<ResponsePayload, IpcError> {
+        self.engine
+            .stop_x11(&params.host)
+            .map(|()| ResponsePayload::empty())
+            .map_err(engine_error_to_ipc)
+    }
+
+    async fn launch_x11(&self, params: &X11LaunchParams) -> Result<ResponsePayload, IpcError> {
+        self.engine
+            .launch_x11(&params.host, &params.name)
             .await
             .map(|()| ResponsePayload::empty())
             .map_err(engine_error_to_ipc)
@@ -223,9 +248,9 @@ impl DaemonHandler {
     }
 
     fn quit(&self, params: QuitParams) -> Result<ResponsePayload, IpcError> {
-        let active_tunnels = self.engine.active_tunnel_count();
-        if !params.force && active_tunnels > 0 {
-            return Err(IpcError::tunnels_running(active_tunnels));
+        let active_sessions = self.engine.active_tunnel_count() + self.engine.active_x11_count();
+        if !params.force && active_sessions > 0 {
+            return Err(IpcError::tunnels_running(active_sessions));
         }
         self.quit_requested.cancel();
         Ok(ResponsePayload::empty())
@@ -271,12 +296,28 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         EngineError::Store(error) => store_error_to_ipc(error),
         EngineError::ShutDown => IpcError::internal("the daemon is shutting down"),
         EngineError::NotExternal(_) => IpcError::invalid_state(error.to_string()),
-        EngineError::UnknownProcess(_) => IpcError::not_found(error.to_string()),
+        EngineError::UnknownProcess(_) | EngineError::UnknownLauncher { .. } => {
+            IpcError::not_found(error.to_string())
+        }
         EngineError::Terminate(_) | EngineError::ProcessStillRunning(_) => {
             IpcError::kill_failed(error.to_string())
         }
-        EngineError::PortScan(_) => IpcError::internal(error.to_string()),
+        EngineError::X11(ref failure) if is_x11_precondition(failure) => {
+            IpcError::invalid_state(error.to_string())
+        }
+        EngineError::PortScan(_) | EngineError::X11(_) => IpcError::internal(error.to_string()),
     }
+}
+
+fn is_x11_precondition(failure: &X11Error) -> bool {
+    matches!(
+        failure,
+        X11Error::NoLocalDisplay
+            | X11Error::InvalidDisplay { .. }
+            | X11Error::Refused
+            | X11Error::CommandRefused
+            | X11Error::EmptyRemoteDisplay
+    )
 }
 
 fn store_error_to_ipc(error: StoreError) -> IpcError {
@@ -300,7 +341,7 @@ mod tests {
 
     use engine::{
         ConnectorDependencies, EngineDependencies, SshConfigResolver, Store, SystemAgentLocator,
-        SystemClock,
+        SystemClock, SystemX11Environment,
     };
     use ipc::protocol::{ErrorCode, TunnelDto, TunnelKindDto, TunnelSpecDto};
     use ssh_config::{ConfigSources, SystemEnvironment};
@@ -363,6 +404,7 @@ mod tests {
             clock: Arc::new(SystemClock),
             store,
             port_scanner: Arc::new(EmptyPortScanner),
+            x11_environment: Arc::new(SystemX11Environment),
         })
         .unwrap();
         let quit_requested = CancellationToken::new();
@@ -589,6 +631,137 @@ mod tests {
         });
 
         assert_eq!(engine_error_to_ipc(error).code, ErrorCode::Internal);
+    }
+
+    #[test]
+    fn should_answer_not_found_when_the_launcher_is_unknown() {
+        let error = EngineError::UnknownLauncher {
+            host: "nova".to_owned(),
+            name: "Editor".to_owned(),
+        };
+
+        assert_eq!(engine_error_to_ipc(error).code, ErrorCode::NotFound);
+    }
+
+    #[test]
+    fn should_answer_invalid_state_when_the_server_refuses_x11_forwarding() {
+        let error = EngineError::X11(X11Error::Refused);
+
+        assert_eq!(engine_error_to_ipc(error).code, ErrorCode::InvalidState);
+    }
+
+    #[test]
+    fn should_answer_invalid_state_when_no_local_display_is_known() {
+        let error = EngineError::X11(X11Error::NoLocalDisplay);
+
+        assert_eq!(engine_error_to_ipc(error).code, ErrorCode::InvalidState);
+    }
+
+    #[test]
+    fn should_answer_internal_when_the_x11_channel_closes() {
+        let error = EngineError::X11(X11Error::ChannelClosed);
+
+        assert_eq!(engine_error_to_ipc(error).code, ErrorCode::Internal);
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_launching_an_unknown_x11_launcher() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::X11Launch(X11LaunchParams {
+                    host: "dead".to_owned(),
+                    name: "Missing".to_owned(),
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    async fn start_x11_and_wait_until_running(fixture: &Fixture) {
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::X11Start(X11HostParams {
+                    host: "dead".to_owned(),
+                }),
+            )
+            .await;
+        assert!(response.is_ok());
+        let deadline = tokio::time::Instant::now() + WAIT;
+        while fixture.engine.active_x11_count() == 0 {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "the anchor never started"
+            );
+            tokio::time::sleep(POLL_INTERVAL).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn should_list_the_anchor_when_x11_is_started() {
+        let fixture = fixture();
+        start_x11_and_wait_until_running(&fixture).await;
+
+        let response = fixture
+            .handler
+            .dispatch(None, Request::StateSnapshot {})
+            .await
+            .unwrap();
+
+        match response {
+            ResponsePayload::Snapshot(snapshot) => assert_eq!(snapshot.x11_anchors.len(), 1),
+            other => panic!("expected a snapshot, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn should_stop_the_anchor_when_x11_is_stopped() {
+        let fixture = fixture();
+        start_x11_and_wait_until_running(&fixture).await;
+
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::X11Stop(X11HostParams {
+                    host: "dead".to_owned(),
+                }),
+            )
+            .await;
+
+        assert!(response.is_ok());
+        let deadline = tokio::time::Instant::now() + WAIT;
+        while fixture.engine.active_x11_count() > 0 {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "the anchor never stopped"
+            );
+            tokio::time::sleep(POLL_INTERVAL).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn should_refuse_to_quit_with_the_count_when_an_x11_anchor_runs_and_force_is_off() {
+        let fixture = fixture();
+        start_x11_and_wait_until_running(&fixture).await;
+
+        let error = fixture
+            .handler
+            .dispatch(None, Request::DaemonQuit(QuitParams { force: false }))
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            (error.code, error.data),
+            (ErrorCode::TunnelsRunning, Some(serde_json::json!(1)))
+        );
     }
 
     #[tokio::test]

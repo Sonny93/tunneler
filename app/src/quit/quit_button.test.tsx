@@ -59,7 +59,9 @@ describe('QuitButton', () => {
 		const dialog = await screen.findByRole('alertdialog', {
 			name: 'Quitter Tunneler ?',
 		});
-		expect(dialog).toHaveTextContent('2 tunnels actifs seront arrêtés.');
+		expect(dialog).toHaveTextContent(
+			'2 tunnels ou sessions X11 en cours seront arrêtés.'
+		);
 	});
 
 	it('should have no axe violations in the confirmation', async () => {
@@ -157,7 +159,7 @@ describe('useQuitRequestListener', () => {
 		act(() => useDaemonStore.setState({ isQuitRequested: true }));
 
 		expect(await screen.findByRole('alertdialog')).toHaveTextContent(
-			'2 tunnels actifs seront arrêtés.'
+			'2 tunnels ou sessions X11 en cours seront arrêtés.'
 		);
 	});
 

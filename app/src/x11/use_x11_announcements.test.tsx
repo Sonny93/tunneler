@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+
+import { useDaemonStore } from '#/state/daemon_store';
+import { useX11Announcements } from '#/x11/use_x11_announcements';
+import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
+
+const politeMessage = () => useAnnouncerStore.getState().polite.message;
+
+describe('useX11Announcements', () => {
+	it('should announce an anchor becoming active politely', () => {
+		useDaemonStore.setState({ connection: { status: 'connected' } });
+		renderHook(() => useX11Announcements());
+
+		act(() =>
+			useDaemonStore.getState().applyEvent({
+				event: 'x11.changed',
+				data: {
+					host: 'nova',
+					state: { kind: 'active', display: 'localhost:10.0' },
+				},
+			})
+		);
+
+		expect(politeMessage()).toBe('X11 nova : actif (localhost:10.0)');
+	});
+
+	it('should announce an anchor being stopped', () => {
+		useDaemonStore.setState({
+			connection: { status: 'connected' },
+			x11Anchors: [{ host: 'nova', state: { kind: 'starting' } }],
+		});
+		renderHook(() => useX11Announcements());
+
+		act(() =>
+			useDaemonStore.getState().applyEvent({
+				event: 'x11.changed',
+				data: { host: 'nova', state: { kind: 'stopped' } },
+			})
+		);
+
+		expect(politeMessage()).toBe('X11 nova : arrêté');
+	});
+
+	it('should not announce anchors loaded while connecting', () => {
+		renderHook(() => useX11Announcements());
+
+		act(() =>
+			useDaemonStore.setState({
+				x11Anchors: [{ host: 'nova', state: { kind: 'starting' } }],
+			})
+		);
+
+		expect(politeMessage()).toBe('');
+	});
+});

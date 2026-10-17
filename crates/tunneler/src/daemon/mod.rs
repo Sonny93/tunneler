@@ -25,7 +25,7 @@ use std::time::Duration;
 
 use engine::{
     ConnectorDependencies, Engine, EngineDependencies, HostConfigResolver, SshConfigResolver,
-    Store, SystemAgentLocator, SystemClock, SystemPortScanner,
+    Store, SystemAgentLocator, SystemClock, SystemPortScanner, SystemX11Environment,
 };
 use ipc::Endpoint;
 use ssh_config::{ConfigSources, SystemEnvironment};
@@ -91,6 +91,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         clock: Arc::new(SystemClock),
         store,
         port_scanner: Arc::new(SystemPortScanner),
+        x11_environment: Arc::new(SystemX11Environment),
     })?;
     let bridge = spawn_event_bridge(engine.subscribe(), wire_events.clone());
     let shutdown = CancellationToken::new();

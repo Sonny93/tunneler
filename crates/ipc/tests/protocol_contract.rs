@@ -10,7 +10,8 @@ use ipc::protocol::{
     RequestEnvelope, ResponsePayload, Secret, ServerFrame, SettingsDto, SnapshotDto, TagParams,
     TargetHealthDto, TrayChangedEvent, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto,
     TunnelDto, TunnelIdParams, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto,
-    TunnelStateDto, encode_event, encode_response,
+    TunnelStateDto, X11AnchorDto, X11ChangedEvent, X11HostParams, X11LaunchParams, X11LauncherDto,
+    X11StateDto, encode_event, encode_response,
 };
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -106,6 +107,36 @@ fn external_process() -> ExternalProcessDto {
     }
 }
 
+fn x11_host() -> X11HostParams {
+    X11HostParams {
+        host: "nova".to_owned(),
+    }
+}
+
+fn x11_launch() -> X11LaunchParams {
+    X11LaunchParams {
+        host: "nova".to_owned(),
+        name: "xterm".to_owned(),
+    }
+}
+
+fn x11_anchor() -> X11AnchorDto {
+    X11AnchorDto {
+        host: "nova".to_owned(),
+        state: X11StateDto::Active {
+            display: "localhost:10.0".to_owned(),
+        },
+    }
+}
+
+fn x11_launcher() -> X11LauncherDto {
+    X11LauncherDto {
+        host: "nova".to_owned(),
+        name: "xterm".to_owned(),
+        command: "xterm -ls".to_owned(),
+    }
+}
+
 fn every_request() -> Vec<Request> {
     let tunnel_id = TunnelIdParams {
         id: TUNNEL_ID.to_owned(),
@@ -142,6 +173,9 @@ fn every_request() -> Vec<Request> {
         }),
         Request::ExternalKill(ProcessParams { pid: 4242 }),
         Request::ExternalIgnore(ProcessParams { pid: 4242 }),
+        Request::X11Start(x11_host()),
+        Request::X11Stop(x11_host()),
+        Request::X11Launch(x11_launch()),
     ]
 }
 
@@ -217,6 +251,10 @@ fn every_event() -> Vec<EventMessage> {
         }),
         EventMessage::ExternalsChanged(ExternalsChangedEvent {
             processes: vec![external_process()],
+        }),
+        EventMessage::X11Changed(X11ChangedEvent {
+            host: "nova".to_owned(),
+            state: X11StateDto::Starting,
         }),
     ]
 }
@@ -391,6 +429,8 @@ fn should_serialize_a_snapshot_response_as_documented() {
         settings: settings(),
         tray: TrayStatusDto::Active,
         externals: Vec::new(),
+        x11_anchors: Vec::new(),
+        x11_launchers: Vec::new(),
     };
 
     let line = encode_response(Some(4), &Ok(ResponsePayload::Snapshot(snapshot))).unwrap();
@@ -402,7 +442,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000}}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"healthProbe":true,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false},"tray":{"kind":"active"},"externals":[]}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"healthProbe":true,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[]}}"#,
             "\n"
         )
     );
@@ -435,6 +475,8 @@ fn should_deserialize_a_snapshot_without_tray_as_disabled() {
         settings: settings(),
         tray: TrayStatusDto::Active,
         externals: Vec::new(),
+        x11_anchors: Vec::new(),
+        x11_launchers: Vec::new(),
     });
     snapshot.as_object_mut().unwrap().remove("tray");
 
@@ -643,6 +685,8 @@ fn should_serialize_a_snapshot_with_its_externals() {
         settings: settings(),
         tray: TrayStatusDto::Active,
         externals: vec![external_process()],
+        x11_anchors: Vec::new(),
+        x11_launchers: Vec::new(),
     };
 
     assert_eq!(
@@ -666,6 +710,8 @@ fn should_deserialize_a_snapshot_without_externals_as_empty() {
         settings: settings(),
         tray: TrayStatusDto::Active,
         externals: vec![external_process()],
+        x11_anchors: Vec::new(),
+        x11_launchers: Vec::new(),
     });
     snapshot.as_object_mut().unwrap().remove("externals");
 
@@ -749,6 +795,129 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_twenty_methods() {
-    assert_eq!(METHOD_NAMES.len(), 20);
+fn should_list_twenty_three_methods() {
+    assert_eq!(METHOD_NAMES.len(), 23);
+}
+
+#[test]
+fn should_serialize_every_x11_state_with_a_kind_tag() {
+    assert_eq!(
+        [
+            to_json(&X11StateDto::Stopped),
+            to_json(&X11StateDto::Starting),
+            to_json(&X11StateDto::Active {
+                display: "localhost:10.0".to_owned()
+            }),
+            to_json(&X11StateDto::Reconnecting {
+                attempt: 2,
+                next_retry_at: 1_700_000_005_000
+            }),
+            to_json(&X11StateDto::Failed {
+                message: "refused".to_owned()
+            }),
+        ],
+        [
+            json!({"kind":"stopped"}),
+            json!({"kind":"starting"}),
+            json!({"kind":"active","display":"localhost:10.0"}),
+            json!({"kind":"reconnecting","attempt":2,"nextRetryAt":1_700_000_005_000_u64}),
+            json!({"kind":"failed","message":"refused"}),
+        ]
+    );
+}
+
+#[test]
+fn should_serialize_an_x11_anchor_with_its_state() {
+    assert_eq!(
+        to_json(&x11_anchor()),
+        json!({"host":"nova","state":{"kind":"active","display":"localhost:10.0"}})
+    );
+}
+
+#[test]
+fn should_serialize_an_x11_launcher_as_documented() {
+    assert_eq!(
+        to_json(&x11_launcher()),
+        json!({"host":"nova","name":"xterm","command":"xterm -ls"})
+    );
+}
+
+#[test]
+fn should_serialize_a_snapshot_with_its_x11_anchors_and_launchers() {
+    let snapshot = SnapshotDto {
+        tunnels: Vec::new(),
+        settings: settings(),
+        tray: TrayStatusDto::Active,
+        externals: Vec::new(),
+        x11_anchors: vec![x11_anchor()],
+        x11_launchers: vec![x11_launcher()],
+    };
+
+    let value = to_json(&snapshot);
+
+    assert_eq!(
+        (value["x11Anchors"].clone(), value["x11Launchers"].clone()),
+        (
+            json!([{"host":"nova","state":{"kind":"active","display":"localhost:10.0"}}]),
+            json!([{"host":"nova","name":"xterm","command":"xterm -ls"}])
+        )
+    );
+}
+
+#[test]
+fn should_deserialize_a_snapshot_without_x11_keys_as_empty() {
+    let mut snapshot = to_json(&SnapshotDto {
+        tunnels: Vec::new(),
+        settings: settings(),
+        tray: TrayStatusDto::Active,
+        externals: Vec::new(),
+        x11_anchors: vec![x11_anchor()],
+        x11_launchers: vec![x11_launcher()],
+    });
+    let fields = snapshot.as_object_mut().unwrap();
+    fields.remove("x11Anchors");
+    fields.remove("x11Launchers");
+
+    let parsed: SnapshotDto = serde_json::from_value(snapshot).unwrap();
+
+    assert_eq!(
+        (parsed.x11_anchors, parsed.x11_launchers),
+        (Vec::new(), Vec::new())
+    );
+}
+
+#[test]
+fn should_serialize_an_x11_changed_event_as_documented() {
+    let event = EventMessage::X11Changed(X11ChangedEvent {
+        host: "nova".to_owned(),
+        state: X11StateDto::Active {
+            display: "localhost:10.0".to_owned(),
+        },
+    });
+
+    assert_eq!(
+        encode_event(&event).unwrap(),
+        concat!(
+            r#"{"event":"x11.changed","data":{"host":"nova","state":{"kind":"active","display":"localhost:10.0"}}}"#,
+            "\n"
+        )
+    );
+}
+
+#[test]
+fn should_serialize_the_x11_requests_as_documented() {
+    let requests = [
+        Request::X11Start(x11_host()),
+        Request::X11Stop(x11_host()),
+        Request::X11Launch(x11_launch()),
+    ];
+
+    assert_eq!(
+        requests.map(|request| to_json(&request)),
+        [
+            json!({"method":"x11.start","params":{"host":"nova"}}),
+            json!({"method":"x11.stop","params":{"host":"nova"}}),
+            json!({"method":"x11.launch","params":{"host":"nova","name":"xterm"}}),
+        ]
+    );
 }

@@ -7,8 +7,8 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
-use russh::Disconnect;
-use russh::client::Handle;
+use russh::client::{Handle, Msg};
+use russh::{Channel, Disconnect};
 use ssh_config::ResolvedConfig;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::watch;
@@ -17,6 +17,7 @@ use tokio::time::{sleep, timeout};
 use crate::error::SessionError;
 use crate::host_key::ClientHandler;
 use crate::remote_forwards::{ForwardedSender, RemoteForwardRegistration, RemoteForwardRegistry};
+use crate::x11::{LocalX11, X11Error, X11Forwarding, X11Router, request_x11_forwarding};
 
 const DEFAULT_ORIGINATOR_ADDRESS: &str = "127.0.0.1";
 const DEFAULT_ORIGINATOR_PORT: u16 = 0;
@@ -32,6 +33,7 @@ pub struct SshSession {
     handle: Handle<ClientHandler>,
     closed: watch::Receiver<bool>,
     remote_forwards: Arc<RemoteForwardRegistry>,
+    x11: Arc<X11Router>,
     jumps: Vec<SshSession>,
 }
 
@@ -55,6 +57,7 @@ impl SshSession {
         handle: Handle<ClientHandler>,
         closed: watch::Receiver<bool>,
         remote_forwards: Arc<RemoteForwardRegistry>,
+        x11: Arc<X11Router>,
         jumps: Vec<SshSession>,
     ) -> Self {
         Self {
@@ -63,6 +66,7 @@ impl SshSession {
             handle,
             closed,
             remote_forwards,
+            x11,
             jumps,
         }
     }
@@ -156,6 +160,32 @@ impl SshSession {
                 port,
                 source: Box::new(source),
             })
+    }
+
+    /// Starts serving the X11 channels the server opens, toward `local`.
+    ///
+    /// The first call decides the display and the cookie for the whole
+    /// session; later calls return that forwarding unchanged.
+    pub(crate) fn enable_x11(&self, local: LocalX11) -> Result<Arc<X11Forwarding>, X11Error> {
+        self.x11.enable(local)
+    }
+
+    /// Opens a session channel on which the server forwards X11 connections
+    /// to this session, giving X clients the fake cookie of `forwarding`.
+    pub(crate) async fn open_x11_session(
+        &self,
+        forwarding: &X11Forwarding,
+    ) -> Result<Channel<Msg>, X11Error> {
+        let mut channel = self
+            .handle
+            .channel_open_session()
+            .await
+            .map_err(|error| X11Error::Channel(Box::new(error)))?;
+        if let Err(error) = request_x11_forwarding(&mut channel, forwarding).await {
+            let _ = channel.close().await;
+            return Err(error);
+        }
+        Ok(channel)
     }
 
     /// Resolves once this session, or any jump host it runs through, has

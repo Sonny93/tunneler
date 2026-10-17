@@ -5,7 +5,8 @@ import type { TunnelSpecDto } from '#/daemon/protocol';
 export type Panel =
 	| { kind: 'none' }
 	| { kind: 'tunnelEditor'; tunnelId: string | null; draft?: TunnelSpecDto }
-	| { kind: 'settings' };
+	| { kind: 'settings' }
+	| { kind: 'x11'; host: string };
 
 export type TunnelFilter =
 	| { kind: 'all' }
@@ -22,6 +23,8 @@ type UiState = {
 	dismissedTrayProblem: TrayProblemKind | null;
 	/** A just-created tunnel whose switch takes the focus once its row is rendered. */
 	pendingFocusTunnelId: string | null;
+	/** Hosts whose X11 risk the user already confirmed during this UI session. */
+	confirmedX11Hosts: readonly string[];
 };
 
 type UiActions = {
@@ -30,6 +33,8 @@ type UiActions = {
 	/** Opens the editor in create mode, prefilled from the spec of an external forward. */
 	openTunnelImport: (draft: TunnelSpecDto) => void;
 	openSettings: () => void;
+	openX11: (host: string) => void;
+	confirmX11Host: (host: string) => void;
 	closePanel: () => void;
 	closePanelFocusingTunnel: (tunnelId: string) => void;
 	clearPendingFocus: () => void;
@@ -44,6 +49,7 @@ export const INITIAL_UI_STATE: UiState = {
 	isHelpOpen: false,
 	dismissedTrayProblem: null,
 	pendingFocusTunnelId: null,
+	confirmedX11Hosts: [],
 };
 
 export const useUiStore = create<UiState & UiActions>()((set) => ({
@@ -53,6 +59,11 @@ export const useUiStore = create<UiState & UiActions>()((set) => ({
 	openTunnelImport: (draft) =>
 		set({ panel: { kind: 'tunnelEditor', tunnelId: null, draft } }),
 	openSettings: () => set({ panel: { kind: 'settings' } }),
+	openX11: (host) => set({ panel: { kind: 'x11', host } }),
+	confirmX11Host: (host) =>
+		set((state) => ({
+			confirmedX11Hosts: [...state.confirmedX11Hosts, host],
+		})),
 	closePanel: () => set({ panel: { kind: 'none' } }),
 	closePanelFocusingTunnel: (tunnelId) =>
 		set({ panel: { kind: 'none' }, pendingFocusTunnelId: tunnelId }),

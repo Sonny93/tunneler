@@ -84,4 +84,16 @@ describe('useUiStore', () => {
 
 		expect(useUiStore.getState().isHelpOpen).toBe(true);
 	});
+
+	it('should open the X11 panel of a host', () => {
+		useUiStore.getState().openX11('nova');
+
+		expect(useUiStore.getState().panel).toEqual({ kind: 'x11', host: 'nova' });
+	});
+
+	it('should remember the hosts whose X11 risk was confirmed', () => {
+		useUiStore.getState().confirmX11Host('nova');
+
+		expect(useUiStore.getState().confirmedX11Hosts).toEqual(['nova']);
+	});
 });

@@ -11,7 +11,7 @@ const METHOD_KEY: &str = "method";
 const PARAMS_KEY: &str = "params";
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 20] = [
+pub const METHOD_NAMES: [&str; 23] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -32,6 +32,9 @@ pub const METHOD_NAMES: [&str; 20] = [
     "external.adopt",
     "external.kill",
     "external.ignore",
+    "x11.start",
+    "x11.stop",
+    "x11.launch",
 ];
 
 /// The parameters of the methods that address one tunnel.
@@ -48,6 +51,24 @@ pub struct TunnelIdParams {
 pub struct ProcessParams {
     /// The process identifier.
     pub pid: u32,
+}
+
+/// The parameters of the methods that address the X11 anchor of one host.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct X11HostParams {
+    /// The `ssh_config` alias.
+    pub host: String,
+}
+
+/// The parameters of `x11.launch`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct X11LaunchParams {
+    /// The `ssh_config` alias the launcher runs on.
+    pub host: String,
+    /// The name of the saved launcher.
+    pub name: String,
 }
 
 /// The parameters of the methods that address one tag.
@@ -164,6 +185,16 @@ pub enum Request {
     /// Stops reporting a process for the lifetime of the daemon.
     #[serde(rename = "external.ignore")]
     ExternalIgnore(ProcessParams),
+    /// Opens the X11 anchor of a host; does nothing when it is already open.
+    #[serde(rename = "x11.start")]
+    X11Start(X11HostParams),
+    /// Closes the X11 anchor of a host.
+    #[serde(rename = "x11.stop")]
+    X11Stop(X11HostParams),
+    /// Runs a saved launcher in an X11-enabled session on a host; answers
+    /// `not_found` when the launcher is unknown.
+    #[serde(rename = "x11.launch")]
+    X11Launch(X11LaunchParams),
 }
 
 /// A [`Request`] and the identifier its response will carry.

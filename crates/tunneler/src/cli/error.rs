@@ -75,7 +75,7 @@ pub enum CliError {
     #[error("the daemon closed the connection")]
     ConnectionLost,
     /// Stopping requires a confirmation that cannot be asked.
-    #[error("{running} tunnels are active and stopping them needs a confirmation")]
+    #[error("{running} tunnels or X11 sessions are active and stopping them needs a confirmation")]
     ConfirmationRequired {
         /// How many tunnels run.
         running: usize,

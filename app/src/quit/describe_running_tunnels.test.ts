@@ -4,10 +4,14 @@ import { describeTunnelsToStop } from '#/quit/describe_running_tunnels';
 
 describe('describeTunnelsToStop', () => {
 	it('should use the singular for one tunnel', () => {
-		expect(describeTunnelsToStop(1)).toBe('1 tunnel actif sera arrêté.');
+		expect(describeTunnelsToStop(1)).toBe(
+			'1 tunnel ou session X11 en cours sera arrêté.'
+		);
 	});
 
 	it('should use the plural for several tunnels', () => {
-		expect(describeTunnelsToStop(3)).toBe('3 tunnels actifs seront arrêtés.');
+		expect(describeTunnelsToStop(3)).toBe(
+			'3 tunnels ou sessions X11 en cours seront arrêtés.'
+		);
 	});
 });

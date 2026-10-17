@@ -1,6 +1,6 @@
 use super::super::args::OutputArguments;
 use super::super::render::{
-    render_daemon_summary, render_externals, render_status, render_status_json,
+    render_daemon_summary, render_externals, render_status, render_status_json, render_x11,
 };
 use super::super::session::{ConnectionMode, connect};
 use super::super::{CliError, Context};
@@ -25,6 +25,9 @@ pub async fn status(context: &Context, arguments: &OutputArguments) -> Result<()
     println!("{}", render_status(&snapshot, context.style));
     if let Some(externals) = render_externals(&snapshot, context.style) {
         println!("{externals}");
+    }
+    if let Some(x11) = render_x11(&snapshot) {
+        println!("{x11}");
     }
     Ok(())
 }

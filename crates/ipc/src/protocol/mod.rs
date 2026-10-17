@@ -17,13 +17,14 @@ pub use dto::{
     CredentialRequestDto, EpochMillis, ExternalForwardDto, ExternalProcessDto, FailureReasonDto,
     HostKeyAlertReasonDto, HostKeyDecisionDto, LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto,
     PromptDto, SettingsDto, SnapshotDto, TargetHealthDto, TrayStatusDto, TunnelDefinitionDto,
-    TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto,
+    TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11LauncherDto,
+    X11StateDto,
 };
 pub use error::{ErrorCode, IpcError};
 pub use event::{
     ConfigInvalidEvent, CredentialRequestEvent, EventMessage, ExternalsChangedEvent,
     HostKeyRequestEvent, PromptResolvedEvent, TrayChangedEvent, TunnelChangedEvent, TunnelLogEvent,
-    TunnelMetricsEvent,
+    TunnelMetricsEvent, X11ChangedEvent,
 };
 pub use frame::{MalformedFrame, Outcome, ServerFrame, encode_event, encode_response};
 pub use hello::{ClientKind, Hello, HelloResult, PROTOCOL_VERSION};
@@ -31,6 +32,7 @@ pub use line::{LineRead, MAX_LINE_BYTES, encode_line, read_line};
 pub use request::{
     CredentialAnswer, CredentialResponseParams, HostKeyResponseParams, METHOD_NAMES, ProcessParams,
     QuitParams, Request, RequestEnvelope, RequestRejection, TagParams, TunnelIdParams,
+    X11HostParams, X11LaunchParams,
 };
 pub use response::{AdoptResult, EmptyResult, HostsResult, LogsResult, ResponsePayload};
 pub use secret::Secret;

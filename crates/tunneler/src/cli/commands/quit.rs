@@ -55,9 +55,11 @@ fn running_tunnels(data: Option<&Value>) -> Option<usize> {
 
 fn describe_confirmation(running: Option<usize>) -> String {
     match running {
-        Some(1) => "1 tunnel is active. Stop it and quit? [y/N] ".to_owned(),
-        Some(count) => format!("{count} tunnels are active. Stop them all and quit? [y/N] "),
-        None => "Tunnels are active. Stop them all and quit? [y/N] ".to_owned(),
+        Some(1) => "1 tunnel or X11 session is active. Stop it and quit? [y/N] ".to_owned(),
+        Some(count) => {
+            format!("{count} tunnels or X11 sessions are active. Stop them all and quit? [y/N] ")
+        }
+        None => "Tunnels or X11 sessions are active. Stop them all and quit? [y/N] ".to_owned(),
     }
 }
 
@@ -147,7 +149,7 @@ mod tests {
 
         assert_eq!(
             terminal.asked.lock().unwrap().clone(),
-            vec!["3 tunnels are active. Stop them all and quit? [y/N] ".to_owned()]
+            vec!["3 tunnels or X11 sessions are active. Stop them all and quit? [y/N] ".to_owned()]
         );
     }
 
@@ -155,7 +157,7 @@ mod tests {
     fn should_use_the_singular_when_one_tunnel_is_active() {
         assert_eq!(
             describe_confirmation(Some(1)),
-            "1 tunnel is active. Stop it and quit? [y/N] "
+            "1 tunnel or X11 session is active. Stop it and quit? [y/N] "
         );
     }
 

@@ -75,6 +75,25 @@ pub async fn stop_tag(state: State<'_, BridgeState>, tag: String) -> CommandResu
 }
 
 #[tauri::command]
+pub async fn start_x11(state: State<'_, BridgeState>, host: String) -> CommandResult<()> {
+    Ok(state.client()?.start_x11(&host).await?)
+}
+
+#[tauri::command]
+pub async fn stop_x11(state: State<'_, BridgeState>, host: String) -> CommandResult<()> {
+    Ok(state.client()?.stop_x11(&host).await?)
+}
+
+#[tauri::command]
+pub async fn launch_x11(
+    state: State<'_, BridgeState>,
+    host: String,
+    name: String,
+) -> CommandResult<()> {
+    Ok(state.client()?.launch_x11(&host, &name).await?)
+}
+
+#[tauri::command]
 pub async fn adopt_external(
     state: State<'_, BridgeState>,
     id: String,

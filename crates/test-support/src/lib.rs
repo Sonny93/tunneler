@@ -25,5 +25,5 @@ mod workspace;
 pub use agent::TestAgent;
 pub use keys::{fingerprint_of, fixture_key, generate_key, write_private_key};
 pub use listeners::{EchoServer, SilentListener, free_port};
-pub use server::{TestServer, TestServerBuilder, TestUser};
+pub use server::{TestServer, TestServerBuilder, TestUser, X11Request};
 pub use workspace::{ALIAS, HostSpec, REMOTE_USER, Workspace};

@@ -25,6 +25,7 @@ pub const WAIT: Duration = Duration::from_secs(5);
 pub const QUIET_PERIOD: Duration = Duration::from_millis(300);
 pub const SLOW_TUNNEL_ID: &str = "slow";
 pub const MISSING_TUNNEL_ID: &str = "missing";
+pub const MISSING_LAUNCHER_NAME: &str = "missing";
 pub const UNKILLABLE_PID: u32 = 1;
 pub const SLOW_DELAY: Duration = Duration::from_millis(300);
 const EVENT_BUS_CAPACITY: usize = 16;
@@ -59,6 +60,9 @@ impl RequestHandler for FakeHandler {
             })),
             Request::ExternalKill(params) if params.pid == UNKILLABLE_PID => {
                 Err(IpcError::kill_failed("process still running"))
+            }
+            Request::X11Launch(params) if params.name == MISSING_LAUNCHER_NAME => {
+                Err(IpcError::not_found("no such launcher"))
             }
             Request::DaemonQuit(params) if !params.force => Err(IpcError::tunnels_running(2)),
             _ => Ok(ResponsePayload::empty()),

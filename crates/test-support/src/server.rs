@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use russh::keys::{HashAlg, PrivateKey, PublicKey};
 use russh::server::{self, Auth, Config, Msg, Server, Session};
-use russh::{Channel, ChannelOpenFailure, MethodKind, MethodSet};
+use russh::{Channel, ChannelId, ChannelOpenFailure, ChannelStream, MethodKind, MethodSet};
 use tokio::io::{copy_bidirectional, duplex};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::watch;
@@ -20,6 +20,31 @@ const BRIDGE_BUFFER_SIZE: usize = 64 * 1024;
 const FORWARD_BIND_ATTEMPTS: usize = 20;
 const FORWARD_BIND_RETRY_DELAY: Duration = Duration::from_millis(10);
 const FORWARD_BIND_ADDRESS: &str = "127.0.0.1";
+const X11_ANCHOR_COMMAND_PREFIX: &str = "echo \"$DISPLAY\"";
+const X11_DISPLAY: &str = "localhost:10.0";
+const X11_ORIGINATOR_ADDRESS: &str = "127.0.0.1";
+const X11_ORIGINATOR_PORT: u32 = 0;
+
+/// How the server answers the X11 anchor of a client.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum X11Policy {
+    Anchoring,
+    Refusing,
+    ReportingEmptyDisplay,
+}
+
+/// An `x11-req` request a client made on a session channel.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct X11Request {
+    /// The authentication protocol, normally `MIT-MAGIC-COOKIE-1`.
+    pub protocol: String,
+    /// The hexadecimal authentication cookie.
+    pub cookie: String,
+    /// The screen number.
+    pub screen: u32,
+    /// Whether only one X11 connection was allowed.
+    pub is_single_connection: bool,
+}
 
 /// What one account of the test server accepts.
 #[derive(Clone, Default)]
@@ -38,11 +63,15 @@ struct Behavior {
     requires_publickey_then_password: bool,
     allows_direct_tcpip: bool,
     allows_remote_forwards: bool,
+    x11_policy: X11Policy,
     connection_count: Arc<AtomicUsize>,
     remote_forward_requests: Arc<Mutex<Vec<(String, u16)>>>,
     direct_tcpip_targets: Arc<Mutex<Vec<(String, u16)>>>,
     direct_tcpip_originators: Arc<Mutex<Vec<(String, u32)>>>,
     offered_fingerprints: Arc<Mutex<Vec<String>>>,
+    x11_requests: Arc<Mutex<Vec<X11Request>>>,
+    executed_commands: Arc<Mutex<Vec<String>>>,
+    latest_session: Arc<Mutex<Option<server::Handle>>>,
 }
 
 /// The live connections of the server, so that they can be cut.
@@ -102,6 +131,7 @@ pub struct TestServerBuilder {
     requires_publickey_then_password: bool,
     allows_direct_tcpip: bool,
     allows_remote_forwards: bool,
+    x11_policy: X11Policy,
 }
 
 impl TestServerBuilder {
@@ -147,6 +177,19 @@ impl TestServerBuilder {
         self
     }
 
+    /// Refuses every `x11-req` request.
+    pub fn refusing_x11(mut self) -> Self {
+        self.x11_policy = X11Policy::Refusing;
+        self
+    }
+
+    /// Makes the X11 anchor command report an empty `DISPLAY`, like a server
+    /// that does not forward X11.
+    pub fn reporting_empty_display(mut self) -> Self {
+        self.x11_policy = X11Policy::ReportingEmptyDisplay;
+        self
+    }
+
     /// Starts listening on loopback.
     pub async fn start(self) -> TestServer {
         let listener = TcpListener::bind(("127.0.0.1", self.port)).await.unwrap();
@@ -156,6 +199,9 @@ impl TestServerBuilder {
         let direct_tcpip_targets = Arc::new(Mutex::new(Vec::new()));
         let direct_tcpip_originators = Arc::new(Mutex::new(Vec::new()));
         let offered_fingerprints = Arc::new(Mutex::new(Vec::new()));
+        let x11_requests = Arc::new(Mutex::new(Vec::new()));
+        let executed_commands = Arc::new(Mutex::new(Vec::new()));
+        let latest_session = Arc::new(Mutex::new(None));
         let config = self.server_config();
         let offered_methods = config.methods.clone();
         let behavior = Arc::new(Behavior {
@@ -164,11 +210,15 @@ impl TestServerBuilder {
             requires_publickey_then_password: self.requires_publickey_then_password,
             allows_direct_tcpip: self.allows_direct_tcpip,
             allows_remote_forwards: self.allows_remote_forwards,
+            x11_policy: self.x11_policy,
             connection_count: Arc::clone(&connection_count),
             remote_forward_requests: Arc::clone(&remote_forward_requests),
             direct_tcpip_targets: Arc::clone(&direct_tcpip_targets),
             direct_tcpip_originators: Arc::clone(&direct_tcpip_originators),
             offered_fingerprints: Arc::clone(&offered_fingerprints),
+            x11_requests: Arc::clone(&x11_requests),
+            executed_commands: Arc::clone(&executed_commands),
+            latest_session: Arc::clone(&latest_session),
         });
         let config = Arc::new(config);
         let connections = Arc::new(Connections::default());
@@ -186,6 +236,9 @@ impl TestServerBuilder {
             direct_tcpip_targets,
             direct_tcpip_originators,
             offered_fingerprints,
+            x11_requests,
+            executed_commands,
+            latest_session,
             behavior,
             config,
             connections,
@@ -224,6 +277,9 @@ pub struct TestServer {
     direct_tcpip_targets: Arc<Mutex<Vec<(String, u16)>>>,
     direct_tcpip_originators: Arc<Mutex<Vec<(String, u32)>>>,
     offered_fingerprints: Arc<Mutex<Vec<String>>>,
+    x11_requests: Arc<Mutex<Vec<X11Request>>>,
+    executed_commands: Arc<Mutex<Vec<String>>>,
+    latest_session: Arc<Mutex<Option<server::Handle>>>,
     behavior: Arc<Behavior>,
     config: Arc<Config>,
     connections: Arc<Connections>,
@@ -241,6 +297,7 @@ impl TestServer {
             requires_publickey_then_password: false,
             allows_direct_tcpip: true,
             allows_remote_forwards: true,
+            x11_policy: X11Policy::Anchoring,
         }
     }
 
@@ -315,6 +372,40 @@ impl TestServer {
     pub fn offered_fingerprints(&self) -> Vec<String> {
         self.offered_fingerprints.lock().unwrap().clone()
     }
+
+    /// The `x11-req` requests clients made, in order.
+    pub fn x11_requests(&self) -> Vec<X11Request> {
+        self.x11_requests.lock().unwrap().clone()
+    }
+
+    /// The commands clients asked to execute on a session channel, in order.
+    pub fn executed_commands(&self) -> Vec<String> {
+        self.executed_commands.lock().unwrap().clone()
+    }
+
+    /// Opens an `x11` channel toward the latest client session, like a remote
+    /// X client connecting to the forwarded display; the stream is that X
+    /// client's connection.
+    ///
+    /// Panics when the client refuses the channel or no client authenticated.
+    pub async fn open_x11_channel(&self) -> ChannelStream<Msg> {
+        self.try_open_x11_channel().await.unwrap()
+    }
+
+    /// Like [`open_x11_channel`](Self::open_x11_channel), returning the
+    /// failure when the client refuses the channel.
+    pub async fn try_open_x11_channel(&self) -> Result<ChannelStream<Msg>, russh::Error> {
+        let handle = self
+            .latest_session
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("no client has authenticated yet");
+        let channel = handle
+            .channel_open_x11(X11_ORIGINATOR_ADDRESS, X11_ORIGINATOR_PORT)
+            .await?;
+        Ok(channel.into_stream())
+    }
 }
 
 impl Drop for TestServer {
@@ -381,6 +472,7 @@ impl Server for Acceptor {
             behavior: Arc::clone(&self.behavior),
             has_passed_publickey: false,
             forwards: HashMap::new(),
+            x11_channels: HashSet::new(),
         }
     }
 }
@@ -389,6 +481,7 @@ struct ConnectionHandler {
     behavior: Arc<Behavior>,
     has_passed_publickey: bool,
     forwards: HashMap<u16, JoinHandle<()>>,
+    x11_channels: HashSet<ChannelId>,
 }
 
 impl Drop for ConnectionHandler {
@@ -414,6 +507,13 @@ impl ConnectionHandler {
             proceed_with_methods: Some(self.behavior.offered_methods.clone()),
             partial_success: false,
         }
+    }
+
+    fn display_line(&self) -> String {
+        if self.behavior.x11_policy == X11Policy::ReportingEmptyDisplay {
+            return "\n".to_owned();
+        }
+        format!("{X11_DISPLAY}\n")
     }
 
     fn continue_with(methods: &[MethodKind]) -> Auth {
@@ -517,6 +617,64 @@ impl server::Handler for ConnectionHandler {
             return Ok(Auth::Accept);
         }
         Ok(self.reject())
+    }
+
+    async fn auth_succeeded(&mut self, session: &mut Session) -> Result<(), Self::Error> {
+        *self.behavior.latest_session.lock().unwrap() = Some(session.handle());
+        Ok(())
+    }
+
+    async fn channel_open_session(
+        &mut self,
+        _channel: Channel<Msg>,
+        reply: server::ChannelOpenHandle,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        reply.accept().await;
+        Ok(())
+    }
+
+    async fn x11_request(
+        &mut self,
+        channel: ChannelId,
+        single_connection: bool,
+        x11_auth_protocol: &str,
+        x11_auth_cookie: &str,
+        x11_screen_number: u32,
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.behavior.x11_requests.lock().unwrap().push(X11Request {
+            protocol: x11_auth_protocol.to_owned(),
+            cookie: x11_auth_cookie.to_owned(),
+            screen: x11_screen_number,
+            is_single_connection: single_connection,
+        });
+        if self.behavior.x11_policy == X11Policy::Refusing {
+            return session.channel_failure(channel);
+        }
+        self.x11_channels.insert(channel);
+        session.channel_success(channel)
+    }
+
+    async fn exec_request(
+        &mut self,
+        channel: ChannelId,
+        data: &[u8],
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        let command = String::from_utf8_lossy(data).into_owned();
+        let is_anchor_command =
+            self.x11_channels.contains(&channel) && command.starts_with(X11_ANCHOR_COMMAND_PREFIX);
+        self.behavior
+            .executed_commands
+            .lock()
+            .unwrap()
+            .push(command);
+        session.channel_success(channel)?;
+        if is_anchor_command {
+            session.data(channel, self.display_line().into_bytes())?;
+        }
+        Ok(())
     }
 
     async fn channel_open_direct_tcpip(

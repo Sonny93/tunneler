@@ -1,4 +1,6 @@
 import type {
+	X11AnchorDto,
+	X11LauncherDto,
 	ExternalProcessDto,
 	MetricsDto,
 	SettingsDto,
@@ -82,8 +84,31 @@ export function buildSnapshot(
 	return {
 		tunnels: [buildTunnel()],
 		externals: [],
+		x11Anchors: [],
+		x11Launchers: [],
 		settings: buildSettings(),
 		tray: { kind: 'active' },
+		...overrides,
+	};
+}
+
+export function buildX11Anchor(
+	overrides: Readonly<Partial<X11AnchorDto>> = {}
+): X11AnchorDto {
+	return {
+		host: 'nova',
+		state: { kind: 'active', display: 'localhost:10.0' },
+		...overrides,
+	};
+}
+
+export function buildX11Launcher(
+	overrides: Readonly<Partial<X11LauncherDto>> = {}
+): X11LauncherDto {
+	return {
+		host: 'nova',
+		name: 'VS Code',
+		command: 'code --no-sandbox',
 		...overrides,
 	};
 }

@@ -9,14 +9,17 @@ use tracing::warn;
 
 use super::checker::HostKeyChecker;
 use crate::remote_forwards::{ForwardedConnection, RemoteForwardRegistry};
+use crate::x11::{X11Connection, X11Router, serve_x11_connection};
 
 /// The russh client handler: it decides about the server key, leaving the
 /// reason of a refusal in the shared handshake state, hands the connections
-/// of remote forwards to their tunnel, and signals when the connection ends.
+/// of remote forwards to their tunnel, serves the X11 channels once X11 is
+/// enabled on the session, and signals when the connection ends.
 pub(crate) struct ClientHandler {
     checker: HostKeyChecker,
     closed_signal: watch::Sender<bool>,
     remote_forwards: Arc<RemoteForwardRegistry>,
+    x11: Arc<X11Router>,
 }
 
 impl ClientHandler {
@@ -24,11 +27,13 @@ impl ClientHandler {
         checker: HostKeyChecker,
         closed_signal: watch::Sender<bool>,
         remote_forwards: Arc<RemoteForwardRegistry>,
+        x11: Arc<X11Router>,
     ) -> Self {
         Self {
             checker,
             closed_signal,
             remote_forwards,
+            x11,
         }
     }
 }
@@ -88,6 +93,33 @@ impl Handler for ClientHandler {
                 .reject(ChannelOpenFailure::AdministrativelyProhibited)
                 .await;
         }
+        Ok(())
+    }
+
+    async fn server_channel_open_x11(
+        &mut self,
+        channel: Channel<Msg>,
+        originator_address: &str,
+        originator_port: u32,
+        reply: ChannelOpenHandle,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        let Some(forwarding) = self.x11.route() else {
+            warn!(
+                originator_address,
+                originator_port, "X11 forwarding is not enabled on this session; channel refused"
+            );
+            reply
+                .reject(ChannelOpenFailure::AdministrativelyProhibited)
+                .await;
+            return Ok(());
+        };
+        let connection = X11Connection {
+            channel,
+            reply,
+            originator: format!("{originator_address}:{originator_port}"),
+        };
+        tokio::spawn(serve_x11_connection(connection, forwarding));
         Ok(())
     }
 

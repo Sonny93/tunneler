@@ -19,7 +19,7 @@ use crate::protocol::{
     AdoptResult, CredentialAnswer, CredentialResponseParams, EventMessage, Hello,
     HostKeyDecisionDto, HostKeyResponseParams, HostsResult, LogEntryDto, LogsResult, ProcessParams,
     QuitParams, Request, RequestEnvelope, SettingsDto, SnapshotDto, TagParams, TunnelDefinitionDto,
-    TunnelDto, TunnelIdParams, TunnelSpecDto, encode_line,
+    TunnelDto, TunnelIdParams, TunnelSpecDto, X11HostParams, X11LaunchParams, encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -318,6 +318,40 @@ impl IpcClient {
             .await
     }
 
+    /// Opens the X11 anchor of a host; does nothing when it is already open.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn start_x11(&self, host: &str) -> Result<(), ClientError> {
+        self.call_without_result(Request::X11Start(x11_host(host)))
+            .await
+    }
+
+    /// Closes the X11 anchor of a host.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn stop_x11(&self, host: &str) -> Result<(), ClientError> {
+        self.call_without_result(Request::X11Stop(x11_host(host)))
+            .await
+    }
+
+    /// Runs a saved launcher in an X11-enabled session on a host.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. An unknown launcher
+    /// answers [`ErrorCode::NotFound`](crate::protocol::ErrorCode::NotFound).
+    pub async fn launch_x11(&self, host: &str, name: &str) -> Result<(), ClientError> {
+        let params = X11LaunchParams {
+            host: host.to_owned(),
+            name: name.to_owned(),
+        };
+        self.call_without_result(Request::X11Launch(params)).await
+    }
+
     async fn call_without_result(&self, request: Request) -> Result<(), ClientError> {
         self.call::<serde_json::Value>(request).await.map(drop)
     }
@@ -347,6 +381,12 @@ fn tunnel_id(id: &str) -> TunnelIdParams {
 fn tag_params(tag: &str) -> TagParams {
     TagParams {
         tag: tag.to_owned(),
+    }
+}
+
+fn x11_host(host: &str) -> X11HostParams {
+    X11HostParams {
+        host: host.to_owned(),
     }
 }
 

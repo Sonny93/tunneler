@@ -7,7 +7,7 @@
 use ipc::protocol::{
     ExternalForwardDto, ExternalProcessDto, FailureReasonDto, MetricsDto, PortOwnerDto,
     SettingsDto, SnapshotDto, TargetHealthDto, TunnelDefinitionDto, TunnelDto, TunnelKindDto,
-    TunnelStateDto,
+    TunnelStateDto, X11StateDto,
 };
 use serde::Serialize;
 
@@ -22,6 +22,7 @@ const BYTES_PER_UNIT: u64 = 1024;
 const BYTE_UNITS: [&str; 4] = ["KiB", "MiB", "GiB", "TiB"];
 const NO_TUNNELS_MESSAGE: &str = "No tunnels configured.";
 const UNMANAGED_HEADING: &str = "Unmanaged ssh processes:";
+const X11_HEADING: &str = "X11:";
 
 /// The reason of a failure, as a sentence fragment.
 pub fn describe_failure(reason: &FailureReasonDto) -> String {
@@ -333,6 +334,34 @@ pub fn render_externals(snapshot: &SnapshotDto, style: Style) -> Option<String> 
     )
 }
 
+fn describe_x11_state(state: &X11StateDto) -> String {
+    match state {
+        X11StateDto::Stopped => "stopped".to_owned(),
+        X11StateDto::Starting => "starting".to_owned(),
+        X11StateDto::Active { display } => format!("active (DISPLAY={display})"),
+        X11StateDto::Reconnecting { attempt, .. } => format!("reconnecting (attempt {attempt})"),
+        X11StateDto::Failed { message } => format!("failed: {message}"),
+    }
+}
+
+/// One line per host whose X11 anchor is not stopped, under a heading;
+/// `None` when there are none.
+pub fn render_x11(snapshot: &SnapshotDto) -> Option<String> {
+    if snapshot.x11_anchors.is_empty() {
+        return None;
+    }
+    let lines = snapshot
+        .x11_anchors
+        .iter()
+        .map(|anchor| format!("  {}: {}", anchor.host, describe_x11_state(&anchor.state)));
+    Some(
+        std::iter::once(X11_HEADING.to_owned())
+            .chain(lines)
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
+}
+
 /// The line that opens the output of `status`.
 pub fn render_daemon_summary(daemon_version: &str, snapshot: &SnapshotDto) -> String {
     let active = snapshot
@@ -471,6 +500,8 @@ mod tests {
             settings: settings(),
             tray: TrayStatusDto::default(),
             externals: Vec::new(),
+            x11_anchors: Vec::new(),
+            x11_launchers: Vec::new(),
         }
     }
 
@@ -1011,5 +1042,68 @@ mod tests {
             ),
             (&3333.into(), None)
         );
+    }
+
+    fn anchor(host: &str, state: X11StateDto) -> ipc::protocol::X11AnchorDto {
+        ipc::protocol::X11AnchorDto {
+            host: host.to_owned(),
+            state,
+        }
+    }
+
+    #[test]
+    fn should_render_no_x11_block_when_no_anchor_is_running() {
+        assert_eq!(render_x11(&snapshot_of(Vec::new())), None);
+    }
+
+    #[test]
+    fn should_render_the_display_when_an_anchor_is_active() {
+        let mut snapshot = snapshot_of(Vec::new());
+        snapshot.x11_anchors = vec![anchor(
+            "nova",
+            X11StateDto::Active {
+                display: "localhost:10.0".to_owned(),
+            },
+        )];
+
+        assert_eq!(
+            render_x11(&snapshot).unwrap(),
+            "X11:\n  nova: active (DISPLAY=localhost:10.0)"
+        );
+    }
+
+    #[test]
+    fn should_render_one_line_per_anchor_when_several_are_not_stopped() {
+        let mut snapshot = snapshot_of(Vec::new());
+        snapshot.x11_anchors = vec![
+            anchor(
+                "alpha",
+                X11StateDto::Reconnecting {
+                    attempt: 2,
+                    next_retry_at: 0,
+                },
+            ),
+            anchor(
+                "beta",
+                X11StateDto::Failed {
+                    message: "the server refused X11 forwarding".to_owned(),
+                },
+            ),
+        ];
+
+        assert_eq!(
+            render_x11(&snapshot).unwrap(),
+            "X11:\n  alpha: reconnecting (attempt 2)\n  beta: failed: the server refused X11 forwarding"
+        );
+    }
+
+    #[test]
+    fn should_include_the_x11_fields_when_rendering_the_status_json() {
+        let mut snapshot = snapshot_of(Vec::new());
+        snapshot.x11_anchors = vec![anchor("nova", X11StateDto::Starting)];
+
+        let json = render_status_json("0.1.0", &snapshot).unwrap();
+
+        assert!(json.contains(r#""x11Anchors":[{"host":"nova","state":{"kind":"starting"}}]"#));
     }
 }

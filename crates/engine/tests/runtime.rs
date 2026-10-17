@@ -18,9 +18,9 @@ use fast_socks5::client::{Config as SocksConfig, Socks5Stream};
 use fast_socks5::{ReplyError, SocksError};
 use russh::keys::{Algorithm, PrivateKey};
 use support::{
-    EchoServer, FakePortScanner, ScriptedPrompter, ScriptedVerifier, TestServer, TestUser,
-    Workspace, foreign_scan, free_port, generate_key, identity_of, ssh_scan, wait_for_event,
-    wait_for_state, wait_until, write_private_key,
+    EchoServer, FakePortScanner, FakeX11Environment, ScriptedPrompter, ScriptedVerifier,
+    TestServer, TestUser, Workspace, foreign_scan, free_port, generate_key, identity_of, ssh_scan,
+    wait_for_event, wait_for_state, wait_until, write_private_key,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -242,6 +242,7 @@ impl HarnessBuilder {
                 clock: self.clock,
                 store,
                 port_scanner,
+                x11_environment: Arc::new(FakeX11Environment::default()),
             },
             EngineOptions {
                 health_probe_interval: PROBE_INTERVAL,
@@ -2105,6 +2106,7 @@ async fn should_save_the_generated_ids_when_the_engine_starts_on_a_file_without_
         clock: Arc::new(SystemClock),
         store,
         port_scanner: Arc::new(FakePortScanner::default()),
+        x11_environment: Arc::new(FakeX11Environment::default()),
     })
     .unwrap();
 

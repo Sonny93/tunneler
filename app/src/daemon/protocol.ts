@@ -103,9 +103,23 @@ export type ExternalProcessDto = {
 	forwards: ExternalForwardDto[];
 };
 
+export type X11StateDto =
+	| { kind: 'stopped' }
+	| { kind: 'starting' }
+	| { kind: 'active'; display: string }
+	| { kind: 'reconnecting'; attempt: number; nextRetryAt: EpochMillis }
+	| { kind: 'failed'; message: string };
+
+/** Only anchors that are not stopped are listed. */
+export type X11AnchorDto = { host: string; state: X11StateDto };
+
+export type X11LauncherDto = { host: string; name: string; command: string };
+
 export type SnapshotDto = {
 	tunnels: TunnelDto[];
 	externals: ExternalProcessDto[];
+	x11Anchors: X11AnchorDto[];
+	x11Launchers: X11LauncherDto[];
 	settings: SettingsDto;
 	tray: TrayStatusDto;
 };
@@ -164,4 +178,5 @@ export type EventMessage =
 	| { event: 'tray.changed'; data: { status: TrayStatusDto } }
 	| { event: 'show.requested'; data: Record<string, never> }
 	| { event: 'externals.changed'; data: { processes: ExternalProcessDto[] } }
-	| { event: 'prompt.resolved'; data: { promptId: string } };
+	| { event: 'prompt.resolved'; data: { promptId: string } }
+	| { event: 'x11.changed'; data: { host: string; state: X11StateDto } };

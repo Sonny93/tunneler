@@ -14,6 +14,7 @@ mod environment;
 mod fake_port_scanner;
 mod scripted;
 mod workspace;
+mod x11;
 
 #[cfg(unix)]
 pub use agent::FixedAgentLocator;
@@ -28,6 +29,10 @@ pub use scripted::{ScriptedPrompter, ScriptedVerifier};
 pub use test_support::TestAgent;
 pub use test_support::{
     ALIAS, EchoServer, HostSpec, REMOTE_USER, SilentListener, TestServer, TestServerBuilder,
-    TestUser, fingerprint_of, fixture_key, free_port, generate_key, write_private_key,
+    TestUser, X11Request, fingerprint_of, fixture_key, free_port, generate_key, write_private_key,
 };
 pub use workspace::{NoAgentLocator, Workspace, quiet_prompter, rejecting_verifier};
+pub use x11::{
+    FakeX11Environment, FakeXServer, decode_hex, expected_server_setup, x_client_setup,
+    x_client_setup_with_cookie,
+};

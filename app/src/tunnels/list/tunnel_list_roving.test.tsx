@@ -22,6 +22,11 @@ const rowSwitch = (name: string) =>
 const actionsButton = (name: string) =>
 	screen.getByRole('button', { name: `Actions pour ${name}` });
 
+const tabIntoFirstRow = async () => {
+	await userEvent.tab();
+	await userEvent.tab();
+};
+
 describe('TunnelList roving focus', () => {
 	it('should make only the first row switch tabbable initially', () => {
 		seedTunnels();
@@ -36,7 +41,7 @@ describe('TunnelList roving focus', () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
 
-		await userEvent.tab();
+		await tabIntoFirstRow();
 
 		expect(rowSwitch('Alpha')).toHaveFocus();
 	});
@@ -45,7 +50,7 @@ describe('TunnelList roving focus', () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
 
-		await userEvent.tab();
+		await tabIntoFirstRow();
 		await userEvent.tab();
 
 		expect(actionsButton('Alpha')).toHaveFocus();
@@ -54,7 +59,7 @@ describe('TunnelList roving focus', () => {
 	it('should move to the next row switch with ArrowDown', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		await userEvent.tab();
+		await tabIntoFirstRow();
 
 		await userEvent.keyboard('{ArrowDown}');
 
@@ -94,7 +99,7 @@ describe('TunnelList roving focus', () => {
 	it('should jump to the last and first rows with End and Home', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		await userEvent.tab();
+		await tabIntoFirstRow();
 
 		await userEvent.keyboard('{End}');
 		expect(rowSwitch('Gamma')).toHaveFocus();
@@ -136,7 +141,7 @@ describe('TunnelList roving focus', () => {
 	it('should still toggle a switch with Space', async () => {
 		seedTunnels();
 		const { gateway } = renderWithGateway(<TunnelList />);
-		await userEvent.tab();
+		await tabIntoFirstRow();
 
 		await userEvent.keyboard(' ');
 
@@ -146,7 +151,7 @@ describe('TunnelList roving focus', () => {
 	it('should make the focused row the only tabbable one', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		await userEvent.tab();
+		await tabIntoFirstRow();
 
 		await userEvent.keyboard('{ArrowDown}');
 

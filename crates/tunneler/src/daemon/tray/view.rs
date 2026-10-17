@@ -231,6 +231,8 @@ mod tests {
             tunnels,
             settings: Settings::default(),
             externals: Vec::new(),
+            x11_anchors: Vec::new(),
+            x11_launchers: Vec::new(),
         })
     }
 

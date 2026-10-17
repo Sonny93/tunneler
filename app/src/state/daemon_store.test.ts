@@ -5,6 +5,8 @@ import {
 	buildExternalProcess,
 	buildSnapshot,
 	buildTunnel,
+	buildX11Anchor,
+	buildX11Launcher,
 } from '#/testing/factories';
 
 describe('useDaemonStore', () => {
@@ -23,6 +25,20 @@ describe('useDaemonStore', () => {
 			tunnels: snapshot.tunnels,
 			externals: snapshot.externals,
 			settings: snapshot.settings,
+		});
+	});
+
+	it('should load the X11 anchors and launchers from a snapshot', () => {
+		const snapshot = buildSnapshot({
+			x11Anchors: [buildX11Anchor()],
+			x11Launchers: [buildX11Launcher()],
+		});
+
+		useDaemonStore.getState().applySnapshot(snapshot);
+
+		expect(useDaemonStore.getState()).toMatchObject({
+			x11Anchors: snapshot.x11Anchors,
+			x11Launchers: snapshot.x11Launchers,
 		});
 	});
 

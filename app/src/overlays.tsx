@@ -1,3 +1,4 @@
+import { X11Drawer } from '#/x11/x11_drawer';
 import { PromptHost } from '#/prompts/prompt_host';
 import { ShortcutsHelp } from '#/shortcuts/shortcuts_help';
 import { SettingsDrawer } from '#/settings/settings_drawer';
@@ -14,6 +15,7 @@ export function Overlays() {
 		<>
 			<TunnelFormDrawer />
 			<SettingsDrawer />
+			<X11Drawer />
 			<PromptHost />
 			<ShortcutsHelp />
 		</>

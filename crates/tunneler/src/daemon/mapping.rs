@@ -9,7 +9,7 @@ use engine::{
     EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision, InvalidTunnelId, LogLevel,
     NewTunnel, PortOwner, RejectedHostKey, RejectionReason, Settings, SshForward, TargetHealth,
     TunnelDefinition, TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot,
-    TunnelState, UnmanagedProcess,
+    TunnelState, UnmanagedProcess, X11AnchorSnapshot, X11AnchorState, X11Launcher,
 };
 use ipc::protocol::{
     ConfigInvalidEvent, EpochMillis, EventMessage, ExternalForwardDto, ExternalProcessDto,
@@ -17,6 +17,7 @@ use ipc::protocol::{
     HostKeyRequestEvent, LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, SettingsDto,
     SnapshotDto, TargetHealthDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto,
     TunnelDto, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto,
+    X11AnchorDto, X11ChangedEvent, X11LauncherDto, X11StateDto,
 };
 
 use super::tray::TrayStatus;
@@ -246,6 +247,47 @@ pub(crate) fn snapshot_to_dto(snapshot: &EngineSnapshot, tray: &TrayStatus) -> S
         settings: settings_to_dto(&snapshot.settings),
         tray: tray_status_to_dto(tray),
         externals: snapshot.externals.iter().map(external_to_dto).collect(),
+        x11_anchors: snapshot.x11_anchors.iter().map(x11_anchor_to_dto).collect(),
+        x11_launchers: snapshot
+            .x11_launchers
+            .iter()
+            .map(x11_launcher_to_dto)
+            .collect(),
+    }
+}
+
+pub(crate) fn x11_state_to_dto(state: &X11AnchorState) -> X11StateDto {
+    match state {
+        X11AnchorState::Stopped => X11StateDto::Stopped,
+        X11AnchorState::Starting => X11StateDto::Starting,
+        X11AnchorState::Active { display } => X11StateDto::Active {
+            display: display.clone(),
+        },
+        X11AnchorState::Reconnecting {
+            attempt,
+            next_retry_at,
+        } => X11StateDto::Reconnecting {
+            attempt: *attempt,
+            next_retry_at: to_epoch_millis(*next_retry_at),
+        },
+        X11AnchorState::Failed { message } => X11StateDto::Failed {
+            message: message.clone(),
+        },
+    }
+}
+
+fn x11_anchor_to_dto(anchor: &X11AnchorSnapshot) -> X11AnchorDto {
+    X11AnchorDto {
+        host: anchor.host.clone(),
+        state: x11_state_to_dto(&anchor.state),
+    }
+}
+
+fn x11_launcher_to_dto(launcher: &X11Launcher) -> X11LauncherDto {
+    X11LauncherDto {
+        host: launcher.host.clone(),
+        name: launcher.name.clone(),
+        command: launcher.command.clone(),
     }
 }
 
@@ -293,6 +335,10 @@ pub(crate) fn event_to_message(event: &EngineEvent) -> EventMessage {
                 processes: processes.iter().map(external_to_dto).collect(),
             })
         }
+        EngineEvent::X11Changed { host, state } => EventMessage::X11Changed(X11ChangedEvent {
+            host: host.clone(),
+            state: x11_state_to_dto(state),
+        }),
     }
 }
 
@@ -554,11 +600,113 @@ mod tests {
             tunnels: Vec::new(),
             settings: Settings::default(),
             externals: vec![unmanaged()],
+            x11_anchors: Vec::new(),
+            x11_launchers: Vec::new(),
         };
 
         assert_eq!(
             snapshot_to_dto(&snapshot, &TrayStatus::Disabled).externals,
             vec![unmanaged_dto()]
+        );
+    }
+
+    fn x11_snapshot() -> EngineSnapshot {
+        EngineSnapshot {
+            tunnels: Vec::new(),
+            settings: Settings::default(),
+            externals: Vec::new(),
+            x11_anchors: vec![X11AnchorSnapshot {
+                host: "nova".to_owned(),
+                state: X11AnchorState::Starting,
+            }],
+            x11_launchers: vec![X11Launcher {
+                host: "nova".to_owned(),
+                name: "Editor".to_owned(),
+                command: "code --wait".to_owned(),
+            }],
+        }
+    }
+
+    #[test]
+    fn should_include_the_x11_anchors_when_converting_a_snapshot() {
+        assert_eq!(
+            snapshot_to_dto(&x11_snapshot(), &TrayStatus::Disabled).x11_anchors,
+            vec![X11AnchorDto {
+                host: "nova".to_owned(),
+                state: X11StateDto::Starting
+            }]
+        );
+    }
+
+    #[test]
+    fn should_include_the_x11_launchers_when_converting_a_snapshot() {
+        assert_eq!(
+            snapshot_to_dto(&x11_snapshot(), &TrayStatus::Disabled).x11_launchers,
+            vec![X11LauncherDto {
+                host: "nova".to_owned(),
+                name: "Editor".to_owned(),
+                command: "code --wait".to_owned()
+            }]
+        );
+    }
+
+    #[test]
+    fn should_convert_an_active_x11_state_with_its_display() {
+        let state = X11AnchorState::Active {
+            display: "localhost:10.0".to_owned(),
+        };
+
+        assert_eq!(
+            x11_state_to_dto(&state),
+            X11StateDto::Active {
+                display: "localhost:10.0".to_owned()
+            }
+        );
+    }
+
+    #[test]
+    fn should_convert_a_reconnecting_x11_state_with_the_retry_time_in_milliseconds() {
+        let state = X11AnchorState::Reconnecting {
+            attempt: 2,
+            next_retry_at: at(5),
+        };
+
+        assert_eq!(
+            x11_state_to_dto(&state),
+            X11StateDto::Reconnecting {
+                attempt: 2,
+                next_retry_at: 5_000
+            }
+        );
+    }
+
+    #[test]
+    fn should_convert_a_failed_x11_state_with_its_message() {
+        let state = X11AnchorState::Failed {
+            message: "refused".to_owned(),
+        };
+
+        assert_eq!(
+            x11_state_to_dto(&state),
+            X11StateDto::Failed {
+                message: "refused".to_owned()
+            }
+        );
+    }
+
+    #[test]
+    fn should_convert_an_x11_changed_event() {
+        let event = EngineEvent::X11Changed {
+            host: "nova".to_owned(),
+            state: X11AnchorState::Stopped,
+        };
+
+        assert_eq!(
+            event_to_message(&event),
+            EventMessage::X11Changed(X11ChangedEvent {
+                host: "nova".to_owned(),
+                state: X11StateDto::Stopped
+            })
         );
     }
 

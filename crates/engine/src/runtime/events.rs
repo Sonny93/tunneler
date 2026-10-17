@@ -4,6 +4,7 @@ use crate::external::UnmanagedProcess;
 use crate::runtime::log_buffer::TunnelLogEntry;
 use crate::runtime::metrics::TunnelMetrics;
 use crate::runtime::state::{TargetHealth, TunnelState};
+use crate::runtime::x11_state::X11AnchorState;
 use crate::store::TunnelId;
 
 /// How many events a slow subscriber may lag behind before it misses some.
@@ -44,6 +45,13 @@ pub enum EngineEvent {
     ExternalsChanged {
         /// The processes now reported.
         processes: Vec<UnmanagedProcess>,
+    },
+    /// The state of the X11 anchor of a host changed.
+    X11Changed {
+        /// The host alias.
+        host: String,
+        /// The new state of its anchor.
+        state: X11AnchorState,
     },
     /// The store file was edited into something unusable; the previous
     /// configuration keeps running.
