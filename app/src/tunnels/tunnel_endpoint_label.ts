@@ -1,15 +1,16 @@
 import type { TunnelDefinitionDto } from '#/daemon/protocol';
 
 const LOOPBACK_HOSTS: readonly string[] = ['127.0.0.1', 'localhost', '::1'];
+const DEFAULT_REMOTE_TARGET_HOST = '127.0.0.1';
 export const VISUAL_SEPARATOR = '→';
 export const SPOKEN_SEPARATOR = 'vers';
 
 type EndpointSource = Pick<
 	TunnelDefinitionDto,
-	'host' | 'listenPort' | 'targetHost' | 'targetPort'
+	'kind' | 'host' | 'listenPort' | 'targetHost' | 'targetPort'
 >;
 
-function buildEndpointLabel(
+function buildLocalLabel(
 	tunnel: Readonly<EndpointSource>,
 	separator: string
 ): string {
@@ -22,16 +23,38 @@ function buildEndpointLabel(
 	return `${tunnel.listenPort} ${separator} ${targetHost}:${targetPort} via ${tunnel.host}`;
 }
 
-/** Local tunnel endpoint, such as `3333 → nova:3333`. */
+function buildRemoteTarget(tunnel: Readonly<EndpointSource>): string {
+	const targetHost = tunnel.targetHost ?? DEFAULT_REMOTE_TARGET_HOST;
+	return `${targetHost}:${tunnel.targetPort ?? tunnel.listenPort}`;
+}
+
+/**
+ * Example: `3333 → nova:3333` for a local forward, `nova:8080 → 127.0.0.1:3000`
+ * for a remote one, `1080 (SOCKS via nova)` for a dynamic one.
+ */
 export function getTunnelEndpointLabel(
 	tunnel: Readonly<EndpointSource>
 ): string {
-	return buildEndpointLabel(tunnel, VISUAL_SEPARATOR);
+	switch (tunnel.kind) {
+		case 'local':
+			return buildLocalLabel(tunnel, VISUAL_SEPARATOR);
+		case 'remote':
+			return `${tunnel.host}:${tunnel.listenPort} ${VISUAL_SEPARATOR} ${buildRemoteTarget(tunnel)}`;
+		case 'dynamic':
+			return `${tunnel.listenPort} (SOCKS via ${tunnel.host})`;
+	}
 }
 
-/** Same endpoint with "vers" instead of an arrow, which screen readers read inconsistently. */
+/** Same endpoint in words, which screen readers read consistently (no arrow). */
 export function getTunnelAccessibleEndpointLabel(
 	tunnel: Readonly<EndpointSource>
 ): string {
-	return buildEndpointLabel(tunnel, SPOKEN_SEPARATOR);
+	switch (tunnel.kind) {
+		case 'local':
+			return buildLocalLabel(tunnel, SPOKEN_SEPARATOR);
+		case 'remote':
+			return `port ${tunnel.listenPort} du serveur ${tunnel.host} ${SPOKEN_SEPARATOR} ${buildRemoteTarget(tunnel)}`;
+		case 'dynamic':
+			return `proxy SOCKS sur le port ${tunnel.listenPort} via ${tunnel.host}`;
+	}
 }

@@ -3,6 +3,7 @@ use std::future::{Future, poll_fn};
 use std::iter::once;
 use std::net::SocketAddr;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
@@ -15,6 +16,7 @@ use tokio::time::{sleep, timeout};
 
 use crate::error::SessionError;
 use crate::host_key::ClientHandler;
+use crate::remote_forwards::{ForwardedSender, RemoteForwardRegistration, RemoteForwardRegistry};
 
 const DEFAULT_ORIGINATOR_ADDRESS: &str = "127.0.0.1";
 const DEFAULT_ORIGINATOR_PORT: u16 = 0;
@@ -29,6 +31,7 @@ pub struct SshSession {
     resolved: ResolvedConfig,
     handle: Handle<ClientHandler>,
     closed: watch::Receiver<bool>,
+    remote_forwards: Arc<RemoteForwardRegistry>,
     jumps: Vec<SshSession>,
 }
 
@@ -51,6 +54,7 @@ impl SshSession {
         resolved: ResolvedConfig,
         handle: Handle<ClientHandler>,
         closed: watch::Receiver<bool>,
+        remote_forwards: Arc<RemoteForwardRegistry>,
         jumps: Vec<SshSession>,
     ) -> Self {
         Self {
@@ -58,6 +62,7 @@ impl SshSession {
             resolved,
             handle,
             closed,
+            remote_forwards,
             jumps,
         }
     }
@@ -106,6 +111,51 @@ impl SshSession {
                 source: Box::new(source),
             })?;
         Ok(channel.into_stream())
+    }
+
+    /// Asks the server to listen on `address:port` and sends what it accepts
+    /// to `sender`, until the returned registration is dropped.
+    ///
+    /// The routing is in place before the server is asked, so that no
+    /// connection can arrive unrouted.
+    pub(crate) async fn request_remote_forward(
+        &self,
+        address: &str,
+        port: u16,
+        sender: ForwardedSender,
+    ) -> Result<RemoteForwardRegistration, SessionError> {
+        let registration = self.remote_forwards.register(address, port, sender);
+        match self.handle.tcpip_forward(address, u32::from(port)).await {
+            Ok(_) => Ok(registration),
+            Err(russh::Error::RequestDenied) => Err(SessionError::ForwardRefused {
+                address: address.to_owned(),
+                port,
+            }),
+            Err(source) => Err(SessionError::RequestForward {
+                address: address.to_owned(),
+                port,
+                source: Box::new(source),
+            }),
+        }
+    }
+
+    /// Stops the routing of a remote forward, then asks the server to stop
+    /// listening.
+    pub(crate) async fn cancel_remote_forward(
+        &self,
+        registration: RemoteForwardRegistration,
+    ) -> Result<(), SessionError> {
+        let address = registration.address().to_owned();
+        let port = registration.port();
+        drop(registration);
+        self.handle
+            .cancel_tcpip_forward(address.as_str(), u32::from(port))
+            .await
+            .map_err(|source| SessionError::CancelForward {
+                address,
+                port,
+                source: Box::new(source),
+            })
     }
 
     /// Resolves once this session, or any jump host it runs through, has

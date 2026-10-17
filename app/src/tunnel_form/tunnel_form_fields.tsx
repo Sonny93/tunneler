@@ -1,9 +1,12 @@
 import { useId } from 'react';
 
 import { useDaemonStore } from '#/state/daemon_store';
+import type { TunnelKindDto } from '#/daemon/protocol';
 import { TargetPortField } from '#/tunnel_form/target_port_field';
+import { TunnelKindField } from '#/tunnel_form/tunnel_kind_field';
 import { TunnelTextField } from '#/tunnel_form/tunnel_text_field';
 import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
+import { getTunnelKindFieldTexts } from '#/tunnel_form/tunnel_kind_texts';
 import type { TunnelFormErrors } from '#/tunnel_form/validate_tunnel_form';
 import type {
 	TunnelFormAction,
@@ -22,19 +25,26 @@ export function TunnelFormFields({
 	dispatch,
 }: Readonly<TunnelFormFieldsProps>) {
 	const hosts = useDaemonStore((state) => state.hosts);
-	const defaultBindAddress = useDaemonStore(
-		(state) => state.settings?.defaultBindAddress
+	const defaultBindAddress = useDaemonStore((state) =>
+		values.kind === 'remote'
+			? state.settings?.defaultRemoteBindAddress
+			: state.settings?.defaultBindAddress
 	);
+	const texts = getTunnelKindFieldTexts(values.kind);
+	const hasTarget = values.kind !== 'dynamic';
 	const hostListId = useId();
 
 	const changeText = (field: TunnelFormTextField, value: string) =>
 		dispatch({ type: 'textChanged', field, value });
+	const changeKind = (kind: TunnelKindDto) =>
+		dispatch({ type: 'kindChanged', kind });
 	const changeTargetPort = (value: string) =>
 		dispatch({ type: 'targetPortChanged', value });
 	const relinkTargetPort = () => dispatch({ type: 'targetPortRelinked' });
 
 	return (
 		<div className="flex flex-col gap-4">
+			<TunnelKindField value={values.kind} onChange={changeKind} />
 			<TunnelTextField
 				field="name"
 				label="Nom"
@@ -62,28 +72,32 @@ export function TunnelFormFields({
 			</datalist>
 			<TunnelTextField
 				field="listenPort"
-				label="Port d'écoute"
+				label={texts.listenPortLabel}
 				value={values.listenPort}
 				onChange={changeText}
 				error={errors.listenPort}
 				inputMode="numeric"
 				isRequired
 			/>
-			<TargetPortField
-				value={values.targetPort}
-				isLinked={values.isTargetPortLinked}
-				error={errors.targetPort}
-				onChange={changeTargetPort}
-				onRelink={relinkTargetPort}
-			/>
-			<TunnelTextField
-				field="targetHost"
-				label="Hôte cible"
-				value={values.targetHost}
-				onChange={changeText}
-				placeholder="127.0.0.1"
-				hint="Vu depuis le serveur SSH"
-			/>
+			{hasTarget && (
+				<TargetPortField
+					value={values.targetPort}
+					isLinked={values.isTargetPortLinked}
+					error={errors.targetPort}
+					onChange={changeTargetPort}
+					onRelink={relinkTargetPort}
+				/>
+			)}
+			{hasTarget && (
+				<TunnelTextField
+					field="targetHost"
+					label={texts.targetHostLabel}
+					value={values.targetHost}
+					onChange={changeText}
+					placeholder="127.0.0.1"
+					hint={texts.targetHostHint}
+				/>
+			)}
 			<TunnelTextField
 				field="listenAddress"
 				label="Adresse d'écoute"

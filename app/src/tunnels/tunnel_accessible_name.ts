@@ -7,7 +7,13 @@ export function getTunnelAccessibleName(
 	tunnel: Readonly<
 		Pick<
 			TunnelDto,
-			'name' | 'host' | 'listenPort' | 'targetHost' | 'targetPort' | 'state'
+			| 'name'
+			| 'kind'
+			| 'host'
+			| 'listenPort'
+			| 'targetHost'
+			| 'targetPort'
+			| 'state'
 		>
 	>
 ): string {

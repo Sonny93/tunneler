@@ -9,11 +9,10 @@
 //! `ProxyCommand` or through `ProxyJump` hosts; identities come from the SSH
 //! agent first, then from identity files.
 //!
-//! On top of it, [`Engine`] runs the local port forwards of the store: one
-//! task per tunnel, one shared session per host alias, reconnection with
-//! backoff, target health, metrics and logs, all reported through
-//! [`EngineEvent`]s. Only local forwards are implemented; remote and dynamic
-//! tunnels fail with [`FailureReason::UnsupportedKind`].
+//! On top of it, [`Engine`] runs the port forwards of the store, local,
+//! remote and dynamic (SOCKS5): one task per tunnel, one shared session per
+//! host alias, reconnection with backoff, target health, metrics and logs,
+//! all reported through [`EngineEvent`]s.
 //!
 //! While [`Engine::set_port_scanning`] is on, the engine also detects
 //! external tunnels: a tunnel whose port is held by an `ssh` process with a
@@ -50,6 +49,7 @@ mod handshake;
 mod host_config;
 mod host_key;
 mod prompter;
+mod remote_forwards;
 mod runtime;
 mod session;
 mod store;

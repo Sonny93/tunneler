@@ -77,4 +77,14 @@ describe('clearEditedFieldErrors', () => {
 			).targetPort
 		).toBeUndefined();
 	});
+
+	it('should clear the target port error when the kind changes', () => {
+		expect(
+			clearEditedFieldErrors(
+				ALL_ERRORS,
+				{ type: 'kindChanged', kind: 'dynamic' },
+				linkedValues
+			).targetPort
+		).toBeUndefined();
+	});
 });

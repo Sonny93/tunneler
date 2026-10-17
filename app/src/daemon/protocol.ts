@@ -27,7 +27,7 @@ export type FailureReasonDto =
 	| { kind: 'portInUse'; address: string }
 	| { kind: 'listenFailed'; address: string; message: string }
 	| { kind: 'connect'; message: string }
-	| { kind: 'unsupportedKind'; tunnelKind: TunnelKindDto };
+	| { kind: 'remoteForwardRefused'; address: string };
 
 export type ProcessOwnerDto = { pid: number; process: string };
 

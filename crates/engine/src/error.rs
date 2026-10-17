@@ -205,6 +205,34 @@ pub enum SessionError {
         /// The SSH failure.
         source: Box<russh::Error>,
     },
+    /// The server refused to listen for a remote forward.
+    #[error("the server refused to listen on {address}:{port}")]
+    ForwardRefused {
+        /// The address the server was asked to listen on.
+        address: String,
+        /// The port the server was asked to listen on.
+        port: u16,
+    },
+    /// A remote forward could not be requested.
+    #[error("cannot request a forward on {address}:{port}: {source}")]
+    RequestForward {
+        /// The address the server was asked to listen on.
+        address: String,
+        /// The port the server was asked to listen on.
+        port: u16,
+        /// The SSH failure.
+        source: Box<russh::Error>,
+    },
+    /// A remote forward could not be cancelled.
+    #[error("cannot cancel the forward on {address}:{port}: {source}")]
+    CancelForward {
+        /// The address the server was listening on.
+        address: String,
+        /// The port the server was listening on.
+        port: u16,
+        /// The SSH failure.
+        source: Box<russh::Error>,
+    },
     /// The disconnect message could not be sent.
     #[error("cannot disconnect: {0}")]
     Disconnect(russh::Error),

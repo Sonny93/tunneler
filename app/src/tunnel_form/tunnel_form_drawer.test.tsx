@@ -1,7 +1,7 @@
 import { axe } from 'vitest-axe';
 import { describe, expect, it } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 
 import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
@@ -265,6 +265,172 @@ describe('TunnelFormDrawer', () => {
 	});
 });
 
+describe('TunnelFormDrawer kind selector', () => {
+	const kindRadio = (name: RegExp) => screen.getByRole('radio', { name });
+
+	it('should offer the three kinds in a group named "Type de tunnel"', () => {
+		openEditor();
+		renderDrawer();
+
+		expect(
+			within(screen.getByRole('group', { name: 'Type de tunnel' }))
+				.getAllByRole('radio')
+				.map((radio) => radio.getAttribute('value'))
+		).toEqual(['local', 'remote', 'dynamic']);
+	});
+
+	it('should select local by default', () => {
+		openEditor();
+		renderDrawer();
+
+		expect(kindRadio(/Local/)).toBeChecked();
+	});
+
+	it('should describe the direction of each kind', () => {
+		openEditor();
+		renderDrawer();
+
+		expect(
+			[/Local/, /Distant/, /Dynamique/].map((name) =>
+				kindRadio(name).getAttribute('aria-describedby')
+			)
+		).not.toContain(null);
+		expect(kindRadio(/Distant/)).toHaveAccessibleDescription(
+			'Écoute sur le serveur, cible vue depuis ce poste'
+		);
+	});
+
+	it('should move the selection with the arrow keys', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		renderDrawer();
+		kindRadio(/Local/).focus();
+
+		await user.keyboard('{ArrowDown}');
+
+		expect(kindRadio(/Distant/)).toBeChecked();
+	});
+
+	it('should say where things are for a remote tunnel', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		renderDrawer();
+
+		await user.click(kindRadio(/Distant/));
+
+		expect(
+			screen.getByRole('textbox', { name: /^Port d'écoute sur le serveur/ })
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('textbox', { name: /^Hôte cible \(depuis ce poste\)/ })
+		).toBeInTheDocument();
+	});
+
+	it('should show the remote default bind address for a remote tunnel', async () => {
+		openEditor();
+		useDaemonStore.setState({
+			settings: buildSettings({
+				defaultBindAddress: '127.0.0.1',
+				defaultRemoteBindAddress: '0.0.0.0',
+			}),
+		});
+		const user = userEvent.setup();
+		renderDrawer();
+
+		await user.click(kindRadio(/Distant/));
+
+		expect(
+			screen.getByRole('textbox', { name: /^Adresse d'écoute/ })
+		).toHaveAccessibleDescription(/0\.0\.0\.0/);
+	});
+
+	it('should hide the target fields for a dynamic tunnel', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		renderDrawer();
+
+		await user.click(kindRadio(/Dynamique/));
+
+		expect(
+			screen.queryByRole('textbox', { name: /^Port cible/ })
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole('textbox', { name: /^Hôte cible/ })
+		).not.toBeInTheDocument();
+	});
+
+	it('should keep focus on the radio when the kind changes', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		renderDrawer();
+
+		await user.click(kindRadio(/Dynamique/));
+
+		expect(kindRadio(/Dynamique/)).toHaveFocus();
+	});
+
+	it('should create a dynamic tunnel without target', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		await fillRequiredFields(user);
+		await user.type(screen.getByRole('textbox', { name: /^Hôte cible/ }), 'db');
+		await user.click(kindRadio(/Dynamique/));
+
+		await user.click(screen.getByRole('button', { name: 'Créer' }));
+
+		await waitFor(() =>
+			expect(gateway.createTunnel).toHaveBeenCalledWith(
+				expect.objectContaining({
+					kind: 'dynamic',
+					targetHost: undefined,
+					targetPort: undefined,
+				})
+			)
+		);
+	});
+
+	it('should restore the typed target when switching back from dynamic', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		renderDrawer();
+		await user.type(screen.getByRole('textbox', { name: /^Hôte cible/ }), 'db');
+		await user.click(kindRadio(/Dynamique/));
+
+		await user.click(kindRadio(/Local/));
+
+		expect(screen.getByRole('textbox', { name: /^Hôte cible/ })).toHaveValue(
+			'db'
+		);
+	});
+
+	it('should create a remote tunnel with its target', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		await fillRequiredFields(user);
+		await user.type(screen.getByRole('textbox', { name: /^Hôte cible/ }), 'db');
+		await user.click(kindRadio(/Distant/));
+
+		await user.click(screen.getByRole('button', { name: 'Créer' }));
+
+		await waitFor(() =>
+			expect(gateway.createTunnel).toHaveBeenCalledWith(
+				expect.objectContaining({ kind: 'remote', targetHost: 'db' })
+			)
+		);
+	});
+
+	it('should have no axe violations for a dynamic tunnel', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		renderDrawer();
+		await user.click(kindRadio(/Dynamique/));
+
+		expect(await axe(document.body)).toHaveNoViolations();
+	});
+});
+
 describe('TunnelFormDrawer when editing', () => {
 	const storeTunnel = (overrides = {}) => {
 		const tunnel = buildTunnel({
@@ -323,6 +489,13 @@ describe('TunnelFormDrawer when editing', () => {
 		expect(
 			screen.getByRole('button', { name: "Lier au port d'écoute" })
 		).toBeInTheDocument();
+	});
+
+	it('should select the kind of the tunnel', () => {
+		storeTunnel();
+		renderDrawer();
+
+		expect(screen.getByRole('radio', { name: /Distant/ })).toBeChecked();
 	});
 
 	it('should update the tunnel keeping its kind', async () => {

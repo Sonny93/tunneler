@@ -10,7 +10,7 @@ export function getFailureReasonLabel(
 			return `Écoute impossible sur ${reason.address} : ${reason.message}`;
 		case 'connect':
 			return `Connexion SSH impossible : ${reason.message}`;
-		case 'unsupportedKind':
-			return `Type de tunnel non pris en charge (${reason.tunnelKind})`;
+		case 'remoteForwardRefused':
+			return `Le serveur refuse d'écouter sur ${reason.address}`;
 	}
 }

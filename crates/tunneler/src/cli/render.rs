@@ -31,8 +31,8 @@ pub fn describe_failure(reason: &FailureReasonDto) -> String {
             format!("cannot listen on {address}: {message}")
         }
         FailureReasonDto::Connect { message } => message.clone(),
-        FailureReasonDto::UnsupportedKind { tunnel_kind } => {
-            format!("{} tunnels are not supported yet", kind_word(*tunnel_kind))
+        FailureReasonDto::RemoteForwardRefused { address } => {
+            format!("the server refused to listen on {address}")
         }
     }
 }
@@ -155,6 +155,19 @@ fn describe_listening_side(definition: &TunnelDefinitionDto, settings: &Settings
     }
 }
 
+fn describe_remote_listening_side(
+    definition: &TunnelDefinitionDto,
+    settings: &SettingsDto,
+) -> String {
+    let spec = &definition.spec;
+    match &spec.listen_address {
+        Some(address) if address != default_bind_address(spec.kind, settings) => {
+            format!("{address}:{} on {}", spec.listen_port, spec.host)
+        }
+        _ => format!("{}:{}", spec.host, spec.listen_port),
+    }
+}
+
 /// Where a tunnel listens and what it reaches, such as `3333 → nova:3333`.
 ///
 /// The bind address shows only when it differs from the default, and the
@@ -165,25 +178,29 @@ pub fn describe_route(
     style: Style,
 ) -> String {
     let spec = &definition.spec;
-    let listening = describe_listening_side(definition, settings);
     let arrow = style.arrow();
     let target_host = spec.target_host.as_deref().unwrap_or(DEFAULT_TARGET_HOST);
     let target_port = spec.target_port.unwrap_or(spec.listen_port);
     match spec.kind {
         TunnelKindDto::Local if target_host == DEFAULT_TARGET_HOST => {
+            let listening = describe_listening_side(definition, settings);
             format!("{listening} {arrow} {}:{target_port}", spec.host)
         }
-        TunnelKindDto::Local => format!(
-            "{listening} {arrow} {target_host}:{target_port} via {}",
-            spec.host
-        ),
-        TunnelKindDto::Remote => {
+        TunnelKindDto::Local => {
+            let listening = describe_listening_side(definition, settings);
             format!(
-                "{}:{listening} {arrow} {target_host}:{target_port}",
+                "{listening} {arrow} {target_host}:{target_port} via {}",
                 spec.host
             )
         }
-        TunnelKindDto::Dynamic => format!("{listening} {arrow} SOCKS via {}", spec.host),
+        TunnelKindDto::Remote => {
+            let listening = describe_remote_listening_side(definition, settings);
+            format!("{listening} {arrow} {target_host}:{target_port}")
+        }
+        TunnelKindDto::Dynamic => {
+            let listening = describe_listening_side(definition, settings);
+            format!("{listening} {arrow} SOCKS via {}", spec.host)
+        }
     }
 }
 
@@ -698,14 +715,14 @@ mod tests {
                 describe_failure(&FailureReasonDto::Connect {
                     message: "authentication failed".to_owned(),
                 }),
-                describe_failure(&FailureReasonDto::UnsupportedKind {
-                    tunnel_kind: TunnelKindDto::Dynamic,
+                describe_failure(&FailureReasonDto::RemoteForwardRefused {
+                    address: "localhost:8080".to_owned(),
                 }),
             ],
             [
                 "cannot listen on 0.0.0.0:80: permission denied",
                 "authentication failed",
-                "dynamic tunnels are not supported yet",
+                "the server refused to listen on localhost:8080",
             ]
         );
     }
@@ -843,6 +860,56 @@ mod tests {
                 "nova:3333 → 127.0.0.1:3333".to_owned(),
                 "3333 → SOCKS via nova".to_owned()
             )
+        );
+    }
+
+    #[test]
+    fn should_show_the_local_target_when_a_remote_tunnel_names_one() {
+        let mut remote = tunnel(TunnelStateDto::Stopped);
+        remote.definition.spec.kind = TunnelKindDto::Remote;
+        remote.definition.spec.listen_port = 8080;
+        remote.definition.spec.target_host = Some("devbox".to_owned());
+        remote.definition.spec.target_port = Some(3000);
+
+        assert_eq!(
+            describe_route(&remote.definition, &settings(), UNICODE_PLAIN),
+            "nova:8080 → devbox:3000"
+        );
+    }
+
+    #[test]
+    fn should_show_the_remote_bind_address_when_it_differs_from_the_default() {
+        let mut remote = tunnel(TunnelStateDto::Stopped);
+        remote.definition.spec.kind = TunnelKindDto::Remote;
+        remote.definition.spec.listen_address = Some("0.0.0.0".to_owned());
+
+        assert_eq!(
+            describe_route(&remote.definition, &settings(), UNICODE_PLAIN),
+            "0.0.0.0:3333 on nova → 127.0.0.1:3333"
+        );
+    }
+
+    #[test]
+    fn should_hide_the_remote_bind_address_when_it_is_the_default() {
+        let mut remote = tunnel(TunnelStateDto::Stopped);
+        remote.definition.spec.kind = TunnelKindDto::Remote;
+        remote.definition.spec.listen_address = Some(settings().default_remote_bind_address);
+
+        assert_eq!(
+            describe_route(&remote.definition, &settings(), UNICODE_PLAIN),
+            "nova:3333 → 127.0.0.1:3333"
+        );
+    }
+
+    #[test]
+    fn should_show_the_bind_address_when_a_dynamic_tunnel_listens_elsewhere() {
+        let mut dynamic = tunnel(TunnelStateDto::Stopped);
+        dynamic.definition.spec.kind = TunnelKindDto::Dynamic;
+        dynamic.definition.spec.listen_address = Some("0.0.0.0".to_owned());
+
+        assert_eq!(
+            describe_route(&dynamic.definition, &settings(), ASCII_PLAIN),
+            "0.0.0.0:3333 -> SOCKS via nova"
         );
     }
 

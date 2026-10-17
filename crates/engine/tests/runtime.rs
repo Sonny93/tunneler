@@ -14,6 +14,8 @@ use engine::{
     SystemClock, SystemPortScanner, SystemScan, TargetHealth, TunnelId, TunnelKind, TunnelState,
     UnmanagedProcess,
 };
+use fast_socks5::client::{Config as SocksConfig, Socks5Stream};
+use fast_socks5::{ReplyError, SocksError};
 use russh::keys::{Algorithm, PrivateKey};
 use support::{
     EchoServer, FakePortScanner, ScriptedPrompter, ScriptedVerifier, TestServer, TestUser,
@@ -44,6 +46,12 @@ struct TunnelSpec {
 }
 
 #[derive(Clone, Copy)]
+enum RemoteForwardPolicy {
+    Allowed,
+    Refused,
+}
+
+#[derive(Clone, Copy)]
 struct Keepalive {
     interval: Duration,
     maximum_unanswered: u32,
@@ -58,8 +66,10 @@ struct Timing {
 struct HarnessBuilder {
     tunnels: Vec<(&'static str, Vec<&'static str>)>,
     kind: &'static str,
+    kinds: Vec<(&'static str, &'static str)>,
     timing: Timing,
     is_health_probe_enabled: bool,
+    remote_forwards: RemoteForwardPolicy,
     keepalive: Option<Keepalive>,
     is_client_key_authorized: bool,
     is_target_up: bool,
@@ -88,12 +98,14 @@ impl HarnessBuilder {
         Self {
             tunnels: tunnels.iter().map(|name| (*name, Vec::new())).collect(),
             kind: "local",
+            kinds: Vec::new(),
             timing: Timing {
                 reconnect_initial: RECONNECT_INITIAL,
                 reconnect_maximum: RECONNECT_MAXIMUM,
                 session_grace: SESSION_GRACE,
             },
             is_health_probe_enabled: true,
+            remote_forwards: RemoteForwardPolicy::Allowed,
             keepalive: None,
             is_client_key_authorized: true,
             is_target_up: true,
@@ -115,6 +127,16 @@ impl HarnessBuilder {
 
     fn kind(mut self, kind: &'static str) -> Self {
         self.kind = kind;
+        self
+    }
+
+    fn kind_of(mut self, name: &'static str, kind: &'static str) -> Self {
+        self.kinds.push((name, kind));
+        self
+    }
+
+    fn with_remote_forwards_refused(mut self) -> Self {
+        self.remote_forwards = RemoteForwardPolicy::Refused;
         self
     }
 
@@ -169,7 +191,12 @@ impl HarnessBuilder {
 
     async fn start(self) -> Harness {
         let client_key = generate_key(Algorithm::Ed25519);
-        let server = server_authorizing(&client_key, self.is_client_key_authorized).await;
+        let server = server_authorizing(
+            &client_key,
+            self.is_client_key_authorized,
+            self.remote_forwards,
+        )
+        .await;
         let echo = EchoServer::start().await;
         let target_port = if self.is_target_up {
             echo.port
@@ -245,7 +272,11 @@ impl HarnessBuilder {
             specs.push(TunnelSpec {
                 id: TunnelId::generate(),
                 name: (*name).to_owned(),
-                kind: self.kind,
+                kind: self
+                    .kinds
+                    .iter()
+                    .find(|(kinded, _)| kinded == name)
+                    .map_or(self.kind, |(_, kind)| *kind),
                 listen_port: free_port().await,
                 target_port,
                 tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
@@ -255,7 +286,11 @@ impl HarnessBuilder {
     }
 }
 
-async fn server_authorizing(client_key: &PrivateKey, is_authorized: bool) -> TestServer {
+async fn server_authorizing(
+    client_key: &PrivateKey,
+    is_authorized: bool,
+    remote_forwards: RemoteForwardPolicy,
+) -> TestServer {
     let authorized_key = if is_authorized {
         client_key.clone()
     } else {
@@ -265,11 +300,13 @@ async fn server_authorizing(client_key: &PrivateKey, is_authorized: bool) -> Tes
         authorized_keys: vec![authorized_key.public_key().clone()],
         ..TestUser::default()
     };
-    TestServer::builder()
+    let builder = TestServer::builder()
         .host_key(generate_key(Algorithm::Ed25519))
-        .user(support::REMOTE_USER, user)
-        .start()
-        .await
+        .user(support::REMOTE_USER, user);
+    match remote_forwards {
+        RemoteForwardPolicy::Allowed => builder.start().await,
+        RemoteForwardPolicy::Refused => builder.refusing_remote_forwards().start().await,
+    }
 }
 
 fn store_text(specs: &[TunnelSpec], timing: &Timing) -> String {
@@ -286,14 +323,18 @@ fn store_text(specs: &[TunnelSpec], timing: &Timing) -> String {
 
 fn tunnel_block(spec: &TunnelSpec) -> String {
     let tags: Vec<String> = spec.tags.iter().map(|tag| format!("\"{tag}\"")).collect();
+    let target_line = if spec.kind == "dynamic" {
+        String::new()
+    } else {
+        format!("target_port = {}\n", spec.target_port)
+    };
     format!(
-        "[[tunnels]]\nid = \"{}\"\nname = \"{}\"\nhost = \"{}\"\nkind = \"{}\"\nlisten_port = {}\ntarget_port = {}\ntags = [{}]\n\n",
+        "[[tunnels]]\nid = \"{}\"\nname = \"{}\"\nhost = \"{}\"\nkind = \"{}\"\nlisten_port = {}\n{target_line}tags = [{}]\n\n",
         spec.id,
         spec.name,
         support::ALIAS,
         spec.kind,
         spec.listen_port,
-        spec.target_port,
         tags.join(", ")
     )
 }
@@ -444,6 +485,91 @@ async fn is_closed_by_the_tunnel(port: u16) -> bool {
 
 async fn can_bind(port: u16) -> bool {
     TcpListener::bind((LOOPBACK, port)).await.is_ok()
+}
+
+async fn socks_connect(
+    proxy_port: u16,
+    host: &str,
+    target_port: u16,
+) -> Result<Socks5Stream<TcpStream>, SocksError> {
+    Socks5Stream::connect(
+        (LOOPBACK, proxy_port),
+        host.to_owned(),
+        target_port,
+        SocksConfig::default(),
+    )
+    .await
+}
+
+async fn echo_through_socks(
+    proxy_port: u16,
+    host: &str,
+    target_port: u16,
+    payload: &[u8],
+) -> Vec<u8> {
+    let mut stream = socks_connect(proxy_port, host, target_port).await.unwrap();
+    stream.write_all(payload).await.unwrap();
+    let mut received = vec![0_u8; payload.len()];
+    timeout(WAIT, stream.read_exact(&mut received))
+        .await
+        .unwrap()
+        .unwrap();
+    received
+}
+
+async fn socks_reply_code_to(proxy_port: u16, request: &[u8]) -> u8 {
+    let mut stream = TcpStream::connect((LOOPBACK, proxy_port)).await.unwrap();
+    stream.write_all(&[5, 1, 0]).await.unwrap();
+    let mut method = [0_u8; 2];
+    stream.read_exact(&mut method).await.unwrap();
+    stream.write_all(request).await.unwrap();
+    let mut reply = [0_u8; 10];
+    timeout(WAIT, stream.read_exact(&mut reply))
+        .await
+        .unwrap()
+        .unwrap();
+    reply[1]
+}
+
+async fn wait_for_exact_bytes(harness: &mut Harness, name: &str, length: usize) {
+    let expected = u64::try_from(length).unwrap();
+    let id = harness.id(name);
+    wait_for_event(&mut harness.events, WAIT, |event| match event {
+        EngineEvent::TunnelMetrics {
+            id: changed,
+            metrics,
+        } if *changed == id && metrics.bytes_out == expected && metrics.bytes_in == expected => {
+            Some(())
+        }
+        _ => None,
+    })
+    .await;
+}
+
+async fn is_refused(port: u16) -> bool {
+    TcpStream::connect((LOOPBACK, port)).await.is_err()
+}
+
+fn is_unreachable_event(event: &EngineEvent) -> Option<TunnelState> {
+    match event {
+        EngineEvent::TunnelChanged {
+            state,
+            health: TargetHealth::Unreachable { .. },
+            ..
+        } => Some(state.clone()),
+        _ => None,
+    }
+}
+
+fn is_reachable_event(event: &EngineEvent) -> Option<()> {
+    matches!(
+        event,
+        EngineEvent::TunnelChanged {
+            health: TargetHealth::Reachable,
+            ..
+        }
+    )
+    .then_some(())
 }
 
 fn reconnecting_attempt(state: &TunnelState) -> Option<(u32, SystemTime)> {
@@ -718,22 +844,503 @@ async fn should_fail_without_retrying_when_authentication_fails() {
     ));
 }
 
-#[tokio::test]
-async fn should_fail_with_unsupported_kind_when_the_tunnel_is_remote() {
-    let mut harness = HarnessBuilder::new(&["alpha"]).kind("remote").start().await;
+const SOCKS_BIND_REQUEST: [u8; 10] = [5, 2, 0, 1, 0, 0, 0, 0, 0, 0];
+const SOCKS_REPLY_COMMAND_NOT_SUPPORTED: u8 = 7;
 
-    harness.start_tunnel("alpha");
+#[tokio::test]
+async fn should_reach_the_target_when_a_socks_client_connects_by_ip_address() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+
+    let echoed =
+        echo_through_socks(harness.port("socks"), LOOPBACK, harness.echo.port, PAYLOAD).await;
+
+    assert_eq!(echoed, PAYLOAD);
+}
+
+#[tokio::test]
+async fn should_reach_the_target_when_a_socks_client_connects_by_domain_name() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+
+    let echoed = echo_through_socks(
+        harness.port("socks"),
+        "localhost",
+        harness.echo.port,
+        PAYLOAD,
+    )
+    .await;
+
+    assert_eq!(echoed, PAYLOAD);
+}
+
+#[tokio::test]
+async fn should_pass_the_domain_name_unresolved_when_a_socks_client_connects_by_domain_name() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+
+    echo_through_socks(
+        harness.port("socks"),
+        "localhost",
+        harness.echo.port,
+        PAYLOAD,
+    )
+    .await;
+
+    assert_eq!(
+        harness.server.direct_tcpip_targets(),
+        vec![("localhost".to_owned(), harness.echo.port)]
+    );
+}
+
+#[tokio::test]
+async fn should_report_the_socks_client_address_to_the_server_when_forwarding() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+
+    echo_through_socks(harness.port("socks"), LOOPBACK, harness.echo.port, PAYLOAD).await;
+
+    let originators = harness.server.direct_tcpip_originators();
+    assert_eq!(originators.len(), 1);
+    assert_eq!(originators[0].0, LOOPBACK);
+    assert_ne!(originators[0].1, 0);
+}
+
+#[tokio::test]
+async fn should_reply_connection_refused_when_the_socks_target_is_down() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .with_target_down()
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+    let target_port = harness.spec("socks").target_port;
+
+    let failure = socks_connect(harness.port("socks"), LOOPBACK, target_port)
+        .await
+        .err();
+
+    assert!(
+        matches!(
+            failure,
+            Some(SocksError::ReplyError(ReplyError::ConnectionRefused))
+        ),
+        "{failure:?}"
+    );
+}
+
+#[tokio::test]
+async fn should_stay_active_when_a_socks_target_is_refused() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .with_target_down()
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+    let target_port = harness.spec("socks").target_port;
+    let _ = socks_connect(harness.port("socks"), LOOPBACK, target_port).await;
+
+    echo_through_socks(harness.port("socks"), LOOPBACK, harness.echo.port, PAYLOAD).await;
+
+    assert_eq!(harness.state_of("socks"), TunnelState::Active);
+}
+
+#[tokio::test]
+async fn should_log_a_warning_when_a_socks_target_is_refused() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .with_target_down()
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+    let target_port = harness.spec("socks").target_port;
+    let _ = socks_connect(harness.port("socks"), LOOPBACK, target_port).await;
+
+    let id = harness.id("socks");
+    let engine = &harness.engine;
+    wait_until(WAIT, "the refusal to be logged", || {
+        engine
+            .logs(id)
+            .unwrap()
+            .iter()
+            .any(|entry| entry.level == LogLevel::Warn && entry.message.contains("cannot reach"))
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn should_keep_the_target_health_unknown_when_a_socks_target_is_refused() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .with_target_down()
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+    harness.engine.set_health_probing(true);
+    let target_port = harness.spec("socks").target_port;
+    let _ = socks_connect(harness.port("socks"), LOOPBACK, target_port).await;
+
+    sleep(QUIET_PERIOD).await;
+
+    let snapshot = harness.engine.snapshot();
+    assert_eq!(snapshot.tunnels[0].health, TargetHealth::Unknown);
+}
+
+#[tokio::test]
+async fn should_not_probe_anything_when_a_dynamic_tunnel_runs_with_probing_on() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+
+    harness.engine.set_health_probing(true);
+    sleep(QUIET_PERIOD).await;
+
+    assert_eq!(harness.server.direct_tcpip_targets().len(), 0);
+}
+
+#[tokio::test]
+async fn should_reply_command_not_supported_when_a_socks_client_asks_for_bind() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+
+    let code = socks_reply_code_to(harness.port("socks"), &SOCKS_BIND_REQUEST).await;
+
+    assert_eq!(code, SOCKS_REPLY_COMMAND_NOT_SUPPORTED);
+}
+
+#[tokio::test]
+async fn should_not_open_a_channel_when_a_socks_client_asks_for_bind() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+
+    socks_reply_code_to(harness.port("socks"), &SOCKS_BIND_REQUEST).await;
+
+    assert_eq!(harness.server.direct_tcpip_targets().len(), 0);
+}
+
+#[tokio::test]
+async fn should_close_the_connection_when_a_client_does_not_speak_socks() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+    let mut client = TcpStream::connect((LOOPBACK, harness.port("socks")))
+        .await
+        .unwrap();
+
+    client.write_all(b"GET / HTTP/1.1\r\n\r\n").await.unwrap();
+
+    let mut buffer = [0_u8; 16];
+    let outcome = timeout(WAIT, client.read(&mut buffer)).await.unwrap();
+    assert!(matches!(outcome, Ok(0) | Err(_)), "{outcome:?}");
+}
+
+#[tokio::test]
+async fn should_keep_the_local_tunnel_forwarding_when_a_dynamic_tunnel_on_the_same_host_is_toggled()
+{
+    let mut harness = HarnessBuilder::new(&["alpha", "socks"])
+        .kind_of("socks", "dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("alpha").await;
+    harness.start_and_wait_active("socks").await;
+
+    harness.stop_tunnel("socks");
+    harness.wait_stopped("socks").await;
+    harness.start_and_wait_active("socks").await;
+
+    assert_eq!(echo_through(harness.port("alpha"), PAYLOAD).await, PAYLOAD);
+    assert_eq!(harness.server.connection_count(), 1);
+}
+
+#[tokio::test]
+async fn should_release_the_port_when_a_dynamic_tunnel_is_stopped() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+
+    harness.stop_tunnel("socks");
+    harness.wait_stopped("socks").await;
+
+    assert!(can_bind(harness.port("socks")).await);
+}
+
+#[tokio::test]
+async fn should_keep_the_socks_port_bound_when_the_connection_is_cut() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+
+    harness.server.stop().await;
+    harness
+        .wait_for("socks", |state| reconnecting_attempt(state).is_some())
+        .await;
+
+    assert!(!can_bind(harness.port("socks")).await);
+}
+
+#[tokio::test]
+async fn should_reach_the_target_again_when_a_dynamic_tunnel_reconnects() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+
+    harness.server.cut_connections();
+    harness
+        .wait_for("socks", |state| reconnecting_attempt(state).is_some())
+        .await;
+    harness.wait_active("socks").await;
+
+    let echoed =
+        echo_through_socks(harness.port("socks"), LOOPBACK, harness.echo.port, PAYLOAD).await;
+    assert_eq!(echoed, PAYLOAD);
+}
+
+#[tokio::test]
+async fn should_count_the_bytes_when_data_goes_through_a_dynamic_tunnel() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+
+    echo_through_socks(harness.port("socks"), LOOPBACK, harness.echo.port, PAYLOAD).await;
+
+    wait_for_exact_bytes(&mut harness, "socks", PAYLOAD.len()).await;
+}
+
+#[tokio::test]
+async fn should_reach_the_local_target_when_a_client_connects_to_the_remote_port() {
+    let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
+    harness.start_and_wait_active("rev").await;
+
+    assert_eq!(echo_through(harness.port("rev"), PAYLOAD).await, PAYLOAD);
+}
+
+#[tokio::test]
+async fn should_ask_for_the_default_remote_bind_address_when_no_listen_address_is_set() {
+    let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
+    harness.start_and_wait_active("rev").await;
+
+    assert_eq!(
+        harness.server.remote_forward_requests(),
+        vec![("localhost".to_owned(), harness.port("rev"))]
+    );
+}
+
+#[tokio::test]
+async fn should_fail_with_remote_forward_refused_when_the_server_refuses_to_listen() {
+    let mut harness = HarnessBuilder::new(&["rev"])
+        .kind("remote")
+        .with_remote_forwards_refused()
+        .start()
+        .await;
+
+    harness.start_tunnel("rev");
     let state = harness
-        .wait_for("alpha", |state| matches!(state, TunnelState::Failed { .. }))
+        .wait_for("rev", |state| matches!(state, TunnelState::Failed { .. }))
         .await;
 
     assert_eq!(
         state,
         TunnelState::Failed {
-            reason: FailureReason::UnsupportedKind(TunnelKind::Remote)
+            reason: FailureReason::RemoteForwardRefused {
+                address: format!("localhost:{}", harness.port("rev"))
+            }
         }
     );
-    assert_eq!(harness.server.connection_count(), 0);
+}
+
+#[tokio::test]
+async fn should_not_retry_when_the_server_refuses_to_listen() {
+    let mut harness = HarnessBuilder::new(&["rev"])
+        .kind("remote")
+        .with_remote_forwards_refused()
+        .start()
+        .await;
+    harness.start_tunnel("rev");
+    harness
+        .wait_for("rev", |state| matches!(state, TunnelState::Failed { .. }))
+        .await;
+
+    sleep(QUIET_PERIOD).await;
+
+    assert_eq!(harness.server.remote_forward_requests().len(), 1);
+    assert_eq!(harness.server.connection_count(), 1);
+}
+
+#[tokio::test]
+async fn should_stop_listening_on_the_server_when_the_remote_tunnel_is_stopped() {
+    let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
+    harness.start_and_wait_active("rev").await;
+
+    harness.stop_tunnel("rev");
+    harness.wait_stopped("rev").await;
+
+    assert!(is_refused(harness.port("rev")).await);
+}
+
+#[tokio::test]
+async fn should_listen_on_the_server_again_when_the_remote_tunnel_is_restarted() {
+    let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
+    harness.start_and_wait_active("rev").await;
+    harness.stop_tunnel("rev");
+    harness.wait_stopped("rev").await;
+
+    harness.start_and_wait_active("rev").await;
+
+    assert_eq!(echo_through(harness.port("rev"), PAYLOAD).await, PAYLOAD);
+}
+
+#[tokio::test]
+async fn should_drop_live_connections_when_the_remote_tunnel_is_stopped() {
+    let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
+    harness.start_and_wait_active("rev").await;
+    let mut client = TcpStream::connect((LOOPBACK, harness.port("rev")))
+        .await
+        .unwrap();
+    client.write_all(PAYLOAD).await.unwrap();
+    let mut echoed = vec![0_u8; PAYLOAD.len()];
+    client.read_exact(&mut echoed).await.unwrap();
+
+    harness.stop_tunnel("rev");
+    harness.wait_stopped("rev").await;
+
+    let mut buffer = [0_u8; 1];
+    let outcome = timeout(WAIT, client.read(&mut buffer)).await.unwrap();
+    assert!(matches!(outcome, Ok(0) | Err(_)), "{outcome:?}");
+}
+
+#[tokio::test]
+async fn should_forward_again_when_the_connection_of_a_remote_tunnel_is_cut() {
+    let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
+    harness.start_and_wait_active("rev").await;
+
+    harness.server.cut_connections();
+    harness
+        .wait_for("rev", |state| reconnecting_attempt(state).is_some())
+        .await;
+    harness.wait_active("rev").await;
+
+    assert_eq!(echo_through(harness.port("rev"), PAYLOAD).await, PAYLOAD);
+    assert_eq!(harness.server.connection_count(), 2);
+}
+
+#[tokio::test]
+async fn should_share_one_session_when_a_remote_and_a_local_tunnel_use_the_same_host() {
+    let mut harness = HarnessBuilder::new(&["alpha", "rev"])
+        .kind_of("rev", "remote")
+        .start()
+        .await;
+    harness.start_and_wait_active("alpha").await;
+    harness.start_and_wait_active("rev").await;
+
+    echo_through(harness.port("alpha"), PAYLOAD).await;
+    echo_through(harness.port("rev"), PAYLOAD).await;
+
+    assert_eq!(harness.server.connection_count(), 1);
+}
+
+#[tokio::test]
+async fn should_keep_the_other_remote_tunnel_forwarding_when_one_is_stopped() {
+    let mut harness = HarnessBuilder::new(&["first", "second"])
+        .kind("remote")
+        .start()
+        .await;
+    harness.start_and_wait_active("first").await;
+    harness.start_and_wait_active("second").await;
+
+    harness.stop_tunnel("first");
+    harness.wait_stopped("first").await;
+
+    assert_eq!(echo_through(harness.port("second"), PAYLOAD).await, PAYLOAD);
+}
+
+#[tokio::test]
+async fn should_mark_the_target_unreachable_while_the_tunnel_stays_active_when_the_remote_target_is_down()
+ {
+    let mut harness = HarnessBuilder::new(&["rev"])
+        .kind("remote")
+        .with_target_down()
+        .start()
+        .await;
+    harness.start_and_wait_active("rev").await;
+
+    assert!(is_closed_by_the_tunnel(harness.port("rev")).await);
+
+    let state = wait_for_event(&mut harness.events, WAIT, is_unreachable_event).await;
+    assert_eq!(state, TunnelState::Active);
+}
+
+#[tokio::test]
+async fn should_mark_the_target_reachable_when_the_remote_target_answers() {
+    let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
+    harness.start_and_wait_active("rev").await;
+
+    echo_through(harness.port("rev"), PAYLOAD).await;
+
+    wait_for_event(&mut harness.events, WAIT, is_reachable_event).await;
+}
+
+#[tokio::test]
+async fn should_mark_the_target_unreachable_when_a_probe_finds_the_remote_target_down() {
+    let mut harness = HarnessBuilder::new(&["rev"])
+        .kind("remote")
+        .with_target_down()
+        .start()
+        .await;
+    harness.start_and_wait_active("rev").await;
+
+    harness.engine.set_health_probing(true);
+
+    wait_for_event(&mut harness.events, WAIT, is_unreachable_event).await;
+}
+
+#[tokio::test]
+async fn should_mark_the_target_reachable_when_a_probe_finds_the_remote_target_up() {
+    let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
+    harness.start_and_wait_active("rev").await;
+
+    harness.engine.set_health_probing(true);
+
+    wait_for_event(&mut harness.events, WAIT, is_reachable_event).await;
+}
+
+#[tokio::test]
+async fn should_count_the_bytes_when_data_goes_through_a_remote_tunnel() {
+    let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
+    harness.start_and_wait_active("rev").await;
+
+    echo_through(harness.port("rev"), PAYLOAD).await;
+
+    wait_for_exact_bytes(&mut harness, "rev", PAYLOAD.len()).await;
 }
 
 #[tokio::test]

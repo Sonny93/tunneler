@@ -12,10 +12,14 @@ use tokio::io::{copy_bidirectional, duplex};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::watch;
 use tokio::task::{AbortHandle, JoinHandle};
+use tokio::time::sleep;
 
 const REJECTION_DELAY: Duration = Duration::from_millis(1);
 const MAXIMUM_AUTH_ATTEMPTS: usize = 100;
 const BRIDGE_BUFFER_SIZE: usize = 64 * 1024;
+const FORWARD_BIND_ATTEMPTS: usize = 20;
+const FORWARD_BIND_RETRY_DELAY: Duration = Duration::from_millis(10);
+const FORWARD_BIND_ADDRESS: &str = "127.0.0.1";
 
 /// What one account of the test server accepts.
 #[derive(Clone, Default)]
@@ -33,7 +37,9 @@ struct Behavior {
     users: HashMap<String, TestUser>,
     requires_publickey_then_password: bool,
     allows_direct_tcpip: bool,
+    allows_remote_forwards: bool,
     connection_count: Arc<AtomicUsize>,
+    remote_forward_requests: Arc<Mutex<Vec<(String, u16)>>>,
     direct_tcpip_targets: Arc<Mutex<Vec<(String, u16)>>>,
     direct_tcpip_originators: Arc<Mutex<Vec<(String, u32)>>>,
     offered_fingerprints: Arc<Mutex<Vec<String>>>,
@@ -95,6 +101,7 @@ pub struct TestServerBuilder {
     methods: Option<Vec<MethodKind>>,
     requires_publickey_then_password: bool,
     allows_direct_tcpip: bool,
+    allows_remote_forwards: bool,
 }
 
 impl TestServerBuilder {
@@ -134,11 +141,18 @@ impl TestServerBuilder {
         self
     }
 
+    /// Refuses every `tcpip-forward` request.
+    pub fn refusing_remote_forwards(mut self) -> Self {
+        self.allows_remote_forwards = false;
+        self
+    }
+
     /// Starts listening on loopback.
     pub async fn start(self) -> TestServer {
         let listener = TcpListener::bind(("127.0.0.1", self.port)).await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let connection_count = Arc::new(AtomicUsize::new(0));
+        let remote_forward_requests = Arc::new(Mutex::new(Vec::new()));
         let direct_tcpip_targets = Arc::new(Mutex::new(Vec::new()));
         let direct_tcpip_originators = Arc::new(Mutex::new(Vec::new()));
         let offered_fingerprints = Arc::new(Mutex::new(Vec::new()));
@@ -149,7 +163,9 @@ impl TestServerBuilder {
             users: self.users,
             requires_publickey_then_password: self.requires_publickey_then_password,
             allows_direct_tcpip: self.allows_direct_tcpip,
+            allows_remote_forwards: self.allows_remote_forwards,
             connection_count: Arc::clone(&connection_count),
+            remote_forward_requests: Arc::clone(&remote_forward_requests),
             direct_tcpip_targets: Arc::clone(&direct_tcpip_targets),
             direct_tcpip_originators: Arc::clone(&direct_tcpip_originators),
             offered_fingerprints: Arc::clone(&offered_fingerprints),
@@ -166,6 +182,7 @@ impl TestServerBuilder {
             port,
             host_keys: self.host_keys,
             connection_count,
+            remote_forward_requests,
             direct_tcpip_targets,
             direct_tcpip_originators,
             offered_fingerprints,
@@ -203,6 +220,7 @@ pub struct TestServer {
     /// The host keys it presents.
     pub host_keys: Vec<PrivateKey>,
     connection_count: Arc<AtomicUsize>,
+    remote_forward_requests: Arc<Mutex<Vec<(String, u16)>>>,
     direct_tcpip_targets: Arc<Mutex<Vec<(String, u16)>>>,
     direct_tcpip_originators: Arc<Mutex<Vec<(String, u32)>>>,
     offered_fingerprints: Arc<Mutex<Vec<String>>>,
@@ -222,6 +240,7 @@ impl TestServer {
             methods: None,
             requires_publickey_then_password: false,
             allows_direct_tcpip: true,
+            allows_remote_forwards: true,
         }
     }
 
@@ -244,6 +263,12 @@ impl TestServer {
     /// requests.
     pub fn direct_tcpip_originators(&self) -> Vec<(String, u32)> {
         self.direct_tcpip_originators.lock().unwrap().clone()
+    }
+
+    /// The `tcpip-forward` requests clients made, as the address and port
+    /// they asked this server to listen on, in order.
+    pub fn remote_forward_requests(&self) -> Vec<(String, u16)> {
+        self.remote_forward_requests.lock().unwrap().clone()
     }
 
     /// The connections that are open right now.
@@ -355,6 +380,7 @@ impl Server for Acceptor {
         ConnectionHandler {
             behavior: Arc::clone(&self.behavior),
             has_passed_publickey: false,
+            forwards: HashMap::new(),
         }
     }
 }
@@ -362,6 +388,15 @@ impl Server for Acceptor {
 struct ConnectionHandler {
     behavior: Arc<Behavior>,
     has_passed_publickey: bool,
+    forwards: HashMap<u16, JoinHandle<()>>,
+}
+
+impl Drop for ConnectionHandler {
+    fn drop(&mut self) {
+        for task in self.forwards.values() {
+            task.abort();
+        }
+    }
 }
 
 impl ConnectionHandler {
@@ -528,6 +563,99 @@ impl server::Handler for ConnectionHandler {
         }
         Ok(())
     }
+
+    async fn tcpip_forward(
+        &mut self,
+        address: &str,
+        port: &mut u32,
+        session: &mut Session,
+    ) -> Result<bool, Self::Error> {
+        let Ok(requested_port) = u16::try_from(*port) else {
+            return Ok(false);
+        };
+        self.behavior
+            .remote_forward_requests
+            .lock()
+            .unwrap()
+            .push((address.to_owned(), requested_port));
+        if !self.behavior.allows_remote_forwards {
+            return Ok(false);
+        }
+        let Some(listener) = bind_forward_listener(requested_port).await else {
+            return Ok(false);
+        };
+        let bound_port = listener.local_addr().unwrap().port();
+        *port = u32::from(bound_port);
+        let task = tokio::spawn(accept_forwarded(
+            listener,
+            session.handle(),
+            address.to_owned(),
+        ));
+        self.forwards.insert(bound_port, task);
+        Ok(true)
+    }
+
+    async fn cancel_tcpip_forward(
+        &mut self,
+        _address: &str,
+        port: u32,
+        _session: &mut Session,
+    ) -> Result<bool, Self::Error> {
+        let Some(task) = u16::try_from(port)
+            .ok()
+            .and_then(|port| self.forwards.remove(&port))
+        else {
+            return Ok(false);
+        };
+        task.abort();
+        let _ = task.await;
+        Ok(true)
+    }
+}
+
+async fn bind_forward_listener(port: u16) -> Option<TcpListener> {
+    for _ in 0..FORWARD_BIND_ATTEMPTS {
+        if let Ok(listener) = TcpListener::bind((FORWARD_BIND_ADDRESS, port)).await {
+            return Some(listener);
+        }
+        sleep(FORWARD_BIND_RETRY_DELAY).await;
+    }
+    None
+}
+
+async fn accept_forwarded(listener: TcpListener, handle: server::Handle, address: String) {
+    let connected_port = u32::from(listener.local_addr().unwrap().port());
+    while let Ok((stream, peer)) = listener.accept().await {
+        tokio::spawn(relay_forwarded(
+            stream,
+            handle.clone(),
+            address.clone(),
+            connected_port,
+            peer,
+        ));
+    }
+}
+
+async fn relay_forwarded(
+    mut stream: TcpStream,
+    handle: server::Handle,
+    address: String,
+    connected_port: u32,
+    peer: SocketAddr,
+) {
+    let opened = handle
+        .channel_open_forwarded_tcpip(
+            address,
+            connected_port,
+            peer.ip().to_string(),
+            u32::from(peer.port()),
+        )
+        .await;
+    let Ok(channel) = opened else {
+        return;
+    };
+    let mut channel_stream = channel.into_stream();
+    let _ = copy_bidirectional(&mut channel_stream, &mut stream).await;
 }
 
 async fn wait_for_stall(stalls: &mut watch::Receiver<u64>, started_at: u64) {

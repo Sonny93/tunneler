@@ -109,8 +109,8 @@ fn failure_to_dto(reason: &FailureReason) -> FailureReasonDto {
         FailureReason::Connect { message } => FailureReasonDto::Connect {
             message: message.clone(),
         },
-        FailureReason::UnsupportedKind(kind) => FailureReasonDto::UnsupportedKind {
-            tunnel_kind: kind_to_dto(*kind),
+        FailureReason::RemoteForwardRefused { address } => FailureReasonDto::RemoteForwardRefused {
+            address: address.clone(),
         },
     }
 }

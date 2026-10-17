@@ -1,11 +1,12 @@
-//! The tunnel runtime: local forwards driven by one task per tunnel, sharing
-//! one SSH session per host, reconnecting after losses, reporting state,
-//! health, metrics and logs through the engine event bus.
+//! The tunnel runtime: local, remote and dynamic forwards driven by one task
+//! per tunnel, sharing one SSH session per host, reconnecting after losses,
+//! reporting state, health, metrics and logs through the engine event bus.
 
 mod backoff;
 mod catalog;
 mod counting_stream;
 mod definition_diff;
+mod dynamic_forward;
 mod engine;
 mod events;
 mod failure;
@@ -16,6 +17,7 @@ mod metrics;
 mod options;
 mod port_watch;
 mod reload;
+mod remote_forward;
 mod retry;
 mod session_manager;
 mod shared;

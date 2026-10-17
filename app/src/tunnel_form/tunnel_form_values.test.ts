@@ -31,6 +31,12 @@ describe('toTunnelFormValues', () => {
 		]);
 	});
 
+	it('should take the kind of the tunnel', () => {
+		expect(toTunnelFormValues(buildTunnel({ kind: 'dynamic' })).kind).toBe(
+			'dynamic'
+		);
+	});
+
 	it('should join the tags with commas', () => {
 		const values = toTunnelFormValues(buildTunnel({ tags: ['db', 'prod'] }));
 

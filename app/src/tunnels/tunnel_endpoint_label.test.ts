@@ -35,6 +35,48 @@ describe('getTunnelEndpointLabel', () => {
 	});
 });
 
+describe('getTunnelEndpointLabel for a remote tunnel', () => {
+	const remote = buildTunnel({
+		kind: 'remote',
+		listenPort: 8080,
+		targetPort: 3000,
+	});
+
+	it('should name the server port and the target seen from this machine', () => {
+		expect(getTunnelEndpointLabel(remote)).toBe('nova:8080 → 127.0.0.1:3000');
+	});
+
+	it('should default the target port to the listen port', () => {
+		expect(
+			getTunnelEndpointLabel({
+				...remote,
+				targetPort: undefined,
+				targetHost: 'app',
+			})
+		).toBe('nova:8080 → app:8080');
+	});
+
+	it('should say it in words', () => {
+		expect(getTunnelAccessibleEndpointLabel(remote)).toBe(
+			'port 8080 du serveur nova vers 127.0.0.1:3000'
+		);
+	});
+});
+
+describe('getTunnelEndpointLabel for a dynamic tunnel', () => {
+	const dynamic = buildTunnel({ kind: 'dynamic', listenPort: 1080 });
+
+	it('should mention SOCKS and the ssh host', () => {
+		expect(getTunnelEndpointLabel(dynamic)).toBe('1080 (SOCKS via nova)');
+	});
+
+	it('should say it in words', () => {
+		expect(getTunnelAccessibleEndpointLabel(dynamic)).toBe(
+			'proxy SOCKS sur le port 1080 via nova'
+		);
+	});
+});
+
 describe('getTunnelAccessibleEndpointLabel', () => {
 	it('should use vers instead of the arrow', () => {
 		expect(getTunnelAccessibleEndpointLabel(buildTunnel())).toBe(

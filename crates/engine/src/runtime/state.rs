@@ -5,7 +5,6 @@ use std::time::SystemTime;
 use thiserror::Error;
 
 use crate::external::PortOwner;
-use crate::store::TunnelKind;
 
 /// Why a tunnel is in the [`TunnelState::Failed`] state.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -30,17 +29,12 @@ pub enum FailureReason {
         /// A message ready to be shown to the user.
         message: String,
     },
-    /// This kind of tunnel is not implemented yet.
-    #[error("{} tunnels are not supported yet", describe_kind(*.0))]
-    UnsupportedKind(TunnelKind),
-}
-
-fn describe_kind(kind: TunnelKind) -> &'static str {
-    match kind {
-        TunnelKind::Local => "local",
-        TunnelKind::Remote => "remote",
-        TunnelKind::Dynamic => "dynamic",
-    }
+    /// The SSH server refused to listen for a remote forward.
+    #[error("the server refused to listen on {address}")]
+    RemoteForwardRefused {
+        /// The `address:port` the server was asked to listen on.
+        address: String,
+    },
 }
 
 /// Where a tunnel is in its life cycle.
@@ -217,7 +211,9 @@ mod tests {
     #[test]
     fn should_not_be_running_when_stopped_or_failed() {
         let failed = TunnelState::Failed {
-            reason: FailureReason::UnsupportedKind(TunnelKind::Remote),
+            reason: FailureReason::RemoteForwardRefused {
+                address: "localhost:8080".to_owned(),
+            },
         };
 
         assert!(!TunnelState::Stopped.is_running() && !failed.is_running());
@@ -295,10 +291,15 @@ mod tests {
     }
 
     #[test]
-    fn should_name_the_kind_when_it_is_unsupported() {
-        let reason = FailureReason::UnsupportedKind(TunnelKind::Dynamic);
+    fn should_name_the_address_when_the_server_refuses_a_remote_forward() {
+        let reason = FailureReason::RemoteForwardRefused {
+            address: "localhost:8080".to_owned(),
+        };
 
-        assert_eq!(reason.to_string(), "dynamic tunnels are not supported yet");
+        assert_eq!(
+            reason.to_string(),
+            "the server refused to listen on localhost:8080"
+        );
     }
 
     #[test]

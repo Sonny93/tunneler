@@ -564,14 +564,14 @@ fn should_serialize_an_event_without_fields_with_an_empty_data_object() {
 #[test]
 fn should_serialize_a_failure_reason_with_camel_case_fields() {
     let state = TunnelStateDto::Failed {
-        reason: FailureReasonDto::UnsupportedKind {
-            tunnel_kind: TunnelKindDto::Remote,
+        reason: FailureReasonDto::RemoteForwardRefused {
+            address: "localhost:8080".to_owned(),
         },
     };
 
     assert_eq!(
         to_json(&state),
-        json!({"kind":"failed","reason":{"kind":"unsupportedKind","tunnelKind":"remote"}})
+        json!({"kind":"failed","reason":{"kind":"remoteForwardRefused","address":"localhost:8080"}})
     );
 }
 

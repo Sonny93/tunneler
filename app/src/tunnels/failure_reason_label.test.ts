@@ -25,9 +25,12 @@ describe('getFailureReasonLabel', () => {
 		);
 	});
 
-	it('should describe an unsupported kind', () => {
+	it('should describe a refused remote forward', () => {
 		expect(
-			getFailureReasonLabel({ kind: 'unsupportedKind', tunnelKind: 'dynamic' })
-		).toBe('Type de tunnel non pris en charge (dynamic)');
+			getFailureReasonLabel({
+				kind: 'remoteForwardRefused',
+				address: '0.0.0.0:8080',
+			})
+		).toBe("Le serveur refuse d'écouter sur 0.0.0.0:8080");
 	});
 });

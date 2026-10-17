@@ -1,6 +1,7 @@
-import type { TunnelSpecDto } from '#/daemon/protocol';
+import type { TunnelKindDto, TunnelSpecDto } from '#/daemon/protocol';
 
 export type TunnelFormValues = {
+	kind: TunnelKindDto;
 	name: string;
 	host: string;
 	listenPort: string;
@@ -12,6 +13,7 @@ export type TunnelFormValues = {
 };
 
 export const EMPTY_TUNNEL_FORM_VALUES: TunnelFormValues = {
+	kind: 'local',
 	name: '',
 	host: '',
 	listenPort: '',
@@ -32,6 +34,7 @@ export function toTunnelFormValues(
 	const listenPort = String(definition.listenPort);
 	const isTargetPortLinked = definition.targetPort === undefined;
 	return {
+		kind: definition.kind,
 		name: definition.name,
 		host: definition.host,
 		listenPort,

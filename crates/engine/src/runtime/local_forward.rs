@@ -2,7 +2,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use tokio::io::{AsyncWriteExt, copy_bidirectional};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, copy_bidirectional};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tracing::debug;
@@ -24,7 +24,8 @@ pub(crate) enum TargetReport {
     Unreachable(String),
 }
 
-/// Where the traffic of a local forward goes, as seen from the server.
+/// Where the traffic of a forward goes: as seen from the server for a local
+/// forward, from this machine for a remote one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ForwardTarget {
     pub(crate) host: String,
@@ -60,7 +61,7 @@ fn describe_bind_failure(address: &str, port: u16, error: &io::Error) -> Failure
     }
 }
 
-fn format_socket_address(address: &str, port: u16) -> String {
+pub(crate) fn format_socket_address(address: &str, port: u16) -> String {
     if address.contains(':') {
         return format!("[{address}]:{port}");
     }
@@ -86,7 +87,8 @@ pub(crate) async fn forward_connection(job: ConnectionJob) {
         Err(error) => return report_open_failure(&shared, &reports, peer, &target, &error),
     };
     let _ = reports.send(TargetReport::Reachable);
-    relay(client, channel, &shared).await;
+    let counted_client = CountingStream::on_client_side(client, Arc::clone(shared.counters()));
+    relay(counted_client, channel).await;
 }
 
 fn report_open_failure(
@@ -108,12 +110,14 @@ fn report_open_failure(
     }
 }
 
-async fn relay<Channel>(client: TcpStream, mut channel: Channel, shared: &TunnelShared)
+/// Copies bytes both ways between a local stream and an SSH channel until
+/// either side ends.
+pub(crate) async fn relay<Local, Channel>(mut local: Local, mut channel: Channel)
 where
-    Channel: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+    Local: AsyncRead + AsyncWrite + Unpin,
+    Channel: AsyncRead + AsyncWrite + Unpin,
 {
-    let mut counted_client = CountingStream::new(client, Arc::clone(shared.counters()));
-    if let Err(error) = copy_bidirectional(&mut counted_client, &mut channel).await {
+    if let Err(error) = copy_bidirectional(&mut local, &mut channel).await {
         debug!(%error, "forwarded connection ended with an error");
     }
 }

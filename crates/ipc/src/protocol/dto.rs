@@ -77,10 +77,10 @@ pub enum FailureReasonDto {
         /// The explanation.
         message: String,
     },
-    /// This kind of tunnel is not implemented.
-    UnsupportedKind {
-        /// The unsupported kind.
-        tunnel_kind: TunnelKindDto,
+    /// The SSH server refused to listen for a remote forward.
+    RemoteForwardRefused {
+        /// The address the server was asked to listen on.
+        address: String,
     },
 }
 

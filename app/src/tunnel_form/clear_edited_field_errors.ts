@@ -11,6 +11,7 @@ function getEditedErrorFields(
 			return action.field === 'listenPort' && values.isTargetPortLinked
 				? ['listenPort', 'targetPort']
 				: [action.field];
+		case 'kindChanged':
 		case 'targetPortChanged':
 		case 'targetPortRelinked':
 			return ['targetPort'];

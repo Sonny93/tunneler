@@ -46,7 +46,10 @@ pub(crate) fn is_target_unreachable(error: &SessionError) -> bool {
             **source,
             russh::Error::ChannelOpenFailure(russh::ChannelOpenFailure::ConnectFailed)
         ),
-        SessionError::Disconnect(_) => false,
+        SessionError::ForwardRefused { .. }
+        | SessionError::RequestForward { .. }
+        | SessionError::CancelForward { .. }
+        | SessionError::Disconnect(_) => false,
     }
 }
 

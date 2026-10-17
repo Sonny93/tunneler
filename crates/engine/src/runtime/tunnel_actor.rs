@@ -3,22 +3,28 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::net::TcpStream;
+use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, watch};
 use tokio::task::JoinHandle;
-use tokio::time::{Instant, MissedTickBehavior, interval_at, sleep};
+use tokio::time::{Instant, MissedTickBehavior, interval_at, sleep, timeout};
 
-use crate::error::ConnectError;
+use crate::error::{ConnectError, SessionError};
 use crate::external::PortOccupation;
+use crate::remote_forwards::{ForwardedConnection, RemoteForwardRegistration};
 use crate::runtime::backoff::random_jitter_fraction;
 use crate::runtime::definition_diff::{DefinitionChange, classify_change};
-use crate::runtime::forward_run::ForwardRun;
+use crate::runtime::dynamic_forward::{SocksJob, socks_connection};
+use crate::runtime::forward_run::{ClientProtocol, ForwardRun, Inbound};
 use crate::runtime::local_forward::{
-    ConnectionJob, ForwardTarget, TargetReport, bind_listener, forward_connection, probe_target,
+    ConnectionJob, ForwardTarget, TargetReport, bind_listener, format_socket_address,
+    forward_connection, probe_target,
 };
 use crate::runtime::log_buffer::LogLevel;
 use crate::runtime::options::EngineOptions;
 use crate::runtime::port_watch::PortWatch;
+use crate::runtime::remote_forward::{
+    ForwardedJob, probe_local_target, serve_forwarded_connection,
+};
 use crate::runtime::retry::{RetryDecision, decide_after_connect_error, reconnect_delay};
 use crate::runtime::session_manager::{AcquireError, SessionLease, SessionManager};
 use crate::runtime::shared::TunnelShared;
@@ -28,6 +34,7 @@ use crate::store::{Settings, TunnelDefinition, TunnelKind};
 
 const ACCEPT_ERROR_PAUSE: Duration = Duration::from_millis(50);
 const FIRST_ATTEMPT: u32 = 1;
+const CANCEL_FORWARD_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// What the engine asks a tunnel to do.
 #[derive(Debug)]
@@ -61,6 +68,7 @@ enum RunEnd {
 enum Step {
     SessionLost,
     ConnectFailed(Arc<ConnectError>),
+    Refused(FailureReason),
     Interrupted(Interrupt),
 }
 
@@ -171,17 +179,19 @@ impl TunnelActor {
     }
 
     async fn open_forward(&self) -> Result<ForwardRun, FailureReason> {
-        let definition = &self.context.definition;
-        if definition.kind != TunnelKind::Local {
-            return Err(FailureReason::UnsupportedKind(definition.kind));
+        let interval = self.context.options.metrics_event_interval;
+        match self.context.definition.kind {
+            TunnelKind::Local => Ok(ForwardRun::local(self.bind().await?, interval)),
+            TunnelKind::Dynamic => Ok(ForwardRun::dynamic(self.bind().await?, interval)),
+            TunnelKind::Remote => Ok(ForwardRun::remote(interval)),
         }
+    }
+
+    async fn bind(&self) -> Result<TcpListener, FailureReason> {
+        let definition = &self.context.definition;
         let settings = self.current_settings();
         let address = definition.effective_listen_address(&settings);
-        let listener = bind_listener(address, definition.listen_port).await?;
-        Ok(ForwardRun::new(
-            listener,
-            self.context.options.metrics_event_interval,
-        ))
+        bind_listener(address, definition.listen_port).await
     }
 
     async fn fail_to_open(&self, reason: FailureReason) -> RunEnd {
@@ -229,6 +239,7 @@ impl TunnelActor {
         loop {
             let (reason, delay) = match self.connect_and_serve(run).await {
                 Step::Interrupted(interrupt) => return RunEnd::Interrupted(interrupt),
+                Step::Refused(reason) => return self.fail(reason),
                 Step::SessionLost => {
                     failed_attempts = FIRST_ATTEMPT;
                     let delay = self.next_delay(failed_attempts);
@@ -306,13 +317,26 @@ impl TunnelActor {
         loop {
             tokio::select! {
                 output = &mut wait => return Ok(output),
-                accepted = run.listener.accept() => self.refuse_connection(accepted).await,
+                inbound = run.inbound.next() => self.refuse_inbound(inbound).await,
                 command = self.commands.recv() => {
                     if let Some(interrupt) = self.interrupt_from(command) {
                         return Err(interrupt);
                     }
                 }
             }
+        }
+    }
+
+    async fn refuse_inbound(&self, inbound: Inbound) {
+        match inbound {
+            Inbound::Client { accepted, .. } => self.refuse_connection(accepted).await,
+            Inbound::Forwarded(connection) => self.context.shared.log(
+                LogLevel::Warn,
+                format!(
+                    "connection from {} closed: no SSH session available",
+                    connection.originator
+                ),
+            ),
         }
     }
 
@@ -336,6 +360,21 @@ impl TunnelActor {
 
     async fn serve(&mut self, run: &mut ForwardRun, lease: &SessionLease) -> Step {
         let session = lease.session();
+        let registration = match self.begin_forwarding(run, &session).await {
+            Ok(registration) => registration,
+            Err(step) => return step,
+        };
+        let step = self.serve_active(run, lease, &session).await;
+        self.end_forwarding(&session, registration, &step).await;
+        step
+    }
+
+    async fn serve_active(
+        &mut self,
+        run: &mut ForwardRun,
+        lease: &SessionLease,
+        session: &Arc<SshSession>,
+    ) -> Step {
         let shared = Arc::clone(&self.context.shared);
         shared.set_state(TunnelState::Active);
         let mut probe_ticker = ticker(self.context.options.health_probe_interval);
@@ -346,11 +385,11 @@ impl TunnelActor {
                     run.close_connections().await;
                     return Step::SessionLost;
                 }
-                accepted = run.listener.accept() => self.accept_connection(run, &session, accepted).await,
+                inbound = run.inbound.next() => self.accept_inbound(run, session, inbound).await,
                 Some(_) = run.connections.join_next() => {}
                 Some(_) = run.probes.join_next() => {}
                 Some(report) = run.reports.recv() => self.apply_report(report),
-                _ = probe_ticker.tick() => self.start_probe(run, &session),
+                _ = probe_ticker.tick() => self.start_probe(run, session),
                 _ = metrics_ticker.tick() => self.publish_metrics(run),
                 command = self.commands.recv() => {
                     if let Some(interrupt) = self.interrupt_from(command) {
@@ -361,24 +400,125 @@ impl TunnelActor {
         }
     }
 
-    async fn accept_connection(
+    async fn begin_forwarding(
+        &mut self,
+        run: &mut ForwardRun,
+        session: &Arc<SshSession>,
+    ) -> Result<Option<RemoteForwardRegistration>, Step> {
+        let Some(sender) = run.inbound.forwarded_sender() else {
+            return Ok(None);
+        };
+        let settings = self.current_settings();
+        let address = self
+            .context
+            .definition
+            .effective_listen_address(&settings)
+            .to_owned();
+        let port = self.context.definition.listen_port;
+        let request = session.request_remote_forward(&address, port, sender);
+        match self.idle_until(run, request).await {
+            Err(interrupt) => Err(Step::Interrupted(interrupt)),
+            Ok(Ok(registration)) => Ok(Some(registration)),
+            Ok(Err(SessionError::ForwardRefused { address, port })) => {
+                Err(Step::Refused(FailureReason::RemoteForwardRefused {
+                    address: format_socket_address(&address, port),
+                }))
+            }
+            Ok(Err(error)) => {
+                self.context.shared.log(
+                    LogLevel::Warn,
+                    format!("cannot ask the server to listen: {error}"),
+                );
+                Err(Step::SessionLost)
+            }
+        }
+    }
+
+    async fn end_forwarding(
+        &self,
+        session: &SshSession,
+        registration: Option<RemoteForwardRegistration>,
+        step: &Step,
+    ) {
+        let Some(registration) = registration else {
+            return;
+        };
+        if matches!(step, Step::SessionLost) {
+            return;
+        }
+        let cancellation = timeout(
+            CANCEL_FORWARD_TIMEOUT,
+            session.cancel_remote_forward(registration),
+        )
+        .await;
+        match cancellation {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => self.context.shared.log(
+                LogLevel::Warn,
+                format!("cannot ask the server to stop listening: {error}"),
+            ),
+            Err(_) => self.context.shared.log(
+                LogLevel::Warn,
+                "the server did not confirm that it stopped listening".to_owned(),
+            ),
+        }
+    }
+
+    async fn accept_inbound(
         &self,
         run: &mut ForwardRun,
         session: &Arc<SshSession>,
-        accepted: io::Result<(TcpStream, SocketAddr)>,
+        inbound: Inbound,
     ) {
-        let (client, peer) = match accepted {
-            Ok(connection) => connection,
-            Err(error) => return self.report_accept_failure(&error).await,
+        match inbound {
+            Inbound::Client {
+                accepted: Err(error),
+                ..
+            } => self.report_accept_failure(&error).await,
+            Inbound::Client {
+                accepted: Ok((client, peer)),
+                protocol,
+            } => self.serve_client(run, session, client, peer, protocol),
+            Inbound::Forwarded(connection) => self.serve_forwarded(run, connection),
+        }
+    }
+
+    fn serve_client(
+        &self,
+        run: &mut ForwardRun,
+        session: &Arc<SshSession>,
+        client: TcpStream,
+        peer: SocketAddr,
+        protocol: ClientProtocol,
+    ) {
+        let session = Arc::clone(session);
+        let shared = Arc::clone(&self.context.shared);
+        match protocol {
+            ClientProtocol::Forward => run.connections.spawn(forward_connection(ConnectionJob {
+                client,
+                peer,
+                session,
+                target: self.forward_target(),
+                shared,
+                reports: run.reports_sender.clone(),
+            })),
+            ClientProtocol::Socks => run.connections.spawn(socks_connection(SocksJob {
+                client,
+                peer,
+                session,
+                shared,
+            })),
         };
-        run.connections.spawn(forward_connection(ConnectionJob {
-            client,
-            peer,
-            session: Arc::clone(session),
-            target: self.forward_target(),
-            shared: Arc::clone(&self.context.shared),
-            reports: run.reports_sender.clone(),
-        }));
+    }
+
+    fn serve_forwarded(&self, run: &mut ForwardRun, connection: ForwardedConnection) {
+        run.connections
+            .spawn(serve_forwarded_connection(ForwardedJob {
+                connection,
+                target: self.forward_target(),
+                shared: Arc::clone(&self.context.shared),
+                reports: run.reports_sender.clone(),
+            }));
     }
 
     fn apply_report(&self, report: TargetReport) {
@@ -392,11 +532,18 @@ impl TunnelActor {
         if !self.is_probing_enabled() || !run.probes.is_empty() {
             return;
         }
-        run.probes.spawn(probe_target(
-            Arc::clone(session),
-            self.forward_target(),
-            run.reports_sender.clone(),
-        ));
+        let target = self.forward_target();
+        let reports = run.reports_sender.clone();
+        match run.kind {
+            TunnelKind::Local => {
+                run.probes
+                    .spawn(probe_target(Arc::clone(session), target, reports));
+            }
+            TunnelKind::Remote => {
+                run.probes.spawn(probe_local_target(target, reports));
+            }
+            TunnelKind::Dynamic => {}
+        }
     }
 
     fn publish_metrics(&self, run: &mut ForwardRun) {

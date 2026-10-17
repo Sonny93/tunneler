@@ -53,6 +53,17 @@ describe('validateTunnelForm', () => {
 			'Le port doit être un entier entre 1 et 65535.'
 		);
 	});
+
+	it('should not validate the target port of a dynamic tunnel', () => {
+		const errors = validateTunnelForm({
+			...valid,
+			kind: 'dynamic',
+			targetPort: 'abc',
+			isTargetPortLinked: false,
+		});
+
+		expect(errors.targetPort).toBeUndefined();
+	});
 });
 
 describe('getFirstInvalidField', () => {

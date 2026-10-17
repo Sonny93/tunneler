@@ -23,6 +23,7 @@ use crate::host_key::{
     HostKeyVerifier,
 };
 use crate::prompter::CredentialPrompter;
+use crate::remote_forwards::RemoteForwardRegistry;
 use crate::session::SshSession;
 use crate::store::Settings;
 use crate::transport::{BoxedTransport, open_transport};
@@ -177,10 +178,11 @@ impl Connector {
             state: Arc::clone(&state),
         };
         let (closed_signal, closed) = watch::channel(false);
+        let remote_forwards = Arc::new(RemoteForwardRegistry::default());
         let mut handle = perform_handshake(
             client_config,
             transport,
-            ClientHandler::new(checker, closed_signal),
+            ClientHandler::new(checker, closed_signal, Arc::clone(&remote_forwards)),
             &state,
             resolved.connect_timeout,
         )
@@ -189,7 +191,14 @@ impl Connector {
             AuthenticationContext::from_config(&resolved, Arc::clone(&self.dependencies.prompter));
         authenticate(&mut handle, &context, self.identity_sources(&resolved)).await?;
         debug!(alias = %alias, "authenticated");
-        Ok(SshSession::new(alias, resolved, handle, closed, jumps))
+        Ok(SshSession::new(
+            alias,
+            resolved,
+            handle,
+            closed,
+            remote_forwards,
+            jumps,
+        ))
     }
 
     fn identity_sources(&self, resolved: &ResolvedConfig) -> Vec<Box<dyn IdentitySource>> {

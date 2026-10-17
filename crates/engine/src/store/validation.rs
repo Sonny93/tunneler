@@ -95,6 +95,16 @@ pub enum ValidationError {
         /// The offending tunnel.
         tunnel: TunnelReference,
     },
+    /// A dynamic tunnel names a target, but its clients choose where to go.
+    #[error(
+        "{tunnel}: {field} is not allowed on a dynamic tunnel, the SOCKS client names the target"
+    )]
+    DynamicTunnelWithTarget {
+        /// The offending tunnel.
+        tunnel: TunnelReference,
+        /// The field name as written in the file.
+        field: &'static str,
+    },
     /// Two local or dynamic tunnels listen on the same local address and port.
     #[error("{tunnel}: {listen_address}:{listen_port} is already used by {other}")]
     LocalListenConflict {
@@ -278,8 +288,29 @@ fn validate_tunnel(tunnel: &TunnelDefinition) -> Vec<ValidationError> {
             tunnel: reference.clone(),
         });
     }
+    errors.extend(validate_dynamic_target(tunnel, &reference));
     errors.extend(validate_tags(tunnel, &reference));
     errors
+}
+
+fn validate_dynamic_target(
+    tunnel: &TunnelDefinition,
+    reference: &TunnelReference,
+) -> Vec<ValidationError> {
+    if tunnel.kind != TunnelKind::Dynamic {
+        return Vec::new();
+    }
+    [
+        ("target_host", tunnel.target_host.is_some()),
+        ("target_port", tunnel.target_port.is_some()),
+    ]
+    .into_iter()
+    .filter(|(_, is_set)| *is_set)
+    .map(|(field, _)| ValidationError::DynamicTunnelWithTarget {
+        tunnel: reference.clone(),
+        field,
+    })
+    .collect()
 }
 
 fn validate_optional_fields(
@@ -597,6 +628,68 @@ mod tests {
             errors.as_slice(),
             [ValidationError::ZeroTargetPort { .. }]
         ));
+    }
+
+    #[test]
+    fn should_reject_dynamic_tunnel_when_it_has_a_target_host() {
+        let dynamic = TunnelDefinition {
+            target_host: Some("db.internal".to_owned()),
+            ..named_tunnel(TunnelKind::Dynamic, "Socks", 1080)
+        };
+
+        let errors = errors_of(&document_with(vec![dynamic]));
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::DynamicTunnelWithTarget {
+                field: "target_host",
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_dynamic_tunnel_when_it_has_a_target_port() {
+        let dynamic = TunnelDefinition {
+            target_port: Some(5432),
+            ..named_tunnel(TunnelKind::Dynamic, "Socks", 1080)
+        };
+
+        let errors = errors_of(&document_with(vec![dynamic]));
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::DynamicTunnelWithTarget {
+                field: "target_port",
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_accept_dynamic_tunnel_when_it_has_no_target() {
+        let dynamic = named_tunnel(TunnelKind::Dynamic, "Socks", 1080);
+
+        assert_eq!(validate(&document_with(vec![dynamic])), Ok(()));
+    }
+
+    #[test]
+    fn should_accept_remote_tunnel_when_it_has_a_target() {
+        let remote = TunnelDefinition {
+            target_host: Some("localhost".to_owned()),
+            target_port: Some(3000),
+            ..named_tunnel(TunnelKind::Remote, "Dev", 8080)
+        };
+
+        assert_eq!(validate(&document_with(vec![remote])), Ok(()));
+    }
+
+    #[test]
+    fn should_accept_remote_and_dynamic_tunnels_when_the_remote_port_is_the_local_listen_port() {
+        let remote = named_tunnel(TunnelKind::Remote, "Dev", 1080);
+        let dynamic = named_tunnel(TunnelKind::Dynamic, "Socks", 1080);
+
+        assert_eq!(validate(&document_with(vec![remote, dynamic])), Ok(()));
     }
 
     #[test]

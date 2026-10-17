@@ -55,6 +55,17 @@ describe('tunnelFormReducer', () => {
 		]);
 	});
 
+	it('should change the kind keeping the target values', () => {
+		const values = tunnelFormReducer(unlinked, {
+			type: 'kindChanged',
+			kind: 'dynamic',
+		});
+
+		expect([values.kind, values.targetPort, values.isTargetPortLinked]).toEqual(
+			['dynamic', '5432', false]
+		);
+	});
+
 	it('should update any other text field without touching the target port', () => {
 		const values = tunnelFormReducer(unlinked, {
 			type: 'textChanged',

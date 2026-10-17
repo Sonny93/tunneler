@@ -273,11 +273,24 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows) et tests verts (1644 tests Rust, 628 tests front). Rien d'exécuté sous Windows ni macOS (`listeners`/`sysinfo`/`TerminateProcess` non vérifiés).
 
-## Phase 9 — Forwards remote & dynamic
-- [ ] 9.1 Remote : `tcpip_forward`, callback `forwarded-tcpip`, `cancel_tcpip_forward`
-- [ ] 9.2 Dynamic : serveur SOCKS5 (`fast-socks5`) → `direct-tcpip`
-- [ ] 9.3 UI : sélecteur de type, champs adaptés
-- [ ] 9.4 Tests d'intégration
+## Phase 9 — Forwards remote & dynamic ✔ (Linux ; `curl --socks5` réel non exécuté)
+- [x] 9.1 Remote : `tcpip_forward`, callback `forwarded-tcpip`, `cancel_tcpip_forward`
+  - `RemoteForwardRegistry` par session SSH (créé par le connecteur, partagé entre `ClientHandler` et `SshSession`) : routage par port annoncé par le serveur ; si plusieurs forwards de la session partagent ce port, l'adresse (insensible à la casse) départage, sinon rejet (`AdministrativelyProhibited` + avertissement). Les serveurs ne rapportent pas tous `localhost` de la même façon, d'où le port seul quand il suffit. Port 0 non supporté (la validation le refuse déjà).
+  - Le tunnel se connecte d'abord à la cible locale, puis accepte le canal ; échec → rejet `ConnectFailed` + santé `Unreachable`. Sonde active = connexion TCP locale. Refus du `tcpip_forward` → `Failed { RemoteForwardRefused }` sans retry ; autre erreur de requête = perte de session (backoff). Arrêt/redémarrage/changement → `cancel_tcpip_forward` (5 s max, échec loggé) ; désinscription garantie par un garde sur tous les chemins.
+  - `CountingStream` : constructeurs `on_client_side`/`on_target_side` pour que `bytes_in`/`bytes_out` gardent leur sens en remote.
+- [x] 9.2 Dynamic : serveur SOCKS5 (`fast-socks5`) → `direct-tcpip`
+  - `fast-socks5` 1.0 (API typestate `Socks5ServerProtocol`, ajoute seulement `socket2` au lockfile). Sans authentification, CONNECT seul (BIND/UDP → `CommandNotSupported`), noms de domaine transmis non résolus au serveur (comme `ssh -D`), handshake borné à 10 s, erreurs de canal traduites en réponses SOCKS (refus, interdit, échec général). Santé toujours `Unknown` (pas de cible fixe, pas de sonde).
+  - Local, dynamic et remote partagent la même boucle (`ForwardRun` + `InboundSource` écouteur/canaux transférés), le relais et les métriques.
+  - Validation : un tunnel dynamique avec `target_host`/`target_port` est refusé (`DynamicTunnelWithTarget`). `FailureReason::UnsupportedKind` supprimé (moteur, DTO, CLI, UI ; protocole v2 non publié, pas de nouvelle version).
+- [x] 9.3 UI : sélecteur de type, champs adaptés
+  - Groupe radio « Type de tunnel » (`RadioOptions` de la lib, descriptions reliées) : Local (-L), Distant (-R), Dynamique (-D, SOCKS). Remote : « Port d'écoute sur le serveur », « Hôte cible (depuis ce poste) », indice de bind = `defaultRemoteBindAddress`. Dynamic : champs cible masqués et jamais envoyés (valeurs conservées si on revient en arrière).
+  - Libellés : `nova:8080 → 127.0.0.1:3000` (« port 8080 du serveur nova vers 127.0.0.1:3000 »), `1080 (SOCKS via nova)` (« proxy SOCKS sur le port 1080 via nova »). Import des externes ouvert aux forwards remote/dynamic. CLI : `3333 → SOCKS via nova`, `0.0.0.0:3333 on nova → …` pour un bind remote non par défaut.
+- [x] 9.4 Tests d'intégration
+  - Serveur de test : `tcpip_forward` réel sur 127.0.0.1 (port 0 alloué, ré-essai ~200 ms pour re-binder après coupure), `cancel_tcpip_forward`, option `refusing_remote_forwards()`. 31 tests runtime : SOCKS par IP et par nom, cible refusée (réponse SOCKS, tunnel reste Active), remote aller-retour, refus, arrêt qui annule le forward (vérifié par mutation), reconnexion puis forward rétabli, local + remote sur une session, cible locale down → `Unreachable`.
+  - Un échec isolé non reproduit (`should_keep_the_local_tunnel_forwarding_when_a_dynamic_tunnel_on_the_same_host_is_toggled`, premier run complet ; cause probable : collision de `free_port()`), puis 3 runs complets + ~20 runs runtime + 120 runs parallèles du test verts.
+  - **Non fait** : `curl --socks5` contre un vrai sshd (l'authentification vers le sshd local attend une confirmation de l'agent, cf. 11.7) ; pas d'E2E CLI pour remote/dynamic.
+
+**Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows) et tests verts (1706 tests Rust ×3, 654 tests front).
 
 ## Phase 10 — X11
 - [ ] 10.1 Parser `Xauthority` local + résolution du display (TCP / socket Unix)

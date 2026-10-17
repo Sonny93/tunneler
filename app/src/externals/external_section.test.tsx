@@ -76,7 +76,7 @@ describe('ExternalSection', () => {
 		expect(screen.getByText('-D 1080')).toBeInTheDocument();
 	});
 
-	it('should offer to import local forwards only', () => {
+	it('should offer to import every kind of forward', () => {
 		renderSection([
 			buildExternalProcess({
 				forwards: [
@@ -89,7 +89,62 @@ describe('ExternalSection', () => {
 
 		expect(
 			screen.getAllByRole('button', { name: /^Importer comme tunnel/ })
-		).toHaveLength(1);
+		).toHaveLength(3);
+	});
+
+	it('should import a dynamic forward as a dynamic tunnel without target', async () => {
+		const { gateway } = renderSection([
+			buildExternalProcess({
+				forwards: [{ kind: 'dynamic', listenPort: 1080 }],
+			}),
+		]);
+		await userEvent.click(
+			screen.getByRole('button', { name: /^Importer comme tunnel/ })
+		);
+
+		await userEvent.click(await screen.findByRole('button', { name: 'Créer' }));
+
+		await waitFor(() =>
+			expect(gateway.createTunnel).toHaveBeenCalledWith(
+				expect.objectContaining({
+					kind: 'dynamic',
+					listenPort: 1080,
+					targetHost: undefined,
+					targetPort: undefined,
+				})
+			)
+		);
+	});
+
+	it('should import a remote forward as a remote tunnel with its target', async () => {
+		const { gateway } = renderSection([
+			buildExternalProcess({
+				forwards: [
+					{
+						kind: 'remote',
+						listenPort: 8080,
+						targetHost: 'app',
+						targetPort: 3000,
+					},
+				],
+			}),
+		]);
+		await userEvent.click(
+			screen.getByRole('button', { name: /^Importer comme tunnel/ })
+		);
+
+		await userEvent.click(await screen.findByRole('button', { name: 'Créer' }));
+
+		await waitFor(() =>
+			expect(gateway.createTunnel).toHaveBeenCalledWith(
+				expect.objectContaining({
+					kind: 'remote',
+					listenPort: 8080,
+					targetHost: 'app',
+					targetPort: 3000,
+				})
+			)
+		);
 	});
 
 	it('should open the create drawer prefilled when importing', async () => {

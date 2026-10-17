@@ -1,6 +1,6 @@
 import { parsePort } from '#/tunnel_form/parse_port';
 import { parseTags } from '#/tunnel_form/parse_tags';
-import type { TunnelKindDto, TunnelSpecDto } from '#/daemon/protocol';
+import type { TunnelSpecDto } from '#/daemon/protocol';
 import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 
 function toOptionalText(text: string): string | undefined {
@@ -16,19 +16,20 @@ function toPort(text: string): number {
 
 /** Builds the spec of valid form values; blank optional texts are omitted. */
 export function toTunnelSpec(
-	values: Readonly<TunnelFormValues>,
-	kind: TunnelKindDto
+	values: Readonly<TunnelFormValues>
 ): TunnelSpecDto {
+	const hasTarget = values.kind !== 'dynamic';
 	return {
 		name: values.name.trim(),
 		host: values.host.trim(),
-		kind,
+		kind: values.kind,
 		listenPort: toPort(values.listenPort),
 		listenAddress: toOptionalText(values.listenAddress),
-		targetHost: toOptionalText(values.targetHost),
-		targetPort: values.isTargetPortLinked
-			? undefined
-			: toPort(values.targetPort),
+		targetHost: hasTarget ? toOptionalText(values.targetHost) : undefined,
+		targetPort:
+			hasTarget && !values.isTargetPortLinked
+				? toPort(values.targetPort)
+				: undefined,
 		tags: parseTags(values.tags),
 	};
 }

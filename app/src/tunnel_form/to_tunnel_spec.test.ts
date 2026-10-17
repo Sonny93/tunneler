@@ -13,23 +13,25 @@ const valid = {
 
 describe('toTunnelSpec', () => {
 	it('should omit the target port while linked', () => {
-		expect(toTunnelSpec(valid, 'local').targetPort).toBeUndefined();
+		expect(toTunnelSpec(valid).targetPort).toBeUndefined();
 	});
 
 	it('should send the target port once unlinked', () => {
-		const spec = toTunnelSpec(
-			{ ...valid, targetPort: '5432', isTargetPortLinked: false },
-			'local'
-		);
+		const spec = toTunnelSpec({
+			...valid,
+			targetPort: '5432',
+			isTargetPortLinked: false,
+		});
 
 		expect(spec.targetPort).toBe(5432);
 	});
 
 	it('should turn blank optional texts into undefined', () => {
-		const spec = toTunnelSpec(
-			{ ...valid, targetHost: '  ', listenAddress: '' },
-			'local'
-		);
+		const spec = toTunnelSpec({
+			...valid,
+			targetHost: '  ',
+			listenAddress: '',
+		});
 
 		expect([spec.targetHost, spec.listenAddress]).toEqual([
 			undefined,
@@ -38,17 +40,41 @@ describe('toTunnelSpec', () => {
 	});
 
 	it('should trim the name and parse the tags', () => {
-		const spec = toTunnelSpec({ ...valid, tags: 'db, db ,web' }, 'local');
+		const spec = toTunnelSpec({ ...valid, tags: 'db, db ,web' });
 
 		expect([spec.name, spec.tags]).toEqual(['Adonis', ['db', 'web']]);
 	});
 
 	it('should keep the given kind', () => {
-		expect(toTunnelSpec(valid, 'remote').kind).toBe('remote');
+		expect(toTunnelSpec({ ...valid, kind: 'remote' }).kind).toBe('remote');
+	});
+
+	it('should omit the target of a dynamic tunnel', () => {
+		const spec = toTunnelSpec({
+			...valid,
+			kind: 'dynamic',
+			targetHost: 'db',
+			targetPort: '5432',
+			isTargetPortLinked: false,
+		});
+
+		expect([spec.targetHost, spec.targetPort]).toEqual([undefined, undefined]);
+	});
+
+	it('should keep the target of a remote tunnel', () => {
+		const spec = toTunnelSpec({
+			...valid,
+			kind: 'remote',
+			targetHost: 'db',
+			targetPort: '5432',
+			isTargetPortLinked: false,
+		});
+
+		expect([spec.targetHost, spec.targetPort]).toEqual(['db', 5432]);
 	});
 
 	it('should throw on an invalid listen port', () => {
-		expect(() => toTunnelSpec({ ...valid, listenPort: 'x' }, 'local')).toThrow(
+		expect(() => toTunnelSpec({ ...valid, listenPort: 'x' })).toThrow(
 			RangeError
 		);
 	});

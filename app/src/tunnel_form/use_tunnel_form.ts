@@ -22,8 +22,6 @@ import {
 	type TunnelFormErrors,
 } from '#/tunnel_form/validate_tunnel_form';
 
-const DEFAULT_KIND = 'local';
-
 type UseTunnelFormReturn = {
 	values: ReturnType<typeof toTunnelFormValues>;
 	errors: TunnelFormErrors;
@@ -59,7 +57,7 @@ export function useTunnelForm(
 	};
 
 	const save = async () => {
-		const spec = toTunnelSpec(values, source?.kind ?? DEFAULT_KIND);
+		const spec = toTunnelSpec(values);
 		setIsSaving(true);
 		summary.clearFailure();
 		let savedTunnel: TunnelDto;

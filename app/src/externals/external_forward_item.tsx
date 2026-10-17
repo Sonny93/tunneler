@@ -20,7 +20,6 @@ export function ExternalForwardItem({
 	forward,
 }: Readonly<ExternalForwardItemProps>) {
 	const openTunnelImport = useUiStore((state) => state.openTunnelImport);
-	const isImportable = forward.kind === 'local';
 	const route = getExternalForwardRoute(forward, SPOKEN_SEPARATOR);
 
 	const handleImport = () =>
@@ -34,17 +33,15 @@ export function ExternalForwardItem({
 					{getExternalForwardAccessibleLabel(forward)}
 				</span>
 			</span>
-			{isImportable && (
-				<Button
-					size="sm"
-					variant="outline"
-					color="neutral"
-					aria-label={`Importer comme tunnel : ${route}`}
-					onClick={handleImport}
-				>
-					Importer comme tunnel
-				</Button>
-			)}
+			<Button
+				size="sm"
+				variant="outline"
+				color="neutral"
+				aria-label={`Importer comme tunnel : ${route}`}
+				onClick={handleImport}
+			>
+				Importer comme tunnel
+			</Button>
 		</li>
 	);
 }

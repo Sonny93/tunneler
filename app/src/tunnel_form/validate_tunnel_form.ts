@@ -15,6 +15,13 @@ export type TunnelFormErrors = Partial<Record<TunnelFormField, string>>;
 
 const PORT_MESSAGE = 'Le port doit être un entier entre 1 et 65535.';
 
+function hasUnlinkedInvalidTargetPort(
+	values: Readonly<TunnelFormValues>
+): boolean {
+	if (values.kind === 'dynamic' || values.isTargetPortLinked) return false;
+	return parsePort(values.targetPort) === null;
+}
+
 export function validateTunnelForm(
 	values: Readonly<TunnelFormValues>
 ): TunnelFormErrors {
@@ -22,9 +29,7 @@ export function validateTunnelForm(
 	if (values.name.trim() === '') errors.name = 'Le nom est obligatoire.';
 	if (values.host.trim() === '') errors.host = "L'hôte est obligatoire.";
 	if (parsePort(values.listenPort) === null) errors.listenPort = PORT_MESSAGE;
-	if (!values.isTargetPortLinked && parsePort(values.targetPort) === null) {
-		errors.targetPort = PORT_MESSAGE;
-	}
+	if (hasUnlinkedInvalidTargetPort(values)) errors.targetPort = PORT_MESSAGE;
 	return errors;
 }
 
