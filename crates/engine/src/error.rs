@@ -187,6 +187,19 @@ pub enum ConnectError {
     /// The SSH agent failed to sign during authentication.
     #[error("the SSH agent failed: {0}")]
     Agent(Box<russh::keys::Error>),
+    /// The server went silent during authentication.
+    #[error("the server did not answer during authentication within {timeout:?}")]
+    AuthenticationTimeout {
+        /// The bound that elapsed.
+        timeout: Duration,
+    },
+    /// The SSH agent did not answer a request, typically because it waits for
+    /// the user to confirm a signature.
+    #[error("the SSH agent did not answer within {timeout:?}; is it waiting for a confirmation?")]
+    AgentUnresponsive {
+        /// The bound that elapsed.
+        timeout: Duration,
+    },
     /// The SSH connection broke during authentication.
     #[error("the SSH connection failed during authentication: {0}")]
     Protocol(#[from] russh::Error),

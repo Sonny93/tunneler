@@ -110,6 +110,9 @@ fn failure_to_dto(reason: &FailureReason) -> FailureReasonDto {
         FailureReason::Connect { message } => FailureReasonDto::Connect {
             message: message.clone(),
         },
+        FailureReason::AgentUnresponsive { timeout } => FailureReasonDto::AgentUnresponsive {
+            timeout_ms: saturating_u64(timeout.as_millis()),
+        },
         FailureReason::RemoteForwardRefused { address } => FailureReasonDto::RemoteForwardRefused {
             address: address.clone(),
         },
@@ -513,6 +516,22 @@ mod tests {
                 reason: FailureReasonDto::PortInUse {
                     address: "127.0.0.1:3333".to_owned()
                 }
+            }
+        );
+    }
+
+    #[test]
+    fn should_convert_an_unresponsive_agent_failure_with_its_timeout_in_milliseconds() {
+        let state = TunnelState::Failed {
+            reason: FailureReason::AgentUnresponsive {
+                timeout: Duration::from_secs(30),
+            },
+        };
+
+        assert_eq!(
+            state_to_dto(&state),
+            TunnelStateDto::Failed {
+                reason: FailureReasonDto::AgentUnresponsive { timeout_ms: 30_000 }
             }
         );
     }

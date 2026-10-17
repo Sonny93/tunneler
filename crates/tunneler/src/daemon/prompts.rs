@@ -93,6 +93,24 @@ impl<Answer> PendingPrompts<Answer> {
     }
 }
 
+/// Takes a prompt back when it ends without an answer, however it ends: the
+/// timeout, a disconnection, or the asking future being dropped because the
+/// connection attempt that needed the secret was abandoned. The clients that
+/// still show it are told through `prompt.resolved`.
+struct PromptWithdrawal<'broker, Answer> {
+    broker: &'broker PromptBroker,
+    pending: &'broker PendingPrompts<Answer>,
+    prompt_id: String,
+}
+
+impl<Answer> Drop for PromptWithdrawal<'_, Answer> {
+    fn drop(&mut self) {
+        let remaining = self.pending.withdraw(&self.prompt_id);
+        self.broker
+            .notify_resolved(&self.prompt_id, &remaining, None);
+    }
+}
+
 /// Answers the engine's prompts through the connected clients.
 pub(crate) struct PromptBroker {
     server: ServerHandle,
@@ -168,25 +186,24 @@ impl PromptBroker {
         let mut notifications = self.server.subscribe_connections();
         let prompt_id = Ulid::generate().to_string();
         let receiver = pending.register(&prompt_id, responders.clone());
-        let event = build_event(prompt_id.clone());
+        let _withdrawal = PromptWithdrawal {
+            broker: self,
+            pending,
+            prompt_id: prompt_id.clone(),
+        };
+        let event = build_event(prompt_id);
         let reached = self.deliver(&event, &responders);
         if reached.is_empty() {
-            pending.withdraw(&prompt_id);
             return None;
         }
-        let answer = tokio::time::timeout_at(deadline, async {
+        tokio::time::timeout_at(deadline, async {
             tokio::select! {
                 answer = receiver => answer.ok(),
                 () = self.wait_until_disconnected(&reached, &mut notifications) => None,
             }
         })
         .await
-        .unwrap_or(None);
-        if answer.is_none() {
-            let remaining = pending.withdraw(&prompt_id);
-            self.notify_resolved(&prompt_id, &remaining, None);
-        }
-        answer
+        .unwrap_or(None)
     }
 
     async fn find_responders(&self, deadline: Instant) -> Vec<ConnectionId> {
@@ -604,6 +621,38 @@ mod tests {
 
         asking.abort();
         assert!(matches!(event, EventMessage::CredentialRequest(_)));
+    }
+
+    #[tokio::test]
+    async fn should_tell_the_responders_the_prompt_is_resolved_when_the_asking_future_is_dropped() {
+        let server = TestServer::start();
+        let mut responder = connect_responder(&server).await;
+        let broker = broker(&server);
+        let asking = ask_passphrase(&broker);
+        let prompt_id = received_prompt_id(&mut responder).await;
+
+        asking.abort();
+
+        let resolved = next_event(&mut responder).await;
+        assert_eq!(
+            resolved,
+            EventMessage::PromptResolved(PromptResolvedEvent { prompt_id })
+        );
+    }
+
+    #[tokio::test]
+    async fn should_refuse_a_late_answer_when_the_asking_future_was_dropped() {
+        let server = TestServer::start();
+        let mut responder = connect_responder(&server).await;
+        let broker = broker(&server);
+        let asking = ask_passphrase(&broker);
+        let prompt_id = received_prompt_id(&mut responder).await;
+        asking.abort();
+        let _ = asking.await;
+
+        let outcome = broker.respond_credential(None, answer(&prompt_id, SECRET_TEXT));
+
+        assert!(outcome.is_err());
     }
 
     #[tokio::test]

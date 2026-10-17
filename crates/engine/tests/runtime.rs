@@ -9,10 +9,10 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use engine::{
-    Clock, Engine, EngineDependencies, EngineError, EngineEvent, EngineOptions, FailureReason,
-    HostKeyDecision, LogLevel, NewTunnel, PortOwner, PortScanner, Settings, Store, StoreError,
-    SystemClock, SystemPortScanner, SystemScan, TargetHealth, TunnelId, TunnelKind, TunnelState,
-    UnmanagedProcess,
+    Clock, ConnectTimeouts, Engine, EngineDependencies, EngineError, EngineEvent, EngineOptions,
+    FailureReason, HostKeyDecision, LogLevel, NewTunnel, PortOwner, PortScanner, Settings, Store,
+    StoreError, SystemClock, SystemPortScanner, SystemScan, TargetHealth, TunnelId, TunnelKind,
+    TunnelState, UnmanagedProcess,
 };
 use fast_socks5::client::{Config as SocksConfig, Socks5Stream};
 use fast_socks5::{ReplyError, SocksError};
@@ -248,6 +248,7 @@ impl HarnessBuilder {
                 health_probe_interval: PROBE_INTERVAL,
                 metrics_event_interval: PROBE_INTERVAL,
                 port_scan_interval: PROBE_INTERVAL,
+                connect_timeouts: ConnectTimeouts::default(),
             },
         )
         .unwrap();

@@ -17,6 +17,7 @@ pub struct ScriptedPrompter {
     passphrase_answers: Mutex<VecDeque<Option<String>>>,
     password_answers: Mutex<VecDeque<Option<String>>>,
     keyboard_interactive_answers: Mutex<VecDeque<Option<Vec<String>>>>,
+    answer_delay: Mutex<Duration>,
     passphrase_requests: Mutex<Vec<PassphraseRequest>>,
     password_requests: Mutex<Vec<PasswordRequest>>,
     keyboard_interactive_requests: Mutex<Vec<KeyboardInteractiveRequest>>,
@@ -39,6 +40,17 @@ impl ScriptedPrompter {
             .map(|round| round.map(|answers| answers.iter().map(|a| (*a).to_owned()).collect()))
             .collect();
         self
+    }
+
+    /// Makes the user take `delay` to answer every prompt.
+    pub fn with_answer_delay(self, delay: Duration) -> Self {
+        *self.answer_delay.lock().unwrap() = delay;
+        self
+    }
+
+    async fn wait_for_user(&self) {
+        let delay = *self.answer_delay.lock().unwrap();
+        tokio::time::sleep(delay).await;
     }
 
     pub fn passphrase_requests(&self) -> Vec<PassphraseRequest> {
@@ -74,6 +86,7 @@ impl CredentialPrompter for ScriptedPrompter {
         request: PassphraseRequest,
     ) -> Result<Option<Zeroizing<String>>, PromptError> {
         self.passphrase_requests.lock().unwrap().push(request);
+        self.wait_for_user().await;
         let answer = self
             .passphrase_answers
             .lock()
@@ -88,6 +101,7 @@ impl CredentialPrompter for ScriptedPrompter {
         request: PasswordRequest,
     ) -> Result<Option<Zeroizing<String>>, PromptError> {
         self.password_requests.lock().unwrap().push(request);
+        self.wait_for_user().await;
         let answer = self.password_answers.lock().unwrap().pop_front().flatten();
         Ok(answer.map(Zeroizing::new))
     }
@@ -100,6 +114,7 @@ impl CredentialPrompter for ScriptedPrompter {
             .lock()
             .unwrap()
             .push(request);
+        self.wait_for_user().await;
         let answers = self
             .keyboard_interactive_answers
             .lock()

@@ -37,12 +37,22 @@ pub(crate) fn decide_after_connect_error(
     jitter_fraction: f64,
 ) -> RetryDecision {
     if !is_retryable(error) {
-        return RetryDecision::Fail(FailureReason::Connect {
-            message: error.to_string(),
-        });
+        return RetryDecision::Fail(fatal_reason(error));
     }
     RetryDecision::Retry {
         delay: reconnect_delay(attempt, settings, jitter_fraction),
+    }
+}
+
+fn fatal_reason(error: &ConnectError) -> FailureReason {
+    match error {
+        ConnectError::AgentUnresponsive { timeout } => {
+            FailureReason::AgentUnresponsive { timeout: *timeout }
+        }
+        ConnectError::Jump { source, .. } => fatal_reason(source),
+        _ => FailureReason::Connect {
+            message: error.to_string(),
+        },
     }
 }
 
@@ -101,5 +111,45 @@ mod tests {
                 message: error.to_string()
             })
         );
+    }
+
+    #[test]
+    fn should_fail_with_an_unresponsive_agent_when_the_agent_does_not_answer() {
+        let timeout = Duration::from_secs(30);
+        let error = ConnectError::AgentUnresponsive { timeout };
+
+        let decision = decide_after_connect_error(&error, 1, &Settings::default(), 0.5);
+
+        assert_eq!(
+            decision,
+            RetryDecision::Fail(FailureReason::AgentUnresponsive { timeout })
+        );
+    }
+
+    #[test]
+    fn should_fail_with_an_unresponsive_agent_when_a_jump_host_agent_does_not_answer() {
+        let timeout = Duration::from_secs(30);
+        let error = ConnectError::Jump {
+            hop: "bastion".to_owned(),
+            source: Box::new(ConnectError::AgentUnresponsive { timeout }),
+        };
+
+        let decision = decide_after_connect_error(&error, 1, &Settings::default(), 0.5);
+
+        assert_eq!(
+            decision,
+            RetryDecision::Fail(FailureReason::AgentUnresponsive { timeout })
+        );
+    }
+
+    #[test]
+    fn should_retry_when_authentication_times_out() {
+        let error = ConnectError::AuthenticationTimeout {
+            timeout: Duration::from_secs(30),
+        };
+
+        let decision = decide_after_connect_error(&error, 1, &Settings::default(), 1.0);
+
+        assert!(matches!(decision, RetryDecision::Retry { .. }));
     }
 }

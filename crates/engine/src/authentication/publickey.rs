@@ -1,8 +1,8 @@
 use russh::client::{AuthResult, Handle};
 use russh::keys::agent::client::AgentClient;
 use russh::keys::{HashAlg, PrivateKeyWithHashAlg, PublicKey};
-use russh::{AgentAuthError, Error as RusshError};
 
+use super::agent_signer::BoundedAgentSigner;
 use super::flow::AuthenticationContext;
 use super::identity::{Identity, IdentitySource};
 use super::outcome::MethodOutcome;
@@ -90,13 +90,17 @@ async fn sign_with_agent(
     hash: Option<HashAlg>,
     agent: &mut AgentClient<Box<dyn russh::keys::agent::client::AgentStream + Send + Unpin>>,
 ) -> Result<Option<AuthResult>, ConnectError> {
+    let mut signer = BoundedAgentSigner::new(
+        agent,
+        context.timeouts.agent_response,
+        &context.deadline_pause,
+    );
     let outcome = handle
-        .authenticate_publickey_with(context.user.as_str(), public_key, hash, agent)
+        .authenticate_publickey_with(context.user.as_str(), public_key, hash, &mut signer)
         .await;
     match outcome {
         Ok(result) => Ok(Some(result)),
-        Err(AgentAuthError::Send(_)) => Err(ConnectError::Protocol(RusshError::SendError)),
-        Err(AgentAuthError::Key(error)) => Err(ConnectError::Agent(Box::new(error))),
+        Err(error) => Err(error.into_connect_error(context.timeouts.agent_response)),
     }
 }
 

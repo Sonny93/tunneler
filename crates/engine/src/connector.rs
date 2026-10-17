@@ -14,6 +14,7 @@ use crate::authentication::{
 };
 use crate::blocking::run_blocking;
 use crate::client_config::{KeepaliveDefaults, build_client_config};
+use crate::connect_timeouts::ConnectTimeouts;
 use crate::connection_chain::ConnectionChain;
 use crate::error::ConnectError;
 use crate::handshake::perform_handshake;
@@ -52,6 +53,7 @@ pub struct Connector {
     dependencies: ConnectorDependencies,
     accepted_once: Arc<AcceptedOnceStore>,
     settings: watch::Receiver<Settings>,
+    timeouts: ConnectTimeouts,
 }
 
 impl Connector {
@@ -72,7 +74,15 @@ impl Connector {
             dependencies,
             accepted_once: Arc::new(AcceptedOnceStore::default()),
             settings,
+            timeouts: ConnectTimeouts::default(),
         }
+    }
+
+    /// A connector that bounds the steps of opening a session by `timeouts`.
+    #[must_use]
+    pub fn with_timeouts(mut self, timeouts: ConnectTimeouts) -> Self {
+        self.timeouts = timeouts;
+        self
     }
 
     /// Opens a session to the host `alias` and authenticates it.
@@ -81,9 +91,17 @@ impl Connector {
     /// its `ProxyJump` hosts, each of which is fully verified and
     /// authenticated. The returned session owns its jump sessions.
     pub async fn connect(&self, alias: &str) -> Result<SshSession, ConnectError> {
-        let resolved = self.dependencies.resolver.resolve(alias)?;
+        let resolved = self.resolve(alias)?;
         self.connect_resolved(alias.to_owned(), resolved, ConnectionChain::default())
             .await
+    }
+
+    fn resolve(&self, alias: &str) -> Result<ResolvedConfig, ConnectError> {
+        let mut resolved = self.dependencies.resolver.resolve(alias)?;
+        resolved
+            .connect_timeout
+            .get_or_insert(self.timeouts.connect);
+        Ok(resolved)
     }
 
     fn connect_resolved(
@@ -129,7 +147,7 @@ impl Connector {
         previous: Option<&SshSession>,
         chain: &ConnectionChain,
     ) -> Result<SshSession, ConnectError> {
-        let resolved = apply_hop_overrides(self.dependencies.resolver.resolve(&hop.host)?, hop);
+        let resolved = apply_hop_overrides(self.resolve(&hop.host)?, hop);
         let Some(previous) = previous else {
             return self
                 .connect_resolved(hop.host.clone(), resolved, chain.clone())
@@ -194,9 +212,13 @@ impl Connector {
             resolved.connect_timeout,
         )
         .await?;
-        let context =
-            AuthenticationContext::from_config(&resolved, Arc::clone(&self.dependencies.prompter));
-        authenticate(&mut handle, &context, self.identity_sources(&resolved)).await?;
+        let context = AuthenticationContext::from_config(
+            &resolved,
+            Arc::clone(&self.dependencies.prompter),
+            self.timeouts,
+        );
+        let identity_sources = self.identity_sources(&resolved, &context);
+        authenticate(&mut handle, &context, identity_sources).await?;
         debug!(alias = %alias, "authenticated");
         Ok(SshSession::new(
             alias,
@@ -209,7 +231,11 @@ impl Connector {
         ))
     }
 
-    fn identity_sources(&self, resolved: &ResolvedConfig) -> Vec<Box<dyn IdentitySource>> {
+    fn identity_sources(
+        &self,
+        resolved: &ResolvedConfig,
+        context: &AuthenticationContext,
+    ) -> Vec<Box<dyn IdentitySource>> {
         let offered = Arc::new(OfferedKeys::default());
         let agent = AgentIdentitySource::new(AgentIdentityOptions {
             alias: resolved.alias.clone(),
@@ -218,12 +244,14 @@ impl Connector {
             identities_only: resolved.identities_only,
             identity_files: resolved.identity_files.clone(),
             offered: Arc::clone(&offered),
+            response_timeout: context.timeouts.agent_response,
+            authentication_pause: Arc::clone(&context.deadline_pause),
         });
         let files = FileIdentitySource::new(FileIdentityOptions {
             alias: resolved.alias.clone(),
             key_paths: resolved.identity_files.clone(),
             certificate_paths: resolved.certificate_files.clone(),
-            prompter: Arc::clone(&self.dependencies.prompter),
+            prompter: Arc::clone(&context.prompter),
             is_prompting_allowed: !resolved.batch_mode,
             passphrase_attempts: resolved.number_of_password_prompts,
             offered,

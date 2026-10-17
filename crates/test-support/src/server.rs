@@ -33,6 +33,13 @@ enum X11Policy {
     ReportingEmptyDisplay,
 }
 
+/// Whether the server answers authentication requests.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AuthenticationPolicy {
+    Answering,
+    Stalling,
+}
+
 /// An `x11-req` request a client made on a session channel.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct X11Request {
@@ -64,6 +71,7 @@ struct Behavior {
     allows_direct_tcpip: bool,
     allows_remote_forwards: bool,
     x11_policy: X11Policy,
+    authentication_policy: AuthenticationPolicy,
     connection_count: Arc<AtomicUsize>,
     remote_forward_requests: Arc<Mutex<Vec<(String, u16)>>>,
     direct_tcpip_targets: Arc<Mutex<Vec<(String, u16)>>>,
@@ -132,6 +140,7 @@ pub struct TestServerBuilder {
     allows_direct_tcpip: bool,
     allows_remote_forwards: bool,
     x11_policy: X11Policy,
+    authentication_policy: AuthenticationPolicy,
 }
 
 impl TestServerBuilder {
@@ -190,6 +199,13 @@ impl TestServerBuilder {
         self
     }
 
+    /// Never answers the first authentication request, like a server whose
+    /// authentication backend hangs.
+    pub fn stalling_authentication(mut self) -> Self {
+        self.authentication_policy = AuthenticationPolicy::Stalling;
+        self
+    }
+
     /// Starts listening on loopback.
     pub async fn start(self) -> TestServer {
         let listener = TcpListener::bind(("127.0.0.1", self.port)).await.unwrap();
@@ -211,6 +227,7 @@ impl TestServerBuilder {
             allows_direct_tcpip: self.allows_direct_tcpip,
             allows_remote_forwards: self.allows_remote_forwards,
             x11_policy: self.x11_policy,
+            authentication_policy: self.authentication_policy,
             connection_count: Arc::clone(&connection_count),
             remote_forward_requests: Arc::clone(&remote_forward_requests),
             direct_tcpip_targets: Arc::clone(&direct_tcpip_targets),
@@ -298,6 +315,7 @@ impl TestServer {
             allows_direct_tcpip: true,
             allows_remote_forwards: true,
             x11_policy: X11Policy::Anchoring,
+            authentication_policy: AuthenticationPolicy::Answering,
         }
     }
 
@@ -530,6 +548,13 @@ impl ConnectionHandler {
 )]
 impl server::Handler for ConnectionHandler {
     type Error = russh::Error;
+
+    async fn auth_none(&mut self, _user: &str) -> Result<Auth, Self::Error> {
+        if self.behavior.authentication_policy == AuthenticationPolicy::Stalling {
+            std::future::pending::<()>().await;
+        }
+        Ok(self.reject())
+    }
 
     async fn auth_publickey_offered(
         &mut self,

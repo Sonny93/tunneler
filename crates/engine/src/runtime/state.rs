@@ -1,6 +1,6 @@
 use std::fmt;
 use std::mem::discriminant;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use thiserror::Error;
 
@@ -28,6 +28,13 @@ pub enum FailureReason {
     Connect {
         /// A message ready to be shown to the user.
         message: String,
+    },
+    /// The SSH agent did not answer, typically while waiting for the user to
+    /// confirm a signature. Retrying would ask for another confirmation.
+    #[error("the SSH agent did not answer within {timeout:?}; is it waiting for a confirmation?")]
+    AgentUnresponsive {
+        /// The bound that elapsed.
+        timeout: Duration,
     },
     /// The SSH server refused to listen for a remote forward.
     #[error("the server refused to listen on {address}")]

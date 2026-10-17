@@ -1,4 +1,5 @@
 mod agent_identities;
+mod agent_signer;
 mod file_identities;
 mod flow;
 mod identity;
@@ -8,6 +9,7 @@ mod method;
 mod offered_keys;
 mod outcome;
 mod password;
+mod pausing_prompter;
 mod publickey;
 
 pub(crate) use agent_identities::{AgentIdentityOptions, AgentIdentitySource};

@@ -14,6 +14,7 @@ use super::identity::{Identity, IdentitySource};
 use super::identity_files::identity_file_public_key;
 use super::offered_keys::OfferedKeys;
 use crate::blocking::run_blocking;
+use crate::error::ConnectError;
 use crate::prompter::{CredentialPrompter, PassphraseRequest, PromptError};
 
 const ENCRYPTED_PEM_MARKER: &str = "ENCRYPTED";
@@ -156,7 +157,7 @@ impl FileIdentitySource {
 
 #[async_trait]
 impl IdentitySource for FileIdentitySource {
-    async fn next_identity(&mut self) -> Result<Option<Identity>, PromptError> {
+    async fn next_identity(&mut self) -> Result<Option<Identity>, ConnectError> {
         loop {
             if let Some(identity) = self.pending.pop_front() {
                 return Ok(Some(identity));
