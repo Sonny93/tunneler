@@ -2,16 +2,18 @@
 
 use ipc::protocol::{
     AdoptResult, ClientKind, ConfigInvalidEvent, CredentialAnswer, CredentialRequestDto,
-    CredentialRequestEvent, CredentialResponseParams, EventMessage, ExternalForwardDto,
+    CredentialRequestEvent, CredentialResponseParams, ErrorCode, EventMessage, ExternalForwardDto,
     ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto, Hello, HostKeyAlertReasonDto,
-    HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, HostsResult, IpcError,
-    LogEntryDto, LogLevelDto, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, PROTOCOL_VERSION,
-    PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent, QuitParams, Request,
-    RequestEnvelope, ResponsePayload, Secret, ServerFrame, SettingsDto, SnapshotDto, TagParams,
-    TargetHealthDto, TrayChangedEvent, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto,
-    TunnelDto, TunnelIdParams, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto,
-    TunnelStateDto, X11AnchorDto, X11ChangedEvent, X11HostParams, X11LaunchParams, X11LauncherDto,
-    X11StateDto, encode_event, encode_response,
+    HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, HostOptionDto, HostParams,
+    HostsResult, ImportCandidateDto, ImportPreviewDto, ImportScriptParams, ImportWarningDto,
+    IpcError, LogEntryDto, LogLevelDto, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES,
+    MetricsDto, PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent,
+    QuitParams, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload, Secret, ServerFrame,
+    SettingsDto, SnapshotDto, TagParams, TargetHealthDto, TrayChangedEvent, TrayStatusDto,
+    TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto,
+    TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
+    X11ChangedEvent, X11HostParams, X11LaunchParams, X11LauncherDto, X11StateDto, encode_event,
+    encode_response,
 };
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -155,6 +157,13 @@ fn every_request() -> Vec<Request> {
         Request::TunnelRestart(tunnel_id.clone()),
         Request::TunnelLogs(tunnel_id),
         Request::HostsList {},
+        Request::HostsResolve(HostParams {
+            host: "nova".to_owned(),
+        }),
+        Request::ImportSshConfig {},
+        Request::ImportScript(ImportScriptParams {
+            text: "ssh -L 3333:localhost:3333 nova".to_owned(),
+        }),
         Request::TagStart(tag.clone()),
         Request::TagStop(tag),
         Request::SettingsUpdate(settings()),
@@ -361,6 +370,184 @@ fn should_serialize_a_hosts_response_as_documented() {
     assert_eq!(
         line,
         "{\"id\":7,\"result\":{\"hosts\":[\"nova\",\"db\"]}}\n"
+    );
+}
+
+fn import_preview() -> ImportPreviewDto {
+    ImportPreviewDto {
+        candidates: vec![
+            ImportCandidateDto {
+                host: Some("nova".to_owned()),
+                kind: TunnelKindDto::Local,
+                listen_port: 3333,
+                listen_address: Some("127.0.0.1".to_owned()),
+                target_host: Some("127.0.0.1".to_owned()),
+                target_port: Some(3333),
+                label: Some("adonis".to_owned()),
+                line: Some(4),
+            },
+            ImportCandidateDto {
+                host: None,
+                kind: TunnelKindDto::Dynamic,
+                listen_port: 1080,
+                listen_address: None,
+                target_host: None,
+                target_port: None,
+                label: None,
+                line: None,
+            },
+        ],
+        warnings: vec![
+            ImportWarningDto::MalformedForward {
+                line: 7,
+                text: "nonsense".to_owned(),
+            },
+            ImportWarningDto::UnsupportedForward {
+                line: None,
+                host: Some("sock".to_owned()),
+                text: "8080 /run/app.sock".to_owned(),
+            },
+            ImportWarningDto::UnsupportedForward {
+                line: Some(2),
+                host: None,
+                text: "9000".to_owned(),
+            },
+            ImportWarningDto::UnknownDestination {
+                destination: "jules@198.51.100.157".to_owned(),
+            },
+            ImportWarningDto::HostResolutionFailed {
+                host: "broken".to_owned(),
+                message: "bad port".to_owned(),
+            },
+        ],
+    }
+}
+
+#[test]
+fn should_serialize_hosts_resolve_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 8,
+        request: Request::HostsResolve(HostParams {
+            host: "nova".to_owned(),
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":8,"method":"hosts.resolve","params":{"host":"nova"}}"#
+    );
+}
+
+#[test]
+fn should_serialize_a_resolved_host_response_as_documented() {
+    let resolved = ResolvedHostDto {
+        host: "nova".to_owned(),
+        options: vec![HostOptionDto {
+            key: "hostname".to_owned(),
+            value: "198.51.100.157".to_owned(),
+        }],
+        warnings: vec!["unsupported criterion".to_owned()],
+    };
+
+    let line = encode_response(Some(8), &Ok(ResponsePayload::ResolvedHost(resolved))).unwrap();
+
+    assert_eq!(
+        line,
+        "{\"id\":8,\"result\":{\"host\":\"nova\",\"options\":[{\"key\":\"hostname\",\"value\":\"198.51.100.157\"}],\"warnings\":[\"unsupported criterion\"]}}\n"
+    );
+}
+
+#[test]
+fn should_serialize_import_ssh_config_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 9,
+        request: Request::ImportSshConfig {},
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":9,"method":"import.ssh_config","params":{}}"#
+    );
+}
+
+#[test]
+fn should_serialize_import_script_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 10,
+        request: Request::ImportScript(ImportScriptParams {
+            text: "3333 5432".to_owned(),
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":10,"method":"import.script","params":{"text":"3333 5432"}}"#
+    );
+}
+
+#[test]
+fn should_reject_import_script_when_text_exceeds_the_limit() {
+    let envelope = RequestEnvelope {
+        id: 11,
+        request: Request::ImportScript(ImportScriptParams {
+            text: "x".repeat(MAX_IMPORT_SCRIPT_BYTES + 1),
+        }),
+    };
+    let line = serde_json::to_vec(&envelope).unwrap();
+
+    let rejection = RequestEnvelope::parse(&line).unwrap_err();
+
+    assert_eq!(
+        (rejection.id, rejection.error.code),
+        (Some(11), ErrorCode::InvalidRequest)
+    );
+}
+
+#[test]
+fn should_serialize_an_import_preview_response_as_documented() {
+    let line = encode_response(
+        Some(10),
+        &Ok(ResponsePayload::ImportPreview(import_preview())),
+    )
+    .unwrap();
+
+    let expected = json!({
+        "id": 10,
+        "result": {
+            "candidates": [
+                {
+                    "host": "nova",
+                    "kind": "local",
+                    "listenPort": 3333,
+                    "listenAddress": "127.0.0.1",
+                    "targetHost": "127.0.0.1",
+                    "targetPort": 3333,
+                    "label": "adonis",
+                    "line": 4
+                },
+                { "kind": "dynamic", "listenPort": 1080 }
+            ],
+            "warnings": [
+                { "kind": "malformedForward", "line": 7, "text": "nonsense" },
+                { "kind": "unsupportedForward", "host": "sock", "text": "8080 /run/app.sock" },
+                { "kind": "unsupportedForward", "line": 2, "text": "9000" },
+                { "kind": "unknownDestination", "destination": "jules@198.51.100.157" },
+                { "kind": "hostResolutionFailed", "host": "broken", "message": "bad port" }
+            ]
+        }
+    });
+    assert_eq!(serde_json::from_str::<Value>(&line).unwrap(), expected);
+}
+
+#[test]
+fn should_round_trip_an_import_preview_through_json() {
+    let preview = import_preview();
+
+    let text = serde_json::to_string(&preview).unwrap();
+
+    assert_eq!(
+        serde_json::from_str::<ImportPreviewDto>(&text).unwrap(),
+        preview
     );
 }
 
@@ -795,8 +982,8 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_twenty_three_methods() {
-    assert_eq!(METHOD_NAMES.len(), 23);
+fn should_list_twenty_six_methods() {
+    assert_eq!(METHOD_NAMES.len(), 26);
 }
 
 #[test]

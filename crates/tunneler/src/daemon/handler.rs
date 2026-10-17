@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use engine::{Engine, EngineError, HostConfigResolver, StoreError, TunnelId, X11Error};
+use engine::{
+    Engine, EngineError, HostConfigResolver, StoreError, TunnelId, X11Error, preview_script,
+    preview_ssh_config,
+};
 use ipc::protocol::{
     AdoptResult, HostsResult, IpcError, LogsResult, ProcessParams, QuitParams, Request,
     ResponsePayload, SettingsDto, TunnelIdParams, X11HostParams, X11LaunchParams,
@@ -11,8 +14,8 @@ use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use super::mapping::{
-    definition_from_dto, log_entry_to_dto, new_tunnel_from_spec, settings_from_dto,
-    snapshot_to_dto, tunnel_to_dto,
+    definition_from_dto, import_preview_to_dto, log_entry_to_dto, new_tunnel_from_spec,
+    resolved_host_to_dto, settings_from_dto, snapshot_to_dto, tunnel_to_dto,
 };
 use super::prompts::PromptBroker;
 use super::tray::TrayStatus;
@@ -66,6 +69,9 @@ impl DaemonHandler {
             Request::TunnelRestart(params) => self.restart_tunnel(&params),
             Request::TunnelLogs(params) => self.tunnel_logs(&params),
             Request::HostsList {} => self.list_hosts().await,
+            Request::HostsResolve(params) => self.resolve_host(params.host).await,
+            Request::ImportSshConfig {} => self.import_ssh_config().await,
+            Request::ImportScript(params) => self.import_script(params.text).await,
             Request::TagStart(params) => self.start_tag(&params.tag),
             Request::TagStop(params) => self.stop_tag(&params.tag),
             Request::SettingsUpdate(settings) => self.update_settings(settings).await,
@@ -217,12 +223,38 @@ impl DaemonHandler {
 
     async fn list_hosts(&self) -> Result<ResponsePayload, IpcError> {
         let hosts = Arc::clone(&self.hosts);
-        let listing = tokio::task::spawn_blocking(move || hosts.list_hosts())
-            .await
-            .map_err(|error| IpcError::internal(error.to_string()))?;
-        listing
+        run_blocking(move || hosts.list_hosts())
+            .await?
             .map(|hosts| ResponsePayload::Hosts(HostsResult { hosts }))
             .map_err(|error| IpcError::internal(error.to_string()))
+    }
+
+    async fn resolve_host(&self, alias: String) -> Result<ResponsePayload, IpcError> {
+        let hosts = Arc::clone(&self.hosts);
+        run_blocking(move || {
+            hosts
+                .resolve_with_warnings(&alias)
+                .map(|resolution| resolved_host_to_dto(&alias, &resolution))
+        })
+        .await?
+        .map(ResponsePayload::ResolvedHost)
+        .map_err(|error| IpcError::internal(error.to_string()))
+    }
+
+    async fn import_ssh_config(&self) -> Result<ResponsePayload, IpcError> {
+        let hosts = Arc::clone(&self.hosts);
+        run_blocking(move || preview_ssh_config(hosts.as_ref()))
+            .await?
+            .map(|preview| ResponsePayload::ImportPreview(import_preview_to_dto(&preview)))
+            .map_err(|error| IpcError::internal(error.to_string()))
+    }
+
+    async fn import_script(&self, text: String) -> Result<ResponsePayload, IpcError> {
+        let hosts = Arc::clone(&self.hosts);
+        let preview = run_blocking(move || preview_script(&text, hosts.as_ref())).await?;
+        Ok(ResponsePayload::ImportPreview(import_preview_to_dto(
+            &preview,
+        )))
     }
 
     fn start_tag(&self, tag: &str) -> Result<ResponsePayload, IpcError> {
@@ -285,6 +317,16 @@ fn parse_tunnel_id(params: &TunnelIdParams) -> Result<TunnelId, IpcError> {
         .id
         .parse()
         .map_err(|error: engine::InvalidTunnelId| IpcError::invalid_request(error.to_string()))
+}
+
+async fn run_blocking<Output, Work>(work: Work) -> Result<Output, IpcError>
+where
+    Output: Send + 'static,
+    Work: FnOnce() -> Output + Send + 'static,
+{
+    tokio::task::spawn_blocking(work)
+        .await
+        .map_err(|error| IpcError::internal(error.to_string()))
 }
 
 fn engine_error_to_ipc(error: EngineError) -> IpcError {
@@ -378,7 +420,7 @@ mod tests {
         std::fs::write(
             &ssh_config,
             format!(
-                "Host dead\n  HostName 127.0.0.1\n  Port {UNREACHABLE_SSH_PORT}\nHost *.internal\n  User me\n"
+                "Host dead\n  HostName 127.0.0.1\n  Port {UNREACHABLE_SSH_PORT}\n  LocalForward 8080 localhost:80\nHost *.internal\n  User me\n"
             ),
         )
         .unwrap();
@@ -490,6 +532,79 @@ mod tests {
             panic!("expected hosts");
         };
         assert_eq!(result.hosts, vec!["dead"]);
+    }
+
+    #[tokio::test]
+    async fn should_resolve_the_host_in_ssh_g_spelling_when_resolving_a_host() {
+        let fixture = fixture();
+
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::HostsResolve(ipc::protocol::HostParams {
+                    host: "dead".to_owned(),
+                }),
+            )
+            .await
+            .unwrap();
+
+        let ResponsePayload::ResolvedHost(resolved) = response else {
+            panic!("expected a resolved host");
+        };
+        let port = resolved.options.iter().find(|option| option.key == "port");
+        assert_eq!(port.map(|option| option.value.as_str()), Some("1"));
+    }
+
+    #[tokio::test]
+    async fn should_list_the_forwards_of_the_aliases_when_importing_the_ssh_config() {
+        let fixture = fixture();
+
+        let response = fixture
+            .handler
+            .dispatch(None, Request::ImportSshConfig {})
+            .await
+            .unwrap();
+
+        let ResponsePayload::ImportPreview(preview) = response else {
+            panic!("expected a preview");
+        };
+        let candidate = &preview.candidates[0];
+        assert_eq!(
+            (
+                candidate.host.as_deref(),
+                candidate.listen_port,
+                candidate.target_port
+            ),
+            (Some("dead"), 8080, Some(80))
+        );
+    }
+
+    #[tokio::test]
+    async fn should_attribute_the_forwards_to_the_alias_when_importing_a_script() {
+        let fixture = fixture();
+
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::ImportScript(ipc::protocol::ImportScriptParams {
+                    text: "ssh -N -L 3333:localhost:3333 dead".to_owned(),
+                }),
+            )
+            .await
+            .unwrap();
+
+        let ResponsePayload::ImportPreview(preview) = response else {
+            panic!("expected a preview");
+        };
+        assert_eq!(
+            (
+                preview.candidates[0].host.as_deref(),
+                preview.candidates[0].line
+            ),
+            (Some("dead"), Some(1))
+        );
     }
 
     #[tokio::test]

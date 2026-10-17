@@ -30,6 +30,7 @@ mod error;
 mod include;
 mod lexer;
 mod pattern;
+mod render;
 mod resolve;
 mod resolved;
 mod sources;

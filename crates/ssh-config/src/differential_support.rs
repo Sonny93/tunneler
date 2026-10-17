@@ -69,3 +69,8 @@ pub fn parse_jump_chain(text: &str) -> Option<Vec<JumpHost>> {
         ProxyJumpValue::Hosts(hosts) => Some(hosts),
     }
 }
+
+/// Renders a jump chain the way `ssh -G` prints `ProxyJump`.
+pub fn format_jump_chain(hosts: &[JumpHost]) -> String {
+    crate::render::format_jump_chain(hosts)
+}

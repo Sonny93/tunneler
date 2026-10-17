@@ -5,9 +5,10 @@ import userEvent from '@testing-library/user-event';
 import { screen, waitFor } from '@testing-library/react';
 
 import { useUiStore } from '#/state/ui_store';
-import { buildTunnel } from '#/testing/factories';
+import { useDaemonStore } from '#/state/daemon_store';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { useToastStore } from '#/shared/toasts/toast_store';
+import { buildSettings, buildTunnel } from '#/testing/factories';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { TunnelActionsMenu } from '#/tunnels/list/tunnel_actions_menu';
 
@@ -31,14 +32,64 @@ async function openMenu() {
 }
 
 describe('TunnelActionsMenu', () => {
-	it('should offer edit, restart and delete', async () => {
+	it('should offer details, browser, edit, restart and delete', async () => {
 		renderMenu({ state: { kind: 'active' } });
 
 		await openMenu();
 
 		expect(
 			screen.getAllByRole('menuitem').map((item) => item.textContent)
-		).toEqual(['Modifier', 'Redémarrer', 'Supprimer']);
+		).toEqual([
+			'Détails',
+			'Ouvrir dans le navigateur',
+			'Modifier',
+			'Redémarrer',
+			'Supprimer',
+		]);
+	});
+
+	it('should not offer the browser for a remote forward', async () => {
+		renderMenu({ kind: 'remote' });
+
+		await openMenu();
+
+		expect(
+			screen.queryByRole('menuitem', { name: 'Ouvrir dans le navigateur' })
+		).not.toBeInTheDocument();
+	});
+
+	it('should disable the browser item when the tunnel is stopped', async () => {
+		renderMenu();
+
+		await openMenu();
+
+		expect(
+			screen.getByRole('menuitem', { name: 'Ouvrir dans le navigateur' })
+		).toBeDisabled();
+	});
+
+	it('should open the local forward in the browser', async () => {
+		useDaemonStore.setState({ settings: buildSettings() });
+		const { gateway } = renderMenu({ state: { kind: 'active' } });
+		await openMenu();
+
+		await userEvent.click(
+			screen.getByRole('menuitem', { name: 'Ouvrir dans le navigateur' })
+		);
+
+		expect(gateway.openInBrowser).toHaveBeenCalledWith('127.0.0.1', 3333);
+	});
+
+	it('should open the details of the tunnel', async () => {
+		renderMenu();
+		await openMenu();
+
+		await userEvent.click(screen.getByRole('menuitem', { name: 'Détails' }));
+
+		expect(useUiStore.getState().panel).toEqual({
+			kind: 'tunnelDetails',
+			tunnelId: 'tunnel-1',
+		});
 	});
 
 	it('should open the editor on the tunnel when editing', async () => {
@@ -139,7 +190,7 @@ describe('TunnelActionsMenu', () => {
 			state: { kind: 'external', owner: { pid: 4242, process: 'ssh' } },
 		} as const;
 
-		it('should offer adopt, stop the process and ignore before the usual items', async () => {
+		it('should offer adopt, stop the process and ignore before the editing items', async () => {
 			renderMenu(external);
 
 			await openMenu();
@@ -147,6 +198,8 @@ describe('TunnelActionsMenu', () => {
 			expect(
 				screen.getAllByRole('menuitem').map((item) => item.textContent)
 			).toEqual([
+				'Détails',
+				'Ouvrir dans le navigateur',
 				'Adopter',
 				'Arrêter le processus externe…',
 				'Ignorer',
@@ -292,6 +345,8 @@ describe('TunnelActionsMenu', () => {
 			expect(
 				screen.getAllByRole('menuitem').map((item) => item.textContent)
 			).toEqual([
+				'Détails',
+				'Ouvrir dans le navigateur',
 				'Arrêter le processus…',
 				'Modifier',
 				'Redémarrer',
@@ -322,7 +377,13 @@ describe('TunnelActionsMenu', () => {
 
 			expect(
 				screen.getAllByRole('menuitem').map((item) => item.textContent)
-			).toEqual(['Modifier', 'Redémarrer', 'Supprimer']);
+			).toEqual([
+				'Détails',
+				'Ouvrir dans le navigateur',
+				'Modifier',
+				'Redémarrer',
+				'Supprimer',
+			]);
 		});
 	});
 });

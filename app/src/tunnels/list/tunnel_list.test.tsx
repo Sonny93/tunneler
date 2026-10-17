@@ -44,6 +44,20 @@ describe('TunnelList', () => {
 		]);
 	});
 
+	it('should offer the resolved configuration of each host', async () => {
+		seedTunnels();
+		renderWithGateway(<TunnelList />);
+
+		await userEvent.click(
+			screen.getByRole('button', { name: 'Configuration de zeta' })
+		);
+
+		expect(useUiStore.getState().panel).toEqual({
+			kind: 'hostConfig',
+			host: 'zeta',
+		});
+	});
+
 	it('should title the list with the filter and the count', () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);

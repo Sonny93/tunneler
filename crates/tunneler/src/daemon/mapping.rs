@@ -6,19 +6,23 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use engine::{
-    EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision, InvalidTunnelId, LogLevel,
-    NewTunnel, PortOwner, RejectedHostKey, RejectionReason, Settings, SshForward, TargetHealth,
-    TunnelDefinition, TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot,
-    TunnelState, UnmanagedProcess, X11AnchorSnapshot, X11AnchorState, X11Launcher,
+    EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision, ImportCandidate, ImportPreview,
+    ImportWarning, InvalidTunnelId, LogLevel, NewTunnel, PortOwner, RejectedHostKey,
+    RejectionReason, Settings, SshForward, TargetHealth, TunnelDefinition, TunnelId, TunnelKind,
+    TunnelLogEntry, TunnelMetrics, TunnelSnapshot, TunnelState, UnmanagedProcess,
+    X11AnchorSnapshot, X11AnchorState, X11Launcher,
 };
 use ipc::protocol::{
     ConfigInvalidEvent, EpochMillis, EventMessage, ExternalForwardDto, ExternalProcessDto,
     ExternalsChangedEvent, FailureReasonDto, HostKeyAlertReasonDto, HostKeyDecisionDto,
-    HostKeyRequestEvent, LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, SettingsDto,
-    SnapshotDto, TargetHealthDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto,
-    TunnelDto, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto,
-    X11AnchorDto, X11ChangedEvent, X11LauncherDto, X11StateDto,
+    HostKeyRequestEvent, HostOptionDto, ImportCandidateDto, ImportPreviewDto, ImportWarningDto,
+    LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, ResolvedHostDto, SettingsDto, SnapshotDto,
+    TargetHealthDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
+    TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
+    X11ChangedEvent, X11LauncherDto, X11StateDto,
 };
+
+use ssh_config::Resolution;
 
 use super::tray::TrayStatus;
 
@@ -307,6 +311,72 @@ pub(crate) fn log_entry_to_dto(entry: &TunnelLogEntry) -> LogEntryDto {
     }
 }
 
+pub(crate) fn resolved_host_to_dto(alias: &str, resolution: &Resolution) -> ResolvedHostDto {
+    ResolvedHostDto {
+        host: alias.to_owned(),
+        options: resolution
+            .config
+            .ssh_g_options()
+            .into_iter()
+            .map(|(key, value)| HostOptionDto { key, value })
+            .collect(),
+        warnings: resolution
+            .warnings
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
+    }
+}
+
+pub(crate) fn import_preview_to_dto(preview: &ImportPreview) -> ImportPreviewDto {
+    ImportPreviewDto {
+        candidates: preview
+            .candidates
+            .iter()
+            .map(import_candidate_to_dto)
+            .collect(),
+        warnings: preview.warnings.iter().map(import_warning_to_dto).collect(),
+    }
+}
+
+fn import_candidate_to_dto(candidate: &ImportCandidate) -> ImportCandidateDto {
+    ImportCandidateDto {
+        host: candidate.host.clone(),
+        kind: kind_to_dto(candidate.kind),
+        listen_port: candidate.listen_port,
+        listen_address: candidate.listen_address.clone(),
+        target_host: candidate.target_host.clone(),
+        target_port: candidate.target_port,
+        label: candidate.label.clone(),
+        line: candidate.line,
+    }
+}
+
+fn import_warning_to_dto(warning: &ImportWarning) -> ImportWarningDto {
+    match warning {
+        ImportWarning::MalformedForward { line, text } => ImportWarningDto::MalformedForward {
+            line: *line,
+            text: text.clone(),
+        },
+        ImportWarning::UnsupportedForward { line, host, text } => {
+            ImportWarningDto::UnsupportedForward {
+                line: *line,
+                host: host.clone(),
+                text: text.clone(),
+            }
+        }
+        ImportWarning::UnknownDestination { destination } => ImportWarningDto::UnknownDestination {
+            destination: destination.clone(),
+        },
+        ImportWarning::HostResolutionFailed { host, message } => {
+            ImportWarningDto::HostResolutionFailed {
+                host: host.clone(),
+                message: message.clone(),
+            }
+        }
+    }
+}
+
 pub(crate) fn event_to_message(event: &EngineEvent) -> EventMessage {
     match event {
         EngineEvent::TunnelChanged { id, state, health } => {
@@ -386,6 +456,89 @@ mod tests {
     use super::*;
 
     const SECONDS_AFTER_EPOCH: u64 = 1_700_000_000;
+
+    fn candidate() -> ImportCandidate {
+        ImportCandidate {
+            host: Some("nova".to_owned()),
+            kind: TunnelKind::Remote,
+            listen_address: Some("0.0.0.0".to_owned()),
+            listen_port: 9000,
+            target_host: Some("localhost".to_owned()),
+            target_port: Some(80),
+            label: Some("web".to_owned()),
+            line: Some(3),
+        }
+    }
+
+    #[test]
+    fn should_map_every_field_of_an_import_candidate() {
+        let preview = ImportPreview {
+            candidates: vec![candidate()],
+            warnings: Vec::new(),
+        };
+
+        assert_eq!(
+            import_preview_to_dto(&preview).candidates,
+            vec![ImportCandidateDto {
+                host: Some("nova".to_owned()),
+                kind: TunnelKindDto::Remote,
+                listen_port: 9000,
+                listen_address: Some("0.0.0.0".to_owned()),
+                target_host: Some("localhost".to_owned()),
+                target_port: Some(80),
+                label: Some("web".to_owned()),
+                line: Some(3),
+            }]
+        );
+    }
+
+    #[test]
+    fn should_map_every_import_warning_to_its_wire_warning() {
+        let warnings = vec![
+            ImportWarning::MalformedForward {
+                line: 2,
+                text: "x".to_owned(),
+            },
+            ImportWarning::UnsupportedForward {
+                line: None,
+                host: Some("sock".to_owned()),
+                text: "8080 /run/app.sock".to_owned(),
+            },
+            ImportWarning::UnknownDestination {
+                destination: "me@host".to_owned(),
+            },
+            ImportWarning::HostResolutionFailed {
+                host: "broken".to_owned(),
+                message: "bad port".to_owned(),
+            },
+        ];
+        let preview = ImportPreview {
+            candidates: Vec::new(),
+            warnings,
+        };
+
+        assert_eq!(
+            import_preview_to_dto(&preview).warnings,
+            vec![
+                ImportWarningDto::MalformedForward {
+                    line: 2,
+                    text: "x".to_owned()
+                },
+                ImportWarningDto::UnsupportedForward {
+                    line: None,
+                    host: Some("sock".to_owned()),
+                    text: "8080 /run/app.sock".to_owned()
+                },
+                ImportWarningDto::UnknownDestination {
+                    destination: "me@host".to_owned()
+                },
+                ImportWarningDto::HostResolutionFailed {
+                    host: "broken".to_owned(),
+                    message: "bad port".to_owned()
+                },
+            ]
+        );
+    }
 
     #[test]
     fn should_map_every_tray_status_to_its_wire_status() {

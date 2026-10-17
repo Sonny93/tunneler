@@ -22,9 +22,12 @@ const rowSwitch = (name: string) =>
 const actionsButton = (name: string) =>
 	screen.getByRole('button', { name: `Actions pour ${name}` });
 
+const HEADER_BUTTON_COUNT = 2;
+
 const tabIntoFirstRow = async () => {
-	await userEvent.tab();
-	await userEvent.tab();
+	for (let tabCount = 0; tabCount <= HEADER_BUTTON_COUNT; tabCount += 1) {
+		await userEvent.tab();
+	}
 };
 
 describe('TunnelList roving focus', () => {

@@ -2,6 +2,7 @@ import { useId } from 'react';
 
 import { TunnelRow } from '#/tunnels/list/tunnel_row';
 import { X11HeaderControls } from '#/x11/x11_header_controls';
+import { HostConfigButton } from '#/host_config/host_config_button';
 import type { TunnelGroup as TunnelGroupModel } from '#/tunnels/group_tunnels_by_host';
 
 type TunnelGroupProps = {
@@ -23,7 +24,10 @@ export function TunnelGroup({
 				<h3 id={headingId} className="text-sm font-semibold text-tn-muted">
 					{group.host}
 				</h3>
-				<X11HeaderControls host={group.host} />
+				<div className="flex items-center gap-1">
+					<HostConfigButton host={group.host} />
+					<X11HeaderControls host={group.host} />
+				</div>
 			</div>
 			<ul
 				role="list"

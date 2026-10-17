@@ -97,7 +97,7 @@ pub(crate) fn unmanaged_processes(
             (!forwards.is_empty()).then(|| UnmanagedProcess {
                 pid: process.identity.pid,
                 process: process.name.clone(),
-                destination: invocation.destination,
+                destination: invocation.destination.map(|destination| destination.host),
                 forwards,
             })
         })

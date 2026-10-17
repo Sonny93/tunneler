@@ -1,5 +1,7 @@
 import type { FailureReasonDto } from '#/daemon/protocol';
 
+const MILLISECONDS_PER_SECOND = 1000;
+
 export function getFailureReasonLabel(
 	reason: Readonly<FailureReasonDto>
 ): string {
@@ -12,5 +14,7 @@ export function getFailureReasonLabel(
 			return `Connexion SSH impossible : ${reason.message}`;
 		case 'remoteForwardRefused':
 			return `Le serveur refuse d'écouter sur ${reason.address}`;
+		case 'agentUnresponsive':
+			return `L'agent SSH ne répond pas (aucune réponse en ${Math.round(reason.timeoutMs / MILLISECONDS_PER_SECOND)} s) : attend-il une confirmation ?`;
 	}
 }

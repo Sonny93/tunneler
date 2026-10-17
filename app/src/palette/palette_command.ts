@@ -1,0 +1,23 @@
+export type PaletteAction =
+	| { kind: 'newTunnel' }
+	| { kind: 'importTunnels' }
+	| { kind: 'openSettings' }
+	| { kind: 'showShortcuts' }
+	| { kind: 'startTunnel'; tunnelId: string }
+	| { kind: 'stopTunnel'; tunnelId: string }
+	| { kind: 'showTunnelDetails'; tunnelId: string }
+	| { kind: 'editTunnel'; tunnelId: string }
+	| { kind: 'openInBrowser'; host: string; port: number }
+	| { kind: 'startTag'; tag: string }
+	| { kind: 'stopTag'; tag: string }
+	| { kind: 'showHostConfig'; host: string }
+	| { kind: 'showX11'; host: string };
+
+export type PaletteCategory = 'Général' | 'Tunnel' | 'Tag' | 'Hôte';
+
+export type PaletteCommand = {
+	id: string;
+	label: string;
+	category: PaletteCategory;
+	action: PaletteAction;
+};

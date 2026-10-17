@@ -43,12 +43,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use pretty_assertions::Comparison;
-use ssh_config::differential_support::{ExpansionContext, parse_jump_chain};
-use ssh_config::{
-    AddKeysMode, AddressFamily, AgentSocket, ConfigSources, Endpoint, ForwardAgent, ForwardSpec,
-    IdentityAgent, JumpHost, LocalEnvironment, PubkeyAuthentication, RemoteForward, ResolvedConfig,
-    StrictHostKeyChecking, SystemEnvironment, resolve,
-};
+use ssh_config::differential_support::{ExpansionContext, format_jump_chain, parse_jump_chain};
+use ssh_config::{ConfigSources, LocalEnvironment, SystemEnvironment, resolve};
 
 const MODELED_KEYS: &[&str] = &[
     "user",
@@ -112,11 +108,8 @@ const BOOLEAN_LIKE_KEYS: &[&str] = &[
     "addkeystoagent",
     "forwardagent",
 ];
-const OPENSSH_DEFAULT_SERVER_ALIVE_COUNT_MAX: u32 = 3;
 const EXPECTED_SSH_VERSION_PREFIX: &str = "OpenSSH_10.0";
 const SKIP_NOTE: &str = "skipping differential tests";
-const SSH_AUTH_SOCK: &str = "SSH_AUTH_SOCK";
-const REMOTE_SOCKS_TARGET: &str = "[socks]:0";
 
 type Line = (String, String);
 
@@ -284,259 +277,6 @@ fn first_value<'lines>(lines: &'lines [Line], key: &str) -> Option<&'lines str> 
         .map(|(_, value)| value.as_str())
 }
 
-fn format_jump_chain(hosts: &[JumpHost]) -> String {
-    hosts
-        .iter()
-        .map(format_jump_host)
-        .collect::<Vec<_>>()
-        .join(",")
-}
-
-fn format_jump_host(jump: &JumpHost) -> String {
-    let user = jump
-        .user
-        .as_ref()
-        .map_or(String::new(), |user| format!("{user}@"));
-    let host = if jump.host.contains(':') {
-        format!("[{}]", jump.host)
-    } else {
-        jump.host.clone()
-    };
-    let port = jump.port.map_or(String::new(), |port| format!(":{port}"));
-    format!("{user}{host}{port}")
-}
-
-fn format_endpoint(endpoint: &Endpoint) -> String {
-    match endpoint {
-        Endpoint::Tcp {
-            address: None,
-            port,
-        } => port.to_string(),
-        Endpoint::Tcp {
-            address: Some(address),
-            port,
-        } => format!("[{address}]:{port}"),
-        Endpoint::Unix(path) => path.to_string_lossy().into_owned(),
-    }
-}
-
-fn format_forward(forward: &ForwardSpec) -> String {
-    let listen = format_endpoint(&forward.listen);
-    let target = match &forward.target {
-        Endpoint::Tcp {
-            address: None,
-            port,
-        } => port.to_string(),
-        other => format_endpoint(other),
-    };
-    format!("{listen} {target}")
-}
-
-fn yes_no(value: bool) -> String {
-    if value { "yes" } else { "no" }.to_owned()
-}
-
-fn space_separated_or_none(paths: &[PathBuf]) -> String {
-    if paths.is_empty() {
-        return "none".to_owned();
-    }
-    paths
-        .iter()
-        .map(|path| path.to_string_lossy().into_owned())
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-fn render_agent_socket(socket: &AgentSocket) -> String {
-    match socket {
-        AgentSocket::Environment(name) if name == SSH_AUTH_SOCK => SSH_AUTH_SOCK.to_owned(),
-        AgentSocket::Environment(name) => format!("${name}"),
-        AgentSocket::Path(path) => path.to_string_lossy().into_owned(),
-    }
-}
-
-fn render_add_keys_to_agent(config: &ResolvedConfig) -> String {
-    let setting = config.add_keys_to_agent;
-    let mode = match setting.mode {
-        AddKeysMode::No => "no",
-        AddKeysMode::Yes => "yes",
-        AddKeysMode::Ask => "ask",
-        AddKeysMode::Confirm => "confirm",
-    };
-    match (setting.lifetime, setting.mode) {
-        (Some(lifetime), AddKeysMode::Confirm) => format!("confirm {}", lifetime.as_secs()),
-        (Some(lifetime), _) => lifetime.as_secs().to_string(),
-        (None, _) => mode.to_owned(),
-    }
-}
-
-fn render_scalars(config: &ResolvedConfig) -> Vec<Line> {
-    let strict = match config.strict_host_key_checking {
-        StrictHostKeyChecking::Yes => "yes",
-        StrictHostKeyChecking::No => "no",
-        StrictHostKeyChecking::Ask => "ask",
-        StrictHostKeyChecking::AcceptNew => "accept-new",
-    };
-    let pubkey = match config.pubkey_authentication {
-        PubkeyAuthentication::Yes => "yes",
-        PubkeyAuthentication::No => "no",
-        PubkeyAuthentication::Unbound => "unbound",
-        PubkeyAuthentication::HostBound => "host-bound",
-    };
-    let family = match config.address_family {
-        AddressFamily::Any => "any",
-        AddressFamily::Inet => "inet",
-        AddressFamily::Inet6 => "inet6",
-    };
-    let forward_agent = match &config.forward_agent {
-        ForwardAgent::Disabled => "no".to_owned(),
-        ForwardAgent::Enabled => "yes".to_owned(),
-        ForwardAgent::Socket(socket) => render_agent_socket(socket),
-    };
-    let connect_timeout = config.connect_timeout.map_or_else(
-        || "none".to_owned(),
-        |timeout| timeout.as_secs().to_string(),
-    );
-    [
-        ("user", config.user.clone()),
-        ("hostname", config.hostname.clone()),
-        ("port", config.port.to_string()),
-        ("addressfamily", family.to_owned()),
-        ("batchmode", yes_no(config.batch_mode)),
-        ("clearallforwardings", yes_no(config.clear_all_forwardings)),
-        ("compression", yes_no(config.compression)),
-        (
-            "exitonforwardfailure",
-            yes_no(config.exit_on_forward_failure),
-        ),
-        ("forwardx11", yes_no(config.forward_x11)),
-        ("forwardx11trusted", yes_no(config.forward_x11_trusted)),
-        ("gatewayports", yes_no(config.gateway_ports)),
-        ("hashknownhosts", yes_no(config.hash_known_hosts)),
-        ("identitiesonly", yes_no(config.identities_only)),
-        (
-            "kbdinteractiveauthentication",
-            yes_no(config.kbd_interactive_authentication),
-        ),
-        (
-            "passwordauthentication",
-            yes_no(config.password_authentication),
-        ),
-        ("pubkeyauthentication", pubkey.to_owned()),
-        ("stricthostkeychecking", strict.to_owned()),
-        ("tcpkeepalive", yes_no(config.tcp_keep_alive)),
-        ("connectionattempts", config.connection_attempts.to_string()),
-        (
-            "numberofpasswordprompts",
-            config.number_of_password_prompts.to_string(),
-        ),
-        (
-            "serveralivecountmax",
-            config
-                .server_alive_count_max
-                .unwrap_or(OPENSSH_DEFAULT_SERVER_ALIVE_COUNT_MAX)
-                .to_string(),
-        ),
-        (
-            "serveraliveinterval",
-            config
-                .server_alive_interval
-                .map_or(0, |interval| interval.as_secs())
-                .to_string(),
-        ),
-        ("addkeystoagent", render_add_keys_to_agent(config)),
-        ("forwardagent", forward_agent),
-        ("connecttimeout", connect_timeout),
-    ]
-    .into_iter()
-    .map(|(key, value)| (key.to_owned(), value))
-    .collect()
-}
-
-fn render_optionals(config: &ResolvedConfig) -> Vec<Line> {
-    let mut lines = Vec::new();
-    let mut push = |key: &str, value: String| lines.push((key.to_owned(), value));
-    if let Some(alias) = &config.host_key_alias {
-        push("hostkeyalias", alias.clone());
-    }
-    if let Some(agent) = &config.identity_agent {
-        push(
-            "identityagent",
-            match agent {
-                IdentityAgent::Disabled => "none".to_owned(),
-                IdentityAgent::Socket(socket) => render_agent_socket(socket),
-            },
-        );
-    }
-    if let Some(unknown) = &config.ignore_unknown {
-        push("ignoreunknown", unknown.clone());
-    }
-    if let Some(methods) = &config.preferred_authentications {
-        push("preferredauthentications", methods.join(","));
-    }
-    if let Some(tag) = &config.tag {
-        push("tag", tag.clone());
-    }
-    if let Some(command) = &config.proxy_command {
-        push("proxycommand", command.clone());
-    }
-    if !config.proxy_jump.is_empty() {
-        push("proxyjump", format_jump_chain(&config.proxy_jump));
-    }
-    lines
-}
-
-fn render_lists(config: &ResolvedConfig) -> Vec<Line> {
-    let mut lines = Vec::new();
-    let mut push = |key: &str, value: String| lines.push((key.to_owned(), value));
-    for forward in &config.dynamic_forwards {
-        push("dynamicforward", format_endpoint(&forward.listen));
-    }
-    for forward in &config.local_forwards {
-        push("localforward", format_forward(forward));
-    }
-    for forward in &config.remote_forwards {
-        push("remoteforward", render_remote_forward(forward));
-    }
-    for path in &config.identity_files {
-        push("identityfile", path.to_string_lossy().into_owned());
-    }
-    for path in &config.certificate_files {
-        push("certificatefile", path.to_string_lossy().into_owned());
-    }
-    push(
-        "globalknownhostsfile",
-        space_separated_or_none(&config.global_known_hosts_files),
-    );
-    push(
-        "userknownhostsfile",
-        space_separated_or_none(&config.user_known_hosts_files),
-    );
-    for variable in &config.send_env {
-        push("sendenv", variable.clone());
-    }
-    for variable in &config.set_env {
-        push("setenv", format!("{}={}", variable.name, variable.value));
-    }
-    lines
-}
-
-fn render_remote_forward(forward: &RemoteForward) -> String {
-    match forward {
-        RemoteForward::Fixed(spec) => format_forward(spec),
-        RemoteForward::Dynamic(dynamic) => {
-            format!("{} {REMOTE_SOCKS_TARGET}", format_endpoint(&dynamic.listen))
-        }
-    }
-}
-
-fn render_resolved(config: &ResolvedConfig) -> Vec<Line> {
-    let mut lines = render_scalars(config);
-    lines.extend(render_optionals(config));
-    lines.extend(render_lists(config));
-    lines
-}
-
 fn expansion_context(alias: &str, ssh_lines: &[Line]) -> ExpansionContext {
     let jump_chain = first_value(ssh_lines, "proxyjump")
         .and_then(parse_jump_chain)
@@ -702,7 +442,9 @@ fn check_alias(
     undo_batch_mode_keepalive_patch(&mut ssh_lines);
     let ssh_text = into_sorted_text(ssh_lines);
     let our_text = into_sorted_text(
-        render_resolved(&resolution.config)
+        resolution
+            .config
+            .ssh_g_options()
             .into_iter()
             .filter(|(key, _)| compared_keys.contains(key.as_str()))
             .collect(),

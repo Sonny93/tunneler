@@ -43,6 +43,17 @@ export function createFakeGateway(
 		startX11: vi.fn(() => Promise.resolve()),
 		stopX11: vi.fn(() => Promise.resolve()),
 		launchX11: vi.fn(() => Promise.resolve()),
+		tunnelLogs: vi.fn(() => Promise.resolve([])),
+		resolveHost: vi.fn((host) =>
+			Promise.resolve({ host, options: [], warnings: [] })
+		),
+		importSshConfig: vi.fn(() =>
+			Promise.resolve({ candidates: [], warnings: [] })
+		),
+		importScript: vi.fn(() =>
+			Promise.resolve({ candidates: [], warnings: [] })
+		),
+		openInBrowser: vi.fn(() => Promise.resolve()),
 		adoptExternal: vi.fn(() => Promise.resolve([])),
 		killExternal: vi.fn(() => Promise.resolve()),
 		ignoreExternal: vi.fn(() => Promise.resolve()),

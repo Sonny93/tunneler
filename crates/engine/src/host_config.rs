@@ -1,4 +1,6 @@
-use ssh_config::{ConfigSources, LocalEnvironment, ResolvedConfig, list_hosts, resolve};
+use ssh_config::{
+    ConfigSources, LocalEnvironment, Resolution, ResolvedConfig, list_hosts, resolve,
+};
 use thiserror::Error;
 use tracing::warn;
 
@@ -25,6 +27,15 @@ pub enum HostConfigError {
 pub trait HostConfigResolver: Send + Sync {
     /// The configuration `ssh -G <alias>` would report.
     fn resolve(&self, alias: &str) -> Result<ResolvedConfig, HostConfigError>;
+
+    /// The configuration `ssh -G <alias>` would report, with the warnings found
+    /// on the way. Resolvers that collect no warnings return none.
+    fn resolve_with_warnings(&self, alias: &str) -> Result<Resolution, HostConfigError> {
+        Ok(Resolution {
+            config: self.resolve(alias)?,
+            warnings: Vec::new(),
+        })
+    }
 
     /// The concrete `Host` aliases the configuration declares, without
     /// wildcard patterns.
@@ -54,6 +65,10 @@ where
     Environment: LocalEnvironment + Send + Sync,
 {
     fn resolve(&self, alias: &str) -> Result<ResolvedConfig, HostConfigError> {
+        Ok(self.resolve_with_warnings(alias)?.config)
+    }
+
+    fn resolve_with_warnings(&self, alias: &str) -> Result<Resolution, HostConfigError> {
         let resolution = resolve(&self.sources, alias, &self.environment).map_err(|source| {
             HostConfigError::Resolution {
                 alias: alias.to_owned(),
@@ -63,7 +78,7 @@ where
         for warning in &resolution.warnings {
             warn!(alias, %warning, "ssh_config warning");
         }
-        Ok(resolution.config)
+        Ok(resolution)
     }
 
     fn list_hosts(&self) -> Result<Vec<String>, HostConfigError> {
@@ -126,6 +141,13 @@ mod tests {
         let (_directory, resolver) = resolver_for("Host web\n  HostName 198.51.100.10\n  Port 2200\n");
         let config = resolver.resolve("web").unwrap();
         assert_eq!((config.hostname.as_str(), config.port), ("198.51.100.10", 2200));
+    }
+
+    #[test]
+    fn should_return_the_warnings_when_the_configuration_has_unsupported_criteria() {
+        let (_directory, resolver) = resolver_for("Match version 9\n  Port 2200\nHost web\n");
+        let resolution = resolver.resolve_with_warnings("web").unwrap();
+        assert_eq!(resolution.warnings.len(), 1);
     }
 
     #[test]

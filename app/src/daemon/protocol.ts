@@ -27,7 +27,8 @@ export type FailureReasonDto =
 	| { kind: 'portInUse'; address: string }
 	| { kind: 'listenFailed'; address: string; message: string }
 	| { kind: 'connect'; message: string }
-	| { kind: 'remoteForwardRefused'; address: string };
+	| { kind: 'remoteForwardRefused'; address: string }
+	| { kind: 'agentUnresponsive'; timeoutMs: number };
 
 export type ProcessOwnerDto = { pid: number; process: string };
 
@@ -65,6 +66,37 @@ export type LogEntryDto = {
 	at: EpochMillis;
 	level: LogLevelDto;
 	message: string;
+};
+
+export type ResolvedHostOptionDto = { key: string; value: string };
+
+export type ResolvedHostDto = {
+	host: string;
+	options: ResolvedHostOptionDto[];
+	/** English text. */
+	warnings: string[];
+};
+
+export type ImportCandidateDto = {
+	host?: string;
+	kind: TunnelKindDto;
+	listenPort: number;
+	listenAddress?: string;
+	targetHost?: string;
+	targetPort?: number;
+	label?: string;
+	line?: number;
+};
+
+export type ImportWarningDto =
+	| { kind: 'malformedForward'; line: number; text: string }
+	| { kind: 'unsupportedForward'; line?: number; host?: string; text: string }
+	| { kind: 'unknownDestination'; destination: string }
+	| { kind: 'hostResolutionFailed'; host: string; message: string };
+
+export type ImportPreviewDto = {
+	candidates: ImportCandidateDto[];
+	warnings: ImportWarningDto[];
 };
 
 export type SettingsDto = {

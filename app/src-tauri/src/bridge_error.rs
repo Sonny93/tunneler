@@ -9,6 +9,7 @@ const CODE_DISCONNECTED: &str = "disconnected";
 const CODE_DAEMON_UNREACHABLE: &str = "daemon_unreachable";
 const CODE_PROTOCOL_MISMATCH: &str = "protocol_mismatch";
 const CODE_INTERNAL: &str = "internal";
+const CODE_INVALID_TARGET: &str = "invalid_target";
 
 /// What a command reports to the front end when it fails.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -39,6 +40,14 @@ impl BridgeError {
     /// A failure of the bridge itself.
     pub fn internal(cause: &str) -> Self {
         Self::new(CODE_INTERNAL, format!("Erreur interne : {cause}"))
+    }
+
+    /// The host of a link to open is neither `localhost` nor an IP address.
+    pub fn invalid_target(host: &str) -> Self {
+        Self::new(
+            CODE_INVALID_TARGET,
+            format!("Adresse refusée, ni localhost ni adresse IP : {host}"),
+        )
     }
 
     /// The daemon could not be started or reached.
@@ -140,6 +149,16 @@ mod tests {
         assert_eq!(
             serde_json::to_value(error).unwrap(),
             json!({ "code": "validation_failed", "message": "invalide", "data": ["nom vide"] })
+        );
+    }
+
+    #[test]
+    fn should_report_invalid_target_with_the_host_when_the_link_is_refused() {
+        let error = BridgeError::invalid_target("example.org");
+
+        assert_eq!(
+            serde_json::to_value(error).unwrap()["code"],
+            json!("invalid_target")
         );
     }
 

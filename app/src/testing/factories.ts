@@ -1,4 +1,6 @@
 import type {
+	ImportCandidateDto,
+	ImportPreviewDto,
 	X11AnchorDto,
 	X11LauncherDto,
 	ExternalProcessDto,
@@ -111,4 +113,21 @@ export function buildX11Launcher(
 		command: 'code --no-sandbox',
 		...overrides,
 	};
+}
+
+export function buildImportCandidate(
+	overrides: Readonly<Partial<ImportCandidateDto>> = {}
+): ImportCandidateDto {
+	return {
+		host: 'nova',
+		kind: 'local',
+		listenPort: DEFAULT_LISTEN_PORT,
+		...overrides,
+	};
+}
+
+export function buildImportPreview(
+	overrides: Readonly<Partial<ImportPreviewDto>> = {}
+): ImportPreviewDto {
+	return { candidates: [], warnings: [], ...overrides };
 }

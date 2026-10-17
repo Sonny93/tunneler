@@ -8,8 +8,9 @@ use interprocess::local_socket::tokio::Stream;
 use interprocess::local_socket::traits::tokio::Stream as _;
 use interprocess::local_socket::{GenericFilePath, ToFsName};
 use ipc::protocol::{
-    AdoptResult, ClientKind, ConfigInvalidEvent, EventMessage, Hello, IpcError, LogEntryDto,
-    LogLevelDto, LogsResult, Request, RequestEnvelope, ResponsePayload,
+    AdoptResult, ClientKind, ConfigInvalidEvent, EventMessage, Hello, HostOptionDto,
+    ImportCandidateDto, ImportPreviewDto, IpcError, LogEntryDto, LogLevelDto, LogsResult, Request,
+    RequestEnvelope, ResolvedHostDto, ResponsePayload, TunnelKindDto,
 };
 use ipc::{
     ConnectionInfo, Endpoint, IpcClient, IpcServer, RequestHandler, ServerHandle, ServerOptions,
@@ -55,6 +56,31 @@ impl RequestHandler for FakeHandler {
             Request::TunnelDelete(params) if params.id == MISSING_TUNNEL_ID => {
                 Err(IpcError::not_found("no such tunnel"))
             }
+            Request::HostsResolve(params) => Ok(ResponsePayload::ResolvedHost(ResolvedHostDto {
+                host: params.host,
+                options: vec![HostOptionDto {
+                    key: "port".to_owned(),
+                    value: "22".to_owned(),
+                }],
+                warnings: Vec::new(),
+            })),
+            Request::ImportSshConfig {} => Ok(ResponsePayload::ImportPreview(ImportPreviewDto {
+                candidates: Vec::new(),
+                warnings: Vec::new(),
+            })),
+            Request::ImportScript(params) => Ok(ResponsePayload::ImportPreview(ImportPreviewDto {
+                candidates: vec![ImportCandidateDto {
+                    host: None,
+                    kind: TunnelKindDto::Local,
+                    listen_port: 3333,
+                    listen_address: None,
+                    target_host: None,
+                    target_port: None,
+                    label: Some(params.text),
+                    line: Some(1),
+                }],
+                warnings: Vec::new(),
+            })),
             Request::ExternalAdopt(params) => Ok(ResponsePayload::Adopt(AdoptResult {
                 ids: vec![params.id],
             })),

@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use ipc::ClientError;
-use ipc::protocol::{ClientKind, ErrorCode, MAX_LINE_BYTES};
+use ipc::protocol::{ClientKind, ErrorCode, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES};
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use support::{
@@ -116,6 +116,56 @@ async fn should_fail_with_not_found_when_the_x11_launcher_is_unknown() {
         error,
         ClientError::Remote {
             code: ErrorCode::NotFound,
+            ..
+        }
+    ));
+}
+
+#[tokio::test]
+async fn should_return_the_resolved_host_when_a_host_is_resolved() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let resolved = client.resolve_host("nova").await.unwrap();
+
+    assert_eq!(
+        (resolved.host.as_str(), resolved.options[0].key.as_str()),
+        ("nova", "port")
+    );
+}
+
+#[tokio::test]
+async fn should_return_a_preview_when_the_ssh_config_is_imported() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let preview = client.import_ssh_config().await.unwrap();
+
+    assert_eq!(preview.candidates, Vec::new());
+}
+
+#[tokio::test]
+async fn should_return_a_preview_when_a_script_is_imported() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let preview = client.import_script("3333").await.unwrap();
+
+    assert_eq!(preview.candidates[0].label.as_deref(), Some("3333"));
+}
+
+#[tokio::test]
+async fn should_fail_with_invalid_request_when_the_script_is_too_long() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+    let text = "x".repeat(MAX_IMPORT_SCRIPT_BYTES + 1);
+
+    let error = client.import_script(&text).await.unwrap_err();
+
+    assert!(matches!(
+        error,
+        ClientError::Remote {
+            code: ErrorCode::InvalidRequest,
             ..
         }
     ));

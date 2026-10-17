@@ -1,6 +1,9 @@
 import type {
 	EventMessage,
 	HostKeyDecisionDto,
+	ImportPreviewDto,
+	LogEntryDto,
+	ResolvedHostDto,
 	SettingsDto,
 	SnapshotDto,
 	TunnelDefinitionDto,
@@ -29,6 +32,12 @@ export type DaemonGateway = {
 	startX11(host: string): Promise<void>;
 	stopX11(host: string): Promise<void>;
 	launchX11(host: string, name: string): Promise<void>;
+	tunnelLogs(id: string): Promise<readonly LogEntryDto[]>;
+	resolveHost(host: string): Promise<ResolvedHostDto>;
+	importSshConfig(): Promise<ImportPreviewDto>;
+	importScript(text: string): Promise<ImportPreviewDto>;
+	/** The native side only opens loopback names and IP literals. */
+	openInBrowser(host: string, port: number): Promise<void>;
 	adoptExternal(id: string): Promise<readonly string[]>;
 	killExternal(pid: number): Promise<void>;
 	ignoreExternal(pid: number): Promise<void>;

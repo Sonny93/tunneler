@@ -17,8 +17,9 @@ use crate::endpoint::Endpoint;
 use crate::error::ClientError;
 use crate::protocol::{
     AdoptResult, CredentialAnswer, CredentialResponseParams, EventMessage, Hello,
-    HostKeyDecisionDto, HostKeyResponseParams, HostsResult, LogEntryDto, LogsResult, ProcessParams,
-    QuitParams, Request, RequestEnvelope, SettingsDto, SnapshotDto, TagParams, TunnelDefinitionDto,
+    HostKeyDecisionDto, HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto,
+    ImportScriptParams, LogEntryDto, LogsResult, ProcessParams, QuitParams, Request,
+    RequestEnvelope, ResolvedHostDto, SettingsDto, SnapshotDto, TagParams, TunnelDefinitionDto,
     TunnelDto, TunnelIdParams, TunnelSpecDto, X11HostParams, X11LaunchParams, encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
@@ -199,6 +200,43 @@ impl IpcClient {
     pub async fn list_hosts(&self) -> Result<Vec<String>, ClientError> {
         let hosts: HostsResult = self.call(Request::HostsList {}).await?;
         Ok(hosts.hosts)
+    }
+
+    /// Reads the effective configuration of a host alias, as `ssh -G` would.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. A daemon older than
+    /// this method answers `unknown_method`.
+    pub async fn resolve_host(&self, host: &str) -> Result<ResolvedHostDto, ClientError> {
+        self.call(Request::HostsResolve(HostParams {
+            host: host.to_owned(),
+        }))
+        .await
+    }
+
+    /// Lists the forwards declared in the daemon user's `ssh_config`.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. A daemon older than
+    /// this method answers `unknown_method`.
+    pub async fn import_ssh_config(&self) -> Result<ImportPreviewDto, ClientError> {
+        self.call(Request::ImportSshConfig {}).await
+    }
+
+    /// Reads the forwards of a pasted script.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. The daemon answers
+    /// `invalid_request` when the text exceeds
+    /// [`MAX_IMPORT_SCRIPT_BYTES`](crate::protocol::MAX_IMPORT_SCRIPT_BYTES).
+    pub async fn import_script(&self, text: &str) -> Result<ImportPreviewDto, ClientError> {
+        self.call(Request::ImportScript(ImportScriptParams {
+            text: text.to_owned(),
+        }))
+        .await
     }
 
     /// Starts every tunnel carrying a tag.

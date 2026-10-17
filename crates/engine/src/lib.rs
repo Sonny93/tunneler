@@ -57,6 +57,7 @@ mod external;
 mod handshake;
 mod host_config;
 mod host_key;
+mod import;
 mod prompter;
 mod remote_forwards;
 mod runtime;
@@ -72,12 +73,15 @@ pub use connector::{Connector, ConnectorDependencies};
 pub use error::{ConnectError, HostKeyFailure, JumpChainError, SessionError, TransportError};
 pub use external::{
     ListeningSocket, PortOccupation, PortOwner, PortScanner, ProcessIdentity, ProcessInfo,
-    ScanError, SshForward, SshInvocation, SystemPortScanner, SystemScan, TerminateError,
-    UnmanagedProcess, is_ssh_process, parse_ssh_command_line,
+    ScanError, SshDestination, SshForward, SshInvocation, SystemPortScanner, SystemScan,
+    TerminateError, UnmanagedProcess, is_ssh_process, parse_ssh_command_line,
 };
 pub use host_config::{HostConfigError, HostConfigResolver, SshConfigResolver};
 pub use host_key::{
     HostKeyDecision, HostKeyVerifier, RejectedHostKey, RejectionReason, UnknownHostKey,
+};
+pub use import::{
+    ImportCandidate, ImportPreview, ImportWarning, preview_script, preview_ssh_config,
 };
 pub use prompter::{
     CredentialPrompter, KeyboardInteractiveRequest, PassphraseRequest, PasswordRequest, Prompt,

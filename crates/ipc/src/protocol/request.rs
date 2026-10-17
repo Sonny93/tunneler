@@ -10,8 +10,11 @@ const ID_KEY: &str = "id";
 const METHOD_KEY: &str = "method";
 const PARAMS_KEY: &str = "params";
 
+/// The longest script `import.script` accepts, in bytes.
+pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
+
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 23] = [
+pub const METHOD_NAMES: [&str; 26] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -22,6 +25,9 @@ pub const METHOD_NAMES: [&str; 23] = [
     "tunnel.restart",
     "tunnel.logs",
     "hosts.list",
+    "hosts.resolve",
+    "import.ssh_config",
+    "import.script",
     "tag.start",
     "tag.stop",
     "settings.update",
@@ -51,6 +57,22 @@ pub struct TunnelIdParams {
 pub struct ProcessParams {
     /// The process identifier.
     pub pid: u32,
+}
+
+/// The parameters of `hosts.resolve`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostParams {
+    /// The `ssh_config` alias to resolve.
+    pub host: String,
+}
+
+/// The parameters of `import.script`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportScriptParams {
+    /// The pasted script, at most [`MAX_IMPORT_SCRIPT_BYTES`] bytes.
+    pub text: String,
 }
 
 /// The parameters of the methods that address the X11 anchor of one host.
@@ -153,6 +175,16 @@ pub enum Request {
     /// Lists the concrete `Host` aliases of the user's `ssh_config`.
     #[serde(rename = "hosts.list")]
     HostsList {},
+    /// Reads the effective configuration of a host alias, as `ssh -G` would.
+    #[serde(rename = "hosts.resolve")]
+    HostsResolve(HostParams),
+    /// Lists the forwards declared in the user's `ssh_config` as import candidates.
+    #[serde(rename = "import.ssh_config")]
+    ImportSshConfig {},
+    /// Reads the forwards of a pasted script as import candidates; answers
+    /// `invalid_request` when the text exceeds [`MAX_IMPORT_SCRIPT_BYTES`].
+    #[serde(rename = "import.script")]
+    ImportScript(ImportScriptParams),
     /// Starts every tunnel carrying a tag.
     #[serde(rename = "tag.start")]
     TagStart(TagParams),
@@ -257,9 +289,22 @@ fn parse_request(fields: &mut Map<String, Value>) -> Result<Request, IpcError> {
         (METHOD_KEY.to_owned(), Value::String(method.clone())),
         (PARAMS_KEY.to_owned(), params),
     ]);
-    Request::deserialize(Value::Object(tagged)).map_err(|error| {
+    let request = Request::deserialize(Value::Object(tagged)).map_err(|error| {
         IpcError::invalid_request(format!("invalid parameters for `{method}`: {error}"))
-    })
+    })?;
+    validate(&request)?;
+    Ok(request)
+}
+
+fn validate(request: &Request) -> Result<(), IpcError> {
+    match request {
+        Request::ImportScript(params) if params.text.len() > MAX_IMPORT_SCRIPT_BYTES => {
+            Err(IpcError::invalid_request(format!(
+                "invalid parameters for `import.script`: text exceeds {MAX_IMPORT_SCRIPT_BYTES} bytes"
+            )))
+        }
+        _ => Ok(()),
+    }
 }
 
 #[cfg(test)]

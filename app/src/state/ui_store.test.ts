@@ -96,4 +96,34 @@ describe('useUiStore', () => {
 
 		expect(useUiStore.getState().confirmedX11Hosts).toEqual(['nova']);
 	});
+
+	it('should open the details panel of a tunnel', () => {
+		useUiStore.getState().openTunnelDetails('a');
+
+		expect(useUiStore.getState().panel).toEqual({
+			kind: 'tunnelDetails',
+			tunnelId: 'a',
+		});
+	});
+
+	it('should open the resolved configuration panel of a host', () => {
+		useUiStore.getState().openHostConfig('nova');
+
+		expect(useUiStore.getState().panel).toEqual({
+			kind: 'hostConfig',
+			host: 'nova',
+		});
+	});
+
+	it('should open the import panel', () => {
+		useUiStore.getState().openImport();
+
+		expect(useUiStore.getState().panel).toEqual({ kind: 'import' });
+	});
+
+	it('should toggle the palette flag', () => {
+		useUiStore.getState().setPaletteOpen(true);
+
+		expect(useUiStore.getState().isPaletteOpen).toBe(true);
+	});
 });

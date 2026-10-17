@@ -39,6 +39,14 @@ describe('useGlobalShortcuts', () => {
 		});
 	});
 
+	it('should open the import on i', async () => {
+		render(<Harness />);
+
+		await userEvent.keyboard('i');
+
+		expect(useUiStore.getState().panel).toEqual({ kind: 'import' });
+	});
+
 	it('should open the settings on comma', async () => {
 		render(<Harness />);
 
@@ -53,6 +61,43 @@ describe('useGlobalShortcuts', () => {
 		await userEvent.keyboard('?');
 
 		expect(useUiStore.getState().isHelpOpen).toBe(true);
+	});
+
+	it.each(['{Control>}k{/Control}', '{Meta>}k{/Meta}'])(
+		'should open the palette on %s',
+		async (keys) => {
+			render(<Harness />);
+
+			await userEvent.keyboard(keys);
+
+			expect(useUiStore.getState().isPaletteOpen).toBe(true);
+		}
+	);
+
+	it('should open the palette even from a text field', async () => {
+		const user = userEvent.setup();
+		render(<Harness />);
+		await user.click(screen.getByLabelText('Champ'));
+
+		await user.keyboard('{Control>}k{/Control}');
+
+		expect(useUiStore.getState().isPaletteOpen).toBe(true);
+	});
+
+	it('should not open the palette on k alone', async () => {
+		render(<Harness />);
+
+		await userEvent.keyboard('k');
+
+		expect(useUiStore.getState().isPaletteOpen).toBe(false);
+	});
+
+	it('should not open the palette while a dialog disables the global hotkeys', async () => {
+		render(<Harness isModalOpen />);
+
+		await userEvent.keyboard('{Control>}k{/Control}');
+
+		expect(useUiStore.getState().isPaletteOpen).toBe(false);
 	});
 
 	it('should ignore other keys', async () => {

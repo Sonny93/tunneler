@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::protocol::dto::{LogEntryDto, SnapshotDto, TunnelDto};
+use crate::protocol::dto::{
+    ImportPreviewDto, LogEntryDto, ResolvedHostDto, SnapshotDto, TunnelDto,
+};
 use crate::protocol::hello::HelloResult;
 
 /// The result of a method that has nothing to return: `{}`.
@@ -47,6 +49,10 @@ pub enum ResponsePayload {
     Logs(LogsResult),
     /// The answer to `hosts.list`.
     Hosts(HostsResult),
+    /// The answer to `hosts.resolve`.
+    ResolvedHost(ResolvedHostDto),
+    /// The answer to `import.ssh_config` and `import.script`.
+    ImportPreview(ImportPreviewDto),
     /// The answer to `external.adopt`.
     Adopt(AdoptResult),
 }

@@ -1,12 +1,15 @@
 //! The commands the front end invokes; each one forwards to the daemon.
 
 use ipc::protocol::{
-    HostKeyDecisionDto, SettingsDto, SnapshotDto, TunnelDefinitionDto, TunnelDto, TunnelSpecDto,
+    HostKeyDecisionDto, ImportPreviewDto, LogEntryDto, ResolvedHostDto, SettingsDto, SnapshotDto,
+    TunnelDefinitionDto, TunnelDto, TunnelSpecDto,
 };
 use tauri::{AppHandle, State};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::bridge::BridgeState;
 use crate::bridge_error::BridgeError;
+use crate::browser_url::browser_url;
 use crate::credential::CredentialAnswerInput;
 
 const EXIT_SUCCESS: i32 = 0;
@@ -26,6 +29,45 @@ pub async fn snapshot(state: State<'_, BridgeState>) -> CommandResult<SnapshotDt
 #[tauri::command]
 pub async fn list_hosts(state: State<'_, BridgeState>) -> CommandResult<Vec<String>> {
     Ok(state.client()?.list_hosts().await?)
+}
+
+#[tauri::command]
+pub async fn resolve_host(
+    state: State<'_, BridgeState>,
+    host: String,
+) -> CommandResult<ResolvedHostDto> {
+    Ok(state.client()?.resolve_host(&host).await?)
+}
+
+#[tauri::command]
+pub async fn import_ssh_config(state: State<'_, BridgeState>) -> CommandResult<ImportPreviewDto> {
+    Ok(state.client()?.import_ssh_config().await?)
+}
+
+#[tauri::command]
+pub async fn import_script(
+    state: State<'_, BridgeState>,
+    text: String,
+) -> CommandResult<ImportPreviewDto> {
+    Ok(state.client()?.import_script(&text).await?)
+}
+
+#[tauri::command]
+pub async fn tunnel_logs(
+    state: State<'_, BridgeState>,
+    id: String,
+) -> CommandResult<Vec<LogEntryDto>> {
+    Ok(state.client()?.tunnel_logs(&id).await?)
+}
+
+/// Opens `http://{host}:{port}/` in the default browser; refuses any host
+/// that is not `localhost` or an IP address.
+#[tauri::command]
+pub async fn open_in_browser(app: AppHandle, host: String, port: u16) -> CommandResult<()> {
+    let url = browser_url(&host, port)?;
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|error| BridgeError::internal(&error.to_string()))
 }
 
 #[tauri::command]

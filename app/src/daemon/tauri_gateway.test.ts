@@ -53,6 +53,16 @@ describe('createTauriGateway', () => {
 			'launch_x11',
 			{ host: 'nova', name: 'VS Code' },
 		],
+		['tunnelLogs', ['1'], 'tunnel_logs', { id: '1' }],
+		['resolveHost', ['nova'], 'resolve_host', { host: 'nova' }],
+		['importSshConfig', [], 'import_ssh_config', undefined],
+		['importScript', ['3333'], 'import_script', { text: '3333' }],
+		[
+			'openInBrowser',
+			['localhost', 3333],
+			'open_in_browser',
+			{ host: 'localhost', port: 3333 },
+		],
 		['updateSettings', [{ a: 1 }], 'update_settings', { settings: { a: 1 } }],
 		[
 			'respondCredential',

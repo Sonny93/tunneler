@@ -18,7 +18,7 @@ mod matching;
 mod scanner;
 
 pub use classification::{PortOccupation, PortOwner, UnmanagedProcess};
-pub use command_line::{SshForward, SshInvocation, parse_ssh_command_line};
+pub use command_line::{SshDestination, SshForward, SshInvocation, parse_ssh_command_line};
 pub use scanner::{
     ListeningSocket, PortScanner, ProcessIdentity, ProcessInfo, ScanError, SystemPortScanner,
     SystemScan, TerminateError, is_ssh_process,

@@ -1,4 +1,4 @@
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { copyTextWithToast } from '#/shared/copy_text';
 
 type UseCopyDisplayCommandReturn = {
 	command: string;
@@ -10,19 +10,7 @@ export function useCopyDisplayCommand(
 ): UseCopyDisplayCommandReturn {
 	const command = `export DISPLAY=${display}`;
 
-	const copy = async () => {
-		const { pushToast } = useToastStore.getState();
-		try {
-			await navigator.clipboard.writeText(command);
-		} catch {
-			pushToast({
-				tone: 'error',
-				message: 'Copie dans le presse-papiers impossible',
-			});
-			return;
-		}
-		pushToast({ tone: 'success', message: 'Commande copiée' });
-	};
+	const copy = () => copyTextWithToast(command, 'Commande copiée');
 
 	return { command, copy };
 }

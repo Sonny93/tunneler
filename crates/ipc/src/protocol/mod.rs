@@ -15,8 +15,9 @@ mod secret;
 
 pub use dto::{
     CredentialRequestDto, EpochMillis, ExternalForwardDto, ExternalProcessDto, FailureReasonDto,
-    HostKeyAlertReasonDto, HostKeyDecisionDto, LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto,
-    PromptDto, SettingsDto, SnapshotDto, TargetHealthDto, TrayStatusDto, TunnelDefinitionDto,
+    HostKeyAlertReasonDto, HostKeyDecisionDto, HostOptionDto, ImportCandidateDto, ImportPreviewDto,
+    ImportWarningDto, LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, PromptDto,
+    ResolvedHostDto, SettingsDto, SnapshotDto, TargetHealthDto, TrayStatusDto, TunnelDefinitionDto,
     TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11LauncherDto,
     X11StateDto,
 };
@@ -30,9 +31,9 @@ pub use frame::{MalformedFrame, Outcome, ServerFrame, encode_event, encode_respo
 pub use hello::{ClientKind, Hello, HelloResult, PROTOCOL_VERSION};
 pub use line::{LineRead, MAX_LINE_BYTES, encode_line, read_line};
 pub use request::{
-    CredentialAnswer, CredentialResponseParams, HostKeyResponseParams, METHOD_NAMES, ProcessParams,
-    QuitParams, Request, RequestEnvelope, RequestRejection, TagParams, TunnelIdParams,
-    X11HostParams, X11LaunchParams,
+    CredentialAnswer, CredentialResponseParams, HostKeyResponseParams, HostParams,
+    ImportScriptParams, MAX_IMPORT_SCRIPT_BYTES, METHOD_NAMES, ProcessParams, QuitParams, Request,
+    RequestEnvelope, RequestRejection, TagParams, TunnelIdParams, X11HostParams, X11LaunchParams,
 };
 pub use response::{AdoptResult, EmptyResult, HostsResult, LogsResult, ResponsePayload};
 pub use secret::Secret;

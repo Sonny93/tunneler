@@ -8,6 +8,7 @@ type UseFormErrorSummaryReturn = {
 	/** Callback ref for the `FormErrorSummary`. */
 	attachSummary: (element: HTMLDivElement | null) => void;
 	reportFailure: (rejection: unknown) => void;
+	reportMessages: (messages: readonly string[]) => void;
 	clearFailure: () => void;
 };
 
@@ -22,7 +23,15 @@ export function useFormErrorSummary(): UseFormErrorSummaryReturn {
 
 	const reportFailure = (rejection: unknown) =>
 		setMessages(getSubmissionErrorMessages(toDaemonCommandError(rejection)));
+	const reportMessages = (failureMessages: readonly string[]) =>
+		setMessages(failureMessages);
 	const clearFailure = () => setMessages([]);
 
-	return { messages, attachSummary, reportFailure, clearFailure };
+	return {
+		messages,
+		attachSummary,
+		reportFailure,
+		reportMessages,
+		clearFailure,
+	};
 }

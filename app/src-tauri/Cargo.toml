@@ -21,6 +21,7 @@ ipc = { path = "../../crates/ipc" }
 serde.workspace = true
 serde_json.workspace = true
 tauri = "2"
+tauri-plugin-opener = "2"
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true

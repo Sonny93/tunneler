@@ -25,6 +25,14 @@ describe('getFailureReasonLabel', () => {
 		);
 	});
 
+	it('should describe an unresponsive agent in seconds', () => {
+		expect(
+			getFailureReasonLabel({ kind: 'agentUnresponsive', timeoutMs: 30_000 })
+		).toBe(
+			"L'agent SSH ne répond pas (aucune réponse en 30 s) : attend-il une confirmation ?"
+		);
+	});
+
 	it('should describe a refused remote forward', () => {
 		expect(
 			getFailureReasonLabel({

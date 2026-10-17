@@ -16,6 +16,8 @@ use crate::store::TunnelKind;
 const OPTIONS_WITH_ARGUMENT: &str = "BbcDEeFIiJLlmOoPpQRSWw";
 const OPTION_PREFIX: char = '-';
 const OPTIONS_END: &str = "--";
+const LOGIN_NAME_OPTION: char = 'l';
+const PORT_OPTION: char = 'p';
 const LOCAL_FORWARD_OPTION: char = 'L';
 const REMOTE_FORWARD_OPTION: char = 'R';
 const DYNAMIC_FORWARD_OPTION: char = 'D';
@@ -27,10 +29,22 @@ const IPV6_BRACKETS: [char; 2] = ['[', ']'];
 /// What an `ssh` command line asks for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SshInvocation {
-    /// The host to connect to, without user, port or brackets.
-    pub destination: Option<String>,
+    /// Where the command line connects to.
+    pub destination: Option<SshDestination>,
     /// The TCP forwards requested with `-L`, `-R` and `-D`.
     pub forwards: Vec<SshForward>,
+}
+
+/// The target of an `ssh` command line: the host, and the user and port when
+/// the command line gives them (`user@host`, `ssh://host:port`, `-l`, `-p`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SshDestination {
+    /// The login name; `None` when none was written.
+    pub user: Option<String>,
+    /// The host, without user, port or brackets.
+    pub host: String,
+    /// The port; `None` when none was written.
+    pub port: Option<u16>,
 }
 
 /// One TCP forward requested on an `ssh` command line.
@@ -62,7 +76,10 @@ pub fn parse_ssh_command_line(arguments: &[String]) -> SshInvocation {
     let program_arguments = arguments.get(1..).unwrap_or_default();
     let (occurrences, remaining) = read_options(program_arguments);
     SshInvocation {
-        destination: remaining.first().and_then(|text| parse_destination(text)),
+        destination: remaining
+            .first()
+            .and_then(|text| parse_destination(text))
+            .map(|destination| apply_options(destination, &occurrences)),
         forwards: occurrences.iter().filter_map(forward_of).collect(),
     }
 }
@@ -172,34 +189,74 @@ fn tcp_parts(endpoint: Endpoint) -> Option<(Option<String>, u16)> {
     }
 }
 
-fn parse_destination(text: &str) -> Option<String> {
-    let host = match text.strip_prefix(URL_SCHEME) {
-        Some(url) => host_of_url(url),
-        None => without_user(text).trim_matches(IPV6_BRACKETS).to_owned(),
-    };
-    (!host.is_empty()).then_some(host)
-}
-
-fn host_of_url(url: &str) -> String {
-    let authority = url.split('/').next().unwrap_or_default();
-    let host_and_port = without_user(authority);
-    if let Some(bracketed) = host_and_port.strip_prefix(IPV6_BRACKETS[0]) {
-        return bracketed
-            .split(IPV6_BRACKETS[1])
-            .next()
-            .unwrap_or_default()
-            .to_owned();
+fn apply_options(destination: SshDestination, occurrences: &[OptionOccurrence]) -> SshDestination {
+    let user = destination
+        .user
+        .or_else(|| last_value(occurrences, LOGIN_NAME_OPTION).map(str::to_owned));
+    let port = destination
+        .port
+        .or_else(|| last_value(occurrences, PORT_OPTION).and_then(|value| value.parse().ok()));
+    SshDestination {
+        user,
+        host: destination.host,
+        port,
     }
-    host_and_port
-        .split(PORT_SEPARATOR)
-        .next()
-        .unwrap_or_default()
-        .to_owned()
 }
 
-fn without_user(text: &str) -> &str {
-    text.rsplit_once(USER_SEPARATOR)
-        .map_or(text, |(_, host)| host)
+fn last_value(occurrences: &[OptionOccurrence], letter: char) -> Option<&str> {
+    occurrences
+        .iter()
+        .rev()
+        .find(|occurrence| occurrence.letter == letter)
+        .map(|occurrence| occurrence.value.as_str())
+}
+
+fn parse_destination(text: &str) -> Option<SshDestination> {
+    let destination = if let Some(url) = text.strip_prefix(URL_SCHEME) {
+        destination_of_url(url)
+    } else {
+        let (user, host) = split_user(text);
+        SshDestination {
+            user,
+            host: host.trim_matches(IPV6_BRACKETS).to_owned(),
+            port: None,
+        }
+    };
+    (!destination.host.is_empty()).then_some(destination)
+}
+
+fn destination_of_url(url: &str) -> SshDestination {
+    let authority = url.split('/').next().unwrap_or_default();
+    let (user, host_and_port) = split_user(authority);
+    let (host, port) = split_host_and_port(host_and_port);
+    SshDestination { user, host, port }
+}
+
+fn split_host_and_port(host_and_port: &str) -> (String, Option<u16>) {
+    if let Some(bracketed) = host_and_port.strip_prefix(IPV6_BRACKETS[0]) {
+        let (host, after_host) = bracketed
+            .split_once(IPV6_BRACKETS[1])
+            .unwrap_or((bracketed, ""));
+        return (host.to_owned(), parse_port(after_host));
+    }
+    let (host, port) = host_and_port
+        .split_once(PORT_SEPARATOR)
+        .unwrap_or((host_and_port, ""));
+    (host.to_owned(), parse_port(port))
+}
+
+fn parse_port(text: &str) -> Option<u16> {
+    text.strip_prefix(PORT_SEPARATOR)
+        .unwrap_or(text)
+        .parse()
+        .ok()
+}
+
+fn split_user(text: &str) -> (Option<String>, &str) {
+    match text.rsplit_once(USER_SEPARATOR) {
+        Some((user, host)) => (Some(user.to_owned()), host),
+        None => (None, text),
+    }
 }
 
 #[cfg(test)]
@@ -210,6 +267,16 @@ mod tests {
     fn invocation(command_line: &str) -> SshInvocation {
         let arguments: Vec<String> = command_line.split_whitespace().map(str::to_owned).collect();
         parse_ssh_command_line(&arguments)
+    }
+
+    fn host_of(command_line: &str) -> Option<String> {
+        invocation(command_line)
+            .destination
+            .map(|destination| destination.host)
+    }
+
+    fn destination_of(command_line: &str) -> SshDestination {
+        invocation(command_line).destination.unwrap()
     }
 
     fn local(listen_port: u16, target_host: &str, target_port: u16) -> SshForward {
@@ -340,92 +407,68 @@ mod tests {
 
     #[test]
     fn should_read_destination_after_the_options_end_marker() {
-        assert_eq!(
-            invocation("ssh -- nova").destination,
-            Some("nova".to_owned())
-        );
+        assert_eq!(host_of("ssh -- nova"), Some("nova".to_owned()));
     }
 
     #[test]
     fn should_not_mistake_option_arguments_for_the_destination() {
-        assert_eq!(
-            invocation("ssh -p 22 -i key -N nova").destination,
-            Some("nova".to_owned())
-        );
+        assert_eq!(host_of("ssh -p 22 -i key -N nova"), Some("nova".to_owned()));
     }
 
     #[test]
     fn should_skip_unknown_options_when_letters_are_not_known() {
-        assert_eq!(
-            invocation("ssh -Z -N nova").destination,
-            Some("nova".to_owned())
-        );
+        assert_eq!(host_of("ssh -Z -N nova"), Some("nova".to_owned()));
     }
 
     #[test]
     fn should_strip_user_when_destination_has_one() {
-        assert_eq!(
-            invocation("ssh alice@nova").destination,
-            Some("nova".to_owned())
-        );
+        assert_eq!(host_of("ssh alice@nova"), Some("nova".to_owned()));
     }
 
     #[test]
     fn should_strip_up_to_the_last_at_sign_when_user_contains_one() {
-        assert_eq!(
-            invocation("ssh a@b@nova").destination,
-            Some("nova".to_owned())
-        );
+        assert_eq!(host_of("ssh a@b@nova"), Some("nova".to_owned()));
     }
 
     #[test]
     fn should_read_host_when_destination_is_an_ssh_url_with_port() {
         assert_eq!(
-            invocation("ssh ssh://alice@nova:2222").destination,
+            host_of("ssh ssh://alice@nova:2222"),
             Some("nova".to_owned())
         );
     }
 
     #[test]
     fn should_read_host_when_destination_is_an_ssh_url_with_path() {
-        assert_eq!(
-            invocation("ssh ssh://nova/").destination,
-            Some("nova".to_owned())
-        );
+        assert_eq!(host_of("ssh ssh://nova/"), Some("nova".to_owned()));
     }
 
     #[test]
     fn should_remove_brackets_when_url_host_is_ipv6() {
         assert_eq!(
-            invocation("ssh ssh://alice@[::1]:2222").destination,
+            host_of("ssh ssh://alice@[::1]:2222"),
             Some("::1".to_owned())
         );
     }
 
     #[test]
     fn should_remove_brackets_when_destination_is_bracketed_ipv6() {
-        assert_eq!(
-            invocation("ssh -N [::1]").destination,
-            Some("::1".to_owned())
-        );
+        assert_eq!(host_of("ssh -N [::1]"), Some("::1".to_owned()));
     }
 
     #[test]
     fn should_ignore_remote_command_when_it_follows_the_destination() {
-        assert_eq!(
-            invocation("ssh nova ls -la").destination,
-            Some("nova".to_owned())
-        );
+        assert_eq!(host_of("ssh nova ls -la"), Some("nova".to_owned()));
     }
 
     #[test]
     fn should_have_no_destination_when_only_options_are_given() {
-        assert_eq!(invocation("ssh -N -L 1:a:1").destination, None);
+        assert_eq!(host_of("ssh -N -L 1:a:1"), None);
     }
 
     #[test]
     fn should_have_no_destination_when_the_option_argument_is_missing() {
-        assert_eq!(invocation("ssh -L").destination, None);
+        assert_eq!(host_of("ssh -L"), None);
     }
 
     #[test]
@@ -441,6 +484,45 @@ mod tests {
 
     #[test]
     fn should_treat_a_lone_dash_as_the_destination() {
-        assert_eq!(invocation("ssh -").destination, Some("-".to_owned()));
+        assert_eq!(host_of("ssh -"), Some("-".to_owned()));
+    }
+
+    #[test]
+    fn should_keep_user_when_destination_has_one() {
+        assert_eq!(
+            destination_of("ssh alice@nova").user,
+            Some("alice".to_owned())
+        );
+    }
+
+    #[test]
+    fn should_keep_port_when_destination_is_an_ssh_url_with_port() {
+        assert_eq!(destination_of("ssh ssh://alice@nova:2222").port, Some(2222));
+    }
+
+    #[test]
+    fn should_keep_port_when_url_host_is_bracketed_ipv6() {
+        assert_eq!(destination_of("ssh ssh://[::1]:2222").port, Some(2222));
+    }
+
+    #[test]
+    fn should_use_login_name_option_when_destination_has_no_user() {
+        assert_eq!(
+            destination_of("ssh -l alice nova").user,
+            Some("alice".to_owned())
+        );
+    }
+
+    #[test]
+    fn should_prefer_destination_user_when_login_name_option_is_also_given() {
+        assert_eq!(
+            destination_of("ssh -l bob alice@nova").user,
+            Some("alice".to_owned())
+        );
+    }
+
+    #[test]
+    fn should_use_port_option_when_destination_has_no_port() {
+        assert_eq!(destination_of("ssh -p 2200 nova").port, Some(2200));
     }
 }

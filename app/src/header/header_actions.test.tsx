@@ -29,6 +29,26 @@ describe('HeaderActions', () => {
 		});
 	});
 
+	it('should open the import panel', async () => {
+		const user = userEvent.setup();
+		renderActions();
+
+		await user.click(screen.getByRole('button', { name: 'Importer' }));
+
+		expect(useUiStore.getState().panel).toEqual({ kind: 'import' });
+	});
+
+	it('should open the command palette and advertise its shortcut', async () => {
+		const user = userEvent.setup();
+		renderActions();
+		const button = screen.getByRole('button', { name: 'Palette de commandes' });
+
+		await user.click(button);
+
+		expect(useUiStore.getState().isPaletteOpen).toBe(true);
+		expect(button).toHaveAttribute('aria-keyshortcuts', 'Control+K');
+	});
+
 	it('should open the settings', async () => {
 		const user = userEvent.setup();
 		renderActions();

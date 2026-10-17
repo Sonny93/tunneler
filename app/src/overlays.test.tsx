@@ -6,8 +6,8 @@ import { act, screen } from '@testing-library/react';
 
 import { Overlays } from '#/overlays';
 import { useUiStore } from '#/state/ui_store';
-import { buildSettings } from '#/testing/factories';
 import { useDaemonStore } from '#/state/daemon_store';
+import { buildSettings, buildTunnel } from '#/testing/factories';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 
 const renderOverlays = () => {
@@ -86,5 +86,46 @@ describe('Overlays', () => {
 		await userEvent.keyboard('?');
 
 		expect(useUiStore.getState().isHelpOpen).toBe(false);
+	});
+
+	it('should open the import drawer with the i shortcut', async () => {
+		renderOverlays();
+
+		await userEvent.keyboard('i');
+
+		expect(
+			await screen.findByRole('dialog', { name: 'Importer des tunnels' })
+		).toBeInTheDocument();
+	});
+
+	it('should open the tunnel details drawer from the UI store', () => {
+		useDaemonStore.setState({ tunnels: [buildTunnel()] });
+		renderOverlays();
+
+		act(() => useUiStore.getState().openTunnelDetails('tunnel-1'));
+
+		expect(
+			screen.getByRole('dialog', { name: 'Tunnel Adonis' })
+		).toBeInTheDocument();
+	});
+
+	it('should open the host configuration drawer from the UI store', () => {
+		renderOverlays();
+
+		act(() => useUiStore.getState().openHostConfig('nova'));
+
+		expect(
+			screen.getByRole('dialog', { name: 'Configuration de nova' })
+		).toBeInTheDocument();
+	});
+
+	it('should open the command palette with Ctrl+K', async () => {
+		renderOverlays();
+
+		await userEvent.keyboard('{Control>}k{/Control}');
+
+		expect(
+			await screen.findByRole('dialog', { name: 'Palette de commandes' })
+		).toBeInTheDocument();
 	});
 });

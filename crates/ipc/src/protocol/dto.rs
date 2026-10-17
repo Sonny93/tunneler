@@ -463,3 +463,103 @@ pub enum HostKeyAlertReasonDto {
     /// The host is unknown and the configuration forbids asking.
     UnknownRejectedByPolicy,
 }
+
+/// One option of a resolved host, in `ssh -G` spelling.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostOptionDto {
+    /// The lowercase keyword.
+    pub key: String,
+    /// The value, as `ssh -G` prints it.
+    pub value: String,
+}
+
+/// The effective configuration of a host alias.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedHostDto {
+    /// The alias.
+    pub host: String,
+    /// The options `ssh -G <host>` would report, in its order.
+    pub options: Vec<HostOptionDto>,
+    /// What deserved a warning while resolving, in English.
+    pub warnings: Vec<String>,
+}
+
+/// One forward found in an import source.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportCandidateDto {
+    /// The `ssh_config` alias the forward belongs to, when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+    /// The direction of the forward.
+    pub kind: TunnelKindDto,
+    /// The port to listen on.
+    pub listen_port: u16,
+    /// The bind address, when one was written.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listen_address: Option<String>,
+    /// The host the traffic is forwarded to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_host: Option<String>,
+    /// The port the traffic is forwarded to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_port: Option<u16>,
+    /// A name taken from the comment next to the port.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// The 1-based line of the pasted text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<u32>,
+}
+
+/// Something skipped while reading an import source.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum ImportWarningDto {
+    /// A forward specification that cannot be parsed, or a template without a port list.
+    MalformedForward {
+        /// The 1-based line of the specification.
+        line: u32,
+        /// The specification as written.
+        text: String,
+    },
+    /// A Unix socket forward or a remote SOCKS proxy.
+    UnsupportedForward {
+        /// The 1-based line of the specification.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        line: Option<u32>,
+        /// The `ssh_config` alias declaring the forward.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        host: Option<String>,
+        /// The specification as written.
+        text: String,
+    },
+    /// An `ssh` destination that matches no `ssh_config` alias.
+    UnknownDestination {
+        /// The destination as written.
+        destination: String,
+    },
+    /// An alias whose configuration could not be resolved.
+    HostResolutionFailed {
+        /// The alias.
+        host: String,
+        /// Why the resolution failed.
+        message: String,
+    },
+}
+
+/// The forwards found in an import source, and what was skipped.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportPreviewDto {
+    /// The forwards found, in source order.
+    pub candidates: Vec<ImportCandidateDto>,
+    /// What was skipped or could not be resolved.
+    pub warnings: Vec<ImportWarningDto>,
+}
