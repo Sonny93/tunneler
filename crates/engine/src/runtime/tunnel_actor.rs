@@ -248,7 +248,7 @@ impl TunnelActor {
                 Step::ConnectFailed(error) => {
                     failed_attempts += 1;
                     match self.decide_retry(&error, failed_attempts) {
-                        RetryDecision::Fail(reason) => return self.fail(reason),
+                        RetryDecision::Fail(reason) => return self.fail_to_connect(reason),
                         RetryDecision::Retry { delay } => (error.to_string(), delay),
                     }
                 }
@@ -570,6 +570,13 @@ impl TunnelActor {
 
     fn interrupt_from(&mut self, command: Option<TunnelCommand>) -> Option<Interrupt> {
         interrupt_for(&mut self.context.definition, command)
+    }
+
+    fn fail_to_connect(&self, reason: FailureReason) -> RunEnd {
+        self.context
+            .shared
+            .log(LogLevel::Error, format!("cannot connect: {reason}"));
+        self.fail(reason)
     }
 
     fn fail(&self, reason: FailureReason) -> RunEnd {

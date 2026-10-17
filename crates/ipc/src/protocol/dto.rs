@@ -77,6 +77,12 @@ pub enum FailureReasonDto {
         /// The explanation.
         message: String,
     },
+    /// The SSH agent did not answer, typically while waiting for the user to
+    /// confirm a signature.
+    AgentUnresponsive {
+        /// How long the agent was given, in milliseconds.
+        timeout_ms: u64,
+    },
     /// The SSH server refused to listen for a remote forward.
     RemoteForwardRefused {
         /// The address the server was asked to listen on.

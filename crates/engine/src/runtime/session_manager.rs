@@ -28,6 +28,7 @@ pub(crate) enum AcquireError {
 
 type ConnectOutcome = Result<Arc<LiveSession>, Arc<ConnectError>>;
 type ConnectProgress = watch::Receiver<Option<ConnectOutcome>>;
+type ConnectAttempt = Arc<watch::Sender<Option<ConnectOutcome>>>;
 
 struct LiveSession {
     alias: String,
@@ -42,7 +43,7 @@ struct LiveSlot {
 }
 
 enum Slot {
-    Connecting(ConnectProgress),
+    Connecting(ConnectAttempt),
     Live(LiveSlot),
 }
 
@@ -70,6 +71,10 @@ enum Step {
 /// requests share a single connection attempt, and it is closed once the
 /// last lease is gone and the idle grace period has passed. The grace period
 /// is the one in force when the session was opened.
+///
+/// A connection attempt nobody waits for any more is abandoned: when every
+/// caller that waited for it gave up, the attempt is dropped, and the next
+/// request starts a new one.
 ///
 /// Jump hosts belong to the session that runs through them: two targets
 /// behind the same bastion each open their own connection to it.
@@ -127,6 +132,16 @@ async fn wait_for_outcome(mut progress: ConnectProgress) -> Result<Arc<LiveSessi
     }
 }
 
+fn remove_attempt_from(slots: &mut Slots, alias: &str, attempt: &ConnectAttempt) {
+    let is_current = matches!(
+        slots.by_alias.get(alias),
+        Some(Slot::Connecting(current)) if Arc::ptr_eq(current, attempt)
+    );
+    if is_current {
+        slots.by_alias.remove(alias);
+    }
+}
+
 async fn disconnect(live: &LiveSession) {
     debug!(alias = %live.alias, "closing the session");
     if let Err(error) = live.session.disconnect().await {
@@ -152,45 +167,80 @@ impl ManagerInner {
                 }
                 Ok(Step::Leased(self.lease_for(&slot.live)))
             }
-            Some(Slot::Connecting(progress)) => Ok(Step::Wait(progress.clone())),
+            Some(Slot::Connecting(attempt)) => Ok(Step::Wait(attempt.subscribe())),
             Some(Slot::Live(_)) | None => Ok(Step::Wait(self.begin_connect(&mut slots, alias))),
         }
     }
 
     fn begin_connect(self: &Arc<Self>, slots: &mut Slots, alias: &str) -> ConnectProgress {
         let (sender, progress) = watch::channel(None);
+        let attempt = Arc::new(sender);
         if let Some(Slot::Live(stale)) = slots
             .by_alias
-            .insert(alias.to_owned(), Slot::Connecting(progress.clone()))
+            .insert(alias.to_owned(), Slot::Connecting(Arc::clone(&attempt)))
         {
             stale.grace_timer.iter().for_each(AbortHandle::abort);
         }
         let inner = Arc::clone(self);
         let alias = alias.to_owned();
         self.runtime
-            .spawn(async move { inner.connect_and_install(alias, sender).await });
+            .spawn(async move { inner.connect_and_install(alias, attempt).await });
         progress
     }
 
-    async fn connect_and_install(
-        self: Arc<Self>,
-        alias: String,
-        outcome: watch::Sender<Option<ConnectOutcome>>,
-    ) {
-        match self.connector.connect(&alias).await {
-            Ok(session) => self.install(alias, session, outcome).await,
+    async fn connect_and_install(self: Arc<Self>, alias: String, attempt: ConnectAttempt) {
+        let Some(connected) = self.connect_while_awaited(&alias, &attempt).await else {
+            return;
+        };
+        match connected {
+            Ok(session) => self.install(alias, session, &attempt).await,
             Err(error) => {
-                self.lock().by_alias.remove(&alias);
-                outcome.send_replace(Some(Err(Arc::new(error))));
+                self.remove_attempt(&alias, &attempt);
+                attempt.send_replace(Some(Err(Arc::new(error))));
             }
         }
+    }
+
+    /// Connects, unless every caller that waited for the attempt gave up
+    /// first: then the attempt is dropped and `None` is returned.
+    async fn connect_while_awaited(
+        &self,
+        alias: &str,
+        attempt: &ConnectAttempt,
+    ) -> Option<Result<SshSession, ConnectError>> {
+        let connecting = self.connector.connect(alias);
+        tokio::pin!(connecting);
+        loop {
+            tokio::select! {
+                connected = &mut connecting => return Some(connected),
+                () = attempt.closed() => {
+                    if self.abandon_if_unwatched(alias, attempt) {
+                        debug!(%alias, "the connection attempt was abandoned: nobody waits for it");
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+
+    fn abandon_if_unwatched(&self, alias: &str, attempt: &ConnectAttempt) -> bool {
+        let mut slots = self.lock();
+        if attempt.receiver_count() > 0 {
+            return false;
+        }
+        remove_attempt_from(&mut slots, alias, attempt);
+        true
+    }
+
+    fn remove_attempt(&self, alias: &str, attempt: &ConnectAttempt) {
+        remove_attempt_from(&mut self.lock(), alias, attempt);
     }
 
     async fn install(
         self: &Arc<Self>,
         alias: String,
         session: SshSession,
-        outcome: watch::Sender<Option<ConnectOutcome>>,
+        attempt: &ConnectAttempt,
     ) {
         let live = Arc::new(LiveSession {
             alias: alias.clone(),
@@ -202,7 +252,7 @@ impl ManagerInner {
             return;
         }
         self.watch_for_loss(&live);
-        outcome.send_replace(Some(Ok(live)));
+        attempt.send_replace(Some(Ok(live)));
     }
 
     fn register(self: &Arc<Self>, alias: &str, live: &Arc<LiveSession>) -> bool {

@@ -9,7 +9,10 @@ use tracing::debug;
 use super::identity::IdentitySource;
 use super::method::{AuthenticationMethod, MethodPolicy};
 use super::outcome::MethodOutcome;
+use super::pausing_prompter::PausingPrompter;
 use super::{keyboard_interactive, password, publickey};
+use crate::bounded::{DeadlinePause, bounded};
+use crate::connect_timeouts::ConnectTimeouts;
 use crate::error::ConnectError;
 use crate::host_key::ClientHandler;
 use crate::prompter::CredentialPrompter;
@@ -18,28 +21,54 @@ pub(crate) struct AuthenticationContext {
     pub(crate) alias: String,
     pub(crate) user: String,
     pub(crate) host: String,
+    /// Asks the user, pausing [`Self::deadline_pause`] meanwhile.
     pub(crate) prompter: Arc<dyn CredentialPrompter>,
     pub(crate) number_of_password_prompts: u32,
     pub(crate) planned_methods: Vec<AuthenticationMethod>,
+    pub(crate) timeouts: ConnectTimeouts,
+    /// The clock of the authentication phase; it does not run while the user
+    /// is asked something or the SSH agent signs.
+    pub(crate) deadline_pause: Arc<DeadlinePause>,
 }
 
 impl AuthenticationContext {
     pub(crate) fn from_config(
         config: &ResolvedConfig,
         prompter: Arc<dyn CredentialPrompter>,
+        timeouts: ConnectTimeouts,
     ) -> Self {
+        let deadline_pause = Arc::new(DeadlinePause::default());
         Self {
             alias: config.alias.clone(),
             user: config.user.clone(),
             host: config.hostname.clone(),
-            prompter,
+            prompter: Arc::new(PausingPrompter::new(prompter, Arc::clone(&deadline_pause))),
             number_of_password_prompts: config.number_of_password_prompts,
             planned_methods: MethodPolicy::from_config(config).planned_methods(),
+            timeouts,
+            deadline_pause,
         }
     }
 }
 
+/// Authenticates the session, giving up when the server stays silent for
+/// longer than the authentication step timeout.
 pub(crate) async fn authenticate(
+    handle: &mut Handle<ClientHandler>,
+    context: &AuthenticationContext,
+    identity_sources: Vec<Box<dyn IdentitySource>>,
+) -> Result<(), ConnectError> {
+    let limit = context.timeouts.authentication_step;
+    bounded(
+        try_methods(handle, context, identity_sources),
+        limit,
+        &context.deadline_pause,
+    )
+    .await
+    .map_err(|_| ConnectError::AuthenticationTimeout { timeout: limit })?
+}
+
+async fn try_methods(
     handle: &mut Handle<ClientHandler>,
     context: &AuthenticationContext,
     mut identity_sources: Vec<Box<dyn IdentitySource>>,

@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use crate::connect_timeouts::ConnectTimeouts;
+
 /// How often an active tunnel probes its target while probing is on.
 pub(crate) const HEALTH_PROBE_INTERVAL: Duration = Duration::from_secs(30);
 
@@ -24,6 +26,9 @@ pub struct EngineOptions {
     /// How often the listening ports are scanned for external tunnels while
     /// port scanning is on. Defaults to five seconds.
     pub port_scan_interval: Duration,
+    /// How long opening a session may wait on the network or the SSH agent.
+    /// Defaults to 30 seconds for each step.
+    pub connect_timeouts: ConnectTimeouts,
 }
 
 impl Default for EngineOptions {
@@ -32,6 +37,7 @@ impl Default for EngineOptions {
             health_probe_interval: HEALTH_PROBE_INTERVAL,
             metrics_event_interval: METRICS_EVENT_INTERVAL,
             port_scan_interval: PORT_SCAN_INTERVAL,
+            connect_timeouts: ConnectTimeouts::default(),
         }
     }
 }
@@ -42,6 +48,7 @@ impl EngineOptions {
             health_probe_interval: self.health_probe_interval.max(SHORTEST_INTERVAL),
             metrics_event_interval: self.metrics_event_interval.max(SHORTEST_INTERVAL),
             port_scan_interval: self.port_scan_interval.max(SHORTEST_INTERVAL),
+            connect_timeouts: self.connect_timeouts,
         }
     }
 }

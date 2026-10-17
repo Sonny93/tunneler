@@ -215,7 +215,8 @@ impl Engine {
         let options = options.sanitized();
         let bus = EventBus::new();
         let sessions = SessionManager::new(
-            Connector::with_settings(connector, settings.clone()),
+            Connector::with_settings(connector, settings.clone())
+                .with_timeouts(options.connect_timeouts),
             settings.clone(),
         );
         let x11_resolver = Arc::new(LocalX11Resolver::new(

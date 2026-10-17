@@ -805,6 +805,18 @@ fn should_serialize_a_failure_reason_with_camel_case_fields() {
 }
 
 #[test]
+fn should_serialize_an_unresponsive_agent_failure_with_its_timeout_in_milliseconds() {
+    let state = TunnelStateDto::Failed {
+        reason: FailureReasonDto::AgentUnresponsive { timeout_ms: 30_000 },
+    };
+
+    assert_eq!(
+        to_json(&state),
+        json!({"kind":"failed","reason":{"kind":"agentUnresponsive","timeoutMs":30000}})
+    );
+}
+
+#[test]
 fn should_limit_lines_to_one_mebibyte() {
     assert_eq!(MAX_LINE_BYTES, 1_048_576);
 }

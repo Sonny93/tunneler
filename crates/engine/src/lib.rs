@@ -39,17 +39,16 @@
 //! - Certificates held by the agent are ignored; only plain agent keys are used.
 //! - The agent on Windows (OpenSSH named pipe, then Pageant) is wired through
 //!   russh but has never been run.
-//! - The `ConnectTimeout` bound on the handshake pauses while the user is asked
-//!   about an unknown host key, but not while an identity file passphrase is
-//!   asked (that happens after the handshake).
 //! - Behavior on Windows is not verified.
 #![warn(missing_docs)]
 
 mod agent;
 mod authentication;
 mod blocking;
+mod bounded;
 mod client_config;
 mod clock;
+mod connect_timeouts;
 mod connection_chain;
 mod connector;
 mod error;
@@ -69,6 +68,7 @@ mod x11;
 pub use agent::{AgentEndpoint, AgentLocator, SystemAgentLocator};
 pub use authentication::AuthenticationMethod;
 pub use clock::{Clock, SystemClock};
+pub use connect_timeouts::ConnectTimeouts;
 pub use connector::{Connector, ConnectorDependencies};
 pub use error::{ConnectError, HostKeyFailure, JumpChainError, SessionError, TransportError};
 pub use external::{

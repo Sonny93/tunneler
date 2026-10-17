@@ -9,6 +9,7 @@ pub(crate) fn is_retryable(error: &ConnectError) -> bool {
     match error {
         ConnectError::Transport(_)
         | ConnectError::HandshakeTimeout { .. }
+        | ConnectError::AuthenticationTimeout { .. }
         | ConnectError::Tunnel(_) => true,
         ConnectError::Handshake(source) | ConnectError::Protocol(source) => {
             is_connection_loss(source)
@@ -20,7 +21,8 @@ pub(crate) fn is_retryable(error: &ConnectError) -> bool {
         | ConnectError::Authentication { .. }
         | ConnectError::JumpChain(_)
         | ConnectError::Prompt(_)
-        | ConnectError::Agent(_) => false,
+        | ConnectError::Agent(_)
+        | ConnectError::AgentUnresponsive { .. } => false,
     }
 }
 
@@ -133,6 +135,33 @@ mod tests {
         };
 
         assert!(is_retryable(&error));
+    }
+
+    #[test]
+    fn should_retry_when_authentication_times_out() {
+        let error = ConnectError::AuthenticationTimeout {
+            timeout: Duration::from_secs(1),
+        };
+
+        assert!(is_retryable(&error));
+    }
+
+    #[test]
+    fn should_not_retry_when_the_agent_does_not_answer() {
+        let error = ConnectError::AgentUnresponsive {
+            timeout: Duration::from_secs(1),
+        };
+
+        assert!(!is_retryable(&error));
+    }
+
+    #[test]
+    fn should_not_retry_when_the_agent_of_a_jump_host_does_not_answer() {
+        let error = jump(ConnectError::AgentUnresponsive {
+            timeout: Duration::from_secs(1),
+        });
+
+        assert!(!is_retryable(&error));
     }
 
     #[test]

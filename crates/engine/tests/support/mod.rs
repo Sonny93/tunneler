@@ -17,7 +17,7 @@ mod workspace;
 mod x11;
 
 #[cfg(unix)]
-pub use agent::FixedAgentLocator;
+pub use agent::{FixedAgentLocator, UnresponsiveAgent};
 pub use clock::ManualClock;
 pub use engine_harness::{wait_for_event, wait_for_state, wait_until};
 pub use environment::FakeEnvironment;

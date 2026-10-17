@@ -5,7 +5,7 @@ use russh::keys::{Certificate, PrivateKey, PublicKey};
 use tokio::sync::Mutex;
 
 use crate::agent::AgentClientConnection;
-use crate::prompter::PromptError;
+use crate::error::ConnectError;
 
 pub(crate) enum Identity {
     Key {
@@ -24,5 +24,5 @@ pub(crate) enum Identity {
 /// previous identities did not already authenticate.
 #[async_trait]
 pub(crate) trait IdentitySource: Send {
-    async fn next_identity(&mut self) -> Result<Option<Identity>, PromptError>;
+    async fn next_identity(&mut self) -> Result<Option<Identity>, ConnectError>;
 }

@@ -124,10 +124,8 @@ impl HostKeyChecker {
             algorithm: host_key.algorithm.clone(),
             fingerprint_sha256: host_key.fingerprint_sha256(),
         };
-        self.state.begin_awaiting_user();
-        let decision = self.verifier.decide_unknown(request).await;
-        self.state.end_awaiting_user();
-        decision
+        let _pause = self.state.pause_for_user();
+        self.verifier.decide_unknown(request).await
     }
 
     async fn record(&self, host_key: &HostKey) -> Result<(), HostKeyFailure> {

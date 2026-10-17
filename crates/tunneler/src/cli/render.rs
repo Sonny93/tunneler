@@ -32,10 +32,21 @@ pub fn describe_failure(reason: &FailureReasonDto) -> String {
             format!("cannot listen on {address}: {message}")
         }
         FailureReasonDto::Connect { message } => message.clone(),
+        FailureReasonDto::AgentUnresponsive { timeout_ms } => format!(
+            "the SSH agent did not answer within {} (waiting for a confirmation?)",
+            format_timeout(*timeout_ms)
+        ),
         FailureReasonDto::RemoteForwardRefused { address } => {
             format!("the server refused to listen on {address}")
         }
     }
+}
+
+fn format_timeout(milliseconds: u64) -> String {
+    if milliseconds.is_multiple_of(MILLISECONDS_PER_SECOND) {
+        return format!("{}s", milliseconds / MILLISECONDS_PER_SECOND);
+    }
+    format!("{milliseconds}ms")
 }
 
 const fn kind_word(kind: TunnelKindDto) -> &'static str {
@@ -746,6 +757,7 @@ mod tests {
                 describe_failure(&FailureReasonDto::Connect {
                     message: "authentication failed".to_owned(),
                 }),
+                describe_failure(&FailureReasonDto::AgentUnresponsive { timeout_ms: 30_000 }),
                 describe_failure(&FailureReasonDto::RemoteForwardRefused {
                     address: "localhost:8080".to_owned(),
                 }),
@@ -753,8 +765,17 @@ mod tests {
             [
                 "cannot listen on 0.0.0.0:80: permission denied",
                 "authentication failed",
+                "the SSH agent did not answer within 30s (waiting for a confirmation?)",
                 "the server refused to listen on localhost:8080",
             ]
+        );
+    }
+
+    #[test]
+    fn should_describe_a_sub_second_agent_timeout_in_milliseconds() {
+        assert_eq!(
+            describe_failure(&FailureReasonDto::AgentUnresponsive { timeout_ms: 250 }),
+            "the SSH agent did not answer within 250ms (waiting for a confirmation?)"
         );
     }
 

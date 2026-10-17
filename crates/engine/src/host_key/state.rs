@@ -1,14 +1,14 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, PoisonError};
 
+use crate::bounded::{DeadlinePause, PauseGuard};
 use crate::error::HostKeyFailure;
 
 /// What the russh handler shares with `connect`: the reason a host key was
-/// refused, and whether the handshake is currently waiting for the user.
+/// refused, and the pause of the handshake clock while the user decides.
 #[derive(Debug, Default)]
 pub(crate) struct HandshakeState {
     failure: Mutex<Option<HostKeyFailure>>,
-    is_awaiting_user: AtomicBool,
+    deadline_pause: DeadlinePause,
 }
 
 impl HandshakeState {
@@ -23,16 +23,13 @@ impl HandshakeState {
             .take()
     }
 
-    pub(crate) fn begin_awaiting_user(&self) {
-        self.is_awaiting_user.store(true, Ordering::SeqCst);
+    /// Stops the handshake clock until the guard is dropped.
+    pub(crate) fn pause_for_user(&self) -> PauseGuard<'_> {
+        self.deadline_pause.pause()
     }
 
-    pub(crate) fn end_awaiting_user(&self) {
-        self.is_awaiting_user.store(false, Ordering::SeqCst);
-    }
-
-    pub(crate) fn is_awaiting_user(&self) -> bool {
-        self.is_awaiting_user.load(Ordering::SeqCst)
+    pub(crate) fn deadline_pause(&self) -> &DeadlinePause {
+        &self.deadline_pause
     }
 }
 
@@ -52,25 +49,5 @@ mod tests {
         state.record_failure(failure());
         assert!(state.take_failure().is_some());
         assert!(state.take_failure().is_none());
-    }
-
-    #[test]
-    fn should_not_be_awaiting_the_user_when_nothing_was_signaled() {
-        assert!(!HandshakeState::default().is_awaiting_user());
-    }
-
-    #[test]
-    fn should_be_awaiting_the_user_when_waiting_began() {
-        let state = HandshakeState::default();
-        state.begin_awaiting_user();
-        assert!(state.is_awaiting_user());
-    }
-
-    #[test]
-    fn should_not_be_awaiting_the_user_when_waiting_ended() {
-        let state = HandshakeState::default();
-        state.begin_awaiting_user();
-        state.end_awaiting_user();
-        assert!(!state.is_awaiting_user());
     }
 }

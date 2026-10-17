@@ -1,12 +1,14 @@
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use russh::keys::PublicKey;
 use russh::keys::agent::AgentIdentity;
 use ssh_config::IdentityAgent;
 use tokio::sync::Mutex;
+use tokio::time::timeout;
 use tracing::debug;
 
 use super::identity::{Identity, IdentitySource};
@@ -14,7 +16,8 @@ use super::identity_files::identity_file_public_key;
 use super::offered_keys::OfferedKeys;
 use crate::agent::{AgentClientConnection, AgentEndpoint, AgentLocator, connect_agent};
 use crate::blocking::run_blocking;
-use crate::prompter::PromptError;
+use crate::bounded::DeadlinePause;
+use crate::error::ConnectError;
 
 pub(crate) struct AgentIdentityOptions {
     pub(crate) alias: String,
@@ -23,6 +26,16 @@ pub(crate) struct AgentIdentityOptions {
     pub(crate) identities_only: bool,
     pub(crate) identity_files: Vec<PathBuf>,
     pub(crate) offered: Arc<OfferedKeys>,
+    /// How long the agent may take to answer a request.
+    pub(crate) response_timeout: Duration,
+    /// The authentication clock, paused while the agent answers: the response
+    /// timeout bounds it instead.
+    pub(crate) authentication_pause: Arc<DeadlinePause>,
+}
+
+enum AgentFailure {
+    Unusable(String),
+    Unresponsive,
 }
 
 enum AgentState {
@@ -49,29 +62,30 @@ impl AgentIdentitySource {
         }
     }
 
-    async fn start(&self) -> AgentState {
+    async fn start(&self) -> Result<AgentState, ConnectError> {
         let socket = match &self.options.identity_agent {
-            Some(IdentityAgent::Disabled) => return AgentState::Unavailable,
+            Some(IdentityAgent::Disabled) => return Ok(AgentState::Unavailable),
             Some(IdentityAgent::Socket(socket)) => Some(socket),
             None => None,
         };
         for endpoint in self.options.locator.locate(socket) {
             match self.open(&endpoint).await {
-                Ok(state) => return state,
-                Err(reason) => {
+                Ok(state) => return Ok(state),
+                Err(AgentFailure::Unresponsive) => {
+                    return Err(ConnectError::AgentUnresponsive {
+                        timeout: self.options.response_timeout,
+                    });
+                }
+                Err(AgentFailure::Unusable(reason)) => {
                     debug!(alias = %self.options.alias, ?endpoint, %reason, "agent not usable");
                 }
             }
         }
-        AgentState::Unavailable
+        Ok(AgentState::Unavailable)
     }
 
-    async fn open(&self, endpoint: &AgentEndpoint) -> Result<AgentState, String> {
-        let mut client = connect_agent(endpoint).await?;
-        let identities = client
-            .request_identities()
-            .await
-            .map_err(|error| error.to_string())?;
+    async fn open(&self, endpoint: &AgentEndpoint) -> Result<AgentState, AgentFailure> {
+        let (client, identities) = self.contact(endpoint).await?;
         let keys = self.usable_keys(identities).await;
         for key in &keys {
             self.options.offered.insert(key);
@@ -80,6 +94,26 @@ impl AgentIdentitySource {
             client: Arc::new(Mutex::new(client)),
             keys: keys.into(),
         })
+    }
+
+    async fn contact(
+        &self,
+        endpoint: &AgentEndpoint,
+    ) -> Result<(AgentClientConnection, Vec<AgentIdentity>), AgentFailure> {
+        let _pause = self.options.authentication_pause.pause();
+        let contacting = async {
+            let mut client = connect_agent(endpoint).await?;
+            let identities = client
+                .request_identities()
+                .await
+                .map_err(|error| error.to_string())?;
+            Ok::<_, String>((client, identities))
+        };
+        match timeout(self.options.response_timeout, contacting).await {
+            Ok(Ok(contacted)) => Ok(contacted),
+            Ok(Err(reason)) => Err(AgentFailure::Unusable(reason)),
+            Err(_) => Err(AgentFailure::Unresponsive),
+        }
     }
 
     async fn usable_keys(&self, identities: Vec<AgentIdentity>) -> Vec<PublicKey> {
@@ -117,9 +151,9 @@ impl AgentIdentitySource {
 
 #[async_trait]
 impl IdentitySource for AgentIdentitySource {
-    async fn next_identity(&mut self) -> Result<Option<Identity>, PromptError> {
+    async fn next_identity(&mut self) -> Result<Option<Identity>, ConnectError> {
         if matches!(self.state, AgentState::NotStarted) {
-            self.state = self.start().await;
+            self.state = self.start().await?;
         }
         let AgentState::Ready { client, keys } = &mut self.state else {
             return Ok(None);
