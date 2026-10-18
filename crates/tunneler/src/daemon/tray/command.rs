@@ -9,6 +9,7 @@ use super::view::TrayView;
 #[derive(Debug)]
 pub(super) enum TrayCommand {
     /// Draw this view.
+    #[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
     Render(TrayView),
     /// Remove the icon and end the thread.
     Shutdown,

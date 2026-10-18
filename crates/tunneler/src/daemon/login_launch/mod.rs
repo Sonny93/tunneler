@@ -31,6 +31,10 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
 /// The argument of the registered command: the daemon, without a window.
+#[cfg_attr(
+    not(any(all(unix, not(target_os = "macos")), windows)),
+    allow(dead_code)
+)]
 const DAEMON_ARGUMENT: &str = "daemon";
 
 /// Why the login entry could not be reconciled.

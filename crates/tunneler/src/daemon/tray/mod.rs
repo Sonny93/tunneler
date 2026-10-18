@@ -9,6 +9,7 @@ mod command;
 mod controller;
 #[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
 mod icon;
+#[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
 mod menu;
 #[cfg(any(target_os = "linux", windows))]
 mod native;

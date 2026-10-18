@@ -7,6 +7,7 @@ use tokio::sync::watch;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) enum TrayStatus {
     /// The icon is shown.
+    #[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
     Active,
     /// The icon exists but no notification area hosts it.
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]

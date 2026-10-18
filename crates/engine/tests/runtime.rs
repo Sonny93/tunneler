@@ -2192,7 +2192,7 @@ const SSH_PID: u32 = 424_242;
 const OTHER_SSH_PID: u32 = 424_243;
 const NGINX_PID: u32 = 424_244;
 const UNMANAGED_PORT: u16 = 59_999;
-const SSH_NAME: &str = "ssh";
+const SSH_NAME: &str = if cfg!(windows) { "ssh.exe" } else { "ssh" };
 
 impl Harness {
     fn forward_of(&self, name: &str) -> (u16, String) {

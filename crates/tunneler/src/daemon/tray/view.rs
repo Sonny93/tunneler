@@ -36,6 +36,7 @@ pub(crate) struct TagEntry {
 
 impl TagEntry {
     /// The text of the menu item: the state is spelled out, not only checked.
+    #[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
     pub(crate) fn label(&self) -> String {
         format!("{} — {} sur {} actifs", self.tag, self.running, self.total)
     }
