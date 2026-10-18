@@ -39,6 +39,24 @@ impl PortScanner for EmptyPortScanner {
     }
 }
 
+/// A temporary directory closed to group and others, as a socket directory must be on macOS.
+pub(crate) fn private_tempdir() -> TempDir {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        const OWNER_ONLY: u32 = 0o700;
+        tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(OWNER_ONLY))
+            .tempdir()
+            .unwrap()
+    }
+    #[cfg(not(unix))]
+    {
+        tempfile::tempdir().unwrap()
+    }
+}
+
 pub(crate) struct TestServer {
     _directory: TempDir,
     pub(crate) endpoint: Endpoint,
@@ -49,7 +67,7 @@ pub(crate) struct TestServer {
 
 impl TestServer {
     pub(crate) fn start() -> Self {
-        let directory = tempfile::tempdir().unwrap();
+        let directory = private_tempdir();
         let endpoint = Endpoint::from_path(directory.path().join("tunneler.sock"));
         let server = IpcServer::bind(&endpoint).unwrap();
         let handle = server.handle();

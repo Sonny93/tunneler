@@ -3,6 +3,23 @@ use std::path::{Path, PathBuf};
 use russh::keys::PublicKey;
 use tempfile::TempDir;
 
+fn private_tempdir() -> TempDir {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        const OWNER_ONLY: u32 = 0o700;
+        tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(OWNER_ONLY))
+            .tempdir()
+            .unwrap()
+    }
+    #[cfg(not(unix))]
+    {
+        tempfile::tempdir().unwrap()
+    }
+}
+
 /// The host alias [`Workspace::write_config`] defines.
 pub const ALIAS: &str = "testhost";
 /// The remote login name the generated `ssh_config` uses.
@@ -32,9 +49,12 @@ impl Default for Workspace {
 
 impl Workspace {
     /// Creates an empty directory, removed when the workspace is dropped.
+    ///
+    /// On Unix the directory is closed to group and others, so it can hold an
+    /// IPC socket that macOS requires to live in a private directory.
     pub fn new() -> Self {
         Self {
-            directory: tempfile::tempdir().unwrap(),
+            directory: private_tempdir(),
         }
     }
 

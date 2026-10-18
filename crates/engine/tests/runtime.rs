@@ -2192,7 +2192,8 @@ const SSH_PID: u32 = 424_242;
 const OTHER_SSH_PID: u32 = 424_243;
 const NGINX_PID: u32 = 424_244;
 const UNMANAGED_PORT: u16 = 59_999;
-const SSH_NAME: &str = if cfg!(windows) { "ssh.exe" } else { "ssh" };
+const SSH_NAME: &str = "ssh";
+const REAL_SSH_NAME: &str = if cfg!(windows) { "ssh.exe" } else { "ssh" };
 
 impl Harness {
     fn forward_of(&self, name: &str) -> (u16, String) {
@@ -2224,10 +2225,18 @@ impl Harness {
 }
 
 fn external_owner(pid: u32) -> TunnelState {
+    external_owner_named(pid, SSH_NAME)
+}
+
+fn real_external_owner(pid: u32) -> TunnelState {
+    external_owner_named(pid, REAL_SSH_NAME)
+}
+
+fn external_owner_named(pid: u32, process: &str) -> TunnelState {
     TunnelState::External {
         owner: PortOwner {
             pid,
-            process: SSH_NAME.to_owned(),
+            process: process.to_owned(),
         },
     }
 }
@@ -2623,7 +2632,7 @@ async fn should_adopt_a_real_ssh_process_when_it_provides_the_tunnel() {
         .await
         .unwrap();
 
-    assert_eq!(state, external_owner(ssh.pid()));
+    assert_eq!(state, real_external_owner(ssh.pid()));
     assert!(ssh.has_exited());
     harness.wait_active("alpha").await;
     assert_eq!(echo_through(port, PAYLOAD).await, PAYLOAD);

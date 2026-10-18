@@ -8,7 +8,7 @@ use std::os::unix::net::UnixListener;
 
 use ipc::{BindError, Endpoint, IpcServer};
 use pretty_assertions::assert_eq;
-use support::TestDaemon;
+use support::{TestDaemon, private_tempdir};
 
 #[tokio::test]
 async fn should_fail_with_address_in_use_when_a_second_server_binds() {
@@ -28,7 +28,7 @@ async fn should_find_the_daemon_alive_when_a_server_serves() {
 
 #[tokio::test]
 async fn should_find_no_daemon_when_nothing_was_ever_bound() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = private_tempdir();
     let endpoint = Endpoint::from_path(directory.path().join("tunneler.sock"));
 
     assert!(!endpoint.is_daemon_alive().await);
@@ -62,7 +62,7 @@ fn leave_stale_socket(endpoint: &Endpoint) {
 
 #[tokio::test]
 async fn should_fail_with_address_in_use_when_a_stale_socket_is_left_behind() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = private_tempdir();
     let endpoint = Endpoint::from_path(directory.path().join("tunneler.sock"));
     leave_stale_socket(&endpoint);
 
@@ -73,7 +73,7 @@ async fn should_fail_with_address_in_use_when_a_stale_socket_is_left_behind() {
 
 #[tokio::test]
 async fn should_find_no_daemon_when_a_stale_socket_is_left_behind() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = private_tempdir();
     let endpoint = Endpoint::from_path(directory.path().join("tunneler.sock"));
     leave_stale_socket(&endpoint);
 
@@ -82,7 +82,7 @@ async fn should_find_no_daemon_when_a_stale_socket_is_left_behind() {
 
 #[tokio::test]
 async fn should_bind_again_when_a_stale_socket_was_reclaimed() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = private_tempdir();
     let endpoint = Endpoint::from_path(directory.path().join("tunneler.sock"));
     leave_stale_socket(&endpoint);
 
@@ -102,7 +102,7 @@ async fn should_not_reclaim_the_socket_when_a_daemon_is_alive() {
 
 #[tokio::test]
 async fn should_bind_again_when_the_previous_server_was_dropped() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = private_tempdir();
     let endpoint = Endpoint::from_path(directory.path().join("tunneler.sock"));
     drop(IpcServer::bind(&endpoint).unwrap());
 

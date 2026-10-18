@@ -27,7 +27,7 @@ jobs:
       - if: matrix.os == 'ubuntu-latest'
         run: cargo fmt --all --check
       - run: cargo clippy --all-targets --locked -- -D warnings
-      - run: cargo test --locked
+      - run: cargo test --locked --no-fail-fast
 
   ssh-config-differential:
     name: ssh-config differential (OpenSSH 10.0 on Debian)

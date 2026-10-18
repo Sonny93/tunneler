@@ -34,11 +34,11 @@ mod tests {
     use std::os::unix::net::UnixListener;
 
     use super::*;
-    use crate::daemon::testing::TestServer;
+    use crate::daemon::testing::{TestServer, private_tempdir};
 
     #[tokio::test]
     async fn should_bind_when_the_endpoint_is_free() {
-        let directory = tempfile::tempdir().unwrap();
+        let directory = private_tempdir();
         let endpoint = Endpoint::from_path(directory.path().join("tunneler.sock"));
 
         assert!(bind_single_instance(&endpoint).await.is_ok());
@@ -55,7 +55,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_reclaim_the_socket_when_a_crashed_daemon_left_it_behind() {
-        let directory = tempfile::tempdir().unwrap();
+        let directory = private_tempdir();
         let path = directory.path().join("tunneler.sock");
         drop(UnixListener::bind(&path).unwrap());
         let endpoint = Endpoint::from_path(&path);
@@ -65,7 +65,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_report_the_endpoint_in_use_when_a_regular_file_holds_the_path() {
-        let directory = tempfile::tempdir().unwrap();
+        let directory = private_tempdir();
         let path = directory.path().join("tunneler.sock");
         std::fs::write(&path, b"not a socket").unwrap();
         let endpoint = Endpoint::from_path(&path);

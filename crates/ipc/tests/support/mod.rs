@@ -100,6 +100,24 @@ impl RequestHandler for FakeHandler {
     }
 }
 
+/// A temporary directory closed to group and others, as a socket directory must be on macOS.
+pub fn private_tempdir() -> TempDir {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        const OWNER_ONLY: u32 = 0o700;
+        tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(OWNER_ONLY))
+            .tempdir()
+            .unwrap()
+    }
+    #[cfg(not(unix))]
+    {
+        tempfile::tempdir().unwrap()
+    }
+}
+
 pub struct TestDaemon {
     pub directory: TempDir,
     pub endpoint: Endpoint,
@@ -115,7 +133,7 @@ impl TestDaemon {
     }
 
     pub fn start_with(options: ServerOptions) -> Self {
-        let directory = tempfile::tempdir().unwrap();
+        let directory = private_tempdir();
         let endpoint = Endpoint::from_path(directory.path().join("tunneler.sock"));
         let server = IpcServer::bind(&endpoint).unwrap().with_options(options);
         let handle = server.handle();
