@@ -37,7 +37,11 @@ zbus.workspace = true
 [target.'cfg(windows)'.dependencies]
 tray-icon.workspace = true
 winit.workspace = true
+windows-sys.workspace = true
 winreg.workspace = true
+
+[build-dependencies]
+winresource.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true

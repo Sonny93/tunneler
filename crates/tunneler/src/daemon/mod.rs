@@ -5,6 +5,7 @@
 //! [`run`] makes the process the single daemon of its endpoint, then serves
 //! until a termination signal or an accepted `daemon.quit` stops it.
 
+mod console;
 mod error;
 mod events;
 mod handler;
@@ -35,6 +36,7 @@ use ssh_config::{ConfigSources, SystemEnvironment};
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
+pub(crate) use console::release_console_if_owned;
 pub use error::DaemonError;
 use events::spawn_event_bridge;
 use handler::DaemonHandler;

@@ -365,9 +365,22 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 **Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows) et tests verts (2059 tests Rust, 949 tests front). Code Windows (`winreg`, Credential Manager) compilé mais jamais exécuté ; macOS jamais compilé.
 
-## Phase 13 — Packaging & release
-- [ ] 13.1 Windows : zip portable (`tunneler.exe` + `tunneler-ui.exe`), icônes, métadonnées
-- [ ] 13.2 Linux : tar.gz (daemon) + AppImage (UI), dépendances documentées (webkit2gtk-4.1)
-- [ ] 13.3 Mesures RAM (daemon idle, daemon 10 tunnels, UI ouverte) documentées dans le README
-- [ ] 13.4 Workflow de release CI
-- [ ] 13.5 Audit accessibilité final (WCAG 2.2 AA, checklist PLAN §8) sur Windows et Linux, résultats documentés
+## Phase 13 — Packaging & release (Windows jamais exécuté ; audit a11y à faire à la main)
+- [x] 13.1 Windows : zip portable (`tunneler.exe` + `tunneler-ui.exe`), icônes, métadonnées
+  - `tunneler-<version>-windows-x86_64.zip` : les deux exe côte à côte + `README.md`. Non signés (SmartScreen documenté).
+  - `tunneler.exe` reste un programme console (c'est aussi la CLI). Lancé hors terminal (double-clic, entrée `Run` du login), Windows lui donne une console qui resterait ouverte toute la vie du daemon : le daemon s'en détache (`FreeConsole`) quand il en est le seul utilisateur (`GetConsoleProcessList` = 1), avant l'init des logs (→ logs en fichiers seulement). Depuis un terminal, la console est gardée. La fenêtre clignote brièvement au login. `windows-sys`, seul `unsafe` du workspace (module `daemon/console.rs`, `#[allow(unsafe_code)]` + `// SAFETY:`).
+  - Icône + VERSIONINFO de `tunneler.exe` via `build.rs` (`winresource`), uniquement en cible MSVC (le cross-clippy gnu local n'a pas de `windres`). `tunneler-ui.exe` : ressources par `tauri-build` depuis `tauri.conf.json` (publisher, copyright, descriptions ajoutés).
+  - **Piège** : `cargo build --release -p tunneler-ui` sans `tauri/custom-protocol` compile en `cfg(dev)` et charge le `devUrl`. L'UI de release se construit uniquement par `pnpm tauri build` (`--no-bundle` sous Windows). `pnpm tauri build` réécrit `app/src-tauri/Cargo.toml` (`features = []`) : ne pas committer cette réécriture.
+- [x] 13.2 Linux : tar.gz (daemon) + AppImage (UI), dépendances documentées (webkit2gtk-4.1)
+  - `tunneler-<version>-linux-x86_64.tar.gz` contient `tunneler` **et** `tunneler-ui` (binaire simple, demande `libwebkit2gtk-4.1-0` + `libgtk-3-0`) : prêt à l'emploi, le daemon trouve l'UI à côté de lui. L'AppImage (`tunneler-ui-<version>-x86_64.AppImage`, ~108 Mio) est l'alternative quand WebKitGTK 4.1 n'est pas installable : à renommer `tunneler-ui` à côté de `tunneler` ou via `TUNNELER_UI_BINARY`. Le daemon n'est pas dans l'AppImage (son chemin de montage temporaire casserait le lancement au login).
+  - Daemon : libc seule. Construit sur Ubuntu 22.04 (glibc ≥ 2.35). Pas d'appindicator/libsecret/xdo liés : tray et trousseau passent par D-Bus.
+  - Tailles locales : `tunneler` 22 Mio, `tunneler-ui` 17 Mio (non strippés, `[profile.release]` par défaut).
+- [x] 13.3 Mesures RAM (daemon idle, daemon 10 tunnels, UI ouverte) documentées dans le README
+  - Linux (release 0.1.0, Debian 13, tray actif, sshd OpenSSH isolé en local) : daemon au repos **16,5 Mio** RSS, 10 tunnels (une session partagée, un peu de trafic) **19,4 Mio** — sous la cible D2 de 25 Mo. UI ouverte : **~410 Mio PSS** (`tunneler-ui` 110 + `WebKitWebProcess` 257 + `WebKitNetworkProcess` 43 ; 600 Mio en somme de RSS), sous Xvfb en rendu logiciel (llvmpipe), donc probablement surestimé ; au-dessus des 100-200 Mo envisagés par D5 — payé seulement fenêtre ouverte. À remesurer sur un vrai bureau.
+  - Windows : non mesuré (colonne « — » dans le README).
+- [x] 13.4 Workflow de release CI
+  - `.github/workflows/release.yml` : tag `v*` ou `workflow_dispatch`. Job `version` (version du workspace = `tauri.conf.json` = `app/package.json`, et = tag), jobs `windows` (windows-latest) et `linux` (ubuntu-22.04) qui publient les paquets en artifacts, job `release` (tags seulement) : `SHA256SUMS` + `gh release create --draft --verify-tag --generate-notes`. Pas de macOS (plan : sans régression seulement). Procédure dans le README (« Releasing »).
+- [~] 13.5 Audit accessibilité final (WCAG 2.2 AA, checklist PLAN §8) sur Windows et Linux, résultats documentés
+  - Grille dans [`AUDIT_A11Y.md`](./AUDIT_A11Y.md), préremplie avec les acquis (6.14, phase 7) ; reste à faire à la main sur les binaires de release (NVDA, Orca, contraste élevé, zoom 200 %).
+
+**Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows), tests (2062 Rust), `pnpm check`/`build`, `actionlint` verts. `pnpm tauri build --bundles appimage` et `--no-bundle` OK en local. Rien exécuté sous Windows ni sur MSVC (ressources, `FreeConsole`).

@@ -36,6 +36,7 @@ pub async fn show_or_run_daemon(context: &Context) -> Result<(), CliError> {
 }
 
 async fn run_daemon(options: DaemonOptions) -> Result<(), CliError> {
+    daemon::release_console_if_owned();
     let _log_guard = logging::init_daemon_logging();
     daemon::run(options).await?;
     Ok(())

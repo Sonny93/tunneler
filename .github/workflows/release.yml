@@ -1,0 +1,125 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: check versions
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "tunneler") | .version')
+          status=0
+          for file in app/src-tauri/tauri.conf.json app/package.json; do
+            declared=$(jq -r '.version' "$file")
+            if [ "$declared" != "$version" ]; then
+              echo "::error file=$file::version $declared differs from the workspace version $version"
+              status=1
+            fi
+          done
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::the tag $GITHUB_REF_NAME does not match the workspace version v$version"
+            status=1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+  windows:
+    name: package (windows)
+    needs: version
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      - uses: Swatinem/rust-cache@v2
+      - run: pnpm install --frozen-lockfile
+        working-directory: app
+      - run: cargo build --release --locked -p tunneler
+      - run: pnpm tauri build --no-bundle -- --locked
+        working-directory: app
+      - name: Stage and zip
+        shell: pwsh
+        run: |
+          $name = "tunneler-$env:VERSION-windows-x86_64"
+          New-Item -ItemType Directory -Path $name
+          Copy-Item target/release/tunneler.exe, target/release/tunneler-ui.exe, README.md -Destination $name
+          Compress-Archive -Path $name -DestinationPath "$name.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: tunneler-${{ env.VERSION }}-windows-x86_64.zip
+          if-no-files-found: error
+
+  linux:
+    name: package (linux)
+    needs: version
+    runs-on: ubuntu-22.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+      NO_STRIP: 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      - uses: Swatinem/rust-cache@v2
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 file
+      - run: pnpm install --frozen-lockfile
+        working-directory: app
+      - run: cargo build --release --locked -p tunneler
+      - run: pnpm tauri build --bundles appimage -- --locked
+        working-directory: app
+      - name: Stage the archive and the AppImage
+        run: |
+          name="tunneler-$VERSION-linux-x86_64"
+          mkdir "$name"
+          cp target/release/tunneler target/release/tunneler-ui README.md "$name"
+          tar -czf "$name.tar.gz" "$name"
+          cp target/release/bundle/appimage/*.AppImage "tunneler-ui-$VERSION-x86_64.AppImage"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux
+          path: |
+            tunneler-${{ env.VERSION }}-linux-x86_64.tar.gz
+            tunneler-ui-${{ env.VERSION }}-x86_64.AppImage
+          if-no-files-found: error
+
+  release:
+    name: draft release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [version, windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: packages
+          merge-multiple: true
+      - name: Write the checksums
+        working-directory: packages
+        run: sha256sum * > SHA256SUMS
+      - run: gh release create "$GITHUB_REF_NAME" --draft --verify-tag --generate-notes --title "Tunneler $VERSION" packages/*

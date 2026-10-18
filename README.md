@@ -4,6 +4,41 @@ Portable SSH tunnel manager (Windows + Linux, macOS without regressions): a ligh
 
 > Status: early development. See [`docs/PLAN.md`](docs/PLAN.md) for the design and [`docs/TASKS.md`](docs/TASKS.md) for progress.
 
+## Install
+
+Packages are published as GitHub releases (and as artifacts of the `release` workflow runs). The binaries are not signed.
+
+### Windows
+
+Download `tunneler-<version>-windows-x86_64.zip`, extract it anywhere and run `tunneler-ui.exe` (or `tunneler.exe` for the command line). Windows SmartScreen warns about the unsigned binaries: choose "More info", then "Run anyway".
+
+Keep `tunneler.exe` and `tunneler-ui.exe` side by side: the daemon looks for `tunneler-ui` next to itself, then on `PATH`, or at the path in `TUNNELER_UI_BINARY`.
+
+### Linux
+
+Download `tunneler-<version>-linux-x86_64.tar.gz`, extract it and run `./tunneler-ui` (or `./tunneler` for the command line). The binaries are built on Ubuntu 22.04 (glibc 2.35 or newer). The daemon only needs libc; the UI needs WebKitGTK 4.1 and GTK 3. On Debian and Ubuntu:
+
+```sh
+sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0
+```
+
+These packages pull in the rest of the UI's shared libraries (`libsoup-3.0-0`, `libjavascriptcoregtk-4.1-0`, `libgdk-pixbuf-2.0-0`, `libcairo2`, `libglib2.0-0`, `libdbus-1-3`...). The tray icon and the keyring talk D-Bus directly, so no appindicator library is needed.
+
+When `libwebkit2gtk-4.1` cannot be installed, download `tunneler-ui-<version>-x86_64.AppImage` instead, which bundles its libraries. Put it next to `tunneler` under the name `tunneler-ui`, or point `TUNNELER_UI_BINARY` at it.
+
+### macOS
+
+No package: build from source (see [Development](#development)).
+
+### Memory use
+
+| Platform | Daemon idle | Daemon, 10 tunnels | UI open |
+|---|---|---|---|
+| Linux | 16.5 MiB | 19.4 MiB | ~410 MiB |
+| Windows | — | — | — |
+
+The daemon figures are its resident set size (RSS), tray included; the 10 tunnels share one SSH session and carried a little traffic. The UI figure is the proportional set size (PSS, shared libraries counted once) of `tunneler-ui` plus its WebKit (Linux) or WebView2 (Windows) child processes, with the window open; the UI process exits when the window is closed. Linux: release build 0.1.0, Debian 13, WebKitGTK 2.54, UI under Xvfb with software rendering (likely an overestimate of a desktop with a GPU). Windows: not measured yet.
+
 ## Layout
 
 | Path | Role |
@@ -46,6 +81,13 @@ pnpm tauri dev  # run the UI (needs the Linux deps above)
 # UI Rust crate (after `pnpm build`, which produces app/dist)
 cargo clippy -p tunneler-ui --all-targets --locked -- -D warnings
 ```
+
+### Releasing
+
+1. Bump the version in the root `Cargo.toml` (`[workspace.package]`), `app/src-tauri/tauri.conf.json` and `app/package.json`, then refresh `Cargo.lock` with `cargo update -w`.
+2. Tag the commit `vX.Y.Z` and push the tag.
+
+The `release` workflow checks that the three versions and the tag agree, builds the Windows zip, the Linux tar.gz and the AppImage, and creates a draft GitHub release with these files and a `SHA256SUMS`. A manual run (`workflow_dispatch`) builds the same packages as run artifacts without releasing.
 
 ## Usage
 

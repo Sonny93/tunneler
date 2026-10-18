@@ -26,7 +26,13 @@
 		}
 	},
 	"bundle": {
-		"active": false,
+		"active": true,
+		"targets": ["appimage"],
+		"publisher": "minimalstuff",
+		"category": "Utility",
+		"shortDescription": "Gestionnaire de tunnels SSH",
+		"longDescription": "Tunneler gère vos tunnels SSH depuis un démon léger avec icône de notification et une interface à la demande.",
+		"copyright": "© 2026 Sonny",
 		"icon": [
 			"icons/32x32.png",
 			"icons/128x128.png",

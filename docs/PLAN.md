@@ -287,7 +287,7 @@ Le détail coché est dans [`TASKS.md`](./TASKS.md). Les phases UI/CLI ne sont c
 | Risque | Mitigation |
 |---|---|
 | GNOME sans extension AppIndicator → pas de tray | Absence de propriétaire de `org.kde.StatusNotifierWatcher` détectée et suivie, bandeau dans l'UI, l'UI reste accessible via `tunneler` |
-| RAM WebKitGTK élevée | UI à la demande (D2) ; mesurer en phase 13 |
+| RAM WebKitGTK élevée | UI à la demande (D2). Mesuré en phase 13 : ~410 Mio PSS fenêtre ouverte (Xvfb, rendu logiciel), daemon 16-20 Mio |
 | PID introuvable pour sockets d'autres utilisateurs (Linux) | État « process inconnu », actions limitées |
 | Parité `ssh_config` avec OpenSSH (`Match exec`, `canonical`, `final`) | Tests différentiels ; directives non supportées listées et signalées dans l'UI |
 | Sécurité IPC | Socket `0600` / named pipe ACL utilisateur, vérification `PeerCreds` |
