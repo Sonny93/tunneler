@@ -36,6 +36,8 @@ describe('buildThemeColors', () => {
 			'tn-muted': 'var(--tn-muted)',
 			'tn-success-subtle': 'var(--tn-success-subtle)',
 			'tn-focus-ring': 'var(--tn-focus-ring)',
+			'tn-divider': 'var(--tn-divider)',
+			'tn-selected': 'var(--tn-selected)',
 		});
 	});
 });

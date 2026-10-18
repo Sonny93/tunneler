@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
-import { IconButton } from '@minimalstuff/ui';
 
 import { cn } from '#/shared/cn';
+import { TooltipIconButton } from '#/shared/tooltip_icon_button';
 import { useAutoDismiss } from '#/shared/toasts/use_auto_dismiss';
 import type { Toast, ToastTone } from '#/shared/toasts/toast_store';
 
@@ -41,14 +41,14 @@ export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
 			onMouseLeave={resume}
 			onFocus={pause}
 			onBlur={resume}
-			className="flex items-start gap-3 rounded-lg border border-tn-border bg-tn-surface-raised p-3 text-tn-text shadow-lg"
+			className="flex items-start gap-3 rounded-lg border border-tn-divider bg-tn-surface-raised p-3 text-tn-text shadow-lg"
 		>
 			<span
 				aria-hidden="true"
 				className={cn(icon, 'mt-0.5 size-5 shrink-0', iconClassName)}
 			/>
 			<p className="min-w-0 flex-1 break-words text-sm">{toast.message}</p>
-			<IconButton
+			<TooltipIconButton
 				icon="i-mdi-close"
 				aria-label="Fermer la notification"
 				size="sm"

@@ -270,6 +270,7 @@ Le détail coché est dans [`TASKS.md`](./TASKS.md). Les phases UI/CLI ne sont c
 | 11 | Confort : imports, palette, logs, ouvrir navigateur | Import du script PS existant en un collage |
 | 12 | Autostart, tags au lancement, restore, trousseau OS | Redémarrage de session → tunnels restaurés |
 | 13 | Packaging, mesure RAM, release | Zip portable Windows, AppImage/tar.gz Linux, mesures RSS documentées |
+| 14 | Retours d'usage : infobulles, clic droit, sélection multiple, refonte visuelle | Actions groupées sur une sélection, au clavier comme à la souris |
 
 ---
 

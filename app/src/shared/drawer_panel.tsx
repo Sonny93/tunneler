@@ -1,9 +1,10 @@
 /* oxlint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/prefer-tag-over-role -- modal dialog: the focus trap needs a keydown handler and a native <dialog> cannot be a non-native-modal aria-modal portal panel */
 import { createPortal } from 'react-dom';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
-import { IconButton, useDisableHotkeysWhileMounted } from '@minimalstuff/ui';
+import { useDisableHotkeysWhileMounted } from '@minimalstuff/ui';
 
 import { useDrawerFocus } from '#/shared/use_drawer_focus';
+import { TooltipIconButton } from '#/shared/tooltip_icon_button';
 
 type DrawerPanelProps = {
 	title: string;
@@ -47,13 +48,13 @@ export function DrawerPanel({
 				aria-labelledby={titleId}
 				tabIndex={-1}
 				onKeyDown={handleKeyDown}
-				className="absolute inset-y-0 right-0 flex w-full flex-col border-l border-tn-border bg-tn-surface text-tn-text shadow-xl sm:w-[420px]"
+				className="absolute inset-y-0 right-0 flex w-full flex-col border-l border-tn-divider bg-tn-surface text-tn-text shadow-xl sm:w-[420px]"
 			>
-				<div className="flex items-center justify-between gap-2 border-b border-tn-border p-4">
+				<div className="flex items-center justify-between gap-2 border-b border-tn-divider p-4">
 					<h2 id={titleId} className="text-lg font-semibold">
 						{title}
 					</h2>
-					<IconButton
+					<TooltipIconButton
 						icon="i-mdi-close"
 						aria-label="Fermer"
 						variant="ghost"
@@ -65,7 +66,7 @@ export function DrawerPanel({
 					{children}
 				</div>
 				{footer && (
-					<div className="border-t border-tn-border p-4">{footer}</div>
+					<div className="border-t border-tn-divider p-4">{footer}</div>
 				)}
 			</div>
 		</div>,

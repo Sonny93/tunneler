@@ -26,7 +26,7 @@ export function TrayStatusNotice() {
 	return (
 		<section
 			aria-labelledby={headingId}
-			className="mb-4 flex items-start gap-3 rounded-lg border border-tn-border bg-tn-info-subtle p-3 text-tn-text"
+			className="mb-4 flex items-start gap-3 rounded-lg border border-tn-divider bg-tn-info-subtle p-3 text-tn-text"
 		>
 			<span
 				aria-hidden="true"

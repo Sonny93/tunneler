@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import type { TunnelSpecDto } from '#/daemon/protocol';
+import { getRangeIds } from '#/tunnels/selection/get_range_ids';
 
 export type Panel =
 	| { kind: 'none' }
@@ -29,6 +30,10 @@ type UiState = {
 	pendingFocusTunnelId: string | null;
 	/** Hosts whose X11 risk the user already confirmed during this UI session. */
 	confirmedX11Hosts: readonly string[];
+	/** Tunnels ticked for bulk actions; read through `useTunnelSelection`, which keeps only the visible ones. */
+	selectedTunnelIds: ReadonlySet<string>;
+	/** The tunnel ticked last: the start of a Shift+click range. */
+	selectionAnchorId: string | null;
 };
 
 type UiActions = {
@@ -49,6 +54,13 @@ type UiActions = {
 	setHelpOpen: (isOpen: boolean) => void;
 	setPaletteOpen: (isOpen: boolean) => void;
 	dismissTrayProblem: (kind: TrayProblemKind) => void;
+	toggleTunnelSelection: (tunnelId: string) => void;
+	/** Selects every tunnel between the anchor and `tunnelId` in `orderedIds`. */
+	selectTunnelRange: (tunnelId: string, orderedIds: readonly string[]) => void;
+	selectTunnels: (tunnelIds: readonly string[]) => void;
+	/** Drops the selected tunnels that are not in `visibleIds`. */
+	retainTunnelSelection: (visibleIds: readonly string[]) => void;
+	clearTunnelSelection: () => void;
 };
 
 export const INITIAL_UI_STATE: UiState = {
@@ -59,6 +71,8 @@ export const INITIAL_UI_STATE: UiState = {
 	dismissedTrayProblem: null,
 	pendingFocusTunnelId: null,
 	confirmedX11Hosts: [],
+	selectedTunnelIds: new Set(),
+	selectionAnchorId: null,
 };
 
 export const useUiStore = create<UiState & UiActions>()((set) => ({
@@ -85,4 +99,35 @@ export const useUiStore = create<UiState & UiActions>()((set) => ({
 	setHelpOpen: (isHelpOpen) => set({ isHelpOpen }),
 	setPaletteOpen: (isPaletteOpen) => set({ isPaletteOpen }),
 	dismissTrayProblem: (dismissedTrayProblem) => set({ dismissedTrayProblem }),
+	toggleTunnelSelection: (tunnelId) =>
+		set((state) => {
+			const selectedTunnelIds = new Set(state.selectedTunnelIds);
+			if (!selectedTunnelIds.delete(tunnelId)) selectedTunnelIds.add(tunnelId);
+			return { selectedTunnelIds, selectionAnchorId: tunnelId };
+		}),
+	selectTunnelRange: (tunnelId, orderedIds) =>
+		set((state) => ({
+			selectedTunnelIds: new Set([
+				...state.selectedTunnelIds,
+				...getRangeIds(orderedIds, state.selectionAnchorId, tunnelId),
+			]),
+			selectionAnchorId: tunnelId,
+		})),
+	selectTunnels: (tunnelIds) =>
+		set({ selectedTunnelIds: new Set(tunnelIds), selectionAnchorId: null }),
+	retainTunnelSelection: (visibleIds) =>
+		set((state) => {
+			const visibleIdSet = new Set(visibleIds);
+			const isAnchorVisible =
+				state.selectionAnchorId !== null &&
+				visibleIdSet.has(state.selectionAnchorId);
+			return {
+				selectedTunnelIds: new Set(
+					[...state.selectedTunnelIds].filter((id) => visibleIdSet.has(id))
+				),
+				selectionAnchorId: isAnchorVisible ? state.selectionAnchorId : null,
+			};
+		}),
+	clearTunnelSelection: () =>
+		set({ selectedTunnelIds: new Set(), selectionAnchorId: null }),
 }));

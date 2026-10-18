@@ -105,7 +105,7 @@ export function ImportPreview({
 						onSelectAll={form.selection.selectAll}
 						onSelectNone={form.selection.selectNone}
 					/>
-					<div className="sticky bottom-0 flex flex-col gap-2 border-t border-tn-border bg-tn-surface py-3">
+					<div className="sticky bottom-0 flex flex-col gap-2 border-t border-tn-divider bg-tn-surface py-3">
 						{form.progress !== null && (
 							<output className="block text-sm">
 								Import en cours : {form.progress.doneCount} sur{' '}

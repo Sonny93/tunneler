@@ -127,3 +127,68 @@ describe('useUiStore', () => {
 		expect(useUiStore.getState().isPaletteOpen).toBe(true);
 	});
 });
+
+describe('useUiStore tunnel selection', () => {
+	const selectedIds = () => [...useUiStore.getState().selectedTunnelIds];
+
+	it('should select a tunnel when toggled the first time', () => {
+		useUiStore.getState().toggleTunnelSelection('a');
+
+		expect(selectedIds()).toEqual(['a']);
+	});
+
+	it('should unselect a tunnel when toggled again', () => {
+		useUiStore.getState().toggleTunnelSelection('a');
+		useUiStore.getState().toggleTunnelSelection('a');
+
+		expect(selectedIds()).toEqual([]);
+	});
+
+	it('should select the range from the last toggled tunnel', () => {
+		useUiStore.getState().toggleTunnelSelection('b');
+
+		useUiStore.getState().selectTunnelRange('d', ['a', 'b', 'c', 'd']);
+
+		expect(selectedIds()).toEqual(['b', 'c', 'd']);
+	});
+
+	it('should keep the previous selection when selecting a range', () => {
+		useUiStore.getState().toggleTunnelSelection('a');
+		useUiStore.getState().toggleTunnelSelection('c');
+
+		useUiStore.getState().selectTunnelRange('d', ['a', 'b', 'c', 'd']);
+
+		expect(selectedIds()).toEqual(['a', 'c', 'd']);
+	});
+
+	it('should select every given tunnel', () => {
+		useUiStore.getState().selectTunnels(['a', 'b']);
+
+		expect(selectedIds()).toEqual(['a', 'b']);
+	});
+
+	it('should drop the tunnels that are no longer visible', () => {
+		useUiStore.getState().selectTunnels(['a', 'b', 'c']);
+
+		useUiStore.getState().retainTunnelSelection(['b', 'c', 'd']);
+
+		expect(selectedIds()).toEqual(['b', 'c']);
+	});
+
+	it('should forget the anchor when it is no longer visible', () => {
+		useUiStore.getState().toggleTunnelSelection('a');
+
+		useUiStore.getState().retainTunnelSelection(['b']);
+
+		expect(useUiStore.getState().selectionAnchorId).toBeNull();
+	});
+
+	it('should clear the selection and the anchor', () => {
+		useUiStore.getState().toggleTunnelSelection('a');
+
+		useUiStore.getState().clearTunnelSelection();
+
+		expect(selectedIds()).toEqual([]);
+		expect(useUiStore.getState().selectionAnchorId).toBeNull();
+	});
+});

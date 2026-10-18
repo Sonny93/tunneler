@@ -60,7 +60,7 @@ export function useTunnelActions(
 		useToastStore
 			.getState()
 			.pushToast({ tone: 'success', message: `Tunnel ${name} supprimé` });
-		requestFocusAfterRemoval(id);
+		requestFocusAfterRemoval([id]);
 	};
 
 	return { toggleRunning, restart, confirmRemoval };

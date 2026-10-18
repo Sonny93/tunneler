@@ -9,7 +9,7 @@ export function QuitButton() {
 
 	return (
 		<Button
-			variant="outline"
+			variant="ghost"
 			color="neutral"
 			startIcon="i-mdi-power"
 			onClick={handleClick}

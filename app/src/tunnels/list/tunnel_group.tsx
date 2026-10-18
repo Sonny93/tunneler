@@ -32,7 +32,7 @@ export function TunnelGroup({
 			<ul
 				role="list"
 				aria-describedby={hintId}
-				className="m-0 flex list-none flex-col gap-2 p-0"
+				className="m-0 flex list-none flex-col divide-y divide-tn-divider overflow-hidden rounded-lg border border-tn-divider bg-tn-surface p-0"
 			>
 				{group.tunnels.map((tunnel) => (
 					<TunnelRow

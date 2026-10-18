@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveRovingIndex } from '#/tunnels/list/resolve_roving_index';
+import {
+	resolveRovingColumnIndex,
+	resolveRovingIndex,
+} from '#/tunnels/list/resolve_roving_index';
 
 describe('resolveRovingIndex', () => {
 	it.each([
@@ -16,5 +19,20 @@ describe('resolveRovingIndex', () => {
 
 	it('should ignore other keys', () => {
 		expect(resolveRovingIndex('a', 0, 3)).toBeNull();
+	});
+});
+
+describe('resolveRovingColumnIndex', () => {
+	it.each([
+		['ArrowRight', 0, 3, 1],
+		['ArrowRight', 2, 3, 2],
+		['ArrowLeft', 2, 3, 1],
+		['ArrowLeft', 0, 3, 0],
+	])('should map %s from %i of %i to %i', (key, current, count, expected) => {
+		expect(resolveRovingColumnIndex(key, current, count)).toBe(expected);
+	});
+
+	it('should ignore vertical keys', () => {
+		expect(resolveRovingColumnIndex('ArrowDown', 0, 3)).toBeNull();
 	});
 });

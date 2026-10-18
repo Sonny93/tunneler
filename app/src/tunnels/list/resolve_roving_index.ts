@@ -23,3 +23,22 @@ export function resolveRovingIndex(
 			return null;
 	}
 }
+
+/**
+ * The index of the control to focus inside a row for ← and →, clamped (no
+ * wrap), or `null` when the key is not a horizontal arrow.
+ */
+export function resolveRovingColumnIndex(
+	key: string,
+	currentIndex: number,
+	count: number
+): number | null {
+	switch (key) {
+		case 'ArrowRight':
+			return Math.min(currentIndex + 1, count - 1);
+		case 'ArrowLeft':
+			return Math.max(currentIndex - 1, FIRST_INDEX);
+		default:
+			return null;
+	}
+}

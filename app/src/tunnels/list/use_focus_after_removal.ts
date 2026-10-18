@@ -5,14 +5,32 @@ import {
 	ROVING_ROW_ATTRIBUTE,
 } from '#/tunnels/list/use_roving_rows';
 
-type PendingRemoval = { removedId: string; successorId: string | null };
+type PendingRemoval = {
+	removedIds: readonly string[];
+	successorId: string | null;
+};
 
+/**
+ * The first remaining row after the first removed one, else the last remaining
+ * row before it. A removed row already gone from `rowIds` counts as the first.
+ */
 function findSuccessorId(
 	rowIds: readonly string[],
-	removedId: string
+	removedIds: readonly string[]
 ): string | null {
-	const index = rowIds.indexOf(removedId);
-	return rowIds[index + 1] ?? rowIds[index - 1] ?? null;
+	const firstRemovedIndex = Math.max(
+		rowIds.findIndex((rowId) => removedIds.includes(rowId)),
+		0
+	);
+	const remainingIds = rowIds.filter((rowId) => !removedIds.includes(rowId));
+	const nextId = rowIds
+		.slice(firstRemovedIndex)
+		.find((rowId) => remainingIds.includes(rowId));
+	const previousId = rowIds
+		.slice(0, firstRemovedIndex)
+		.filter((rowId) => remainingIds.includes(rowId))
+		.at(-1);
+	return nextId ?? previousId ?? null;
 }
 
 export function focusRowSwitch(container: HTMLElement, rowId: string): void {
@@ -28,16 +46,16 @@ export function focusRowSwitch(container: HTMLElement, rowId: string): void {
 }
 
 /**
- * Keeps focus inside the page when a row is deleted (WCAG 2.4.3): once the row
- * is gone, focuses the switch of the row that took its place (next, else
- * previous), or calls `onEmptied` when no row is left. The roving active row
+ * Keeps focus inside the page when rows are deleted (WCAG 2.4.3): once the
+ * rows are gone, focuses the switch of the row that took their place (next,
+ * else previous), or calls `onEmptied` when no row is left. The roving active row
  * follows because focusing a control activates its row.
  */
 export function useFocusAfterRemoval(
 	rowIds: readonly string[],
 	containerRef: RefObject<HTMLElement | null>,
 	onEmptied: () => void
-): (removedId: string) => void {
+): (removedIds: readonly string[]) => void {
 	const currentRowIdsRef = useRef<readonly string[]>([]);
 	const previousRowIdsRef = useRef<readonly string[]>([]);
 	const pendingRemovalRef = useRef<PendingRemoval | null>(null);
@@ -45,16 +63,28 @@ export function useFocusAfterRemoval(
 
 	const applyPendingRemoval = useCallback(() => {
 		const pending = pendingRemovalRef.current;
-		if (!pending || currentRowIdsRef.current.includes(pending.removedId)) {
+		if (
+			!pending ||
+			pending.removedIds.some((removedId) =>
+				currentRowIdsRef.current.includes(removedId)
+			)
+		) {
 			return;
 		}
 		pendingRemovalRef.current = null;
-		if (pending.successorId === null) {
+		const currentRowIds = currentRowIdsRef.current;
+		const isSuccessorListed =
+			pending.successorId !== null &&
+			currentRowIds.includes(pending.successorId);
+		const successorId = isSuccessorListed
+			? pending.successorId
+			: (currentRowIds[0] ?? null);
+		if (successorId === null) {
 			onEmptiedRef.current();
 			return;
 		}
 		if (containerRef.current) {
-			focusRowSwitch(containerRef.current, pending.successorId);
+			focusRowSwitch(containerRef.current, successorId);
 		}
 	}, [containerRef]);
 
@@ -68,13 +98,16 @@ export function useFocusAfterRemoval(
 		applyPendingRemoval();
 	}, [rowIds, applyPendingRemoval]);
 
-	return (removedId) => {
-		const knownRowIds = currentRowIdsRef.current.includes(removedId)
+	return (removedIds) => {
+		const isStillListed = removedIds.some((removedId) =>
+			currentRowIdsRef.current.includes(removedId)
+		);
+		const knownRowIds = isStillListed
 			? currentRowIdsRef.current
 			: previousRowIdsRef.current;
 		pendingRemovalRef.current = {
-			removedId,
-			successorId: findSuccessorId(knownRowIds, removedId),
+			removedIds,
+			successorId: findSuccessorId(knownRowIds, removedIds),
 		};
 		applyPendingRemoval();
 	};

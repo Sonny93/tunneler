@@ -1,6 +1,6 @@
 import { createContext } from 'react';
 
-/** Called with the id of a tunnel that was just deleted, so focus can move on. */
-export const RemovalFocusContext = createContext<(tunnelId: string) => void>(
-	() => undefined
-);
+/** Called with the ids of the tunnels that were just deleted, so focus can move on. */
+export const RemovalFocusContext = createContext<
+	(tunnelIds: readonly string[]) => void
+>(() => undefined);

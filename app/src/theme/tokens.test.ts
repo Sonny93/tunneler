@@ -7,7 +7,12 @@ const TEXT_MINIMUM = 4.5;
 const COMPONENT_MINIMUM = 3;
 const THEME_NAMES: readonly ThemeName[] = ['light', 'dark'];
 const TEXT_KEYS = ['text', 'textMuted'] as const;
-const SURFACE_KEYS = ['background', 'surface', 'surfaceRaised'] as const;
+const SURFACE_KEYS = [
+	'background',
+	'surface',
+	'surfaceRaised',
+	'selected',
+] as const;
 const STATUSES = ['success', 'warning', 'danger', 'neutral', 'info'] as const;
 
 const contrast = (
@@ -50,6 +55,18 @@ describe.each(THEME_NAMES)('%s theme tokens', (themeName) => {
 				).toBeGreaterThanOrEqual(COMPONENT_MINIMUM);
 			}
 		);
+	});
+
+	describe('divider', () => {
+		it('should stay visible against the surface', () => {
+			expect(contrast(tokens, 'divider', 'surface')).toBeGreaterThan(1);
+		});
+
+		it('should stay quieter than the control border', () => {
+			expect(contrast(tokens, 'divider', 'surface')).toBeLessThan(
+				contrast(tokens, 'border', 'surface')
+			);
+		});
 	});
 
 	it('should reach 4.5:1 for the accent on the background', () => {

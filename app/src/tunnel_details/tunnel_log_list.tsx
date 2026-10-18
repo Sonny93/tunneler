@@ -26,7 +26,7 @@ export function TunnelLogList({
 			aria-label={`Journal du tunnel ${tunnelName}`}
 			tabIndex={0}
 			onScroll={handleScroll}
-			className="max-h-72 overflow-y-auto rounded-md border border-tn-border p-2"
+			className="max-h-72 overflow-y-auto rounded-md border border-tn-divider p-2"
 		>
 			{entries.length === 0 ? (
 				<p className="m-0 text-sm text-tn-muted">Aucun événement enregistré</p>

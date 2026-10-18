@@ -17,15 +17,21 @@ function seedTunnels() {
 	});
 }
 
+const rowCheckbox = (name: string) =>
+	screen.getByRole('checkbox', { name: `Sélectionner ${name}` });
 const rowSwitch = (name: string) =>
 	screen.getByRole('switch', { name: new RegExp(`^Tunnel ${name},`) });
 const actionsButton = (name: string) =>
 	screen.getByRole('button', { name: `Actions pour ${name}` });
 
-const HEADER_BUTTON_COUNT = 2;
+const STOPS_BEFORE_FIRST_ROW_SWITCH = 5;
 
 const tabIntoFirstRow = async () => {
-	for (let tabCount = 0; tabCount <= HEADER_BUTTON_COUNT; tabCount += 1) {
+	for (
+		let tabCount = 0;
+		tabCount < STOPS_BEFORE_FIRST_ROW_SWITCH;
+		tabCount += 1
+	) {
 		await userEvent.tab();
 	}
 };
@@ -57,6 +63,65 @@ describe('TunnelList roving focus', () => {
 		await userEvent.tab();
 
 		expect(actionsButton('Alpha')).toHaveFocus();
+	});
+
+	it('should reach the first row checkbox just before its switch', async () => {
+		seedTunnels();
+		renderWithGateway(<TunnelList />);
+
+		for (
+			let tabCount = 0;
+			tabCount < STOPS_BEFORE_FIRST_ROW_SWITCH - 1;
+			tabCount += 1
+		) {
+			await userEvent.tab();
+		}
+
+		expect(rowCheckbox('Alpha')).toHaveFocus();
+	});
+
+	it('should move from checkbox to checkbox with ArrowDown', async () => {
+		seedTunnels();
+		renderWithGateway(<TunnelList />);
+		rowCheckbox('Alpha').focus();
+
+		await userEvent.keyboard('{ArrowDown}');
+
+		expect(rowCheckbox('Beta')).toHaveFocus();
+	});
+
+	it('should move across the controls of a row with ArrowRight', async () => {
+		seedTunnels();
+		renderWithGateway(<TunnelList />);
+		rowCheckbox('Alpha').focus();
+
+		await userEvent.keyboard('{ArrowRight}');
+		expect(rowSwitch('Alpha')).toHaveFocus();
+
+		await userEvent.keyboard('{ArrowRight}');
+		expect(actionsButton('Alpha')).toHaveFocus();
+	});
+
+	it('should move back across the controls of a row with ArrowLeft', async () => {
+		seedTunnels();
+		renderWithGateway(<TunnelList />);
+		actionsButton('Beta').focus();
+
+		await userEvent.keyboard('{ArrowLeft}');
+		expect(rowSwitch('Beta')).toHaveFocus();
+
+		await userEvent.keyboard('{ArrowLeft}');
+		expect(rowCheckbox('Beta')).toHaveFocus();
+	});
+
+	it('should stay on the first control of a row with ArrowLeft', async () => {
+		seedTunnels();
+		renderWithGateway(<TunnelList />);
+		rowCheckbox('Alpha').focus();
+
+		await userEvent.keyboard('{ArrowLeft}');
+
+		expect(rowCheckbox('Alpha')).toHaveFocus();
 	});
 
 	it('should move to the next row switch with ArrowDown', async () => {
@@ -161,6 +226,7 @@ describe('TunnelList roving focus', () => {
 		expect(
 			screen.getAllByRole('switch').map((item) => item.getAttribute('tabindex'))
 		).toEqual(['-1', '0', '-1']);
+		expect(rowCheckbox('Beta')).toHaveAttribute('tabindex', '0');
 		expect(actionsButton('Beta')).toHaveAttribute('tabindex', '0');
 		expect(actionsButton('Alpha')).toHaveAttribute('tabindex', '-1');
 	});

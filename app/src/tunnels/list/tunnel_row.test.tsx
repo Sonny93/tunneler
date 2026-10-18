@@ -8,6 +8,7 @@ import { createFakeGateway } from '#/testing/fake_gateway';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { buildMetrics, buildTunnel } from '#/testing/factories';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { TunnelSelectionContext } from '#/tunnels/selection/tunnel_selection_context';
 
 function renderRow(
 	overrides: Parameters<typeof buildTunnel>[0] = {},
@@ -44,6 +45,35 @@ describe('TunnelRow', () => {
 		expect(screen.getByText('Adonis')).toBeInTheDocument();
 		expect(screen.getByText('Arrêté')).toBeInTheDocument();
 		expect(screen.getByText('dev')).toBeInTheDocument();
+	});
+
+	it('should offer an unlabeled checkbox named after the tunnel', () => {
+		renderRow();
+
+		expect(
+			screen.getByRole('checkbox', { name: 'Sélectionner Adonis' })
+		).not.toBeChecked();
+	});
+
+	it('should check the checkbox of a selected tunnel', () => {
+		renderWithGateway(
+			<TunnelSelectionContext
+				value={{
+					selectedIds: new Set(['tunnel-1']),
+					selectedTunnels: [buildTunnel()],
+					toggle: () => undefined,
+					selectRange: () => undefined,
+				}}
+			>
+				<ul>
+					<TunnelRow tunnel={buildTunnel()} isActiveRow />
+				</ul>
+			</TunnelSelectionContext>
+		);
+
+		expect(
+			screen.getByRole('checkbox', { name: 'Sélectionner Adonis' })
+		).toBeChecked();
 	});
 
 	it('should start a stopped tunnel when toggled', async () => {

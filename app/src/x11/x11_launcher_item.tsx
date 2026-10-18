@@ -13,7 +13,7 @@ export function X11LauncherItem({ launcher }: Readonly<X11LauncherItemProps>) {
 	const handleLaunch = () => void launch(launcher);
 
 	return (
-		<li className="flex items-center justify-between gap-2 rounded-md border border-tn-border px-3 py-2">
+		<li className="flex items-center justify-between gap-2 rounded-md border border-tn-divider px-3 py-2">
 			<div className="flex min-w-0 flex-col">
 				<span className="font-semibold">{launcher.name}</span>
 				<code className="font-mono text-xs break-all text-tn-muted">

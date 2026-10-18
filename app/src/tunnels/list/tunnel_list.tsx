@@ -1,16 +1,23 @@
 import { useId, useMemo, useRef } from 'react';
 
+import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { filterTunnels } from '#/tunnels/filter_tunnels';
 import { TunnelGroup } from '#/tunnels/list/tunnel_group';
 import { useRovingRows } from '#/tunnels/list/use_roving_rows';
+import { BulkToolbar } from '#/tunnels/selection/bulk_toolbar';
 import { useResolvedFilter } from '#/tunnels/use_resolved_filter';
 import { TunnelListEmpty } from '#/tunnels/list/tunnel_list_empty';
 import { groupTunnelsByHost } from '#/tunnels/group_tunnels_by_host';
 import { describeTunnelFilter } from '#/tunnels/describe_tunnel_filter';
 import { RemovalFocusContext } from '#/tunnels/list/removal_focus_context';
+import { SelectAllCheckbox } from '#/tunnels/selection/select_all_checkbox';
+import { useTunnelSelection } from '#/tunnels/selection/use_tunnel_selection';
 import { useFocusAfterRemoval } from '#/tunnels/list/use_focus_after_removal';
 import { useFocusAfterCreation } from '#/tunnels/list/use_focus_after_creation';
+import { useSelectionShortcuts } from '#/tunnels/selection/use_selection_shortcuts';
+import { TunnelSelectionContext } from '#/tunnels/selection/tunnel_selection_context';
+import { useAnnounceSelectionCount } from '#/tunnels/selection/use_announce_selection_count';
 
 export function TunnelList() {
 	const tunnels = useDaemonStore((state) => state.tunnels);
@@ -24,9 +31,19 @@ export function TunnelList() {
 		() => groupTunnelsByHost(visibleTunnels),
 		[visibleTunnels]
 	);
-	const rowIds = useMemo(
-		() => groups.flatMap(({ tunnels: group }) => group.map(({ id }) => id)),
+	const orderedTunnels = useMemo(
+		() => groups.flatMap(({ tunnels: group }) => group),
 		[groups]
+	);
+	const rowIds = useMemo(
+		() => orderedTunnels.map(({ id }) => id),
+		[orderedTunnels]
+	);
+	const selection = useTunnelSelection(orderedTunnels);
+	const selectedCount = selection.selectedTunnels.length;
+	const selectTunnels = useUiStore((state) => state.selectTunnels);
+	const clearTunnelSelection = useUiStore(
+		(state) => state.clearTunnelSelection
 	);
 	const createButtonRef = useRef<HTMLButtonElement>(null);
 	const { activeRowId, containerProps } = useRovingRows(rowIds);
@@ -37,6 +54,16 @@ export function TunnelList() {
 	);
 
 	useFocusAfterCreation(rowIds, containerProps.ref);
+	useAnnounceSelectionCount(selectedCount);
+
+	const handleSelectAll = () => selectTunnels(rowIds);
+	const handleClearSelection = () => {
+		if (selectedCount > 0) clearTunnelSelection();
+	};
+	const handleSelectionKeyDown = useSelectionShortcuts({
+		onSelectAll: handleSelectAll,
+		onClear: handleClearSelection,
+	});
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -51,16 +78,35 @@ export function TunnelList() {
 						Utilisez les flèches haut et bas pour passer d’un tunnel à l’autre.
 					</p>
 					<RemovalFocusContext value={requestFocusAfterRemoval}>
-						<div {...containerProps} className="flex flex-col gap-4">
-							{groups.map((group) => (
-								<TunnelGroup
-									key={group.host}
-									group={group}
-									activeRowId={activeRowId}
-									hintId={hintId}
-								/>
-							))}
-						</div>
+						<TunnelSelectionContext value={selection}>
+							{/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- only Ctrl+A and Escape bubbling up from the controls inside are handled */}
+							<div
+								onKeyDown={handleSelectionKeyDown}
+								className="flex flex-col gap-4"
+							>
+								<div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+									<SelectAllCheckbox
+										visibleCount={rowIds.length}
+										selectedCount={selectedCount}
+										onSelectAll={handleSelectAll}
+										onClear={handleClearSelection}
+									/>
+									{selectedCount > 0 && (
+										<BulkToolbar selectedTunnels={selection.selectedTunnels} />
+									)}
+								</div>
+								<div {...containerProps} className="flex flex-col gap-4">
+									{groups.map((group) => (
+										<TunnelGroup
+											key={group.host}
+											group={group}
+											activeRowId={activeRowId}
+											hintId={hintId}
+										/>
+									))}
+								</div>
+							</div>
+						</TunnelSelectionContext>
 					</RemovalFocusContext>
 				</>
 			)}

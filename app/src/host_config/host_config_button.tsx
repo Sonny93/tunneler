@@ -1,6 +1,5 @@
-import { IconButton } from '@minimalstuff/ui';
-
 import { useUiStore } from '#/state/ui_store';
+import { TooltipIconButton } from '#/shared/tooltip_icon_button';
 
 type HostConfigButtonProps = {
 	host: string;
@@ -13,7 +12,7 @@ export function HostConfigButton({ host }: Readonly<HostConfigButtonProps>) {
 	const handleOpen = () => openHostConfig(host);
 
 	return (
-		<IconButton
+		<TooltipIconButton
 			icon="i-mdi-file-cog-outline"
 			aria-label={`Configuration de ${host}`}
 			variant="ghost"

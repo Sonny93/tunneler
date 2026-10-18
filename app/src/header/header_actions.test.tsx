@@ -49,6 +49,30 @@ describe('HeaderActions', () => {
 		expect(button).toHaveAttribute('aria-keyshortcuts', 'Control+K');
 	});
 
+	it('should show the shortcut in the tooltip of the palette button', async () => {
+		const user = userEvent.setup();
+		renderActions();
+
+		await user.hover(
+			screen.getByRole('button', { name: 'Palette de commandes' })
+		);
+
+		expect(await screen.findByRole('tooltip')).toHaveTextContent(
+			'Palette de commandes (Ctrl+K)'
+		);
+	});
+
+	it('should show the current theme in the tooltip of the theme toggle', async () => {
+		const user = userEvent.setup();
+		renderActions();
+
+		await user.hover(screen.getByRole('button', { name: /^Thème : / }));
+
+		expect(await screen.findByRole('tooltip')).toHaveTextContent(
+			/^Thème : .+, changer$/
+		);
+	});
+
 	it('should open the settings', async () => {
 		const user = userEvent.setup();
 		renderActions();

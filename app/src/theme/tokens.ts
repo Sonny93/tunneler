@@ -2,8 +2,15 @@ export type ThemeTokens = {
 	background: string;
 	surface: string;
 	surfaceRaised: string;
-	/** Component boundary: at least 3:1 against background and surface. */
+	/** Control boundary (input, switch, checkbox): at least 3:1 against background and surface. */
 	border: string;
+	/**
+	 * Decorative separator (card outline, row dividers): below 3:1 on purpose.
+	 * Never the only boundary of a control, only of regions the content already delimits.
+	 */
+	divider: string;
+	/** Background of a selected row: text keeps 4.5:1 on it, the checkbox is the non-color cue. */
+	selected: string;
 	text: string;
 	textMuted: string;
 	/** Used for links and text: at least 4.5:1 against background. */
@@ -29,6 +36,8 @@ export const THEME_TOKENS: Readonly<Record<ThemeName, ThemeTokens>> = {
 		surface: '#f8f9fb',
 		surfaceRaised: '#f0f2f6',
 		border: '#6b7280',
+		divider: '#e5e7eb',
+		selected: '#e6edfc',
 		text: '#111827',
 		textMuted: '#4b5563',
 		accent: '#1d4ed8',
@@ -49,6 +58,8 @@ export const THEME_TOKENS: Readonly<Record<ThemeName, ThemeTokens>> = {
 		surface: '#161a23',
 		surfaceRaised: '#1e2330',
 		border: '#8b93a7',
+		divider: '#262b38',
+		selected: '#1b2740',
 		text: '#e6e8ee',
 		textMuted: '#a3abbd',
 		accent: '#7aa7ff',

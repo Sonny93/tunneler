@@ -35,7 +35,7 @@ export function ExternalProcessItem({
 	return (
 		<li
 			aria-labelledby={headingId}
-			className="flex flex-col gap-2 rounded-md border border-tn-border bg-tn-surface px-3 py-2"
+			className="flex flex-col gap-2 rounded-md border border-tn-divider bg-tn-surface px-3 py-2"
 		>
 			<h3 id={headingId} className="m-0 text-sm font-semibold">
 				{describeHeading(process)}
