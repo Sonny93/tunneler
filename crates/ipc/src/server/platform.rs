@@ -29,6 +29,8 @@ mod restrictions {
     use crate::server::handler::PeerInfo;
 
     const OWNER_ONLY_FILE_MODE: u32 = 0o600;
+    /// The same mode as [`OWNER_ONLY_FILE_MODE`], typed as the platform's `mode_t`.
+    const OWNER_ONLY_SOCKET_MODE: rustix::fs::RawMode = 0o600;
     const OWNER_ONLY_DIRECTORY_MODE: u32 = 0o700;
     const GROUP_AND_OTHER_BITS: u32 = 0o077;
 
@@ -39,7 +41,7 @@ mod restrictions {
             ensure_private_directory(parent_of(endpoint)?)?;
         }
         let options = create_options(endpoint)?;
-        match options.mode(OWNER_ONLY_FILE_MODE).create_tokio() {
+        match options.mode(OWNER_ONLY_SOCKET_MODE).create_tokio() {
             Err(error) if error.kind() == io::ErrorKind::Unsupported => {
                 bind_then_restrict(endpoint)
             }

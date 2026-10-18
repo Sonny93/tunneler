@@ -45,6 +45,10 @@ jobs:
       - name: Run the differential test and fail if it was skipped
         shell: bash
         run: |
+          # ssh expands ~ with the passwd home, the resolver with HOME: the container sets HOME to /github/home.
+          export RUSTUP_HOME="$HOME/.rustup" CARGO_HOME="$HOME/.cargo"
+          HOME="$(getent passwd "$(id -u)" | cut -d: -f6)"
+          export HOME
           cargo test --locked -p ssh-config --test differential -- --nocapture 2>&1 | tee differential.log
           if grep -q "skipping differential tests" differential.log; then
             echo "::error::the differential test was skipped; the oracle is not OpenSSH 10.0"
