@@ -4,10 +4,12 @@ import { render, screen } from '@testing-library/react';
 
 import { AppLayout } from '#/app_layout';
 
-const renderLayout = () =>
+const renderLayout = (isSidebarCollapsed = false) =>
 	render(
 		<AppLayout
 			sidebar={<nav aria-label="Tags">Tags</nav>}
+			sidebarToggle={<button>Panneau</button>}
+			isSidebarCollapsed={isSidebarCollapsed}
 			actions={<button>Créer</button>}
 		>
 			<p>Contenu</p>
@@ -37,6 +39,22 @@ describe('AppLayout', () => {
 		expect(
 			screen.getByRole('complementary', { name: 'Navigation' })
 		).toHaveTextContent('Tags');
+	});
+
+	it('should render the sidebar toggle in the banner', () => {
+		renderLayout();
+
+		expect(screen.getByRole('banner')).toContainElement(
+			screen.getByRole('button', { name: 'Panneau' })
+		);
+	});
+
+	it('should hide the sidebar when collapsed', () => {
+		renderLayout(true);
+
+		expect(
+			screen.queryByRole('complementary', { name: 'Navigation' })
+		).not.toBeInTheDocument();
 	});
 
 	it('should render the children in the main landmark', () => {

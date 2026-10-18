@@ -31,6 +31,18 @@ const GENERAL_COMMANDS: readonly PaletteCommand[] = [
 		action: { kind: 'openSettings' },
 	},
 	{
+		id: 'general:reveal-config',
+		label: 'Ouvrir le dossier de configuration',
+		category: 'Général',
+		action: { kind: 'revealConfig' },
+	},
+	{
+		id: 'general:sidebar',
+		label: 'Masquer ou afficher le panneau',
+		category: 'Général',
+		action: { kind: 'toggleSidebar' },
+	},
+	{
 		id: 'general:shortcuts',
 		label: 'Afficher les raccourcis clavier',
 		category: 'Général',
@@ -115,6 +127,12 @@ function buildTagCommands(
 				action: { kind: 'stopTag', tag },
 			});
 		}
+		commands.push({
+			id: `tag:${tag}:rename`,
+			label: `Renommer le tag ${tag}…`,
+			category: 'Tag',
+			action: { kind: 'renameTag', tag },
+		});
 		return commands;
 	});
 }

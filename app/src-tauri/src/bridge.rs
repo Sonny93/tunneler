@@ -4,10 +4,12 @@
 use std::ffi::OsString;
 use std::process::Command;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use ipc::protocol::{ClientKind, EventMessage, Hello};
 use ipc::{
-    DEFAULT_DAEMON_START_TIMEOUT, Endpoint, EndpointError, EventReceiver, IpcClient,
+    ClientError, DEFAULT_DAEMON_START_TIMEOUT, Endpoint, EndpointError, EventReceiver, IpcClient,
     default_endpoint, ensure_daemon_running,
 };
 use serde::Serialize;
@@ -17,12 +19,15 @@ use tokio::sync::Mutex;
 use crate::bridge_error::BridgeError;
 use crate::connection_slot::{ConnectionSlot, Generation};
 use crate::daemon_binary::locate_daemon_binary_from_environment;
-use crate::window_attention::react_to_event;
+use crate::startup_claim::{StartupAction, startup_action};
+use crate::window_attention::{bring_main_window_to_front, react_to_event};
 
 const SOCKET_VARIABLE: &str = "TUNNELER_SOCKET";
 const DAEMON_EVENT: &str = "daemon-event";
 const DAEMON_DISCONNECTED_EVENT: &str = "daemon-disconnected";
 const DAEMON_SUBCOMMAND: &str = "daemon";
+const EXIT_SUCCESS: i32 = 0;
+const CLAIM_TIMEOUT: Duration = Duration::from_secs(5);
 const DISCONNECTED_MESSAGE: &str = "La connexion au daemon a été perdue.";
 
 #[derive(Serialize, Clone)]
@@ -35,6 +40,7 @@ struct DisconnectedPayload {
 pub struct BridgeState {
     connection_attempts: Mutex<()>,
     connection: Arc<ConnectionSlot<IpcClient>>,
+    is_startup_settled: AtomicBool,
 }
 
 impl BridgeState {
@@ -65,6 +71,44 @@ impl BridgeState {
         let connection = Arc::clone(&self.connection);
         tauri::async_runtime::spawn(relay_events(app.clone(), events, connection, generation));
         Ok(())
+    }
+
+    /// Ends the hidden startup of the main window, once: shows it, or exits
+    /// when another UI is already open. `connection` is the outcome of the
+    /// first connection attempt; a failed one shows the window so the front
+    /// end can report it.
+    pub async fn settle_startup(&self, app: &AppHandle, connection: &Result<(), BridgeError>) {
+        if self.is_startup_settled.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        let action = match connection {
+            Ok(()) => startup_action(self.request_claim().await.as_ref()),
+            Err(_) => StartupAction::ShowWindow,
+        };
+        apply_startup_action(app, action);
+    }
+
+    /// Shows the window when no connection attempt settled the startup in
+    /// time, so a stuck front end never leaves the app invisible.
+    pub fn reveal_if_unsettled(&self, app: &AppHandle) {
+        if self.is_startup_settled.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        apply_startup_action(app, StartupAction::ShowWindow);
+    }
+
+    async fn request_claim(&self) -> Option<Result<bool, ClientError>> {
+        let client = self.client().ok()?;
+        tokio::time::timeout(CLAIM_TIMEOUT, client.claim_ui())
+            .await
+            .ok()
+    }
+}
+
+fn apply_startup_action(app: &AppHandle, action: StartupAction) {
+    match action {
+        StartupAction::ShowWindow => bring_main_window_to_front(app),
+        StartupAction::Exit => app.exit(EXIT_SUCCESS),
     }
 }
 

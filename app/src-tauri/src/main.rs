@@ -8,14 +8,25 @@ mod commands;
 mod connection_slot;
 mod credential;
 mod daemon_binary;
+mod reveal_target;
+mod startup_claim;
 mod window_attention;
 
+use std::time::Duration;
+
 use bridge::BridgeState;
+use tauri::Manager;
+
+const STARTUP_REVEAL_DEADLINE: Duration = Duration::from_secs(15);
 
 fn main() -> tauri::Result<()> {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(BridgeState::default())
+        .setup(|app| {
+            reveal_window_when_startup_stalls(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::connect_daemon,
             commands::snapshot,
@@ -33,6 +44,8 @@ fn main() -> tauri::Result<()> {
             commands::restart_tunnel,
             commands::start_tag,
             commands::stop_tag,
+            commands::rename_tag,
+            commands::reveal_config,
             commands::start_x11,
             commands::stop_x11,
             commands::launch_x11,
@@ -46,4 +59,11 @@ fn main() -> tauri::Result<()> {
             commands::quit_daemon,
         ])
         .run(tauri::generate_context!())
+}
+
+fn reveal_window_when_startup_stalls(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(STARTUP_REVEAL_DEADLINE).await;
+        app.state::<BridgeState>().reveal_if_unsettled(&app);
+    });
 }

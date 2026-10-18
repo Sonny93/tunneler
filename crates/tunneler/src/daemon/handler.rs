@@ -6,8 +6,9 @@ use engine::{
     preview_ssh_config,
 };
 use ipc::protocol::{
-    AdoptResult, ForgetSecretsResult, HostsResult, IpcError, LogsResult, ProcessParams, QuitParams,
-    Request, ResponsePayload, SettingsDto, TunnelIdParams, X11HostParams, X11LaunchParams,
+    AdoptResult, DaemonPathsResult, ForgetSecretsResult, HostsResult, IpcError, LogsResult,
+    ProcessParams, QuitParams, RenameTagResult, Request, ResponsePayload, SettingsDto,
+    TagRenameParams, TunnelIdParams, UiClaimResult, X11HostParams, X11LaunchParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
@@ -92,6 +93,9 @@ impl DaemonHandler {
             Request::X11Stop(params) => self.stop_x11(&params),
             Request::X11Launch(params) => self.launch_x11(&params).await,
             Request::SecretsForget {} => Ok(self.forget_secrets().await),
+            Request::UiClaim {} => Ok(self.claim_ui(requester)),
+            Request::TagsRename(params) => self.rename_tag(&params).await,
+            Request::DaemonPaths {} => self.daemon_paths(),
         }
     }
 
@@ -154,6 +158,31 @@ impl DaemonHandler {
         ResponsePayload::ForgetSecrets(ForgetSecretsResult {
             forgotten_count: u64::try_from(forgotten).unwrap_or(u64::MAX),
         })
+    }
+
+    fn claim_ui(&self, requester: Option<ConnectionId>) -> ResponsePayload {
+        ResponsePayload::UiClaim(UiClaimResult {
+            claimed: self.ui.claim(requester),
+        })
+    }
+
+    async fn rename_tag(&self, params: &TagRenameParams) -> Result<ResponsePayload, IpcError> {
+        let renamed_count = self
+            .engine
+            .rename_tag(&params.from, &params.to)
+            .await
+            .map_err(engine_error_to_ipc)?;
+        Ok(ResponsePayload::RenameTag(RenameTagResult {
+            renamed_count: u64::try_from(renamed_count).unwrap_or(u64::MAX),
+        }))
+    }
+
+    fn daemon_paths(&self) -> Result<ResponsePayload, IpcError> {
+        let config_file = std::path::absolute(self.engine.config_path())
+            .map_err(|error| IpcError::internal(error.to_string()))?;
+        Ok(ResponsePayload::DaemonPaths(DaemonPathsResult {
+            config_file: config_file.to_string_lossy().into_owned(),
+        }))
     }
 
     fn show_ui(&self) -> Result<ResponsePayload, IpcError> {
@@ -343,6 +372,7 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         EngineError::UnknownTag(tag) => {
             IpcError::not_found(format!("no tunnel carries the tag \"{tag}\""))
         }
+        EngineError::InvalidTag { .. } => IpcError::validation_failed(&[error.to_string()]),
         EngineError::Store(error) => store_error_to_ipc(error),
         EngineError::ShutDown => IpcError::internal("the daemon is shutting down"),
         EngineError::NotExternal(_) => IpcError::invalid_state(error.to_string()),
@@ -758,6 +788,91 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    fn rename_request(from: &str, to: &str) -> Request {
+        Request::TagsRename(TagRenameParams {
+            from: from.to_owned(),
+            to: to.to_owned(),
+        })
+    }
+
+    #[tokio::test]
+    async fn should_answer_the_renamed_count_when_renaming_a_tag() {
+        let fixture = fixture();
+        created_tunnel(&fixture, "Web", free_port().await).await;
+
+        let response = fixture
+            .handler
+            .dispatch(None, rename_request("dev", "staging"))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response,
+            ResponsePayload::RenameTag(RenameTagResult { renamed_count: 1 })
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_renaming_an_unknown_tag() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(None, rename_request("missing", "staging"))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    async fn should_answer_validation_failed_when_the_new_tag_name_is_invalid() {
+        let fixture = fixture();
+        created_tunnel(&fixture, "Web", free_port().await).await;
+
+        let error = fixture
+            .handler
+            .dispatch(None, rename_request("dev", "two words"))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::ValidationFailed);
+    }
+
+    #[tokio::test]
+    async fn should_answer_the_absolute_config_path_when_asked_for_the_paths() {
+        let fixture = fixture();
+
+        let response = fixture
+            .handler
+            .dispatch(None, Request::DaemonPaths {})
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response,
+            ResponsePayload::DaemonPaths(DaemonPathsResult {
+                config_file: fixture.store_path.to_string_lossy().into_owned()
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn should_grant_the_claim_when_no_other_ui_is_connected() {
+        let fixture = fixture();
+
+        let response = fixture
+            .handler
+            .dispatch(None, Request::UiClaim {})
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response,
+            ResponsePayload::UiClaim(UiClaimResult { claimed: true })
+        );
     }
 
     #[tokio::test]

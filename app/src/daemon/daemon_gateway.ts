@@ -31,6 +31,8 @@ export type DaemonGateway = {
 	restartTunnel(id: string): Promise<void>;
 	startTag(tag: string): Promise<void>;
 	stopTag(tag: string): Promise<void>;
+	/** Renames a tag in every tunnel and in the launch tags; resolves to the number of tunnels that carried it. */
+	renameTag(from: string, to: string): Promise<number>;
 	startX11(host: string): Promise<void>;
 	stopX11(host: string): Promise<void>;
 	launchX11(host: string, name: string): Promise<void>;
@@ -50,6 +52,8 @@ export type DaemonGateway = {
 		remember?: RememberDto
 	): Promise<void>;
 	forgetSecrets(): Promise<ForgetSecretsResultDto>;
+	/** Shows the configuration file in the file manager; the path comes from the daemon. */
+	revealConfig(): Promise<void>;
 	respondHostKey(promptId: string, decision: HostKeyDecisionDto): Promise<void>;
 	/** On success the native side exits the app. */
 	quit(force: boolean): Promise<void>;

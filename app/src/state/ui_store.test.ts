@@ -4,6 +4,21 @@ import { useUiStore } from '#/state/ui_store';
 import type { TunnelSpecDto } from '#/daemon/protocol';
 
 describe('useUiStore', () => {
+	it('should toggle the sidebar and remember it', () => {
+		useUiStore.getState().toggleSidebar();
+
+		expect(useUiStore.getState().isSidebarCollapsed).toBe(true);
+		expect(localStorage.getItem('tunneler.sidebarCollapsed')).toBe('true');
+	});
+
+	it('should expand the sidebar again and forget the collapse', () => {
+		useUiStore.getState().toggleSidebar();
+		useUiStore.getState().toggleSidebar();
+
+		expect(useUiStore.getState().isSidebarCollapsed).toBe(false);
+		expect(localStorage.getItem('tunneler.sidebarCollapsed')).toBeNull();
+	});
+
 	it('should open the editor in create mode with a null id', () => {
 		useUiStore.getState().openTunnelEditor(null);
 

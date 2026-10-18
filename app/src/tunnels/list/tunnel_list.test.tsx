@@ -120,4 +120,28 @@ describe('TunnelList', () => {
 
 		expect(await axe(container)).toHaveNoViolations();
 	});
+
+	it('should offer to rename the tag the list is filtered by', async () => {
+		seedTunnels();
+		useUiStore.getState().setFilter({ kind: 'tag', tag: 'dev' });
+		renderWithGateway(<TunnelList />);
+
+		await userEvent.click(
+			screen.getByRole('button', { name: 'Renommer le tag' })
+		);
+
+		expect(useUiStore.getState().tagRename).toEqual({
+			tag: 'dev',
+			origin: 'list',
+		});
+	});
+
+	it('should not offer to rename a tag without a tag filter', () => {
+		seedTunnels();
+		renderWithGateway(<TunnelList />);
+
+		expect(
+			screen.queryByRole('button', { name: 'Renommer le tag' })
+		).not.toBeInTheDocument();
+	});
 });

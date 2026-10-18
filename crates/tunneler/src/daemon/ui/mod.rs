@@ -98,6 +98,23 @@ impl UiCoordinator {
         Ok(())
     }
 
+    /// Decides whether the UI behind `requester` may stay open. When a UI that
+    /// connected before it exists, that one is asked to show itself and the
+    /// answer is `false`; the oldest UI always wins, so two UIs starting
+    /// together never both give up.
+    pub(crate) fn claim(&self, requester: Option<ConnectionId>) -> bool {
+        let older_uis: Vec<ConnectionId> = self
+            .ui_connections()
+            .into_iter()
+            .filter(|id| requester.is_some_and(|requester| *id < requester))
+            .collect();
+        if older_uis.is_empty() {
+            return true;
+        }
+        self.notify(&older_uis, &EventMessage::ShowRequested {});
+        false
+    }
+
     /// Has the UI ask the user to confirm quitting, launching it when none is
     /// connected; it is then told as soon as it connects.
     pub(crate) fn request_quit_confirmation(&self) -> Result<(), UiLaunchError> {
@@ -292,6 +309,22 @@ mod tests {
         }
     }
 
+    async fn connect_second_ui(server: &TestServer) -> Connected {
+        let mut client = server.connect(ClientKind::Ui, true, true).await;
+        let events = client.take_events().unwrap();
+        timeout(WAIT, async {
+            while ui_ids(server).len() < 2 {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        Connected {
+            _client: client,
+            events,
+        }
+    }
+
     async fn wait_until_registered(server: &TestServer, kind: ClientKind) {
         timeout(WAIT, async {
             while !server
@@ -330,6 +363,67 @@ mod tests {
         fixture.coordinator.show().unwrap();
 
         assert_eq!(next_event(&mut ui).await, EventMessage::ShowRequested {});
+    }
+
+    fn ui_ids(server: &TestServer) -> Vec<ConnectionId> {
+        server
+            .handle
+            .connections()
+            .iter()
+            .filter(|connection| connection.client_kind == ClientKind::Ui)
+            .map(|connection| connection.id)
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn should_grant_the_claim_when_no_other_ui_is_connected() {
+        let fixture = Fixture::start();
+        let _ui = connect(&fixture.server, ClientKind::Ui).await;
+        let requester = ui_ids(&fixture.server)[0];
+
+        assert!(fixture.coordinator.claim(Some(requester)));
+    }
+
+    #[tokio::test]
+    async fn should_refuse_the_claim_when_an_older_ui_is_connected() {
+        let fixture = Fixture::start();
+        let _first = connect(&fixture.server, ClientKind::Ui).await;
+        let _second = connect_second_ui(&fixture.server).await;
+        let requester = ui_ids(&fixture.server)[1];
+
+        assert!(!fixture.coordinator.claim(Some(requester)));
+    }
+
+    #[tokio::test]
+    async fn should_show_the_older_ui_when_a_newer_one_claims() {
+        let fixture = Fixture::start();
+        let mut first = connect(&fixture.server, ClientKind::Ui).await;
+        let _second = connect_second_ui(&fixture.server).await;
+        let requester = ui_ids(&fixture.server)[1];
+
+        fixture.coordinator.claim(Some(requester));
+
+        assert_eq!(next_event(&mut first).await, EventMessage::ShowRequested {});
+    }
+
+    #[tokio::test]
+    async fn should_grant_the_claim_to_the_oldest_ui_when_a_newer_one_is_connected() {
+        let fixture = Fixture::start();
+        let _first = connect(&fixture.server, ClientKind::Ui).await;
+        let _second = connect_second_ui(&fixture.server).await;
+        let requester = ui_ids(&fixture.server)[0];
+
+        assert!(fixture.coordinator.claim(Some(requester)));
+    }
+
+    #[tokio::test]
+    async fn should_not_count_a_cli_as_a_ui_when_claiming() {
+        let fixture = Fixture::start();
+        let _cli = connect(&fixture.server, ClientKind::Cli).await;
+        let _ui = connect(&fixture.server, ClientKind::Ui).await;
+        let requester = ui_ids(&fixture.server)[0];
+
+        assert!(fixture.coordinator.claim(Some(requester)));
     }
 
     #[tokio::test]

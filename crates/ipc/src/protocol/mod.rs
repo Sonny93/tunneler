@@ -33,9 +33,11 @@ pub use line::{LineRead, MAX_LINE_BYTES, encode_line, read_line};
 pub use request::{
     CredentialAnswer, CredentialResponseParams, HostKeyResponseParams, HostParams,
     ImportScriptParams, MAX_IMPORT_SCRIPT_BYTES, METHOD_NAMES, ProcessParams, QuitParams, Request,
-    RequestEnvelope, RequestRejection, TagParams, TunnelIdParams, X11HostParams, X11LaunchParams,
+    RequestEnvelope, RequestRejection, TagParams, TagRenameParams, TunnelIdParams, X11HostParams,
+    X11LaunchParams,
 };
 pub use response::{
-    AdoptResult, EmptyResult, ForgetSecretsResult, HostsResult, LogsResult, ResponsePayload,
+    AdoptResult, DaemonPathsResult, EmptyResult, ForgetSecretsResult, HostsResult, LogsResult,
+    RenameTagResult, ResponsePayload, UiClaimResult,
 };
 pub use secret::Secret;

@@ -30,5 +30,6 @@ pub use model::{
     TunnelKind, X11Launcher,
 };
 pub use state::{AppState, FileStateStore, StateStore, default_state_path};
+pub(crate) use validation::find_tag_problem;
 pub use validation::{TagProblem, TunnelReference, ValidationError};
 pub use watch::{StoreEvent, StoreWatcher};

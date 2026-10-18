@@ -45,6 +45,12 @@ describe('createTauriGateway', () => {
 		['restartTunnel', ['1'], 'restart_tunnel', { id: '1' }],
 		['startTag', ['dev'], 'start_tag', { tag: 'dev' }],
 		['stopTag', ['dev'], 'stop_tag', { tag: 'dev' }],
+		[
+			'renameTag',
+			['dev', 'staging'],
+			'rename_tag',
+			{ from: 'dev', to: 'staging' },
+		],
 		['startX11', ['nova'], 'start_x11', { host: 'nova' }],
 		['stopX11', ['nova'], 'stop_x11', { host: 'nova' }],
 		[
@@ -77,6 +83,7 @@ describe('createTauriGateway', () => {
 			{ promptId: 'p1', answer: 'secret', remember: 'keyring' },
 		],
 		['forgetSecrets', [], 'forget_secrets', undefined],
+		['revealConfig', [], 'reveal_config', undefined],
 		[
 			'respondHostKey',
 			['p1', 'reject'],

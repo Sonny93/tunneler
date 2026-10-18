@@ -9,6 +9,7 @@ import { FormErrorSummary } from '#/shared/form_error_summary';
 import { useSettingsForm } from '#/settings/use_settings_form';
 import { SettingsFieldset } from '#/settings/settings_fieldset';
 import { SETTINGS_SECTIONS } from '#/settings/settings_field_specs';
+import { OpenConfigFolderButton } from '#/settings/open_config_folder_button';
 import { SettingsSecretsFieldset } from '#/settings/settings_secrets_fieldset';
 import { SettingsStartupFieldset } from '#/settings/settings_startup_fieldset';
 
@@ -74,6 +75,7 @@ export function SettingsPanel({ settings }: Readonly<SettingsPanelProps>) {
 					onChangeToggle={form.changeToggle}
 				/>
 			</form>
+			<OpenConfigFolderButton />
 		</Drawer>
 	);
 }

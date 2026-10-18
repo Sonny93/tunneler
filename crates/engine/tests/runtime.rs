@@ -11,8 +11,8 @@ use std::time::{Duration, SystemTime};
 use engine::{
     AppState, Clock, ConnectTimeouts, Engine, EngineDependencies, EngineError, EngineEvent,
     EngineOptions, FailureReason, HostKeyDecision, LogLevel, NewTunnel, PortOwner, PortScanner,
-    Settings, Store, StoreError, SystemClock, SystemPortScanner, SystemScan, TargetHealth,
-    TunnelId, TunnelKind, TunnelState, UnmanagedProcess,
+    Settings, Store, StoreError, SystemClock, SystemPortScanner, SystemScan, TagProblem,
+    TargetHealth, TunnelId, TunnelKind, TunnelState, UnmanagedProcess,
 };
 use fast_socks5::client::{Config as SocksConfig, Socks5Stream};
 use fast_socks5::{ReplyError, SocksError};
@@ -1689,6 +1689,148 @@ async fn should_fail_with_unknown_tag_when_no_tunnel_carries_it() {
     let outcome = harness.engine.start_tag("missing");
 
     assert!(matches!(outcome, Err(EngineError::UnknownTag(tag)) if tag == "missing"));
+}
+
+fn tags_of(harness: &Harness, name: &str) -> Vec<String> {
+    let id = harness.id(name);
+    harness
+        .engine
+        .snapshot()
+        .tunnels
+        .into_iter()
+        .find(|snapshot| snapshot.definition.id == id)
+        .unwrap()
+        .definition
+        .tags
+}
+
+fn strings(values: &[&str]) -> Vec<String> {
+    values.iter().map(|value| (*value).to_owned()).collect()
+}
+
+#[tokio::test]
+async fn should_rename_the_tag_in_every_tunnel_that_carries_it() {
+    let harness = HarnessBuilder::tagged(&[
+        ("alpha", &["dev"]),
+        ("beta", &["dev", "web"]),
+        ("gamma", &["web"]),
+    ])
+    .start()
+    .await;
+
+    let renamed_count = harness.engine.rename_tag("dev", "staging").await.unwrap();
+
+    assert_eq!(
+        (
+            renamed_count,
+            tags_of(&harness, "alpha"),
+            tags_of(&harness, "beta"),
+            tags_of(&harness, "gamma"),
+        ),
+        (
+            2,
+            strings(&["staging"]),
+            strings(&["staging", "web"]),
+            strings(&["web"]),
+        )
+    );
+}
+
+#[tokio::test]
+async fn should_persist_the_renamed_tag_in_the_store() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+
+    harness.engine.rename_tag("dev", "staging").await.unwrap();
+
+    let (reopened, _) = Store::open(harness.store_path()).unwrap();
+    assert_eq!(reopened.document().tunnels[0].tags, strings(&["staging"]));
+}
+
+#[tokio::test]
+async fn should_merge_into_the_existing_tag_when_a_tunnel_already_carries_the_new_name() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev", "web"])])
+        .start()
+        .await;
+
+    harness.engine.rename_tag("dev", "web").await.unwrap();
+
+    assert_eq!(tags_of(&harness, "alpha"), strings(&["web"]));
+}
+
+#[tokio::test]
+async fn should_rename_the_tag_in_the_start_on_launch_tags() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+    configure_launch(&harness, false, &["dev"]).await;
+
+    harness.engine.rename_tag("dev", "staging").await.unwrap();
+
+    assert_eq!(
+        harness.engine.snapshot().settings.start_on_launch_tags,
+        strings(&["staging"])
+    );
+}
+
+#[tokio::test]
+async fn should_announce_a_reload_when_a_tag_is_renamed() {
+    let mut harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+
+    harness.engine.rename_tag("dev", "staging").await.unwrap();
+
+    wait_for_event(&mut harness.events, WAIT, |event| {
+        (*event == EngineEvent::ConfigReloaded).then_some(())
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn should_keep_the_tunnel_running_when_its_tag_is_renamed() {
+    let mut harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+    harness.start_tunnel("alpha");
+    harness.wait_all_active(&["alpha"]).await;
+
+    harness.engine.rename_tag("dev", "staging").await.unwrap();
+
+    assert_eq!(harness.engine.active_tunnel_count(), 1);
+}
+
+#[tokio::test]
+async fn should_do_nothing_when_a_tag_is_renamed_to_itself() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+    let before = std::fs::read_to_string(harness.store_path()).unwrap();
+
+    let renamed_count = harness.engine.rename_tag("dev", "dev").await.unwrap();
+
+    assert_eq!(
+        (
+            renamed_count,
+            std::fs::read_to_string(harness.store_path()).unwrap()
+        ),
+        (0, before)
+    );
+}
+
+#[tokio::test]
+async fn should_refuse_to_rename_a_tag_nobody_carries() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+
+    let outcome = harness.engine.rename_tag("missing", "staging").await;
+
+    assert!(matches!(outcome, Err(EngineError::UnknownTag(tag)) if tag == "missing"));
+}
+
+#[tokio::test]
+async fn should_refuse_a_new_tag_name_that_breaks_the_tag_syntax() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+
+    let outcome = harness.engine.rename_tag("dev", "two words").await;
+
+    assert!(matches!(
+        outcome,
+        Err(EngineError::InvalidTag {
+            problem: TagProblem::ContainsWhitespace,
+            ..
+        })
+    ));
 }
 
 #[tokio::test]

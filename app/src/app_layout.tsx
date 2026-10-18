@@ -4,12 +4,16 @@ const MAIN_ID = 'main-content';
 
 type AppLayoutProps = {
 	sidebar: ReactNode;
+	sidebarToggle: ReactNode;
+	isSidebarCollapsed: boolean;
 	actions: ReactNode;
 	children: ReactNode;
 };
 
 export const AppLayout = ({
 	sidebar,
+	sidebarToggle,
+	isSidebarCollapsed,
 	actions,
 	children,
 }: Readonly<AppLayoutProps>) => (
@@ -21,12 +25,16 @@ export const AppLayout = ({
 			Aller à la liste des tunnels
 		</a>
 		<header className="flex flex-wrap items-center justify-between gap-2 border-b border-tn-divider px-4 py-2">
-			<h1 className="text-lg font-semibold">Tunneler</h1>
+			<div className="flex items-center gap-2">
+				{sidebarToggle}
+				<h1 className="text-lg font-semibold">Tunneler</h1>
+			</div>
 			<div className="flex flex-wrap items-center gap-2">{actions}</div>
 		</header>
 		<div className="flex min-w-0 flex-1 flex-col md:flex-row">
 			<aside
 				aria-label="Navigation"
+				hidden={isSidebarCollapsed}
 				className="border-b border-tn-divider bg-tn-surface p-4 md:w-64 md:shrink-0 md:border-b-0 md:border-r"
 			>
 				{sidebar}

@@ -1,7 +1,7 @@
 import { axe } from 'vitest-axe';
 import { describe, expect, it } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 
 import { Sidebar } from '#/sidebar/sidebar';
 import { useUiStore } from '#/state/ui_store';
@@ -195,5 +195,68 @@ describe('Sidebar', () => {
 		const { container } = renderWithGateway(<Sidebar />);
 
 		expect(await axe(container)).toHaveNoViolations();
+	});
+
+	describe('tag context menu', () => {
+		const openTagMenu = (name: RegExp) => {
+			seedTunnels();
+			const rendered = renderWithGateway(<Sidebar />);
+			fireEvent.contextMenu(screen.getByRole('button', { name }));
+			return rendered;
+		};
+
+		it('should offer to rename and start a partially running tag', async () => {
+			openTagMenu(/^dev/);
+
+			expect(
+				screen.getAllByRole('menuitem').map((item) => item.textContent)
+			).toEqual(['Renommer…', 'Démarrer le tag']);
+		});
+
+		it('should offer to stop a fully running tag', () => {
+			useDaemonStore.setState({
+				tunnels: [buildTunnel({ tags: ['dev'], state: ACTIVE })],
+			});
+			renderWithGateway(<Sidebar />);
+
+			fireEvent.contextMenu(screen.getByRole('button', { name: /^dev/ }));
+
+			expect(
+				screen.getByRole('menuitem', { name: 'Arrêter le tag' })
+			).toBeInTheDocument();
+		});
+
+		it('should start the tag from the menu', async () => {
+			const user = userEvent.setup();
+			const { gateway } = openTagMenu(/^dev/);
+
+			await user.click(
+				screen.getByRole('menuitem', { name: 'Démarrer le tag' })
+			);
+
+			expect(gateway.startTag).toHaveBeenCalledWith('dev');
+		});
+
+		it('should open the rename dialog from the menu', async () => {
+			const user = userEvent.setup();
+			openTagMenu(/^dev/);
+
+			await user.click(screen.getByRole('menuitem', { name: 'Renommer…' }));
+
+			expect(useUiStore.getState().tagRename).toEqual({
+				tag: 'dev',
+				origin: 'sidebar',
+			});
+		});
+
+		it('should focus the row of a just-renamed tag', () => {
+			seedTunnels();
+			renderWithGateway(<Sidebar />);
+
+			act(() => useUiStore.getState().focusTagRow('dev'));
+
+			expect(screen.getByRole('button', { name: /^dev/ })).toHaveFocus();
+			expect(useUiStore.getState().pendingFocusTag).toBeNull();
+		});
 	});
 });

@@ -43,6 +43,15 @@ pub fn react_to_event(app: &AppHandle, event: &EventMessage) {
     }
 }
 
+/// Unminimizes, shows and focuses the main window; failures are logged only.
+pub fn bring_main_window_to_front(app: &AppHandle) {
+    let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
+        tracing::warn!("the main window does not exist");
+        return;
+    };
+    bring_to_front(&window);
+}
+
 fn bring_to_front(window: &tauri::WebviewWindow) {
     if let Err(error) = window.unminimize() {
         tracing::warn!(%error, "cannot unminimize the main window");

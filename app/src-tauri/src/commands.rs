@@ -4,6 +4,8 @@ use ipc::protocol::{
     ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto, LogEntryDto, RememberDto,
     ResolvedHostDto, SettingsDto, SnapshotDto, TunnelDefinitionDto, TunnelDto, TunnelSpecDto,
 };
+use std::path::Path;
+
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 
@@ -11,6 +13,7 @@ use crate::bridge::BridgeState;
 use crate::bridge_error::BridgeError;
 use crate::browser_url::browser_url;
 use crate::credential::CredentialAnswerInput;
+use crate::reveal_target::{RevealTarget, reveal_target};
 
 const EXIT_SUCCESS: i32 = 0;
 
@@ -18,7 +21,9 @@ type CommandResult<T> = Result<T, BridgeError>;
 
 #[tauri::command]
 pub async fn connect_daemon(app: AppHandle, state: State<'_, BridgeState>) -> CommandResult<()> {
-    state.connect(&app).await
+    let connection = state.connect(&app).await;
+    state.settle_startup(&app, &connection).await;
+    connection
 }
 
 #[tauri::command]
@@ -114,6 +119,31 @@ pub async fn start_tag(state: State<'_, BridgeState>, tag: String) -> CommandRes
 #[tauri::command]
 pub async fn stop_tag(state: State<'_, BridgeState>, tag: String) -> CommandResult<()> {
     Ok(state.client()?.stop_tag(&tag).await?)
+}
+
+/// Renames a tag everywhere; returns how many tunnels carried it.
+#[tauri::command]
+pub async fn rename_tag(
+    state: State<'_, BridgeState>,
+    from: String,
+    to: String,
+) -> CommandResult<u64> {
+    Ok(state.client()?.rename_tag(&from, &to).await?)
+}
+
+/// Shows the configuration file in the file manager; the path comes from the
+/// daemon, which may run with another `--config`.
+#[tauri::command]
+pub async fn reveal_config(app: AppHandle, state: State<'_, BridgeState>) -> CommandResult<()> {
+    let paths = state.client()?.daemon_paths().await?;
+    let opener = app.opener();
+    match reveal_target(Path::new(&paths.config_file), Path::exists) {
+        RevealTarget::File(file) => opener.reveal_item_in_dir(file),
+        RevealTarget::ParentFolder(folder) => {
+            opener.open_path(folder.to_string_lossy(), None::<&str>)
+        }
+    }
+    .map_err(|error| BridgeError::internal(&error.to_string()))
 }
 
 #[tauri::command]

@@ -41,6 +41,31 @@ pub struct ForgetSecretsResult {
     pub forgotten_count: u64,
 }
 
+/// The result of `ui.claim`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UiClaimResult {
+    /// Whether the caller is the UI that stays open; `false` when an older
+    /// UI is connected and was asked to show itself.
+    pub claimed: bool,
+}
+
+/// The result of `tags.rename`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenameTagResult {
+    /// How many tunnels carried the tag.
+    pub renamed_count: u64,
+}
+
+/// The result of `daemon.paths`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DaemonPathsResult {
+    /// The absolute path of the configuration file (`tunnels.toml`).
+    pub config_file: String,
+}
+
 /// What a handler answers on success; serialized as the bare `result` value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
@@ -65,6 +90,12 @@ pub enum ResponsePayload {
     Adopt(AdoptResult),
     /// The answer to `secrets.forget`.
     ForgetSecrets(ForgetSecretsResult),
+    /// The answer to `ui.claim`.
+    UiClaim(UiClaimResult),
+    /// The answer to `tags.rename`.
+    RenameTag(RenameTagResult),
+    /// The answer to `daemon.paths`.
+    DaemonPaths(DaemonPathsResult),
 }
 
 impl ResponsePayload {

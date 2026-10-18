@@ -4,6 +4,7 @@ import { ImportDrawer } from '#/import/import_drawer';
 import { CommandPalette } from '#/palette/command_palette';
 import { ShortcutsHelp } from '#/shortcuts/shortcuts_help';
 import { SettingsDrawer } from '#/settings/settings_drawer';
+import { TagRenameHost } from '#/tag_rename/tag_rename_host';
 import { HostConfigDrawer } from '#/host_config/host_config_drawer';
 import { TunnelFormDrawer } from '#/tunnel_form/tunnel_form_drawer';
 import { useGlobalShortcuts } from '#/shortcuts/use_global_shortcuts';
@@ -23,6 +24,7 @@ export function Overlays() {
 			<TunnelDetailsDrawer />
 			<HostConfigDrawer />
 			<ImportDrawer />
+			<TagRenameHost />
 			<PromptHost />
 			<ShortcutsHelp />
 			<CommandPalette />

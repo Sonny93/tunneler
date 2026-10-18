@@ -329,10 +329,73 @@ describe('ImportDrawer', () => {
 
 		await analyzeScript(user);
 
-		expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole('combobox', { name: /Hôte des tunnels/ })
+		).not.toBeInTheDocument();
 	});
 
 	describe('creation', () => {
+		it('should suggest the existing tags and describe the field', async () => {
+			const user = userEvent.setup();
+			useDaemonStore.setState({
+				tunnels: [
+					buildTunnel({ id: 'a', tags: ['dev', 'Db'] }),
+					buildTunnel({ id: 'b', tags: ['dev'] }),
+				],
+			});
+			renderDrawer();
+			await analyzeScript(user);
+
+			const field = screen.getByRole('combobox', { name: 'Tag à ajouter' });
+
+			expect(field).toHaveAccessibleDescription(/Optionnel/);
+			expect(
+				Array.from((field as HTMLInputElement).list?.options ?? []).map(
+					(option) => option.value
+				)
+			).toEqual(['Db', 'dev']);
+		});
+
+		it('should add nothing when the tag field is empty', async () => {
+			const user = userEvent.setup();
+			const { gateway } = renderDrawer(
+				buildImportPreview({ candidates: [buildImportCandidate()] })
+			);
+			await analyzeScript(user);
+
+			await user.click(
+				screen.getByRole('button', { name: 'Importer 1 tunnel' })
+			);
+
+			await waitFor(() =>
+				expect(gateway.createTunnel).toHaveBeenCalledWith(
+					expect.objectContaining({ tags: [] })
+				)
+			);
+		});
+
+		it('should not duplicate a tag typed twice', async () => {
+			const user = userEvent.setup();
+			const { gateway } = renderDrawer(
+				buildImportPreview({ candidates: [buildImportCandidate()] })
+			);
+			await analyzeScript(user);
+
+			await user.type(
+				screen.getByRole('combobox', { name: 'Tag à ajouter' }),
+				' dev , dev'
+			);
+			await user.click(
+				screen.getByRole('button', { name: 'Importer 1 tunnel' })
+			);
+
+			await waitFor(() =>
+				expect(gateway.createTunnel).toHaveBeenCalledWith(
+					expect.objectContaining({ tags: ['dev'] })
+				)
+			);
+		});
+
 		it('should create the selected tunnels in order with the tags', async () => {
 			const user = userEvent.setup();
 			const { gateway } = renderDrawer(
@@ -346,8 +409,8 @@ describe('ImportDrawer', () => {
 			await analyzeScript(user);
 
 			await user.type(
-				screen.getByRole('textbox', {
-					name: 'Tags ajoutés aux tunnels importés',
+				screen.getByRole('combobox', {
+					name: 'Tag à ajouter',
 				}),
 				'dev, imported'
 			);

@@ -2,6 +2,8 @@ export type PaletteAction =
 	| { kind: 'newTunnel' }
 	| { kind: 'importTunnels' }
 	| { kind: 'openSettings' }
+	| { kind: 'revealConfig' }
+	| { kind: 'toggleSidebar' }
 	| { kind: 'showShortcuts' }
 	| { kind: 'startTunnel'; tunnelId: string }
 	| { kind: 'stopTunnel'; tunnelId: string }
@@ -10,6 +12,7 @@ export type PaletteAction =
 	| { kind: 'openInBrowser'; host: string; port: number }
 	| { kind: 'startTag'; tag: string }
 	| { kind: 'stopTag'; tag: string }
+	| { kind: 'renameTag'; tag: string }
 	| { kind: 'showHostConfig'; host: string }
 	| { kind: 'showX11'; host: string };
 

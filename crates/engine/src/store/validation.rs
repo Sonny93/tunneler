@@ -349,7 +349,7 @@ fn validate_tags(tunnel: &TunnelDefinition, reference: &TunnelReference) -> Vec<
     errors
 }
 
-fn find_tag_problem(tag: &str) -> Option<TagProblem> {
+pub(crate) fn find_tag_problem(tag: &str) -> Option<TagProblem> {
     if tag.is_empty() {
         return Some(TagProblem::Empty);
     }

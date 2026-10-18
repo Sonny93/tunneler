@@ -32,6 +32,7 @@ export function createTauriGateway(): DaemonGateway {
 		restartTunnel: (id) => call('restart_tunnel', { id }),
 		startTag: (tag) => call('start_tag', { tag }),
 		stopTag: (tag) => call('stop_tag', { tag }),
+		renameTag: (from, to) => call('rename_tag', { from, to }),
 		startX11: (host) => call('start_x11', { host }),
 		stopX11: (host) => call('stop_x11', { host }),
 		launchX11: (host, name) => call('launch_x11', { host, name }),
@@ -51,6 +52,7 @@ export function createTauriGateway(): DaemonGateway {
 				remember: remember ?? null,
 			}),
 		forgetSecrets: () => call('forget_secrets'),
+		revealConfig: () => call('reveal_config'),
 		respondHostKey: (promptId, decision) =>
 			call('respond_host_key', { promptId, decision }),
 		quit: (force) => call('quit_daemon', { force }),

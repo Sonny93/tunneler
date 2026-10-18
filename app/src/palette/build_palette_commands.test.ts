@@ -19,6 +19,8 @@ describe('buildPaletteCommands', () => {
 			'Nouveau tunnel',
 			'Importer des tunnels',
 			'Ouvrir les paramètres',
+			'Ouvrir le dossier de configuration',
+			'Masquer ou afficher le panneau',
 			'Afficher les raccourcis clavier',
 		]);
 	});
@@ -70,6 +72,20 @@ describe('buildPaletteCommands', () => {
 		expect(
 			labelsOf(build([buildTunnel({ ...running, kind: 'remote' })]))
 		).not.toContain('Ouvrir Adonis dans le navigateur');
+	});
+
+	it('should offer to rename every tag', () => {
+		const commands = build([
+			buildTunnel({ tags: ['dev'] }),
+			buildTunnel({ id: 'tunnel-2', tags: ['dev', 'db'] }),
+		]);
+
+		expect(
+			commands.filter(({ action }) => action.kind === 'renameTag')
+		).toEqual([
+			expect.objectContaining({ label: 'Renommer le tag db…' }),
+			expect.objectContaining({ label: 'Renommer le tag dev…' }),
+		]);
 	});
 
 	it('should offer to start a tag that is not fully active', () => {

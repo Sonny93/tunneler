@@ -11,8 +11,8 @@ use ipc::protocol::{ClientKind, ErrorCode, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYT
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use support::{
-    FORGOTTEN_COUNT, MISSING_LAUNCHER_NAME, MISSING_TUNNEL_ID, SLOW_DELAY, SLOW_TUNNEL_ID,
-    TestDaemon, UNKILLABLE_PID,
+    CONFIG_FILE, FORGOTTEN_COUNT, MISSING_LAUNCHER_NAME, MISSING_TAG, MISSING_TUNNEL_ID,
+    RENAMED_COUNT, SLOW_DELAY, SLOW_TUNNEL_ID, TestDaemon, UNKILLABLE_PID,
 };
 use tokio::task::JoinSet;
 
@@ -54,6 +54,50 @@ async fn should_return_the_forgotten_count_when_secrets_are_forgotten() {
     let result = client.forget_secrets().await.unwrap();
 
     assert_eq!(result.forgotten_count, FORGOTTEN_COUNT);
+}
+
+#[tokio::test]
+async fn should_return_the_claim_when_a_ui_claims_the_daemon() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    assert!(client.claim_ui().await.unwrap());
+}
+
+#[tokio::test]
+async fn should_return_the_renamed_count_when_a_tag_is_renamed() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let renamed_count = client.rename_tag("dev", "staging").await.unwrap();
+
+    assert_eq!(renamed_count, RENAMED_COUNT);
+}
+
+#[tokio::test]
+async fn should_fail_with_not_found_when_the_renamed_tag_is_unknown() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let error = client.rename_tag(MISSING_TAG, "staging").await.unwrap_err();
+
+    assert!(matches!(
+        error,
+        ClientError::Remote {
+            code: ErrorCode::NotFound,
+            ..
+        }
+    ));
+}
+
+#[tokio::test]
+async fn should_return_the_config_file_when_the_paths_are_read() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let paths = client.daemon_paths().await.unwrap();
+
+    assert_eq!(paths.config_file, CONFIG_FILE);
 }
 
 #[tokio::test]

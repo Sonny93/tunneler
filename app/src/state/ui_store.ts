@@ -2,6 +2,10 @@ import { create } from 'zustand';
 
 import type { TunnelSpecDto } from '#/daemon/protocol';
 import { getRangeIds } from '#/tunnels/selection/get_range_ids';
+import {
+	readSidebarCollapsed,
+	writeSidebarCollapsed,
+} from '#/state/sidebar_collapsed_storage';
 
 export type Panel =
 	| { kind: 'none' }
@@ -17,6 +21,11 @@ export type TunnelFilter =
 	| { kind: 'tag'; tag: string }
 	| { kind: 'host'; host: string };
 
+/** Where the rename was asked: a `list` trigger survives the rename, the others vanish with the old tag. */
+export type TagRenameOrigin = 'sidebar' | 'palette' | 'list';
+
+export type TagRenameRequest = { tag: string; origin: TagRenameOrigin };
+
 export type TrayProblemKind = 'missingHost' | 'failed';
 
 type UiState = {
@@ -24,6 +33,12 @@ type UiState = {
 	filter: TunnelFilter;
 	isHelpOpen: boolean;
 	isPaletteOpen: boolean;
+	/** Whether the sidebar is hidden; remembered per viewer in `localStorage`. */
+	isSidebarCollapsed: boolean;
+	/** The tag whose rename dialog is open. */
+	tagRename: TagRenameRequest | null;
+	/** A just-renamed tag whose sidebar row takes the focus once it is rendered. */
+	pendingFocusTag: string | null;
 	/** The tray problem the user hid; a different problem shows the notice again. */
 	dismissedTrayProblem: TrayProblemKind | null;
 	/** A just-created tunnel whose switch takes the focus once its row is rendered. */
@@ -53,6 +68,11 @@ type UiActions = {
 	setFilter: (filter: TunnelFilter) => void;
 	setHelpOpen: (isOpen: boolean) => void;
 	setPaletteOpen: (isOpen: boolean) => void;
+	toggleSidebar: () => void;
+	openTagRename: (tag: string, origin: TagRenameOrigin) => void;
+	closeTagRename: () => void;
+	focusTagRow: (tag: string) => void;
+	clearPendingFocusTag: () => void;
 	dismissTrayProblem: (kind: TrayProblemKind) => void;
 	toggleTunnelSelection: (tunnelId: string) => void;
 	/** Selects every tunnel between the anchor and `tunnelId` in `orderedIds`. */
@@ -68,6 +88,9 @@ export const INITIAL_UI_STATE: UiState = {
 	filter: { kind: 'all' },
 	isHelpOpen: false,
 	isPaletteOpen: false,
+	isSidebarCollapsed: false,
+	tagRename: null,
+	pendingFocusTag: null,
 	dismissedTrayProblem: null,
 	pendingFocusTunnelId: null,
 	confirmedX11Hosts: [],
@@ -77,6 +100,7 @@ export const INITIAL_UI_STATE: UiState = {
 
 export const useUiStore = create<UiState & UiActions>()((set) => ({
 	...INITIAL_UI_STATE,
+	isSidebarCollapsed: readSidebarCollapsed(),
 	openTunnelEditor: (tunnelId) =>
 		set({ panel: { kind: 'tunnelEditor', tunnelId } }),
 	openTunnelImport: (draft) =>
@@ -98,6 +122,16 @@ export const useUiStore = create<UiState & UiActions>()((set) => ({
 	setFilter: (filter) => set({ filter }),
 	setHelpOpen: (isHelpOpen) => set({ isHelpOpen }),
 	setPaletteOpen: (isPaletteOpen) => set({ isPaletteOpen }),
+	toggleSidebar: () =>
+		set((state) => {
+			const isSidebarCollapsed = !state.isSidebarCollapsed;
+			writeSidebarCollapsed(isSidebarCollapsed);
+			return { isSidebarCollapsed };
+		}),
+	openTagRename: (tag, origin) => set({ tagRename: { tag, origin } }),
+	closeTagRename: () => set({ tagRename: null }),
+	focusTagRow: (pendingFocusTag) => set({ pendingFocusTag }),
+	clearPendingFocusTag: () => set({ pendingFocusTag: null }),
 	dismissTrayProblem: (dismissedTrayProblem) => set({ dismissedTrayProblem }),
 	toggleTunnelSelection: (tunnelId) =>
 		set((state) => {

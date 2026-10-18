@@ -63,6 +63,40 @@ describe('useGlobalShortcuts', () => {
 		expect(useUiStore.getState().isHelpOpen).toBe(true);
 	});
 
+	it('should toggle the sidebar on b', async () => {
+		render(<Harness />);
+
+		await userEvent.keyboard('b');
+
+		expect(useUiStore.getState().isSidebarCollapsed).toBe(true);
+	});
+
+	it('should not toggle the sidebar on b while a dialog is open', async () => {
+		render(<Harness isModalOpen />);
+
+		await userEvent.keyboard('b');
+
+		expect(useUiStore.getState().isSidebarCollapsed).toBe(false);
+	});
+
+	it('should not toggle the sidebar on b typed in a field', async () => {
+		const user = userEvent.setup();
+		render(<Harness />);
+		await user.click(screen.getByLabelText('Champ'));
+
+		await user.keyboard('b');
+
+		expect(useUiStore.getState().isSidebarCollapsed).toBe(false);
+	});
+
+	it('should not toggle the sidebar on Ctrl+b', async () => {
+		render(<Harness />);
+
+		await userEvent.keyboard('{Control>}b{/Control}');
+
+		expect(useUiStore.getState().isSidebarCollapsed).toBe(false);
+	});
+
 	it.each(['{Control>}k{/Control}', '{Meta>}k{/Meta}'])(
 		'should open the palette on %s',
 		async (keys) => {

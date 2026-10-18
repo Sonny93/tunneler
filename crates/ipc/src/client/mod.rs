@@ -16,11 +16,12 @@ use tokio::task::JoinHandle;
 use crate::endpoint::Endpoint;
 use crate::error::ClientError;
 use crate::protocol::{
-    AdoptResult, CredentialAnswer, CredentialResponseParams, EventMessage, ForgetSecretsResult,
-    Hello, HostKeyDecisionDto, HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto,
-    ImportScriptParams, LogEntryDto, LogsResult, ProcessParams, QuitParams, RememberDto, Request,
-    RequestEnvelope, ResolvedHostDto, SettingsDto, SnapshotDto, TagParams, TunnelDefinitionDto,
-    TunnelDto, TunnelIdParams, TunnelSpecDto, X11HostParams, X11LaunchParams, encode_line,
+    AdoptResult, CredentialAnswer, CredentialResponseParams, DaemonPathsResult, EventMessage,
+    ForgetSecretsResult, Hello, HostKeyDecisionDto, HostKeyResponseParams, HostParams, HostsResult,
+    ImportPreviewDto, ImportScriptParams, LogEntryDto, LogsResult, ProcessParams, QuitParams,
+    RememberDto, RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, SettingsDto,
+    SnapshotDto, TagParams, TagRenameParams, TunnelDefinitionDto, TunnelDto, TunnelIdParams,
+    TunnelSpecDto, UiClaimResult, X11HostParams, X11LaunchParams, encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -402,6 +403,47 @@ impl IpcClient {
     /// Fails when the call fails; see [`ClientError`].
     pub async fn forget_secrets(&self) -> Result<ForgetSecretsResult, ClientError> {
         self.call(Request::SecretsForget {}).await
+    }
+
+    /// Asks whether this UI may stay open: `false` means an older UI is
+    /// connected, was asked to show itself, and this one should exit.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. A daemon older than
+    /// this method answers `unknown_method`.
+    pub async fn claim_ui(&self) -> Result<bool, ClientError> {
+        let claim: UiClaimResult = self.call(Request::UiClaim {}).await?;
+        Ok(claim.claimed)
+    }
+
+    /// Renames a tag in every tunnel and in the launch tags; returns how many
+    /// tunnels carried it.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. The daemon answers
+    /// [`ErrorCode::NotFound`](crate::protocol::ErrorCode::NotFound) when no
+    /// tunnel carries `from` and
+    /// [`ErrorCode::ValidationFailed`](crate::protocol::ErrorCode::ValidationFailed)
+    /// when `to` is not a valid tag.
+    pub async fn rename_tag(&self, from: &str, to: &str) -> Result<u64, ClientError> {
+        let params = TagRenameParams {
+            from: from.to_owned(),
+            to: to.to_owned(),
+        };
+        let renamed: RenameTagResult = self.call(Request::TagsRename(params)).await?;
+        Ok(renamed.renamed_count)
+    }
+
+    /// Reads where the daemon keeps its files.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. A daemon older than
+    /// this method answers `unknown_method`.
+    pub async fn daemon_paths(&self) -> Result<DaemonPathsResult, ClientError> {
+        self.call(Request::DaemonPaths {}).await
     }
 
     async fn call_without_result(&self, request: Request) -> Result<(), ClientError> {

@@ -1,4 +1,5 @@
 use std::collections::{BTreeSet, HashSet};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
@@ -19,13 +20,15 @@ use crate::runtime::options::EngineOptions;
 use crate::runtime::port_watch::{PortWatch, run_scan_loop};
 use crate::runtime::reload::run_reload_loop;
 use crate::runtime::session_manager::SessionManager;
+use crate::runtime::tag_rename::rename_tag;
 use crate::runtime::tunnel_actor::TunnelCommand;
 use crate::runtime::x11_anchors::X11Anchors;
 use crate::runtime::x11_launcher::X11Launches;
 use crate::runtime::x11_state::X11AnchorSnapshot;
 use crate::state_tracker::StateTracker;
 use crate::store::{
-    Settings, StateStore, Store, StoreError, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
+    Settings, StateStore, Store, StoreError, TagProblem, TunnelDefinition, TunnelId, TunnelKind,
+    X11Launcher, find_tag_problem,
 };
 use crate::x11::{LocalX11Resolver, X11Environment, X11Error};
 
@@ -38,6 +41,14 @@ pub enum EngineError {
     /// No tunnel carries this tag.
     #[error("no tunnel carries the tag \"{0}\"")]
     UnknownTag(String),
+    /// The new name of a tag breaks the tag syntax.
+    #[error("tag \"{tag}\" is invalid: {problem}")]
+    InvalidTag {
+        /// The tag.
+        tag: String,
+        /// What is wrong with it.
+        problem: TagProblem,
+    },
     /// The store refused or failed to write the change.
     #[error(transparent)]
     Store(#[from] StoreError),
@@ -319,6 +330,11 @@ impl Engine {
         Ok(Self { inner })
     }
 
+    /// The path of the configuration file the engine reads and writes.
+    pub fn config_path(&self) -> &Path {
+        self.inner.store.path()
+    }
+
     /// The tunnels with their state, health and metrics, and the settings.
     pub fn snapshot(&self) -> EngineSnapshot {
         EngineSnapshot {
@@ -391,6 +407,43 @@ impl Engine {
         self.inner.settings.send_replace(settings);
         self.inner.bus.publish(EngineEvent::ConfigReloaded);
         Ok(())
+    }
+
+    /// Renames a tag in every tunnel and in `Settings::start_on_launch_tags`
+    /// with one write of the store, and returns how many tunnels carried it.
+    /// A tunnel that already carries `to` keeps it once. Running tunnels are
+    /// not interrupted. Renaming a tag to itself does nothing.
+    pub async fn rename_tag(&self, from: &str, to: &str) -> Result<usize, EngineError> {
+        if let Some(problem) = find_tag_problem(to) {
+            return Err(EngineError::InvalidTag {
+                tag: to.to_owned(),
+                problem,
+            });
+        }
+        let _serialized = self.inner.mutation.lock().await;
+        self.ensure_running()?;
+        if self.inner.catalog().ids_with_tag(from).is_empty() {
+            return Err(EngineError::UnknownTag(from.to_owned()));
+        }
+        if from == to {
+            return Ok(0);
+        }
+        let mut document = self.inner.store.document();
+        let current = self.inner.catalog().definitions();
+        let renamed = rename_tag(&current, &document.settings.start_on_launch_tags, from, to);
+        document.tunnels.clone_from(&renamed.tunnels);
+        document.settings.start_on_launch_tags = renamed.start_on_launch_tags;
+        let settings = document.settings.clone();
+        let store = Arc::clone(&self.inner.store);
+        run_blocking(move || store.save(document)).await?;
+        self.inner.settings.send_replace(settings);
+        for (before, after) in current.iter().zip(renamed.tunnels) {
+            if before.tags != after.tags {
+                self.inner.catalog().replace(after);
+            }
+        }
+        self.inner.bus.publish(EngineEvent::ConfigReloaded);
+        Ok(renamed.renamed_count)
     }
 
     /// Stops the tunnel if it runs, removes it and saves the store.

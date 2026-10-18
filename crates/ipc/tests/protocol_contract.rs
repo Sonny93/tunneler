@@ -2,18 +2,19 @@
 
 use ipc::protocol::{
     AdoptResult, ClientKind, ConfigInvalidEvent, CredentialAnswer, CredentialRequestDto,
-    CredentialRequestEvent, CredentialResponseParams, ErrorCode, EventMessage, ExternalForwardDto,
-    ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto, ForgetSecretsResult, Hello,
-    HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams,
-    HostOptionDto, HostParams, HostsResult, ImportCandidateDto, ImportPreviewDto,
-    ImportScriptParams, ImportWarningDto, IpcError, LogEntryDto, LogLevelDto,
+    CredentialRequestEvent, CredentialResponseParams, DaemonPathsResult, ErrorCode, EventMessage,
+    ExternalForwardDto, ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto,
+    ForgetSecretsResult, Hello, HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent,
+    HostKeyResponseParams, HostOptionDto, HostParams, HostsResult, ImportCandidateDto,
+    ImportPreviewDto, ImportScriptParams, ImportWarningDto, IpcError, LogEntryDto, LogLevelDto,
     MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, PROTOCOL_VERSION,
-    PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent, QuitParams, RememberDto, Request,
-    RequestEnvelope, ResolvedHostDto, ResponsePayload, Secret, ServerFrame, SettingsDto,
-    SnapshotDto, TagParams, TargetHealthDto, TrayChangedEvent, TrayStatusDto, TunnelChangedEvent,
-    TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto, TunnelLogEvent,
-    TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11ChangedEvent,
-    X11HostParams, X11LaunchParams, X11LauncherDto, X11StateDto, encode_event, encode_response,
+    PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent, QuitParams, RememberDto,
+    RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload, Secret,
+    ServerFrame, SettingsDto, SnapshotDto, TagParams, TagRenameParams, TargetHealthDto,
+    TrayChangedEvent, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
+    TunnelIdParams, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto,
+    TunnelStateDto, UiClaimResult, X11AnchorDto, X11ChangedEvent, X11HostParams, X11LaunchParams,
+    X11LauncherDto, X11StateDto, encode_event, encode_response,
 };
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -188,6 +189,12 @@ fn every_request() -> Vec<Request> {
         Request::X11Stop(x11_host()),
         Request::X11Launch(x11_launch()),
         Request::SecretsForget {},
+        Request::UiClaim {},
+        Request::TagsRename(TagRenameParams {
+            from: "dev".to_owned(),
+            to: "staging".to_owned(),
+        }),
+        Request::DaemonPaths {},
     ]
 }
 
@@ -664,6 +671,90 @@ fn should_serialize_a_forget_secrets_response_as_documented() {
 }
 
 #[test]
+fn should_serialize_the_ui_claim_request_as_documented() {
+    assert_eq!(
+        to_json(&Request::UiClaim {}),
+        json!({"method":"ui.claim","params":{}})
+    );
+}
+
+#[test]
+fn should_accept_ui_claim_without_params() {
+    let envelope = RequestEnvelope::parse(br#"{"id":5,"method":"ui.claim"}"#).unwrap();
+
+    assert_eq!(envelope.request, Request::UiClaim {});
+}
+
+#[test]
+fn should_serialize_a_ui_claim_response_as_documented() {
+    let result = UiClaimResult { claimed: false };
+
+    let line = encode_response(Some(6), &Ok(ResponsePayload::UiClaim(result))).unwrap();
+
+    assert_eq!(line, "{\"id\":6,\"result\":{\"claimed\":false}}\n");
+}
+
+#[test]
+fn should_serialize_the_tags_rename_request_as_documented() {
+    let request = Request::TagsRename(TagRenameParams {
+        from: "dev".to_owned(),
+        to: "staging".to_owned(),
+    });
+
+    assert_eq!(
+        to_json(&request),
+        json!({"method":"tags.rename","params":{"from":"dev","to":"staging"}})
+    );
+}
+
+#[test]
+fn should_reject_a_tags_rename_request_without_a_new_name() {
+    let line = br#"{"id":5,"method":"tags.rename","params":{"from":"dev"}}"#;
+
+    let rejection = RequestEnvelope::parse(line).unwrap_err();
+
+    assert_eq!(rejection.error.code, ErrorCode::InvalidRequest);
+}
+
+#[test]
+fn should_serialize_a_tags_rename_response_as_documented() {
+    let result = RenameTagResult { renamed_count: 2 };
+
+    let line = encode_response(Some(6), &Ok(ResponsePayload::RenameTag(result))).unwrap();
+
+    assert_eq!(line, "{\"id\":6,\"result\":{\"renamedCount\":2}}\n");
+}
+
+#[test]
+fn should_serialize_the_daemon_paths_request_as_documented() {
+    assert_eq!(
+        to_json(&Request::DaemonPaths {}),
+        json!({"method":"daemon.paths","params":{}})
+    );
+}
+
+#[test]
+fn should_accept_daemon_paths_without_params() {
+    let envelope = RequestEnvelope::parse(br#"{"id":5,"method":"daemon.paths"}"#).unwrap();
+
+    assert_eq!(envelope.request, Request::DaemonPaths {});
+}
+
+#[test]
+fn should_serialize_a_daemon_paths_response_as_documented() {
+    let result = DaemonPathsResult {
+        config_file: "/home/me/.config/tunneler/tunnels.toml".to_owned(),
+    };
+
+    let line = encode_response(Some(6), &Ok(ResponsePayload::DaemonPaths(result))).unwrap();
+
+    assert_eq!(
+        line,
+        "{\"id\":6,\"result\":{\"configFile\":\"/home/me/.config/tunneler/tunnels.toml\"}}\n"
+    );
+}
+
+#[test]
 fn should_deserialize_a_cancelled_credential_answer_as_none() {
     let line =
         br#"{"id":3,"method":"credential.respond","params":{"promptId":"p1","answer":null}}"#;
@@ -1092,8 +1183,8 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_twenty_seven_methods() {
-    assert_eq!(METHOD_NAMES.len(), 27);
+fn should_list_thirty_methods() {
+    assert_eq!(METHOD_NAMES.len(), 30);
 }
 
 #[test]

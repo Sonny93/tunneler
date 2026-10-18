@@ -6,6 +6,7 @@ import { filterTunnels } from '#/tunnels/filter_tunnels';
 import { TunnelGroup } from '#/tunnels/list/tunnel_group';
 import { useRovingRows } from '#/tunnels/list/use_roving_rows';
 import { BulkToolbar } from '#/tunnels/selection/bulk_toolbar';
+import { TooltipIconButton } from '#/shared/tooltip_icon_button';
 import { useResolvedFilter } from '#/tunnels/use_resolved_filter';
 import { TunnelListEmpty } from '#/tunnels/list/tunnel_list_empty';
 import { groupTunnelsByHost } from '#/tunnels/group_tunnels_by_host';
@@ -45,6 +46,7 @@ export function TunnelList() {
 	const clearTunnelSelection = useUiStore(
 		(state) => state.clearTunnelSelection
 	);
+	const openTagRename = useUiStore((state) => state.openTagRename);
 	const createButtonRef = useRef<HTMLButtonElement>(null);
 	const { activeRowId, containerProps } = useRovingRows(rowIds);
 	const requestFocusAfterRemoval = useFocusAfterRemoval(
@@ -56,6 +58,9 @@ export function TunnelList() {
 	useFocusAfterCreation(rowIds, containerProps.ref);
 	useAnnounceSelectionCount(selectedCount);
 
+	const handleRenameTag = () => {
+		if (filter.kind === 'tag') openTagRename(filter.tag, 'list');
+	};
 	const handleSelectAll = () => selectTunnels(rowIds);
 	const handleClearSelection = () => {
 		if (selectedCount > 0) clearTunnelSelection();
@@ -67,9 +72,20 @@ export function TunnelList() {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<h2 className="text-base font-semibold">
-				{describeTunnelFilter(filter)} ({visibleTunnels.length})
-			</h2>
+			<div className="flex flex-wrap items-center gap-2">
+				<h2 className="text-base font-semibold">
+					{describeTunnelFilter(filter)} ({visibleTunnels.length})
+				</h2>
+				{filter.kind === 'tag' && (
+					<TooltipIconButton
+						icon="i-mdi-pencil-outline"
+						aria-label="Renommer le tag"
+						variant="ghost"
+						color="neutral"
+						onClick={handleRenameTag}
+					/>
+				)}
+			</div>
 			{visibleTunnels.length === 0 ? (
 				<TunnelListEmpty createButtonRef={createButtonRef} />
 			) : (

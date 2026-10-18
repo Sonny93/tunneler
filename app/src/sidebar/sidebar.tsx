@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 
 import { useUiStore } from '#/state/ui_store';
+import { SIDEBAR_ID } from '#/sidebar/sidebar_id';
 import { useDaemonStore } from '#/state/daemon_store';
 import { FilterButton } from '#/sidebar/filter_button';
 import { TagFilterRow } from '#/sidebar/tag_filter_row';
@@ -23,7 +24,11 @@ export function Sidebar() {
 	const handleSelectAll = () => setFilter({ kind: 'all' });
 
 	return (
-		<nav aria-label="Filtres des tunnels" className="flex flex-col gap-4">
+		<nav
+			id={SIDEBAR_ID}
+			aria-label="Filtres des tunnels"
+			className="flex flex-col gap-4"
+		>
 			<div className="flex">
 				<FilterButton
 					label="Tous les tunnels"

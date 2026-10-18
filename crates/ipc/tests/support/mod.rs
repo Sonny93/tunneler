@@ -8,9 +8,10 @@ use interprocess::local_socket::tokio::Stream;
 use interprocess::local_socket::traits::tokio::Stream as _;
 use interprocess::local_socket::{GenericFilePath, ToFsName};
 use ipc::protocol::{
-    AdoptResult, ClientKind, ConfigInvalidEvent, EventMessage, ForgetSecretsResult, Hello,
-    HostOptionDto, ImportCandidateDto, ImportPreviewDto, IpcError, LogEntryDto, LogLevelDto,
-    LogsResult, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload, TunnelKindDto,
+    AdoptResult, ClientKind, ConfigInvalidEvent, DaemonPathsResult, EventMessage,
+    ForgetSecretsResult, Hello, HostOptionDto, ImportCandidateDto, ImportPreviewDto, IpcError,
+    LogEntryDto, LogLevelDto, LogsResult, RenameTagResult, Request, RequestEnvelope,
+    ResolvedHostDto, ResponsePayload, TunnelKindDto, UiClaimResult,
 };
 use ipc::{
     ConnectionInfo, Endpoint, IpcClient, IpcServer, RequestHandler, ServerHandle, ServerOptions,
@@ -29,6 +30,9 @@ pub const MISSING_TUNNEL_ID: &str = "missing";
 pub const MISSING_LAUNCHER_NAME: &str = "missing";
 pub const UNKILLABLE_PID: u32 = 1;
 pub const FORGOTTEN_COUNT: u64 = 3;
+pub const RENAMED_COUNT: u64 = 2;
+pub const MISSING_TAG: &str = "missing";
+pub const CONFIG_FILE: &str = "/config/tunnels.toml";
 pub const SLOW_DELAY: Duration = Duration::from_millis(300);
 const EVENT_BUS_CAPACITY: usize = 16;
 
@@ -87,6 +91,16 @@ impl RequestHandler for FakeHandler {
             })),
             Request::SecretsForget {} => Ok(ResponsePayload::ForgetSecrets(ForgetSecretsResult {
                 forgotten_count: FORGOTTEN_COUNT,
+            })),
+            Request::UiClaim {} => Ok(ResponsePayload::UiClaim(UiClaimResult { claimed: true })),
+            Request::TagsRename(params) if params.from == MISSING_TAG => {
+                Err(IpcError::not_found("no such tag"))
+            }
+            Request::TagsRename(_) => Ok(ResponsePayload::RenameTag(RenameTagResult {
+                renamed_count: RENAMED_COUNT,
+            })),
+            Request::DaemonPaths {} => Ok(ResponsePayload::DaemonPaths(DaemonPathsResult {
+                config_file: CONFIG_FILE.to_owned(),
             })),
             Request::ExternalKill(params) if params.pid == UNKILLABLE_PID => {
                 Err(IpcError::kill_failed("process still running"))

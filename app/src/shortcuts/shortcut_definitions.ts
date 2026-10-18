@@ -1,4 +1,4 @@
-export type GlobalShortcutKey = 'n' | 'i' | ',' | '?';
+export type GlobalShortcutKey = 'n' | 'i' | ',' | 'b' | '?';
 
 export type ShortcutDefinition = {
 	keys: readonly string[];
@@ -9,6 +9,7 @@ export const GLOBAL_SHORTCUTS: readonly ShortcutDefinition[] = [
 	{ keys: ['n'], description: 'Nouveau tunnel' },
 	{ keys: ['i'], description: 'Importer des tunnels' },
 	{ keys: [','], description: 'Ouvrir les paramètres' },
+	{ keys: ['b'], description: 'Masquer ou afficher le panneau' },
 	{ keys: ['?'], description: 'Afficher les raccourcis clavier' },
 	{ keys: ['Ctrl', 'K'], description: 'Ouvrir la palette de commandes' },
 ];

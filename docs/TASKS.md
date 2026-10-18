@@ -402,3 +402,18 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 - **Écarts à remonter dans `@minimalstuff/ui`** (rien d'ouvert upstream) : `Checkbox` sans rendu visuel de l'état mixte (seul `input.indeterminate` est posé) ; bordure de `Checkbox` (`border-gray-300`/`gray-600`) sous 3:1, non surchargeable ; `Tooltip` pose toujours `aria-describedby` (infobulle identique au nom lue deux fois, pas d'option pour l'éviter) ; portail du `Tooltip` hors landmark (règle axe `region` désactivée localement dans deux tests) ; `Modal` avec une fonction en `children` + `ModalFooter` boucle à l'infini (déjà noté en 6.16).
 
 **Vérifications** : `pnpm check`, `pnpm build`, clippy `tunneler-ui` verts ; 117 fichiers / 1055 tests front.
+
+## Phase 15 — Retours d'usage (2)
+- [x] 15.1 Panneau latéral repliable (bouton `aria-expanded`, raccourci, état mémorisé)
+  - Bouton avant le titre (« Masquer / Afficher le panneau », infobulle), raccourci `b` (aide `?` + palette), état dans `ui_store` mémorisé en `localStorage` (try/catch, déplié par défaut). Focus rendu au bouton si le panneau se replie avec le focus dedans.
+- [x] 15.2 Une seule UI à la fois : une 2ᵉ `tunneler-ui` met la première au premier plan et se ferme (D10 étendu au lancement direct de l'UI)
+  - `ui.claim` (additif) : seules les UI de connexion plus ancienne comptent, pour que deux UI lancées ensemble ne renoncent pas toutes les deux. Fenêtre principale `visible: false` ; pont : refus → `app.exit(0)` ; accord, `unknown_method` (daemon plus ancien), erreur ou délai (5 s) → affichage. Filet : fenêtre affichée après 15 s si la connexion n'a jamais été tentée.
+- [x] 15.3 Import : tag optionnel appliqué à tous les tunnels importés
+  - Le champ de tags de l'aperçu existait déjà : renommé « Tag à ajouter », `datalist` des tags existants, indice explicatif.
+- [x] 15.4 Renommer un tag (clic droit sur le tag dans la barre latérale, ou depuis la vue filtrée par tag) — `tags.rename` côté daemon, une seule écriture (tunnels + `start_on_launch_tags`)
+  - Engine : renommage pur (`runtime/tag_rename.rs`) + une écriture atomique, dédoublonnage (fusion), seuls les tunnels modifiés sont mis à jour (aucun redémarrage), `ConfigReloaded`. Erreurs : `not_found` (tag porté par aucun tunnel), `validation_failed` (vide, espace, virgule).
+  - UI : menu contextuel du tag (Renommer…, Démarrer/Arrêter le tag), bouton « Renommer le tag » dans la vue filtrée, commande de palette par tag ; modale avec validation, avertissement de fusion, toast, filtre suivi, focus rendu au déclencheur ou à la ligne du tag renommé.
+- [x] 15.5 Bouton « Ouvrir le dossier de configuration » (chemin fourni par le daemon, ouvert par le pont Tauri)
+  - `daemon.paths` → `{ configFile }` ; commande Tauri `reveal_config` sans argument venant de la webview : sélectionne le fichier dans l'explorateur, ou ouvre son dossier s'il n'existe pas encore. Bouton dans les réglages + commande de palette.
+
+**Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows) verts ; tests Rust 2100 (3 runs verts ; un échec isolé non identifié sur un 4ᵉ run, non reproduit), 42 tests du pont, 1111 tests front. Rien vu dans une vraie fenêtre (fenêtre cachée au démarrage, renommage, panneau replié).

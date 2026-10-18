@@ -10,6 +10,7 @@ const SHORTCUT_ACTIONS: Readonly<Record<GlobalShortcutKey, () => void>> = {
 	n: () => useUiStore.getState().openTunnelEditor(null),
 	i: () => useUiStore.getState().openImport(),
 	',': () => useUiStore.getState().openSettings(),
+	b: () => useUiStore.getState().toggleSidebar(),
 	'?': () => useUiStore.getState().setHelpOpen(true),
 };
 
@@ -34,7 +35,7 @@ function handlePaletteChord(event: KeyboardEvent): void {
 	useUiStore.getState().setPaletteOpen(true);
 }
 
-/** Binds `n`, `i`, `,`, `?` and Ctrl/Meta+K on the document. */
+/** Binds `n`, `i`, `,`, `b`, `?` and Ctrl/Meta+K on the document. */
 export function useGlobalShortcuts(): void {
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {

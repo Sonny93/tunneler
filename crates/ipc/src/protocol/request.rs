@@ -16,7 +16,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 27] = [
+pub const METHOD_NAMES: [&str; 30] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -44,6 +44,9 @@ pub const METHOD_NAMES: [&str; 27] = [
     "x11.stop",
     "x11.launch",
     "secrets.forget",
+    "ui.claim",
+    "tags.rename",
+    "daemon.paths",
 ];
 
 /// The parameters of the methods that address one tunnel.
@@ -102,6 +105,16 @@ pub struct X11LaunchParams {
 pub struct TagParams {
     /// The tag.
     pub tag: String,
+}
+
+/// The parameters of `tags.rename`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TagRenameParams {
+    /// The tag to rename.
+    pub from: String,
+    /// Its new name.
+    pub to: String,
 }
 
 /// The answer to a credential prompt.
@@ -237,6 +250,19 @@ pub enum Request {
     /// Forgets every remembered passphrase, in memory and in the OS keyring.
     #[serde(rename = "secrets.forget")]
     SecretsForget {},
+    /// Asks whether this UI may stay open. When an older UI is already
+    /// connected, it is told to show itself and the answer is
+    /// `claimed: false`.
+    #[serde(rename = "ui.claim")]
+    UiClaim {},
+    /// Renames a tag in every tunnel and in the launch tags; answers
+    /// `not_found` when no tunnel carries `from` and `validation_failed` when
+    /// `to` is not a valid tag.
+    #[serde(rename = "tags.rename")]
+    TagsRename(TagRenameParams),
+    /// Reads where the daemon keeps its files.
+    #[serde(rename = "daemon.paths")]
+    DaemonPaths {},
 }
 
 /// A [`Request`] and the identifier its response will carry.

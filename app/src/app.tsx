@@ -3,9 +3,11 @@ import { ModalProvider } from '@minimalstuff/ui';
 import { Overlays } from '#/overlays';
 import { AppLayout } from '#/app_layout';
 import { Sidebar } from '#/sidebar/sidebar';
+import { useUiStore } from '#/state/ui_store';
 import { ConnectingScreen } from '#/connecting_screen';
 import { HeaderActions } from '#/header/header_actions';
 import { TunnelList } from '#/tunnels/list/tunnel_list';
+import { SidebarToggle } from '#/sidebar/sidebar_toggle';
 import { DisconnectedScreen } from '#/disconnected_screen';
 import { ToastRegion } from '#/shared/toasts/toast_region';
 import { TrayStatusNotice } from '#/tray/tray_status_notice';
@@ -17,6 +19,7 @@ import { useTunnelStateAnnouncements } from '#/tunnels/use_tunnel_state_announce
 
 export function App() {
 	const { connection, retry } = useDaemonConnection();
+	const isSidebarCollapsed = useUiStore((state) => state.isSidebarCollapsed);
 	useTunnelStateAnnouncements();
 	useX11Announcements();
 
@@ -28,7 +31,12 @@ export function App() {
 			)}
 			{connection.status === 'connected' && (
 				<>
-					<AppLayout sidebar={<Sidebar />} actions={<HeaderActions />}>
+					<AppLayout
+						sidebar={<Sidebar />}
+						sidebarToggle={<SidebarToggle />}
+						isSidebarCollapsed={isSidebarCollapsed}
+						actions={<HeaderActions />}
+					>
 						<TrayStatusNotice />
 						<TunnelList />
 						<ExternalSection />

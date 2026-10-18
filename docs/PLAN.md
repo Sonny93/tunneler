@@ -66,6 +66,7 @@ Les tunnels vivent *dans* le daemon : ils ne peuvent pas survivre à sa fermetur
 2. Succès → devient le daemon et ouvre l'UI (`tunneler daemon` : daemon seul). Échec car un daemon répond → client : envoie `ui.show` et quitte.
 3. Socket orphelin (daemon crashé) → reclaim (`reclaim_name`).
 4. `tunneler-ui` lancé seul sans daemon → spawn `tunneler daemon` détaché, puis se connecte.
+5. `tunneler-ui` lancé alors qu'une UI est déjà ouverte → fenêtre créée cachée, `ui.claim` refusé → la première UI passe au premier plan, la seconde se ferme sans s'afficher.
 
 Nom du socket : `$XDG_RUNTIME_DIR/tunneler.sock` (mode `0600`) sous Linux, `\\.\pipe\tunneler-<user>` avec security descriptor restreint à l'utilisateur sous Windows.
 
@@ -191,6 +192,7 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 | `state.snapshot` | tunnels + états + santé + métriques + settings + statut du tray |
 | `tunnel.create` / `update` / `delete` / `start` / `stop` / `restart` | |
 | `tag.start` / `tag.stop` | |
+| `tags.rename { from, to }` | renomme le tag dans tous les tunnels et dans `start_on_launch_tags` (une écriture, fusion si `to` existe) → `{ renamedCount }` |
 | `external.adopt` / `kill` / `ignore` | `import` passe par le formulaire de création prérempli (`tunnel.create`) |
 | `hosts.list` / `hosts.resolve` | alias de `ssh_config` + config résolue (équivalent `ssh -G`) |
 | `settings.update` | |
@@ -200,6 +202,8 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 | `import.ssh_config` / `import.script` | |
 | `daemon.quit { force }` | refusé sans `force` si des tunnels tournent → l'UI demande confirmation |
 | `ui.show` | utilisé par la 2ᵉ instance et le tray : `show.requested` aux UI connectées, sinon lancement de `tunneler-ui` |
+| `ui.claim` | appelé par chaque UI au démarrage : une UI plus ancienne est connectée → elle reçoit `show.requested` et la réponse est `{ claimed: false }` (la nouvelle UI se ferme sans s'afficher) |
+| `daemon.paths` | `{ configFile }` : chemin absolu de `tunnels.toml` (bouton « Ouvrir le dossier de configuration ») |
 
 Événements : `externals.changed`, `tunnel.changed`, `tunnel.metrics` (throttlé), `tunnel.log`, `credential.request`, `hostkey.request`, `prompt.resolved`, `config.reloaded`, `config.invalid`, `quit.requested`, `show.requested`, `tray.changed`.
 

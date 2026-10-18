@@ -17,6 +17,15 @@ export function useRunPaletteAction(): RunPaletteAction {
 				return ui.openImport();
 			case 'openSettings':
 				return ui.openSettings();
+			case 'revealConfig':
+				return void runDaemonAction(
+					(gateway) => gateway.revealConfig(),
+					'Ouverture impossible'
+				);
+			case 'renameTag':
+				return ui.openTagRename(action.tag, 'palette');
+			case 'toggleSidebar':
+				return ui.toggleSidebar();
 			case 'showShortcuts':
 				return ui.setHelpOpen(true);
 			case 'showTunnelDetails':

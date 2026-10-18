@@ -40,6 +40,7 @@ export function createFakeGateway(
 		restartTunnel: vi.fn(() => Promise.resolve()),
 		startTag: vi.fn(() => Promise.resolve()),
 		stopTag: vi.fn(() => Promise.resolve()),
+		renameTag: vi.fn(() => Promise.resolve(0)),
 		startX11: vi.fn(() => Promise.resolve()),
 		stopX11: vi.fn(() => Promise.resolve()),
 		launchX11: vi.fn(() => Promise.resolve()),
@@ -60,6 +61,7 @@ export function createFakeGateway(
 		updateSettings: vi.fn(() => Promise.resolve()),
 		respondCredential: vi.fn(() => Promise.resolve()),
 		forgetSecrets: vi.fn(() => Promise.resolve({ forgottenCount: 0 })),
+		revealConfig: vi.fn(() => Promise.resolve()),
 		respondHostKey: vi.fn(() => Promise.resolve()),
 		quit: vi.fn(() => Promise.resolve()),
 		onEvent: vi.fn((listener) => {

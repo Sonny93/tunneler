@@ -23,6 +23,7 @@ mod retry;
 mod session_manager;
 mod shared;
 mod state;
+mod tag_rename;
 mod tunnel_actor;
 mod x11_anchor;
 mod x11_anchors;
