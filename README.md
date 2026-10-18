@@ -35,9 +35,9 @@ Not maintained: no package and no CI. The code may still build from source (see 
 | Platform | Daemon idle | Daemon, 10 tunnels | UI open |
 |---|---|---|---|
 | Linux | 16.5 MiB | 19.4 MiB | ~410 MiB |
-| Windows | — | — | — |
+| Windows | 25.2 MiB (9.6 MiB private) | — | 227–428 MiB |
 
-The daemon figures are its resident set size (RSS), tray included; the 10 tunnels share one SSH session and carried a little traffic. The UI figure is the proportional set size (PSS, shared libraries counted once) of `tunneler-ui` plus its WebKit (Linux) or WebView2 (Windows) child processes, with the window open; the UI process exits when the window is closed. Linux: release build 0.1.0, Debian 13, WebKitGTK 2.54, UI under Xvfb with software rendering (likely an overestimate of a desktop with a GPU). Windows: not measured yet.
+The daemon figures are its resident set size (RSS), tray included; the 10 tunnels share one SSH session and carried a little traffic. The UI figure is the proportional set size (PSS, shared libraries counted once) of `tunneler-ui` plus its WebKit (Linux) or WebView2 (Windows) child processes, with the window open; the UI process exits when the window is closed. Linux: release build 0.1.0, Debian 13, WebKitGTK 2.54, UI under Xvfb with software rendering (likely an overestimate of a desktop with a GPU). Windows: release build 0.1.0, daemon working set (the RSS equivalent; Task Manager shows the private figure), measured while running without the number of active tunnels recorded; the UI figure ranges from the private memory to the summed working sets of `tunneler-ui` and its six `msedgewebview2` processes (Windows has no PSS), `tunneler-ui` itself being 5.6 MiB private.
 
 ## Layout
 
