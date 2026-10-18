@@ -61,11 +61,12 @@ jobs:
           $name = "tunneler-$env:VERSION-windows-x86_64"
           New-Item -ItemType Directory -Path $name
           Copy-Item target/release/tunneler.exe, target/release/tunneler-ui.exe, README.md -Destination $name
-          Compress-Archive -Path $name -DestinationPath "$name.zip"
+          Compress-Archive -Path "$name/*" -DestinationPath "$name.zip"
       - uses: actions/upload-artifact@v7
         with:
-          name: windows
+          name: tunneler-${{ env.VERSION }}-windows-x86_64.zip
           path: tunneler-${{ env.VERSION }}-windows-x86_64.zip
+          archive: false
           if-no-files-found: error
 
   linux:
@@ -97,10 +98,15 @@ jobs:
           cp target/release/bundle/appimage/*.AppImage "tunneler-ui-$VERSION-x86_64.AppImage"
       - uses: actions/upload-artifact@v7
         with:
-          name: linux
-          path: |
-            tunneler-${{ env.VERSION }}-linux-x86_64.tar.gz
-            tunneler-ui-${{ env.VERSION }}-x86_64.AppImage
+          name: tunneler-${{ env.VERSION }}-linux-x86_64.tar.gz
+          path: tunneler-${{ env.VERSION }}-linux-x86_64.tar.gz
+          archive: false
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: tunneler-ui-${{ env.VERSION }}-x86_64.AppImage
+          path: tunneler-ui-${{ env.VERSION }}-x86_64.AppImage
+          archive: false
           if-no-files-found: error
 
   release:
