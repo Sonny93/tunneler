@@ -68,9 +68,11 @@ pub(crate) async fn bounded<Outcome>(
         tokio::select! {
             outcome = &mut operation => return Ok(outcome),
             () = sleep_until(deadline) => {
-                if !pause.is_paused() {
+                let has_pause_ended_unseen = resumed.has_changed().unwrap_or(false);
+                if !pause.is_paused() && !has_pause_ended_unseen {
                     return Err(TimeLimitExceeded);
                 }
+                resumed.mark_unchanged();
                 deadline = Instant::now() + limit;
             }
             () = pause_ended(&mut resumed) => {
