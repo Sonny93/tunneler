@@ -367,7 +367,7 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 
 ## Phase 13 — Packaging & release (Windows jamais exécuté ; audit a11y à faire à la main)
 - [x] 13.1 Windows : zip portable (`tunneler.exe` + `tunneler-ui.exe`), icônes, métadonnées
-  - `tunneler-<version>-windows-x86_64.zip` : les deux exe côte à côte + `README.md`. Non signés (SmartScreen documenté).
+  - `tunneler-<version>-windows-x86_64.zip` : les deux exe côte à côte, rien d’autre (zip à plat). Non signés (SmartScreen documenté).
   - `tunneler.exe` reste un programme console (c'est aussi la CLI). Lancé hors terminal (double-clic, entrée `Run` du login), Windows lui donne une console qui resterait ouverte toute la vie du daemon : le daemon s'en détache (`FreeConsole`) quand il en est le seul utilisateur (`GetConsoleProcessList` = 1), avant l'init des logs (→ logs en fichiers seulement). Depuis un terminal, la console est gardée. La fenêtre clignote brièvement au login. `windows-sys`, seul `unsafe` du workspace (module `daemon/console.rs`, `#[allow(unsafe_code)]` + `// SAFETY:`).
   - Icône + VERSIONINFO de `tunneler.exe` via `build.rs` (`winresource`), uniquement en cible MSVC (le cross-clippy gnu local n'a pas de `windres`). `tunneler-ui.exe` : ressources par `tauri-build` depuis `tauri.conf.json` (publisher, copyright, descriptions ajoutés).
   - **Piège** : `cargo build --release -p tunneler-ui` sans `tauri/custom-protocol` compile en `cfg(dev)` et charge le `devUrl`. L'UI de release se construit uniquement par `pnpm tauri build` (`--no-bundle` sous Windows). `pnpm tauri build` réécrit `app/src-tauri/Cargo.toml` (`features = []`) : ne pas committer cette réécriture.
