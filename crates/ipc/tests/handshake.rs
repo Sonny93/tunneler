@@ -139,6 +139,10 @@ async fn should_track_the_client_kind_and_prompt_ability_per_connection() {
 }
 
 #[tokio::test]
+#[cfg_attr(
+    target_os = "macos",
+    ignore = "interprocess reads peer credentials with getpeereid on macOS, which has no process id"
+)]
 async fn should_report_the_peer_process_when_a_client_connects() {
     let daemon = TestDaemon::start();
     let _client = daemon.connect(ClientKind::Cli, false).await;
