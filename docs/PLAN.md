@@ -1,6 +1,6 @@
 # Tunneler — Plan
 
-Gestionnaire de tunnels SSH portable (Windows + Linux, macOS sans régression), léger, avec UI moderne.
+Gestionnaire de tunnels SSH portable (Windows + Linux ; macOS non maintenu), léger, avec UI moderne.
 Remplace le script PowerShell `ssh -N -L ...` : activation/désactivation des tunnels à la volée, groupes via tags, détection des tunnels lancés hors de l'app.
 
 La liste des tâches à cocher vit dans [`TASKS.md`](./TASKS.md). Ce fichier décrit le *quoi* et le *pourquoi* ; il est mis à jour quand une décision change.
@@ -280,7 +280,7 @@ Le détail coché est dans [`TASKS.md`](./TASKS.md). Les phases UI/CLI ne sont c
 - Frontend : Vitest + Testing Library (requêtes par rôle/nom accessible en priorité), oxlint (preset `@minimalstuff/tooling` `react: true`, type-aware, + plugin `jsx-a11y`), oxfmt, `tsc --noEmit`.
 - Accessibilité automatisée : `axe-core` (via `vitest-axe`) sur chaque composant et écran ; échec CI sur violation. Tests CLI de sortie avec `NO_COLOR=1` et hors TTY.
 - Accessibilité manuelle : checklist par phase UI (clavier seul, NVDA, Orca, zoom 200 %, contraste élevé Windows) — l'automatique ne couvre qu'une partie des critères.
-- CI GitHub Actions : matrice Linux / Windows / macOS.
+- CI GitHub Actions : matrice Linux / Windows. macOS retiré de la CI (2026-10-18) : seuls Windows et Debian sont utilisés ; le code macOS existant (cfg) reste mais n'est plus compilé ni testé.
 
 ## 11. Risques
 

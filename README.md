@@ -1,6 +1,6 @@
 # Tunneler
 
-Portable SSH tunnel manager (Windows + Linux, macOS without regressions): a light headless daemon with an embedded SSH client and a tray icon, plus an on-demand Tauri UI.
+Portable SSH tunnel manager (Windows + Linux; macOS is not maintained): a light headless daemon with an embedded SSH client and a tray icon, plus an on-demand Tauri UI.
 
 > Status: early development. See [`docs/PLAN.md`](docs/PLAN.md) for the design and [`docs/TASKS.md`](docs/TASKS.md) for progress.
 
@@ -28,7 +28,7 @@ When `libwebkit2gtk-4.1` cannot be installed, download `tunneler-ui-<version>-x8
 
 ### macOS
 
-No package: build from source (see [Development](#development)).
+Not maintained: no package and no CI. The code may still build from source (see [Development](#development)).
 
 ### Memory use
 

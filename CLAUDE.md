@@ -29,7 +29,7 @@ pnpm build   # vite build → app/dist
 
 UI Rust crate: `cargo clippy -p tunneler-ui --all-targets --locked -- -D warnings`. Requires `app/dist` (run `pnpm build` first, `tauri::generate_context!` embeds it) and, on Linux, the webkit2gtk-4.1 dev packages listed in the README.
 
-CI (`.github/workflows/ci.yml`) runs the same commands on Linux, Windows and macOS. Validate workflow edits with `actionlint`.
+CI (`.github/workflows/ci.yml`) runs the same commands on Linux and Windows (macOS is not maintained: no CI, cfg-gated code kept as is). Validate workflow edits with `actionlint`.
 
 ## Conventions
 
