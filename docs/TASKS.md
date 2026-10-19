@@ -212,14 +212,16 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 - [x] 6.15 Composants app absents de la lib : drawer, toasts + annonceur `aria-live`, liste navigable, badge d'état (icône + texte)
   - Drawer : dialogue modal en portail, focus piégé et restauré, pas d'`inert` sur le reste (couperait aussi les régions live). Toasts d'erreur `role="alert"` persistants ; info/succès 5 s, minuteur en pause au survol/focus.
 - [~] 6.16 Audit `axe` + clavier des composants `@minimalstuff/ui` utilisés ; écarts corrigés dans la lib (issue/PR upstream)
-  - Couvert par les tests (axe + clavier) des composants qui les utilisent. Écarts à remonter dans `minimalstuff/ui` (**rien d'ouvert upstream**) :
-    - `Modal` force `role="dialog"` : pas d'`alertdialog` possible pour l'alerte clé changée (seul `ConfirmModal` l'utilise).
-    - `Modal` n'expose pas `initialFocusRef` : sur « Hôte inconnu », le focus initial tombe sur « Copier l'empreinte » au lieu de « Refuser ».
-    - `ModalFooter` avec des enfants recréés à chaque rendu (render prop) boucle à l'infini.
-    - Libellés par défaut en anglais (`Close`, `Confirm`, `Cancel`) : l'app passe ses libellés partout.
-    - `Input` sans prop `description` (contrairement à `Switch`) : indices reliés à la main via `aria-describedby` (fusionné correctement par la lib).
-    - Erreur de champ `Input` rendue en `<p role="alert">` : WebKitGTK ne l'inclut pas dans la description calculée (la relation `described-by` est pourtant correcte), donc pas relue au focus ; et plusieurs alertes partent en même temps à la soumission. Préférer un texte non-live relié par `aria-describedby` + le résumé d'erreurs.
-    - `ThemeToggle` : `document.startViewTransition` fait planter WebKitGTK 2.54 ; l'app passe `isTransitionEnabled={false}`. Détecter/éviter côté lib.
+  - Couvert par les tests (axe + clavier) des composants qui les utilisent. Écarts remontés dans `minimalstuff/ui` ; **corrigés par la 4.1.0 et migrés** :
+    - `Modal` accepte `role="alertdialog"` : alerte clé changée migrée (`dismissible: false` conservé).
+    - `Modal` accepte `initialFocusRef` : « Hôte inconnu » met le focus sur « Refuser » (test ajouté).
+    - `ModalFooter` + render prop ne boucle plus : `askTagChange` utilise `children: (close) => …` au lieu de `Modal.end`.
+    - Libellés : `UIProvider` (`AppUIProvider`, `shared/app_ui_provider.tsx`) fournit les libellés français ; les `closeLabel` / `cancelLabel` répétés sont retirés (les `confirmLabel` propres restent).
+    - `Input` / `Textarea` / `Select` / `Switch` / `Checkbox` ont une prop `description` : `FormHint` et le câblage `aria-describedby` manuel supprimés.
+    - Erreur de champ en `role="alert"` : `announceFieldErrors={false}` sur le provider (résumé d'erreurs + focus sur le premier champ invalide restent la source d'annonce).
+    - `ThemeToggle` : la lib désactive d'elle-même la transition sous WebKitGTK ; `isTransitionEnabled={false}` retiré.
+  - Vérifié en vrai (2026-10-19, build release, WebKitGTK 2.54 sous Xvfb, clavier XTest + arbre AT-SPI) : trois changements de thème sans plantage du `WebKitWebProcess` ; case « Tout sélectionner » exposée `indeterminate` et dessinée (tiret) ; barre d'actions = un arrêt de tabulation, ←/→ bouclent, Début/Fin, boutons désactivés sautés ; « Hôte inconnu » focus sur « Refuser » ; « Clé d'hôte modifiée » exposée `alert` (alertdialog), focus sur « J'ai compris », Échap sans effet.
+  - **Reste** : bordure de `Checkbox` (`border-gray-300`/`gray-600`) sous 3:1 (choix assumé de la lib, à surcharger côté app si besoin) ; portail du `Menu` / menu contextuel hors landmark (règle axe `region` toujours désactivée dans `tunnel_list_selection.test.tsx`, menu contextuel ouvert).
   - Vérifiés conformes : `aria-invalid` + erreur liée sur `Input`/`Switch`, focus restauré par `Modal`, raccourcis globaux désactivés pendant une modale.
 
 ## Phase 7 — Tray ✔ (validé sur GNOME ; Windows jamais exécuté, macOS sans tray)
@@ -391,7 +393,7 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 ## Phase 14 — Retours d'usage (premiers tests Windows, 2026-10-18)
 - [x] 14.1 Zip Windows à plat (les 3 fichiers à la racine) et artifacts CI publiés sans archive englobante (`archive: false`)
 - [x] 14.2 Infobulles sur tous les boutons icône (`Tooltip` de la lib, au survol et au focus, Échap ferme)
-  - `shared/tooltip_icon_button.tsx` (`IconButton` + `Tooltip`, raccourci ajouté entre parenthèses : « Palette de commandes (Ctrl+K) », « Paramètres (,) », « Raccourcis clavier (?) ») sur tous les `IconButton` de l'app ; `ThemeToggle` enveloppé directement.
+  - Prop `tooltip` de `IconButton` / `ThemeToggle` (lib 4.1.0) sur tous les boutons icône de l'app ; raccourci ajouté entre parenthèses via `shared/shortcut_tooltip.ts` : « Palette de commandes (Ctrl+K) », « Paramètres (,) », « Raccourcis clavier (?) ». Ancien wrapper `tooltip_icon_button.tsx` supprimé.
 - [x] 14.3 Clic droit sur un tunnel → même menu d'actions (`ContextMenu` de la lib ; Maj+F10 / touche Menu au clavier)
   - Éléments du menu extraits (`tunnel_menu_items.tsx`), partagés par le menu ⋮ et le menu contextuel (dans le `<li>`, sémantique de liste conservée). Ligne faisant partie d'une sélection de 2+ tunnels → actions de la sélection sous « N tunnels sélectionnés ».
 - [x] 14.4 Sélection multiple + actions groupées (démarrer, arrêter, redémarrer, ajouter/retirer un tag, supprimer)
@@ -399,7 +401,7 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
   - Barre `role="toolbar"` (motif ARIA, une seule tabulation, flèches) : Démarrer (tunnels arrêtés), Arrêter / Redémarrer (tunnels actifs), Tags… (modale ajout/retrait, `datalist`, mapping du formulaire d'édition réutilisé), Supprimer (confirmation listant les noms, focus comme une suppression simple), Tout désélectionner. Exécution concurrente (`Promise.allSettled`), un seul toast (« 2 sur 3 démarrés ; échec : Vite (…) »). Nombre sélectionné annoncé (polite) à chaque changement. Aucun ajout au protocole.
 - [x] 14.5 Refonte visuelle : séparateurs discrets au lieu de bordures contrastées sur les éléments non interactifs, lignes de liste plutôt que cartes encadrées, filtre actif sans barre épaisse
   - Nouveaux tokens `divider` (décoratif, < 3:1, jamais seule limite d'un contrôle) et `selected` ; `border` (3:1) réservé aux contrôles. Un conteneur par host, lignes séparées par des filets ; filtre actif = fond plein + gras + coche ; « Importer » / « Quitter » en `ghost` ; tiroirs, toasts, import, journal, config d'hôte, X11 passés sur `divider`. Rendu vérifié sur capture (thème sombre, Xvfb), interactions (infobulles, clic droit, sélection) non vues en vrai.
-- **Écarts à remonter dans `@minimalstuff/ui`** (rien d'ouvert upstream) : `Checkbox` sans rendu visuel de l'état mixte (seul `input.indeterminate` est posé) ; bordure de `Checkbox` (`border-gray-300`/`gray-600`) sous 3:1, non surchargeable ; `Tooltip` pose toujours `aria-describedby` (infobulle identique au nom lue deux fois, pas d'option pour l'éviter) ; portail du `Tooltip` hors landmark (règle axe `region` désactivée localement dans deux tests) ; `Modal` avec une fonction en `children` + `ModalFooter` boucle à l'infini (déjà noté en 6.16).
+- **Écarts `@minimalstuff/ui`** : corrigés par la 4.1.0 et migrés (état mixte visuel de `Checkbox` via `indeterminate`, `Tooltip` sans `aria-describedby` redondant et portail dans le landmark, `Toolbar` de la lib à la place du roving maison, `ModalFooter` + render prop) ; reste la bordure de `Checkbox` sous 3:1 (non surchargeable) et le portail du `Menu` hors landmark (voir 6.16).
 
 **Vérifications** : `pnpm check`, `pnpm build`, clippy `tunneler-ui` verts ; 117 fichiers / 1055 tests front.
 
