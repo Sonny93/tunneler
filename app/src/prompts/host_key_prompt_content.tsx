@@ -1,3 +1,4 @@
+import type { RefObject } from 'react';
 import { Button, CopyButton, ModalFooter } from '@minimalstuff/ui';
 
 import type { PendingPrompt } from '#/state/daemon_state';
@@ -8,6 +9,8 @@ type HostKeyPrompt = Extract<PendingPrompt, { kind: 'hostKey' }>;
 
 type HostKeyPromptContentProps = {
 	prompt: HostKeyPrompt;
+	/** Attached to « Refuser », the safe default: the modal focuses it when it opens. */
+	rejectButtonRef: RefObject<HTMLButtonElement | null>;
 	onDecide: (decision: HostKeyDecisionDto) => void;
 };
 
@@ -30,6 +33,7 @@ function CopyFingerprintButton({ copied, copy }: Readonly<CopyRenderProps>) {
 
 export function HostKeyPromptContent({
 	prompt,
+	rejectButtonRef,
 	onDecide,
 }: Readonly<HostKeyPromptContentProps>) {
 	const reject = () => onDecide('reject');
@@ -58,7 +62,12 @@ export function HostKeyPromptContent({
 				l'accepter.
 			</p>
 			<ModalFooter>
-				<Button variant="outline" color="neutral" onClick={reject}>
+				<Button
+					ref={rejectButtonRef}
+					variant="outline"
+					color="neutral"
+					onClick={reject}
+				>
 					Refuser
 				</Button>
 				<Button variant="outline" onClick={acceptOnce}>

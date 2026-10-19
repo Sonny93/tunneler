@@ -1,3 +1,5 @@
+import { createRef } from 'react';
+
 import { getPromptId } from '#/state/prompt_id';
 import type { PendingPrompt } from '#/state/daemon_state';
 import type { ModalCallRequest } from '#/shared/use_modal_call';
@@ -34,24 +36,29 @@ export function buildPromptModalRequest(
 					),
 				},
 			};
-		case 'hostKey':
+		case 'hostKey': {
+			const rejectButtonRef = createRef<HTMLButtonElement>();
 			return {
 				id,
 				props: {
 					title: HOST_KEY_TITLE,
+					initialFocusRef: rejectButtonRef,
 					children: (
 						<HostKeyPromptContent
 							prompt={prompt}
+							rejectButtonRef={rejectButtonRef}
 							onDecide={(decision) => void actions.decideHostKey(id, decision)}
 						/>
 					),
 				},
 			};
+		}
 		case 'hostKeyAlert':
 			return {
 				id,
 				props: {
 					title: getHostKeyAlertTitle(prompt.reason),
+					role: 'alertdialog',
 					dismissible: false,
 					children: (
 						<HostKeyAlertContent

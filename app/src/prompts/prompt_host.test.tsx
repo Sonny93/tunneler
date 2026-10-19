@@ -507,6 +507,16 @@ describe('PromptHost host key prompts', () => {
 		).toBeInTheDocument();
 	});
 
+	it('should focus the refusal button when the prompt opens', async () => {
+		const { receive } = renderHost();
+
+		receive(hostKeyEvent('p1'));
+
+		await waitFor(() =>
+			expect(screen.getByRole('button', { name: 'Refuser' })).toHaveFocus()
+		);
+	});
+
 	it('should have no axe violations', async () => {
 		const { receive } = renderHost();
 		receive(hostKeyEvent('p1'));
@@ -522,7 +532,7 @@ describe('PromptHost host key alerts', () => {
 
 		receive(alertEvent);
 
-		const dialog = await screen.findByRole('dialog', {
+		const dialog = await screen.findByRole('alertdialog', {
 			name: "Clé d'hôte modifiée",
 		});
 		for (const text of [
@@ -536,11 +546,21 @@ describe('PromptHost host key alerts', () => {
 		}
 	});
 
+	it('should be an alert dialog', async () => {
+		const { receive } = renderHost();
+
+		receive(alertEvent);
+
+		expect(
+			await screen.findByRole('alertdialog', { name: "Clé d'hôte modifiée" })
+		).toBeInTheDocument();
+	});
+
 	it('should not offer to accept the key', async () => {
 		const { receive } = renderHost();
 
 		receive(alertEvent);
-		await screen.findByRole('dialog');
+		await screen.findByRole('alertdialog');
 
 		expect(
 			screen.getAllByRole('button').map((button) => button.textContent)
@@ -551,11 +571,11 @@ describe('PromptHost host key alerts', () => {
 		const user = userEvent.setup();
 		const { receive, gateway } = renderHost();
 		receive(alertEvent);
-		await screen.findByRole('dialog');
+		await screen.findByRole('alertdialog');
 
 		await user.keyboard('{Escape}');
 
-		expect(screen.getByRole('dialog')).toBeInTheDocument();
+		expect(screen.getByRole('alertdialog')).toBeInTheDocument();
 		expect(gateway.respondHostKey).not.toHaveBeenCalled();
 	});
 
@@ -569,7 +589,7 @@ describe('PromptHost host key alerts', () => {
 		);
 
 		await waitFor(() =>
-			expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+			expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 		);
 		expect(useDaemonStore.getState().prompts).toEqual([]);
 		expect(gateway.respondHostKey).not.toHaveBeenCalled();
@@ -578,7 +598,7 @@ describe('PromptHost host key alerts', () => {
 	it('should have no axe violations', async () => {
 		const { receive } = renderHost();
 		receive(alertEvent);
-		await screen.findByRole('dialog');
+		await screen.findByRole('alertdialog');
 
 		expect(await axe(document.body)).toHaveNoViolations();
 	});
