@@ -438,8 +438,8 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
   - CLI : forward parsé par `ssh_config` (même lecteur que l'import, crochets IPv6 compris) ; port seul pour `-L`/`-R` = même port sur le loopback de l'hôte ; `-R port` seul avec bind (SOCKS distant) refusé. Le tunnel enregistré équivalent est démarré à la place. `--json` : `isTemporary` (nom du DTO) au lieu de `temporary`. Commande d'arrêt affichée en `hôte:port` (toujours non ambigu). Usage invalide : code 2.
   - UI : bouton scindé (`Button` + `IconButton` chevron + `Menu`), commande de palette, tiroir du formulaire en mode temporaire (pas de tags, note, « Démarrer »), badge « Temporaire » (icône + texte, dans le nom accessible du switch), « Enregistrer le tunnel » (ligne, menu contextuel, Détails), « Arrêter et retirer » à la place de « Supprimer » et « Modifier », annonce polie + focus (`use_focus_after_removal`), sélection groupée : Tags… ignore les temporaires, Arrêter les retire.
 - [x] 16.4 Barre latérale : « Tous les tunnels », puis Hosts, puis Tags (plus de tags que d'hôtes)
-- [x] 16.5 Raison d'échec tronquée dans la ligne (ellipse, une ligne) avec le texte complet en infobulle au survol
-  - `shared/badge_detail.tsx`, badges d'état et de santé rétrécissables. Infobulle au survol seulement : le badge n'est pas un arrêt de tabulation (la grille roving en aurait souffert) ; le texte complet reste lu via la description du switch et visible dans le tiroir Détails.
+- [x] 16.5 Raison d'échec tronquée dans la ligne (ellipse, une ligne, badges jamais renvoyés à la ligne)
+  - `shared/badge_detail.tsx`, badges d'état et de santé rétrécissables dans un conteneur `flex-nowrap`. Pas d'infobulle (essayée puis retirée à la demande : jugée laide) ; le texte complet reste lu via la description du switch et visible dans le tiroir Détails.
 - [x] 16.6 Icônes d'avertissement et d'erreur absentes du journal
   - Cause : l'extraction UnoCSS par défaut ne lit pas les `.ts` ; les deux icônes n'étaient citées que dans `log_level_appearance.ts`. `content.pipeline.include` étendu aux `.ts` (test de non-régression) ; plus aucune classe `i-mdi-*` du code absente du CSS construit.
 
