@@ -22,6 +22,7 @@ La liste des tâches à cocher vit dans [`TASKS.md`](./TASKS.md). Ce fichier dé
 | D8 | **Persistance TOML lisible à la main** dans le dossier de config utilisateur | Éditable, diffable, rechargé à chaud |
 | D9 | **Tags (n-n) plutôt que groupes (1-n)** | Un tunnel peut appartenir à plusieurs ensembles (`dev`, `adonis`, `mail`...) ; toggle d'un tag = toggle de ses tunnels |
 | D10 | **Single instance portée par le daemon** (bind du socket IPC = verrou) | Pas besoin de `tauri-plugin-single-instance` : une 2ᵉ invocation devient un client qui demande au daemon d'afficher l'UI |
+| D13 | **Pas de nom de tunnel : les tags sont le seul mécanisme de nommage et de regroupement** | Le nom était une saisie redondante avec l'adresse (`3333 → nova:3333` suffit à identifier un tunnel) et un champ de plus à garder unique. Un tunnel est désigné par son libellé (voir §7), la CLI le sélectionne par port (`3333`), par `hôte:port` ou par tag. Un tag ne peut donc ni être composé uniquement de chiffres ni contenir `:`, pour ne jamais se confondre avec un port ou un `hôte:port`. Projet non publié : pas de migration, un `name` resté dans un `tunnels.toml` existant est ignoré à la lecture et disparaît à la prochaine écriture |
 | D11 | **Accessibilité = exigence, pas une finition** : UI conforme WCAG 2.2 AA, CLI utilisable sans couleur ni TTY (voir §8) | Une fonctionnalité n'est pas « faite » tant qu'elle n'est pas utilisable au clavier seul, au lecteur d'écran et sans dépendre de la couleur |
 
 ### Conséquence de D1/D2 sur la fermeture
@@ -146,7 +147,6 @@ x11_display = ""                  # vide = $DISPLAY, ou 127.0.0.1:0.0 sous Windo
 
 [[tunnels]]
 id = "01JA..."                    # ULID
-name = "Adonis"
 host = "nova"                     # alias de ~/.ssh/config
 kind = "local"                    # local | remote | dynamic
 listen_port = 3333
@@ -214,7 +214,7 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 
 - **Style** : sombre/clair selon le système (`useThemeStore` / `ThemeToggle` de la lib), dense et calme (esprit Linear/Raycast), composants `@minimalstuff/ui` + utilitaires UnoCSS, police système + mono pour les ports.
 - **Composants absents de la lib, construits dans l'app** : drawer (panneau latéral), toasts + annonceur `aria-live`, palette de commandes, liste de tunnels navigable (roving tabindex), badge d'état icône + texte. Ceux qui sont génériques (drawer, toasts, palette) sont candidats à remonter dans `@minimalstuff/ui` une fois stabilisés.
-- **Layout** : sidebar (tags avec toggle d'ensemble + compteur actifs/total, hosts, « Externes »), liste principale groupée par host, une ligne par tunnel : switch, nom, `3333 → nova:3333`, badge d'état, pastille de santé, mini-métriques.
+- **Layout** : sidebar (tags avec toggle d'ensemble + compteur actifs/total, hosts, « Externes »), liste principale groupée par host, une ligne par tunnel : switch, libellé `3333 → nova:3333` (local), `nova:8080 → 127.0.0.1:3000` (distant) ou `1080 (SOCKS via nova)` (dynamique), badge d'état, pastille de santé, mini-métriques.
 - **Panneau détail** (drawer « Détails », séparé du drawer d'édition) : état, logs live, métriques, actions (restart, modifier, ouvrir dans le navigateur, copier la commande `ssh` équivalente).
 - **Création rapide** : formulaire minimal (host, port) ; le port cible suit le port d'écoute tant qu'il n'est pas modifié ; bind pré-rempli par le défaut, surchargeable.
 - **Palette de commandes** `Ctrl+K` (motif combobox + listbox, raccourcis via `useGlobalHotkeysStore`) : démarrer/arrêter tunnel ou tag, ouvrir, créer.
@@ -231,7 +231,7 @@ Cible : **WCAG 2.2 niveau AA** pour l'UI ; CLI conforme aux conventions `NO_COLO
 ### UI
 - **Clavier complet** : toute action atteignable sans souris, ordre de tabulation logique, focus toujours visible (anneau ≥ 3:1), navigation fléchée dans les listes (roving tabindex), raccourcis documentés dans une aide (`?`) et jamais seule voie d'accès.
 - **Sémantique** : HTML natif d'abord (`button`, `form`, `label`, `table`/`list`), landmarks (`nav`, `main`, `aside`), titres hiérarchisés. Composants `@minimalstuff/ui` pour les motifs ARIA complexes (modal, menu, combobox, switch, tabs, tooltip) ; tout écart d'accessibilité constaté dans la lib est corrigé dans la lib, pas contourné dans l'app.
-- **Noms accessibles explicites** : un switch annonce « Tunnel Adonis, 3333 vers nova:3333, actif », pas juste « on ». Boutons icône toujours labellisés.
+- **Noms accessibles explicites** : un switch annonce « Tunnel 3333 vers nova:3333, actif », pas juste « on ». Boutons icône toujours labellisés.
 - **Jamais la couleur seule** : chaque état/santé = icône + texte (badge « Reconnexion 2/∞ », « Cible injoignable »). Contraste texte ≥ 4.5:1, composants ≥ 3:1, vérifiés dans les deux thèmes.
 - **Annonces dynamiques** : région `aria-live="polite"` pour les changements d'état (regroupés/throttlés pour éviter le spam), `assertive` réservé aux erreurs bloquantes. Les prompts (passphrase, clé d'hôte) prennent le focus.
 - **Modales** : focus piégé, `Échap` ferme (sauf alerte clé changée qui exige un choix explicite), retour du focus à l'élément déclencheur.
@@ -252,6 +252,7 @@ Cible : **WCAG 2.2 niveau AA** pour l'UI ; CLI conforme aux conventions `NO_COLO
 - Erreurs : message clair sur stderr avec la cause et l'action suggérée, codes de sortie documentés.
 - Confirmations interactives contournables (`--yes`), jamais de prompt bloquant hors TTY.
 - `--help` complet avec exemples, aide par sous-commande.
+- **Sélecteurs de tunnel** (`up`, `down`, `open`) : un nombre (`3333`) désigne le tunnel qui écoute sur ce port (erreur listant les `hôte:port` candidats s'il y en a plusieurs), `hôte:port` (`nova:3333`) celui de cet hôte, tout le reste est un tag (casse ignorée). `--tag` force la lecture en tag. `open` exige un seul tunnel. `list` et `status` affichent le libellé de la route, pas un nom.
 
 ---
 
