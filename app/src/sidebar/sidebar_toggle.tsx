@@ -1,7 +1,8 @@
 import { useLayoutEffect } from 'react';
+import { IconButton } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
-import { TooltipIconButton } from '#/shared/tooltip_icon_button';
+import { formatShortcutTooltip } from '#/shared/shortcut_tooltip';
 import { SIDEBAR_ID, SIDEBAR_TOGGLE_ID } from '#/sidebar/sidebar_id';
 
 /** Keeps the keyboard user's place: a collapsing sidebar cannot keep the focus. */
@@ -13,6 +14,7 @@ function isFocusInSidebar(): boolean {
 export function SidebarToggle() {
 	const isCollapsed = useUiStore((state) => state.isSidebarCollapsed);
 	const toggleSidebar = useUiStore((state) => state.toggleSidebar);
+	const label = isCollapsed ? 'Afficher le panneau' : 'Masquer le panneau';
 
 	useLayoutEffect(() => {
 		if (isCollapsed && isFocusInSidebar())
@@ -20,14 +22,14 @@ export function SidebarToggle() {
 	}, [isCollapsed]);
 
 	return (
-		<TooltipIconButton
+		<IconButton
 			id={SIDEBAR_TOGGLE_ID}
 			icon="i-mdi-dock-left"
-			aria-label={isCollapsed ? 'Afficher le panneau' : 'Masquer le panneau'}
+			aria-label={label}
+			tooltip={{ content: formatShortcutTooltip(label, 'B') }}
 			aria-expanded={!isCollapsed}
 			aria-controls={SIDEBAR_ID}
 			aria-keyshortcuts="b"
-			shortcutHint="B"
 			variant="ghost"
 			color="neutral"
 			onClick={toggleSidebar}

@@ -1,7 +1,6 @@
-import { Menu } from '@minimalstuff/ui';
+import { Menu, IconButton } from '@minimalstuff/ui';
 
 import type { TunnelDto } from '#/daemon/protocol';
-import { TooltipIconButton } from '#/shared/tooltip_icon_button';
 import { TunnelMenuItems } from '#/tunnels/list/tunnel_menu_items';
 import { ROVING_CONTROL_ATTRIBUTE } from '#/tunnels/list/use_roving_rows';
 
@@ -15,9 +14,10 @@ export function TunnelActionsMenu({
 	isActiveRow,
 }: Readonly<TunnelActionsMenuProps>) {
 	const trigger = (
-		<TooltipIconButton
+		<IconButton
 			icon="i-mdi-dots-vertical"
 			aria-label={`Actions pour ${tunnel.name}`}
+			tooltip
 			variant="ghost"
 			color="neutral"
 			size="sm"

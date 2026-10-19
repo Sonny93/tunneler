@@ -1,7 +1,8 @@
+import { IconButton } from '@minimalstuff/ui';
+
 import { useUiStore } from '#/state/ui_store';
 import { useX11State } from '#/x11/use_x11_state';
 import { getX11HeaderStatus } from '#/x11/x11_header_status';
-import { TooltipIconButton } from '#/shared/tooltip_icon_button';
 
 type X11HeaderControlsProps = {
 	host: string;
@@ -22,9 +23,10 @@ export function X11HeaderControls({ host }: Readonly<X11HeaderControlsProps>) {
 					{status}
 				</span>
 			)}
-			<TooltipIconButton
+			<IconButton
 				icon="i-mdi-monitor-share"
 				aria-label={`X11 pour ${host}`}
+				tooltip
 				variant="ghost"
 				color="neutral"
 				size="sm"

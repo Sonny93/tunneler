@@ -1,3 +1,4 @@
+import { IconButton } from '@minimalstuff/ui';
 import { useId, useMemo, useRef } from 'react';
 
 import { useUiStore } from '#/state/ui_store';
@@ -6,7 +7,6 @@ import { filterTunnels } from '#/tunnels/filter_tunnels';
 import { TunnelGroup } from '#/tunnels/list/tunnel_group';
 import { useRovingRows } from '#/tunnels/list/use_roving_rows';
 import { BulkToolbar } from '#/tunnels/selection/bulk_toolbar';
-import { TooltipIconButton } from '#/shared/tooltip_icon_button';
 import { useResolvedFilter } from '#/tunnels/use_resolved_filter';
 import { TunnelListEmpty } from '#/tunnels/list/tunnel_list_empty';
 import { groupTunnelsByHost } from '#/tunnels/group_tunnels_by_host';
@@ -77,9 +77,10 @@ export function TunnelList() {
 					{describeTunnelFilter(filter)} ({visibleTunnels.length})
 				</h2>
 				{filter.kind === 'tag' && (
-					<TooltipIconButton
+					<IconButton
 						icon="i-mdi-pencil-outline"
 						aria-label="Renommer le tag"
+						tooltip
 						variant="ghost"
 						color="neutral"
 						onClick={handleRenameTag}

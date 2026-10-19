@@ -1,8 +1,7 @@
-import { Button } from '@minimalstuff/ui';
+import { Button, IconButton } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
-import { TooltipIconButton } from '#/shared/tooltip_icon_button';
 import { useRovingToolbar } from '#/tunnels/selection/use_roving_toolbar';
 import { useBulkTunnelActions } from '#/tunnels/selection/use_bulk_tunnel_actions';
 import { describeSelectionCount } from '#/tunnels/selection/describe_selection_count';
@@ -49,9 +48,10 @@ export function BulkToolbar({ selectedTunnels }: Readonly<BulkToolbarProps>) {
 					{label}
 				</Button>
 			))}
-			<TooltipIconButton
+			<IconButton
 				icon="i-mdi-close"
 				aria-label="Tout désélectionner"
+				tooltip
 				size="sm"
 				variant="ghost"
 				color="neutral"

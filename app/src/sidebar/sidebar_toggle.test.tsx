@@ -73,4 +73,17 @@ describe('SidebarToggle', () => {
 
 		expect(await axe(container)).toHaveNoViolations();
 	});
+
+	it('should have no axe violations while the tooltip is shown', async () => {
+		const user = userEvent.setup();
+		render(
+			<main>
+				<Harness />
+			</main>
+		);
+		await user.tab();
+		await screen.findByRole('tooltip');
+
+		expect(await axe(document.body)).toHaveNoViolations();
+	});
 });
