@@ -4,3 +4,4 @@ app/dist
 .DS_Store
 .idea
 *.swp
+/.claude/worktrees/
