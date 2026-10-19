@@ -5,6 +5,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use serde::Deserialize;
+use serde::de::IgnoredAny;
 use toml_edit::DocumentMut;
 use ulid::Ulid;
 
@@ -79,7 +80,8 @@ enum StoredKind {
 #[serde(deny_unknown_fields)]
 struct StoredTunnel {
     id: Option<Ulid>,
-    name: String,
+    #[serde(default, rename = "name")]
+    _legacy_name: Option<IgnoredAny>,
     host: String,
     kind: StoredKind,
     listen_port: u16,
@@ -236,7 +238,6 @@ impl StoredTunnel {
     fn into_definition(self) -> TunnelDefinition {
         TunnelDefinition {
             id: self.id.map_or_else(TunnelId::generate, TunnelId::from_ulid),
-            name: self.name,
             host: self.host,
             kind: self.kind.into(),
             listen_port: self.listen_port,
@@ -279,7 +280,7 @@ impl StoredLauncher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::store::test_support::named_tunnel;
+    use crate::store::test_support::tunnel_on;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 
@@ -308,20 +309,35 @@ mod tests {
         let tunnel = &outcome.document.tunnels[0];
         assert_eq!(
             (
-                tunnel.name.as_str(),
                 tunnel.host.as_str(),
                 tunnel.kind,
                 tunnel.listen_port,
                 tunnel.tags.clone()
             ),
             (
-                "Adonis",
                 "nova",
                 TunnelKind::Local,
                 3333,
                 vec!["dev".to_owned(), "adonis".to_owned()]
             )
         );
+    }
+
+    #[test]
+    fn should_load_a_tunnel_when_the_file_still_carries_a_legacy_name_key() {
+        let outcome = parse(
+            "[[tunnels]]\nname = \"Adonis\"\nhost = \"nova\"\nkind = \"local\"\nlisten_port = 3333\n",
+        );
+
+        assert_eq!(outcome.unwrap().document.tunnels[0].listen_port, 3333);
+    }
+
+    #[test]
+    fn should_drop_the_legacy_name_key_when_the_file_is_rewritten() {
+        let text = "[[tunnels]]\nid = \"01JA0000000000000000000000\"\nname = \"Adonis\"\nhost = \"nova\"\nkind = \"local\"\nlisten_port = 3333\n";
+        let document = parse(text).unwrap().document;
+
+        assert!(!render(Some(text), &document).contains("name"));
     }
 
     #[test]
@@ -437,10 +453,10 @@ mod tests {
     #[test]
     fn should_report_the_line_when_a_key_is_unknown() {
         let message = parse_error_message(
-            "version = 1\n\n[[tunnels]]\nname = \"A\"\nhost = \"h\"\nkind = \"local\"\nlisen_port = 1\n",
+            "version = 1\n\n[[tunnels]]\nhost = \"h\"\nkind = \"local\"\nlisen_port = 1\n",
         );
 
-        assert!(message.starts_with("tunnels.toml:7:1:"), "{message}");
+        assert!(message.starts_with("tunnels.toml:6:1:"), "{message}");
     }
 
     #[test]
@@ -468,7 +484,7 @@ mod tests {
     #[test]
     fn should_reject_invalid_tunnel_id_with_its_position() {
         let message = parse_error_message(
-            "[[tunnels]]\nid = \"nope\"\nname = \"A\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n",
+            "[[tunnels]]\nid = \"nope\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n",
         );
 
         assert!(message.starts_with("tunnels.toml:2:"), "{message}");
@@ -477,9 +493,7 @@ mod tests {
     #[test]
     fn should_reject_unknown_tunnel_kind() {
         assert!(matches!(
-            parse(
-                "[[tunnels]]\nname = \"A\"\nhost = \"h\"\nkind = \"sideways\"\nlisten_port = 1\n"
-            ),
+            parse("[[tunnels]]\nhost = \"h\"\nkind = \"sideways\"\nlisten_port = 1\n"),
             Err(StoreError::Parse { .. })
         ));
     }
@@ -487,9 +501,7 @@ mod tests {
     #[test]
     fn should_reject_port_out_of_range() {
         assert!(matches!(
-            parse(
-                "[[tunnels]]\nname = \"A\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 70000\n"
-            ),
+            parse("[[tunnels]]\nhost = \"h\"\nkind = \"local\"\nlisten_port = 70000\n"),
             Err(StoreError::Parse { .. })
         ));
     }
@@ -497,8 +509,7 @@ mod tests {
     #[test]
     fn should_generate_an_id_and_flag_normalization_when_a_tunnel_has_none() {
         let outcome =
-            parse("[[tunnels]]\nname = \"A\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n")
-                .unwrap();
+            parse("[[tunnels]]\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n").unwrap();
 
         assert!(outcome.was_normalized);
     }
@@ -506,8 +517,8 @@ mod tests {
     #[test]
     fn should_generate_distinct_ids_when_several_tunnels_have_none() {
         let outcome = parse(concat!(
-            "[[tunnels]]\nname = \"A\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n",
-            "[[tunnels]]\nname = \"B\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 2\n",
+            "[[tunnels]]\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n",
+            "[[tunnels]]\nhost = \"h\"\nkind = \"local\"\nlisten_port = 2\n",
         ))
         .unwrap();
 
@@ -554,8 +565,7 @@ mod tests {
 
     #[test]
     fn should_report_validation_errors_when_the_content_breaks_a_rule() {
-        let outcome =
-            parse("[[tunnels]]\nname = \"A\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 0\n");
+        let outcome = parse("[[tunnels]]\nhost = \"h\"\nkind = \"local\"\nlisten_port = 0\n");
 
         assert!(matches!(outcome, Err(StoreError::Validation(_))));
     }
@@ -566,7 +576,7 @@ mod tests {
             tunnels: vec![TunnelDefinition {
                 id: "01JA0000000000000000000000".parse().unwrap(),
                 tags: vec!["dev".to_owned()],
-                ..named_tunnel(TunnelKind::Local, "Adonis", 3333)
+                ..tunnel_on(TunnelKind::Local, 3333)
             }],
             ..StoreDocument::default()
         };
@@ -579,7 +589,7 @@ mod tests {
         );
         assert!(
             rendered.ends_with(
-                "\n[[tunnels]]\nid = \"01JA0000000000000000000000\"\nname = \"Adonis\"\nhost = \"nova\"\nkind = \"local\"\nlisten_port = 3333\ntags = [\"dev\"]\n"
+                "\n[[tunnels]]\nid = \"01JA0000000000000000000000\"\nhost = \"nova\"\nkind = \"local\"\nlisten_port = 3333\ntags = [\"dev\"]\n"
             ),
             "{rendered}"
         );
@@ -588,7 +598,7 @@ mod tests {
     #[test]
     fn should_omit_optional_tunnel_fields_when_they_are_unset() {
         let document = StoreDocument {
-            tunnels: vec![named_tunnel(TunnelKind::Local, "Adonis", 3333)],
+            tunnels: vec![tunnel_on(TunnelKind::Local, 3333)],
             ..StoreDocument::default()
         };
 
@@ -600,7 +610,7 @@ mod tests {
     #[test]
     fn should_write_tags_when_the_tunnel_has_none() {
         let document = StoreDocument {
-            tunnels: vec![named_tunnel(TunnelKind::Local, "Adonis", 3333)],
+            tunnels: vec![tunnel_on(TunnelKind::Local, 3333)],
             ..StoreDocument::default()
         };
 
@@ -613,7 +623,7 @@ mod tests {
             listen_address: Some("0.0.0.0".to_owned()),
             target_host: Some("db".to_owned()),
             target_port: Some(5432),
-            ..named_tunnel(TunnelKind::Remote, "Db", 3333)
+            ..tunnel_on(TunnelKind::Remote, 3333)
         };
         let document = StoreDocument {
             tunnels: vec![definition],

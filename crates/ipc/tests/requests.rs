@@ -231,7 +231,7 @@ async fn should_return_a_preview_when_a_script_is_imported() {
 
     let preview = client.import_script("3333").await.unwrap();
 
-    assert_eq!(preview.candidates[0].label.as_deref(), Some("3333"));
+    assert_eq!(preview.candidates[0].comment.as_deref(), Some("3333"));
 }
 
 #[tokio::test]

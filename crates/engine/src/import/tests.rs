@@ -140,13 +140,13 @@ fn should_target_loopback_on_same_port_when_script_template_is_expanded() {
 }
 
 #[test]
-fn should_label_candidates_with_the_comments_when_ports_have_them() {
+fn should_keep_the_comment_of_each_candidate_when_ports_have_one() {
     let preview = script_preview(NOVA_SCRIPT);
 
     let labels: Vec<_> = preview
         .candidates
         .iter()
-        .map(|candidate| candidate.label.clone().unwrap())
+        .map(|candidate| candidate.comment.clone().unwrap())
         .collect();
     assert_eq!(
         labels,
@@ -240,7 +240,7 @@ fn should_read_ports_when_list_has_one_port_per_line_with_comments() {
     let preview = script_preview("3333 # adonis\n5432\n");
 
     assert_eq!(listen_ports(&preview), vec![3333, 5432]);
-    assert_eq!(preview.candidates[0].label.as_deref(), Some("adonis"));
+    assert_eq!(preview.candidates[0].comment.as_deref(), Some("adonis"));
 }
 
 #[test]
@@ -430,7 +430,7 @@ fn should_keep_target_and_no_line_when_ssh_config_forward_is_imported() {
             local.target_host.as_deref(),
             local.target_port,
             local.line,
-            local.label.as_deref()
+            local.comment.as_deref()
         ),
         (Some("localhost"), Some(3333), None, None)
     );

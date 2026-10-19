@@ -110,8 +110,6 @@ pub struct EngineDependencies {
 /// A tunnel to create; the engine generates its id.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewTunnel {
-    /// Unique, human-readable name.
-    pub name: String,
     /// The `ssh_config` alias the tunnel goes through.
     pub host: String,
     /// The direction of the forward.
@@ -132,7 +130,6 @@ impl NewTunnel {
     fn into_definition(self, id: TunnelId) -> TunnelDefinition {
         TunnelDefinition {
             id,
-            name: self.name,
             host: self.host,
             kind: self.kind,
             listen_port: self.listen_port,

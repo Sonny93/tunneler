@@ -23,7 +23,6 @@ const TUNNEL_ID: &str = "01J9ZK3Q8M5N7R2T4V6X8Y0ABC";
 
 fn spec() -> TunnelSpecDto {
     TunnelSpecDto {
-        name: "adonis".to_owned(),
         host: "nova".to_owned(),
         kind: TunnelKindDto::Local,
         listen_port: 3333,
@@ -332,7 +331,7 @@ fn should_serialize_hello_as_documented() {
 
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
-        r#"{"id":1,"method":"hello","params":{"protocolVersion":2,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
+        r#"{"id":1,"method":"hello","params":{"protocolVersion":3,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
     );
 }
 
@@ -345,7 +344,7 @@ fn should_serialize_tunnel_create_as_documented() {
 
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
-        r#"{"id":2,"method":"tunnel.create","params":{"name":"adonis","host":"nova","kind":"local","listenPort":3333,"targetHost":"db.internal","targetPort":5432,"tags":["dev"]}}"#
+        r#"{"id":2,"method":"tunnel.create","params":{"host":"nova","kind":"local","listenPort":3333,"targetHost":"db.internal","targetPort":5432,"tags":["dev"]}}"#
     );
 }
 
@@ -396,7 +395,7 @@ fn import_preview() -> ImportPreviewDto {
                 listen_address: Some("127.0.0.1".to_owned()),
                 target_host: Some("127.0.0.1".to_owned()),
                 target_port: Some(3333),
-                label: Some("adonis".to_owned()),
+                comment: Some("adonis".to_owned()),
                 line: Some(4),
             },
             ImportCandidateDto {
@@ -406,7 +405,7 @@ fn import_preview() -> ImportPreviewDto {
                 listen_address: None,
                 target_host: None,
                 target_port: None,
-                label: None,
+                comment: None,
                 line: None,
             },
         ],
@@ -535,7 +534,7 @@ fn should_serialize_an_import_preview_response_as_documented() {
                     "listenAddress": "127.0.0.1",
                     "targetHost": "127.0.0.1",
                     "targetPort": 3333,
-                    "label": "adonis",
+                    "comment": "adonis",
                     "line": 4
                 },
                 { "kind": "dynamic", "listenPort": 1080 }
@@ -838,7 +837,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
     assert_eq!(
         line,
         concat!(
-            r#"{"id":4,"result":{"tunnels":[{"id":"01J9ZK3Q8M5N7R2T4V6X8Y0ABC","name":"adonis","host":"nova","kind":"local","listenPort":3333,"targetHost":"db.internal","targetPort":5432,"tags":["dev"],"#,
+            r#"{"id":4,"result":{"tunnels":[{"id":"01J9ZK3Q8M5N7R2T4V6X8Y0ABC","host":"nova","kind":"local","listenPort":3333,"targetHost":"db.internal","targetPort":5432,"tags":["dev"],"#,
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000}}],"#,
@@ -929,7 +928,7 @@ fn should_serialize_a_protocol_mismatch_with_both_versions() {
     assert_eq!(
         line,
         concat!(
-            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 2, the client protocol 9","data":{"client":9,"daemon":2}}}"#,
+            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 3, the client protocol 9","data":{"client":9,"daemon":3}}}"#,
             "\n"
         )
     );

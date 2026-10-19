@@ -1,13 +1,25 @@
-//! Turns the names and tags typed on the command line into tunnels.
+//! Turns the ports, `host:port` pairs and tags typed on the command line into
+//! tunnels.
+//!
+//! Tunnels have no name: a number selects the tunnel listening on that port,
+//! `host:port` the tunnel of that host listening on that port, and anything
+//! else is a tag. A tag can neither be only digits nor contain a colon, so the
+//! three forms never collide.
 
-use ipc::protocol::TunnelDefinitionDto;
+use ipc::protocol::{SnapshotDto, TunnelDefinitionDto};
 use thiserror::Error;
 
-/// How the arguments of `up` and `down` are read.
+use super::render::{describe_route, kind_word};
+use super::style::Style;
+
+const ENDPOINT_SEPARATOR: char = ':';
+const EXAMPLE_ENDPOINT: &str = "nova:3333";
+
+/// How the arguments of `up`, `down` and `open` are read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TargetInterpretation {
-    /// An argument is a tunnel name, or else a tag.
-    NameOrTag,
+    /// An argument is a port, a `host:port` pair or a tag.
+    PortEndpointOrTag,
     /// Every argument is a tag.
     TagOnly,
 }
@@ -17,18 +29,32 @@ pub enum TargetInterpretation {
 pub struct ResolvedTunnel {
     /// The identifier the daemon knows it by.
     pub id: String,
-    /// Its name, for the messages.
-    pub name: String,
+    /// Its route, such as `3333 → nova:3333`, for the messages.
+    pub label: String,
 }
 
-/// Why an argument does not designate any tunnel.
+/// Why an argument does not designate the tunnels it should.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ResolveError {
-    /// Neither a tunnel name nor a tag matches.
-    #[error("no tunnel or tag is named \"{name}\"")]
-    UnknownTarget {
+    /// The argument looks like a port or a `host:port` pair but is not one.
+    #[error("\"{argument}\" is not a valid port (1-65535) or host:port")]
+    InvalidSelector {
         /// The argument.
-        name: String,
+        argument: String,
+    },
+    /// No tunnel listens on the port.
+    #[error("no tunnel listens on port {port}")]
+    UnknownPort {
+        /// The port.
+        port: u16,
+    },
+    /// No tunnel of the host listens on the port.
+    #[error("no tunnel of host \"{host}\" listens on port {port}")]
+    UnknownEndpoint {
+        /// The host alias.
+        host: String,
+        /// The port.
+        port: u16,
     },
     /// No tunnel carries the tag.
     #[error("no tunnel carries the tag \"{tag}\"")]
@@ -36,11 +62,29 @@ pub enum ResolveError {
         /// The argument.
         tag: String,
     },
-    /// The argument is a tunnel name and a different set of tunnels' tag.
-    #[error("\"{name}\" is both a tunnel name and a tag")]
-    AmbiguousTarget {
-        /// The argument.
-        name: String,
+    /// Several tunnels of different hosts listen on the port.
+    #[error("{} tunnels listen on port {port}: {}", .candidates.len(), .candidates.join(", "))]
+    AmbiguousPort {
+        /// The port.
+        port: u16,
+        /// The tunnels, as `host:port`.
+        candidates: Vec<String>,
+    },
+    /// Several tunnels of the same host listen on the same port.
+    #[error("{} tunnels listen on {endpoint}: {}", .candidates.len(), .candidates.join(", "))]
+    AmbiguousEndpoint {
+        /// The `host:port` pair.
+        endpoint: String,
+        /// The tunnels, as `host:port (kind)`.
+        candidates: Vec<String>,
+    },
+    /// A command that needs one tunnel got a tag carried by several.
+    #[error("the tag \"{tag}\" designates {} tunnels: {}", .candidates.len(), .candidates.join(", "))]
+    AmbiguousTag {
+        /// The tag.
+        tag: String,
+        /// The tunnels, as `host:port`.
+        candidates: Vec<String>,
     },
 }
 
@@ -48,13 +92,58 @@ impl ResolveError {
     /// What to do about it.
     pub fn hint(&self) -> String {
         match self {
-            Self::UnknownTarget { .. } | Self::UnknownTag { .. } => {
+            Self::InvalidSelector { .. }
+            | Self::UnknownPort { .. }
+            | Self::UnknownEndpoint { .. }
+            | Self::UnknownTag { .. } => {
                 "run `tunneler list` to see the tunnels and their tags".to_owned()
             }
-            Self::AmbiguousTarget { name } => {
-                format!("pass --tag {name} to use the tag")
+            Self::AmbiguousPort { candidates, .. } => format!(
+                "pass host:port to pick one, such as `{}`",
+                candidates.first().map_or(EXAMPLE_ENDPOINT, String::as_str)
+            ),
+            Self::AmbiguousEndpoint { .. } => {
+                "give the tunnel you want a tag, then select it by that tag".to_owned()
             }
+            Self::AmbiguousTag { .. } => "pass a port or host:port to pick one tunnel".to_owned(),
         }
+    }
+}
+
+enum Selector {
+    Port(u16),
+    Endpoint { host: String, port: u16 },
+    Tag(String),
+}
+
+fn parse_port(text: &str) -> Option<u16> {
+    text.parse::<u16>().ok().filter(|port| *port != 0)
+}
+
+fn parse_selector(
+    argument: &str,
+    interpretation: TargetInterpretation,
+) -> Result<Selector, ResolveError> {
+    if interpretation == TargetInterpretation::TagOnly {
+        return Ok(Selector::Tag(argument.to_owned()));
+    }
+    let invalid = || ResolveError::InvalidSelector {
+        argument: argument.to_owned(),
+    };
+    let is_number =
+        !argument.is_empty() && argument.chars().all(|character| character.is_ascii_digit());
+    if is_number {
+        return parse_port(argument).map(Selector::Port).ok_or_else(invalid);
+    }
+    let Some((host, port)) = argument.rsplit_once(ENDPOINT_SEPARATOR) else {
+        return Ok(Selector::Tag(argument.to_owned()));
+    };
+    match (host.is_empty(), parse_port(port)) {
+        (false, Some(port)) => Ok(Selector::Endpoint {
+            host: host.to_owned(),
+            port,
+        }),
+        _ => Err(invalid()),
     }
 }
 
@@ -62,79 +151,143 @@ fn is_same_text(left: &str, right: &str) -> bool {
     left.to_lowercase() == right.to_lowercase()
 }
 
-/// The tunnel with this exact name, ignoring case.
-pub fn find_tunnel_by_name<'a>(
-    name: &str,
-    definitions: &'a [TunnelDefinitionDto],
-) -> Result<&'a TunnelDefinitionDto, ResolveError> {
-    named(name, definitions).ok_or_else(|| ResolveError::UnknownTarget {
-        name: name.to_owned(),
-    })
+fn endpoint_of(definition: &TunnelDefinitionDto) -> String {
+    format!("{}:{}", definition.spec.host, definition.spec.listen_port)
 }
 
-fn named<'a>(
-    argument: &str,
-    definitions: &'a [TunnelDefinitionDto],
-) -> Option<&'a TunnelDefinitionDto> {
-    definitions
+fn describe_candidates(candidates: &[&TunnelDefinitionDto]) -> Vec<String> {
+    let endpoints: Vec<String> = candidates
         .iter()
-        .find(|definition| is_same_text(&definition.spec.name, argument))
+        .map(|candidate| endpoint_of(candidate))
+        .collect();
+    candidates
+        .iter()
+        .zip(&endpoints)
+        .map(|(candidate, endpoint)| {
+            let is_shared = endpoints.iter().filter(|other| *other == endpoint).count() > 1;
+            if is_shared {
+                format!("{endpoint} ({})", kind_word(candidate.spec.kind))
+            } else {
+                endpoint.clone()
+            }
+        })
+        .collect()
+}
+
+fn count_hosts(definitions: &[&TunnelDefinitionDto]) -> usize {
+    let mut hosts: Vec<String> = definitions
+        .iter()
+        .map(|definition| definition.spec.host.to_lowercase())
+        .collect();
+    hosts.sort();
+    hosts.dedup();
+    hosts.len()
+}
+
+fn on_port<'a>(
+    port: u16,
+    definitions: &[&'a TunnelDefinitionDto],
+) -> Result<Vec<&'a TunnelDefinitionDto>, ResolveError> {
+    let matching: Vec<&TunnelDefinitionDto> = definitions
+        .iter()
+        .copied()
+        .filter(|definition| definition.spec.listen_port == port)
+        .collect();
+    match matching.as_slice() {
+        [] => Err(ResolveError::UnknownPort { port }),
+        [_] => Ok(matching),
+        [first, ..] if count_hosts(&matching) == 1 => Err(ResolveError::AmbiguousEndpoint {
+            endpoint: endpoint_of(first),
+            candidates: describe_candidates(&matching),
+        }),
+        _ => Err(ResolveError::AmbiguousPort {
+            port,
+            candidates: describe_candidates(&matching),
+        }),
+    }
+}
+
+fn on_endpoint<'a>(
+    host: &str,
+    port: u16,
+    definitions: &[&'a TunnelDefinitionDto],
+) -> Result<Vec<&'a TunnelDefinitionDto>, ResolveError> {
+    let matching: Vec<&TunnelDefinitionDto> = definitions
+        .iter()
+        .copied()
+        .filter(|definition| {
+            definition.spec.listen_port == port && is_same_text(&definition.spec.host, host)
+        })
+        .collect();
+    match matching.as_slice() {
+        [] => Err(ResolveError::UnknownEndpoint {
+            host: host.to_owned(),
+            port,
+        }),
+        [_] => Ok(matching),
+        _ => Err(ResolveError::AmbiguousEndpoint {
+            endpoint: format!("{host}{ENDPOINT_SEPARATOR}{port}"),
+            candidates: describe_candidates(&matching),
+        }),
+    }
 }
 
 fn tagged<'a>(
-    argument: &str,
-    definitions: &'a [TunnelDefinitionDto],
-) -> Vec<&'a TunnelDefinitionDto> {
-    definitions
+    tag: &str,
+    definitions: &[&'a TunnelDefinitionDto],
+) -> Result<Vec<&'a TunnelDefinitionDto>, ResolveError> {
+    let carrying: Vec<&TunnelDefinitionDto> = definitions
         .iter()
+        .copied()
         .filter(|definition| {
             definition
                 .spec
                 .tags
                 .iter()
-                .any(|tag| is_same_text(tag, argument))
+                .any(|other| is_same_text(other, tag))
         })
-        .collect()
+        .collect();
+    if carrying.is_empty() {
+        return Err(ResolveError::UnknownTag {
+            tag: tag.to_owned(),
+        });
+    }
+    Ok(carrying)
 }
 
 fn resolve_argument<'a>(
     argument: &str,
     interpretation: TargetInterpretation,
-    definitions: &'a [TunnelDefinitionDto],
+    definitions: &[&'a TunnelDefinitionDto],
 ) -> Result<Vec<&'a TunnelDefinitionDto>, ResolveError> {
-    let carrying_tag = tagged(argument, definitions);
-    if interpretation == TargetInterpretation::TagOnly {
-        return non_empty_or(carrying_tag, || ResolveError::UnknownTag {
-            tag: argument.to_owned(),
-        });
-    }
-    match named(argument, definitions) {
-        Some(tunnel) if carrying_tag.iter().all(|other| other.id == tunnel.id) => Ok(vec![tunnel]),
-        Some(_) => Err(ResolveError::AmbiguousTarget {
-            name: argument.to_owned(),
-        }),
-        None => non_empty_or(carrying_tag, || ResolveError::UnknownTarget {
-            name: argument.to_owned(),
-        }),
+    match parse_selector(argument, interpretation)? {
+        Selector::Port(port) => on_port(port, definitions),
+        Selector::Endpoint { host, port } => on_endpoint(&host, port, definitions),
+        Selector::Tag(tag) => tagged(&tag, definitions),
     }
 }
 
-fn non_empty_or(
-    tunnels: Vec<&TunnelDefinitionDto>,
-    error: impl FnOnce() -> ResolveError,
-) -> Result<Vec<&TunnelDefinitionDto>, ResolveError> {
-    if tunnels.is_empty() {
-        return Err(error());
+fn definitions_of(snapshot: &SnapshotDto) -> Vec<&TunnelDefinitionDto> {
+    snapshot
+        .tunnels
+        .iter()
+        .map(|tunnel| &tunnel.definition)
+        .collect()
+}
+
+fn resolved_tunnel(
+    definition: &TunnelDefinitionDto,
+    snapshot: &SnapshotDto,
+    style: Style,
+) -> ResolvedTunnel {
+    ResolvedTunnel {
+        id: definition.id.clone(),
+        label: describe_route(definition, &snapshot.settings, style),
     }
-    Ok(tunnels)
 }
 
 /// The tunnels the arguments designate, without duplicates, in the order they
 /// are first designated.
-///
-/// An exact tunnel name (ignoring case) wins over a tag. An argument that is
-/// the name of a tunnel and also the tag of other tunnels is ambiguous: it
-/// must be disambiguated with [`TargetInterpretation::TagOnly`].
 ///
 /// # Errors
 ///
@@ -142,46 +295,80 @@ fn non_empty_or(
 pub fn resolve_targets(
     arguments: &[String],
     interpretation: TargetInterpretation,
-    definitions: &[TunnelDefinitionDto],
+    snapshot: &SnapshotDto,
+    style: Style,
 ) -> Result<Vec<ResolvedTunnel>, ResolveError> {
+    let definitions = definitions_of(snapshot);
     let mut resolved: Vec<ResolvedTunnel> = Vec::new();
     for argument in arguments {
-        for tunnel in resolve_argument(argument, interpretation, definitions)? {
+        for tunnel in resolve_argument(argument, interpretation, &definitions)? {
             if resolved.iter().all(|known| known.id != tunnel.id) {
-                resolved.push(resolved_tunnel(tunnel));
+                resolved.push(resolved_tunnel(tunnel, snapshot, style));
             }
         }
     }
     Ok(resolved)
 }
 
-/// Every configured tunnel.
-pub fn all_tunnels(definitions: &[TunnelDefinitionDto]) -> Vec<ResolvedTunnel> {
-    definitions.iter().map(resolved_tunnel).collect()
+/// The one tunnel an argument designates.
+///
+/// # Errors
+///
+/// Fails when the argument matches nothing, or several tunnels.
+pub fn find_tunnel<'a>(
+    argument: &str,
+    snapshot: &'a SnapshotDto,
+) -> Result<&'a TunnelDefinitionDto, ResolveError> {
+    let definitions = definitions_of(snapshot);
+    let matching = resolve_argument(
+        argument,
+        TargetInterpretation::PortEndpointOrTag,
+        &definitions,
+    )?;
+    match matching.as_slice() {
+        [only] => Ok(only),
+        _ => Err(ResolveError::AmbiguousTag {
+            tag: argument.to_owned(),
+            candidates: describe_candidates(&matching),
+        }),
+    }
 }
 
-fn resolved_tunnel(definition: &TunnelDefinitionDto) -> ResolvedTunnel {
-    ResolvedTunnel {
-        id: definition.id.clone(),
-        name: definition.spec.name.clone(),
-    }
+/// Every configured tunnel.
+pub fn all_tunnels(snapshot: &SnapshotDto, style: Style) -> Vec<ResolvedTunnel> {
+    definitions_of(snapshot)
+        .into_iter()
+        .map(|definition| resolved_tunnel(definition, snapshot, style))
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
-    use ipc::protocol::{TunnelKindDto, TunnelSpecDto};
+    use ipc::protocol::{
+        SettingsDto, TrayStatusDto, TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto,
+    };
     use pretty_assertions::assert_eq;
 
     use super::*;
 
-    fn definition(id: &str, name: &str, tags: &[&str]) -> TunnelDefinitionDto {
+    const PLAIN: Style = Style {
+        color: false,
+        unicode: true,
+    };
+
+    fn definition(
+        id: &str,
+        host: &str,
+        kind: TunnelKindDto,
+        listen_port: u16,
+        tags: &[&str],
+    ) -> TunnelDefinitionDto {
         TunnelDefinitionDto {
             id: id.to_owned(),
             spec: TunnelSpecDto {
-                name: name.to_owned(),
-                host: "nova".to_owned(),
-                kind: TunnelKindDto::Local,
-                listen_port: 3333,
+                host: host.to_owned(),
+                kind,
+                listen_port,
                 listen_address: None,
                 target_host: None,
                 target_port: None,
@@ -190,12 +377,46 @@ mod tests {
         }
     }
 
-    fn catalog() -> Vec<TunnelDefinitionDto> {
-        vec![
-            definition("1", "Adonis", &["dev"]),
-            definition("2", "Mail", &["dev", "mail"]),
-            definition("3", "Staging", &[]),
-        ]
+    fn snapshot_of(definitions: Vec<TunnelDefinitionDto>) -> SnapshotDto {
+        SnapshotDto {
+            tunnels: definitions
+                .into_iter()
+                .map(|definition| TunnelDto {
+                    definition,
+                    state: TunnelStateDto::Stopped,
+                    health: ipc::protocol::TargetHealthDto::Unknown,
+                    metrics: ipc::protocol::MetricsDto::default(),
+                })
+                .collect(),
+            settings: SettingsDto {
+                default_bind_address: "127.0.0.1".to_owned(),
+                default_remote_bind_address: "localhost".to_owned(),
+                keepalive_interval_ms: 0,
+                keepalive_max: 3,
+                session_idle_grace_ms: 0,
+                reconnect_initial_delay_ms: 0,
+                reconnect_max_delay_ms: 0,
+                health_probe: true,
+                restore_on_launch: true,
+                start_on_launch_tags: Vec::new(),
+                launch_at_login: false,
+                use_os_keyring: false,
+                x11_display: None,
+            },
+            tray: TrayStatusDto::default(),
+            externals: Vec::new(),
+            x11_anchors: Vec::new(),
+            x11_launchers: Vec::new(),
+        }
+    }
+
+    fn catalog() -> SnapshotDto {
+        snapshot_of(vec![
+            definition("1", "nova", TunnelKindDto::Local, 3333, &["dev"]),
+            definition("2", "nova", TunnelKindDto::Local, 5432, &["dev", "db"]),
+            definition("3", "staging", TunnelKindDto::Local, 3333, &[]),
+            definition("4", "staging", TunnelKindDto::Dynamic, 1080, &[]),
+        ])
     }
 
     fn arguments(texts: &[&str]) -> Vec<String> {
@@ -205,49 +426,139 @@ mod tests {
     fn resolved_ids(
         texts: &[&str],
         interpretation: TargetInterpretation,
+        snapshot: &SnapshotDto,
     ) -> Result<Vec<String>, ResolveError> {
-        resolve_targets(&arguments(texts), interpretation, &catalog())
+        resolve_targets(&arguments(texts), interpretation, snapshot, PLAIN)
             .map(|tunnels| tunnels.into_iter().map(|tunnel| tunnel.id).collect())
     }
 
+    fn resolved_in_catalog(texts: &[&str]) -> Result<Vec<String>, ResolveError> {
+        resolved_ids(texts, TargetInterpretation::PortEndpointOrTag, &catalog())
+    }
+
     #[test]
-    fn should_resolve_a_tunnel_when_the_name_matches_exactly() {
+    fn should_resolve_the_tunnel_listening_on_a_port_when_the_argument_is_a_number() {
+        assert_eq!(resolved_in_catalog(&["5432"]), Ok(vec!["2".to_owned()]));
+    }
+
+    #[test]
+    fn should_report_every_candidate_as_host_and_port_when_several_tunnels_listen_on_the_port() {
         assert_eq!(
-            resolved_ids(&["Adonis"], TargetInterpretation::NameOrTag),
+            resolved_in_catalog(&["3333"]),
+            Err(ResolveError::AmbiguousPort {
+                port: 3333,
+                candidates: vec!["nova:3333".to_owned(), "staging:3333".to_owned()],
+            })
+        );
+    }
+
+    #[test]
+    fn should_report_an_unknown_port_when_no_tunnel_listens_on_it() {
+        assert_eq!(
+            resolved_in_catalog(&["9999"]),
+            Err(ResolveError::UnknownPort { port: 9999 })
+        );
+    }
+
+    #[test]
+    fn should_reject_a_port_out_of_range() {
+        assert_eq!(
+            resolved_in_catalog(&["70000"]),
+            Err(ResolveError::InvalidSelector {
+                argument: "70000".to_owned()
+            })
+        );
+    }
+
+    #[test]
+    fn should_resolve_the_tunnel_of_the_host_when_the_argument_is_host_and_port() {
+        assert_eq!(
+            resolved_in_catalog(&["staging:3333"]),
+            Ok(vec!["3".to_owned()])
+        );
+    }
+
+    #[test]
+    fn should_match_the_host_ignoring_case() {
+        assert_eq!(
+            resolved_in_catalog(&["NOVA:3333"]),
             Ok(vec!["1".to_owned()])
         );
     }
 
     #[test]
-    fn should_resolve_a_tunnel_when_the_name_differs_only_by_case() {
+    fn should_report_an_unknown_endpoint_when_the_host_has_no_such_tunnel() {
         assert_eq!(
-            resolved_ids(&["sTaGiNg"], TargetInterpretation::NameOrTag),
-            Ok(vec!["3".to_owned()])
+            resolved_in_catalog(&["nova:1080"]),
+            Err(ResolveError::UnknownEndpoint {
+                host: "nova".to_owned(),
+                port: 1080
+            })
+        );
+    }
+
+    #[test]
+    fn should_reject_a_host_and_port_pair_with_a_bad_port() {
+        assert_eq!(
+            resolved_in_catalog(&["nova:abc"]),
+            Err(ResolveError::InvalidSelector {
+                argument: "nova:abc".to_owned()
+            })
+        );
+    }
+
+    #[test]
+    fn should_tell_the_kinds_apart_when_a_local_and_a_remote_tunnel_share_host_and_port() {
+        let snapshot = snapshot_of(vec![
+            definition("1", "nova", TunnelKindDto::Local, 8080, &[]),
+            definition("2", "nova", TunnelKindDto::Remote, 8080, &[]),
+        ]);
+
+        assert_eq!(
+            resolved_ids(
+                &["nova:8080"],
+                TargetInterpretation::PortEndpointOrTag,
+                &snapshot
+            ),
+            Err(ResolveError::AmbiguousEndpoint {
+                endpoint: "nova:8080".to_owned(),
+                candidates: vec![
+                    "nova:8080 (local)".to_owned(),
+                    "nova:8080 (remote)".to_owned()
+                ],
+            })
         );
     }
 
     #[test]
     fn should_resolve_every_tunnel_of_a_tag_when_the_argument_is_a_tag() {
         assert_eq!(
-            resolved_ids(&["dev"], TargetInterpretation::NameOrTag),
+            resolved_in_catalog(&["dev"]),
             Ok(vec!["1".to_owned(), "2".to_owned()])
         );
     }
 
     #[test]
-    fn should_resolve_a_tag_when_the_tag_flag_is_set() {
+    fn should_match_a_tag_ignoring_case() {
+        assert_eq!(resolved_in_catalog(&["DB"]), Ok(vec!["2".to_owned()]));
+    }
+
+    #[test]
+    fn should_report_an_unknown_tag_when_no_tunnel_carries_it() {
         assert_eq!(
-            resolved_ids(&["mail"], TargetInterpretation::TagOnly),
-            Ok(vec!["2".to_owned()])
+            resolved_in_catalog(&["ghost"]),
+            Err(ResolveError::UnknownTag {
+                tag: "ghost".to_owned()
+            })
         );
     }
 
     #[test]
-    fn should_not_resolve_a_name_when_the_tag_flag_is_set() {
+    fn should_read_every_argument_as_a_tag_when_the_tag_flag_is_set() {
         assert_eq!(
-            resolved_ids(&["Adonis"], TargetInterpretation::TagOnly),
+            resolved_ids(&["5432"], TargetInterpretation::TagOnly, &catalog()),
             Err(ResolveError::UnknownTag {
-                tag: "Adonis".to_owned()
+                tag: "5432".to_owned()
             })
         );
     }
@@ -255,102 +566,72 @@ mod tests {
     #[test]
     fn should_list_a_tunnel_once_when_several_arguments_designate_it() {
         assert_eq!(
-            resolved_ids(&["Adonis", "dev"], TargetInterpretation::NameOrTag),
-            Ok(vec!["1".to_owned(), "2".to_owned()])
+            resolved_in_catalog(&["5432", "dev"]),
+            Ok(vec!["2".to_owned(), "1".to_owned()])
         );
     }
 
     #[test]
-    fn should_report_an_unknown_target_when_nothing_matches() {
-        assert_eq!(
-            resolved_ids(&["ghost"], TargetInterpretation::NameOrTag),
-            Err(ResolveError::UnknownTarget {
-                name: "ghost".to_owned()
-            })
-        );
+    fn should_label_the_resolved_tunnel_with_its_route() {
+        let resolved = resolve_targets(
+            &arguments(&["5432"]),
+            TargetInterpretation::PortEndpointOrTag,
+            &catalog(),
+            PLAIN,
+        )
+        .unwrap();
+
+        assert_eq!(resolved[0].label, "5432 → nova:5432");
     }
 
     #[test]
-    fn should_report_an_ambiguous_target_when_a_name_is_also_a_tag_of_other_tunnels() {
-        let mut definitions = catalog();
-        definitions.push(definition("4", "dev", &[]));
+    fn should_suggest_host_and_port_when_several_tunnels_listen_on_the_port() {
+        let error = ResolveError::AmbiguousPort {
+            port: 3333,
+            candidates: vec!["nova:3333".to_owned(), "staging:3333".to_owned()],
+        };
 
-        let outcome = resolve_targets(
-            &arguments(&["dev"]),
-            TargetInterpretation::NameOrTag,
-            &definitions,
-        );
-
-        assert_eq!(
-            outcome,
-            Err(ResolveError::AmbiguousTarget {
-                name: "dev".to_owned()
-            })
-        );
-    }
-
-    #[test]
-    fn should_resolve_the_tag_when_the_ambiguous_argument_comes_with_the_tag_flag() {
-        let mut definitions = catalog();
-        definitions.push(definition("4", "dev", &[]));
-
-        let outcome = resolve_targets(
-            &arguments(&["dev"]),
-            TargetInterpretation::TagOnly,
-            &definitions,
-        );
-
-        assert_eq!(outcome.map(|tunnels| tunnels.len()), Ok(2));
-    }
-
-    #[test]
-    fn should_resolve_the_tunnel_when_its_name_is_also_its_only_tag() {
-        let definitions = vec![definition("1", "Adonis", &["adonis"])];
-
-        let outcome = resolve_targets(
-            &arguments(&["adonis"]),
-            TargetInterpretation::NameOrTag,
-            &definitions,
-        );
-
-        assert_eq!(outcome.map(|tunnels| tunnels.len()), Ok(1));
+        assert!(error.hint().contains("`nova:3333`"));
     }
 
     #[test]
     fn should_suggest_listing_the_tunnels_when_the_target_is_unknown() {
-        let error = ResolveError::UnknownTarget {
-            name: "ghost".to_owned(),
+        let error = ResolveError::UnknownTag {
+            tag: "ghost".to_owned(),
         };
 
         assert!(error.hint().contains("tunneler list"));
     }
 
     #[test]
-    fn should_suggest_the_tag_flag_when_the_target_is_ambiguous() {
-        let error = ResolveError::AmbiguousTarget {
-            name: "dev".to_owned(),
-        };
-
-        assert!(error.hint().contains("--tag dev"));
-    }
-
-    #[test]
-    fn should_find_a_tunnel_by_name_ignoring_case() {
-        let definitions = catalog();
-
+    fn should_find_the_only_tunnel_listening_on_a_port() {
         assert_eq!(
-            find_tunnel_by_name("MAIL", &definitions).map(|tunnel| tunnel.id.as_str()),
+            find_tunnel("5432", &catalog()).map(|tunnel| tunnel.id.as_str()),
             Ok("2")
         );
     }
 
     #[test]
-    fn should_not_find_a_tunnel_by_tag_when_looking_for_a_name() {
-        assert!(find_tunnel_by_name("dev", &catalog()).is_err());
+    fn should_find_the_only_tunnel_carrying_a_tag() {
+        assert_eq!(
+            find_tunnel("db", &catalog()).map(|tunnel| tunnel.id.as_str()),
+            Ok("2")
+        );
+    }
+
+    #[test]
+    fn should_refuse_to_find_one_tunnel_when_a_tag_designates_several() {
+        assert_eq!(
+            find_tunnel("dev", &catalog()),
+            Err(ResolveError::AmbiguousTag {
+                tag: "dev".to_owned(),
+                candidates: vec!["nova:3333".to_owned(), "nova:5432".to_owned()],
+            })
+        );
     }
 
     #[test]
     fn should_list_every_tunnel_when_resolving_all() {
-        assert_eq!(all_tunnels(&catalog()).len(), 3);
+        assert_eq!(all_tunnels(&catalog(), PLAIN).len(), 4);
     }
 }

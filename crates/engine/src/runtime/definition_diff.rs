@@ -7,7 +7,7 @@ use crate::store::{TunnelDefinition, TunnelId};
 pub(crate) enum DefinitionChange {
     /// Nothing changed.
     Unchanged,
-    /// Only labels changed (name, tags): a running tunnel is not disturbed.
+    /// Only labels changed (tags): a running tunnel is not disturbed.
     InPlace,
     /// A field that shapes the connection changed (host, kind, listen or
     /// target address): a running tunnel must restart.
@@ -71,7 +71,6 @@ mod tests {
     fn definition() -> TunnelDefinition {
         TunnelDefinition {
             id: TunnelId::generate(),
-            name: "Adonis".to_owned(),
             host: "nova".to_owned(),
             kind: TunnelKind::Local,
             listen_port: 3333,
@@ -99,14 +98,6 @@ mod tests {
             classify_change(&old, &old.clone()),
             DefinitionChange::Unchanged
         );
-    }
-
-    #[test]
-    fn should_apply_in_place_when_only_the_name_changed() {
-        let old = definition();
-        let new = with(&old, |new| new.name = "Renamed".to_owned());
-
-        assert_eq!(classify_change(&old, &new), DefinitionChange::InPlace);
     }
 
     #[test]
@@ -187,7 +178,7 @@ mod tests {
     fn should_restart_when_a_label_and_the_port_changed_together() {
         let old = definition();
         let new = with(&old, |new| {
-            new.name = "Renamed".to_owned();
+            new.tags = vec!["dev".to_owned()];
             new.listen_port = 4444;
         });
 

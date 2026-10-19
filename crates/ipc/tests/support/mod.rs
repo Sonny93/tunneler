@@ -82,7 +82,7 @@ impl RequestHandler for FakeHandler {
                     listen_address: None,
                     target_host: None,
                     target_port: None,
-                    label: Some(params.text),
+                    comment: Some(params.text),
                     line: Some(1),
                 }],
                 warnings: Vec::new(),

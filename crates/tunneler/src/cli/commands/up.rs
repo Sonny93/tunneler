@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use ipc::protocol::{EventMessage, HostKeyRequestEvent, SnapshotDto, TunnelDefinitionDto};
+use ipc::protocol::{EventMessage, HostKeyRequestEvent, SnapshotDto};
 use ipc::{EventReceiver, IpcClient};
 use tokio::time::Instant;
 
@@ -30,18 +30,18 @@ pub async fn up(context: &Context, arguments: UpArguments) -> Result<(), CliErro
     let events = client.take_events();
     let client = Arc::new(client);
     let snapshot = client.snapshot().await?;
-    let targets = resolve(&arguments, &snapshot)?;
+    let targets = resolve(&arguments, &snapshot, context.style)?;
     let tracker = ProgressTracker::new(&targets, &snapshot);
-    for name in tracker.already_active() {
-        println!("{name}: already active");
+    for label in tracker.already_active() {
+        println!("{label}: already active");
     }
-    for name in tracker.already_provided() {
-        println!("{name}: already provided by an external process");
+    for label in tracker.already_provided() {
+        println!("{label}: already provided by an external process");
     }
     request_starts(&client, &targets).await?;
     let Some(events) = events.filter(|_| will_wait) else {
         for target in &targets {
-            println!("{}: start requested", target.name);
+            println!("{}: start requested", target.label);
         }
         return Ok(());
     };
@@ -61,21 +61,18 @@ pub async fn up(context: &Context, arguments: UpArguments) -> Result<(), CliErro
 fn resolve(
     arguments: &UpArguments,
     snapshot: &SnapshotDto,
+    style: Style,
 ) -> Result<Vec<ResolvedTunnel>, CliError> {
-    let definitions: Vec<TunnelDefinitionDto> = snapshot
-        .tunnels
-        .iter()
-        .map(|tunnel| tunnel.definition.clone())
-        .collect();
     let interpretation = if arguments.tag {
         TargetInterpretation::TagOnly
     } else {
-        TargetInterpretation::NameOrTag
+        TargetInterpretation::PortEndpointOrTag
     };
     Ok(resolve_targets(
         &arguments.targets,
         interpretation,
-        &definitions,
+        snapshot,
+        style,
     )?)
 }
 
@@ -127,7 +124,7 @@ impl Waiting {
                 .await
                 .map_err(|_| CliError::TimedOutWaiting {
                     waited: self.timeout,
-                    waiting_for: self.tracker.waiting_names(),
+                    waiting_for: self.tracker.waiting_labels(),
                 })?
         };
         received.ok_or(CliError::ConnectionLost)
@@ -139,8 +136,8 @@ impl Waiting {
         }
         match event {
             EventMessage::TunnelChanged(change) => {
-                if let Some(name) = self.tracker.apply(change) {
-                    println!("{}", describe_step(name, &change.state, self.style));
+                if let Some(label) = self.tracker.apply(change) {
+                    println!("{}", describe_step(label, &change.state, self.style));
                 }
             }
             EventMessage::HostKeyRequest(HostKeyRequestEvent::Alert {

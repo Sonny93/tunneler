@@ -49,7 +49,7 @@ fn format_timeout(milliseconds: u64) -> String {
     format!("{milliseconds}ms")
 }
 
-const fn kind_word(kind: TunnelKindDto) -> &'static str {
+pub const fn kind_word(kind: TunnelKindDto) -> &'static str {
     match kind {
         TunnelKindDto::Local => "local",
         TunnelKindDto::Remote => "remote",
@@ -254,7 +254,6 @@ fn render_tunnel_line(tunnel: &TunnelDto, settings: &SettingsDto, style: Style) 
     let definition = &tunnel.definition;
     let mut parts = vec![
         describe_state(&tunnel.state, style),
-        definition.spec.name.clone(),
         describe_route(definition, settings, style),
     ];
     parts.extend(describe_tags(&definition.spec.tags));
@@ -272,7 +271,7 @@ fn render_tunnel_line(tunnel: &TunnelDto, settings: &SettingsDto, style: Style) 
     line
 }
 
-/// One line per tunnel: its state, name, route, tags, target health and
+/// One line per tunnel: its state, route, tags, target health and
 /// traffic.
 pub fn render_status(snapshot: &SnapshotDto, style: Style) -> String {
     if snapshot.tunnels.is_empty() {
@@ -386,7 +385,7 @@ pub fn render_daemon_summary(daemon_version: &str, snapshot: &SnapshotDto) -> St
     )
 }
 
-/// One line per configured tunnel: name, kind, route and tags.
+/// One line per configured tunnel: kind, route and tags.
 pub fn render_list(snapshot: &SnapshotDto, style: Style) -> String {
     if snapshot.tunnels.is_empty() {
         return NO_TUNNELS_MESSAGE.to_owned();
@@ -397,7 +396,6 @@ pub fn render_list(snapshot: &SnapshotDto, style: Style) -> String {
         .map(|tunnel| {
             let definition = &tunnel.definition;
             let mut parts = vec![
-                definition.spec.name.clone(),
                 kind_word(definition.spec.kind).to_owned(),
                 describe_route(definition, &snapshot.settings, style),
             ];
@@ -490,7 +488,6 @@ mod tests {
             definition: TunnelDefinitionDto {
                 id: "01JA".to_owned(),
                 spec: TunnelSpecDto {
-                    name: "Adonis".to_owned(),
                     host: "nova".to_owned(),
                     kind: TunnelKindDto::Local,
                     listen_port: 3333,
@@ -565,8 +562,8 @@ mod tests {
                 render_one(state, ASCII_PLAIN)
             ],
             [
-                "⇄ provided by external ssh (pid 4242)  Adonis  3333 → nova:3333  [dev, adonis]",
-                "[ext] provided by external ssh (pid 4242)  Adonis  3333 -> nova:3333  [dev, adonis]"
+                "⇄ provided by external ssh (pid 4242)  3333 → nova:3333  [dev, adonis]",
+                "[ext] provided by external ssh (pid 4242)  3333 -> nova:3333  [dev, adonis]"
             ]
         );
     }
@@ -579,7 +576,7 @@ mod tests {
 
         assert_eq!(
             render_one(state, ASCII_PLAIN),
-            "[!] port held by node (pid 4242)  Adonis  3333 -> nova:3333  [dev, adonis]"
+            "[!] port held by node (pid 4242)  3333 -> nova:3333  [dev, adonis]"
         );
     }
 
@@ -589,7 +586,7 @@ mod tests {
 
         assert_eq!(
             render_one(state, UNICODE_PLAIN),
-            "! port held by an unknown process  Adonis  3333 → nova:3333  [dev, adonis]"
+            "! port held by an unknown process  3333 → nova:3333  [dev, adonis]"
         );
     }
 
@@ -666,7 +663,7 @@ mod tests {
     fn should_render_an_active_tunnel_with_a_check_mark_when_unicode_is_on() {
         assert_eq!(
             render_one(TunnelStateDto::Active, UNICODE_PLAIN),
-            "✔ active  Adonis  3333 → nova:3333  [dev, adonis]"
+            "✔ active  3333 → nova:3333  [dev, adonis]"
         );
     }
 
@@ -674,7 +671,7 @@ mod tests {
     fn should_render_an_active_tunnel_with_ascii_when_unicode_is_off() {
         assert_eq!(
             render_one(TunnelStateDto::Active, ASCII_PLAIN),
-            "[ok] active  Adonis  3333 -> nova:3333  [dev, adonis]"
+            "[ok] active  3333 -> nova:3333  [dev, adonis]"
         );
     }
 
@@ -682,7 +679,7 @@ mod tests {
     fn should_render_the_symbol_and_the_word_in_color_when_color_is_on() {
         assert_eq!(
             render_one(TunnelStateDto::Active, UNICODE_COLOR),
-            "\x1b[32m✔ active\x1b[0m  Adonis  3333 → nova:3333  [dev, adonis]"
+            "\x1b[32m✔ active\x1b[0m  3333 → nova:3333  [dev, adonis]"
         );
     }
 
@@ -695,11 +692,11 @@ mod tests {
 
         assert_eq!(
             render_one(state.clone(), UNICODE_PLAIN),
-            "↻ reconnecting (attempt 2)  Adonis  3333 → nova:3333  [dev, adonis]"
+            "↻ reconnecting (attempt 2)  3333 → nova:3333  [dev, adonis]"
         );
         assert_eq!(
             render_one(state, ASCII_PLAIN),
-            "[~] reconnecting (attempt 2)  Adonis  3333 -> nova:3333  [dev, adonis]"
+            "[~] reconnecting (attempt 2)  3333 -> nova:3333  [dev, adonis]"
         );
     }
 
@@ -707,11 +704,11 @@ mod tests {
     fn should_render_a_starting_tunnel() {
         assert_eq!(
             render_one(TunnelStateDto::Starting, UNICODE_PLAIN),
-            "… starting  Adonis  3333 → nova:3333  [dev, adonis]"
+            "… starting  3333 → nova:3333  [dev, adonis]"
         );
         assert_eq!(
             render_one(TunnelStateDto::Starting, ASCII_PLAIN),
-            "[..] starting  Adonis  3333 -> nova:3333  [dev, adonis]"
+            "[..] starting  3333 -> nova:3333  [dev, adonis]"
         );
     }
 
@@ -719,11 +716,11 @@ mod tests {
     fn should_render_a_stopped_tunnel() {
         assert_eq!(
             render_one(TunnelStateDto::Stopped, UNICODE_PLAIN),
-            "○ stopped  Adonis  3333 → nova:3333  [dev, adonis]"
+            "○ stopped  3333 → nova:3333  [dev, adonis]"
         );
         assert_eq!(
             render_one(TunnelStateDto::Stopped, ASCII_PLAIN),
-            "[ ] stopped  Adonis  3333 -> nova:3333  [dev, adonis]"
+            "[ ] stopped  3333 -> nova:3333  [dev, adonis]"
         );
     }
 
@@ -731,11 +728,11 @@ mod tests {
     fn should_render_a_failed_tunnel_with_its_reason() {
         assert_eq!(
             render_one(failed(port_in_use()), UNICODE_PLAIN),
-            "✖ failed: port already in use on 127.0.0.1:3333  Adonis  3333 → nova:3333  [dev, adonis]"
+            "✖ failed: port already in use on 127.0.0.1:3333  3333 → nova:3333  [dev, adonis]"
         );
         assert_eq!(
             render_one(failed(port_in_use()), ASCII_PLAIN),
-            "[x] failed: port already in use on 127.0.0.1:3333  Adonis  3333 -> nova:3333  [dev, adonis]"
+            "[x] failed: port already in use on 127.0.0.1:3333  3333 -> nova:3333  [dev, adonis]"
         );
     }
 
@@ -790,11 +787,11 @@ mod tests {
 
         assert_eq!(
             render_status(&snapshot_of(vec![down.clone()]), UNICODE_PLAIN),
-            "✔ active  Adonis  3333 → nova:3333  [dev, adonis] · target unreachable since 14:43:15 UTC"
+            "✔ active  3333 → nova:3333  [dev, adonis] · target unreachable since 14:43:15 UTC"
         );
         assert_eq!(
             render_status(&snapshot_of(vec![down]), ASCII_PLAIN),
-            "[ok] active  Adonis  3333 -> nova:3333  [dev, adonis] - target unreachable since 14:43:15 UTC"
+            "[ok] active  3333 -> nova:3333  [dev, adonis] - target unreachable since 14:43:15 UTC"
         );
     }
 
@@ -819,7 +816,7 @@ mod tests {
 
         assert_eq!(
             render_status(&snapshot_of(vec![healthy]), UNICODE_PLAIN),
-            "✔ active  Adonis  3333 → nova:3333  [dev, adonis]"
+            "✔ active  3333 → nova:3333  [dev, adonis]"
         );
     }
 
@@ -836,7 +833,7 @@ mod tests {
 
         assert_eq!(
             render_status(&snapshot_of(vec![busy]), UNICODE_PLAIN),
-            "✔ active  Adonis  3333 → nova:3333  [dev, adonis] · 1 open, 12 total connections · 1.5 KiB in, 200 B out"
+            "✔ active  3333 → nova:3333  [dev, adonis] · 1 open, 12 total connections · 1.5 KiB in, 200 B out"
         );
     }
 
@@ -847,7 +844,7 @@ mod tests {
 
         assert_eq!(
             render_status(&snapshot_of(vec![untagged]), UNICODE_PLAIN),
-            "○ stopped  Adonis  3333 → nova:3333"
+            "○ stopped  3333 → nova:3333"
         );
     }
 
@@ -978,7 +975,7 @@ mod tests {
     fn should_render_one_line_per_tunnel() {
         let second = {
             let mut other = tunnel(TunnelStateDto::Stopped);
-            "Mail".clone_into(&mut other.definition.spec.name);
+            other.definition.spec.listen_port = 5432;
             other
         };
 
@@ -997,7 +994,7 @@ mod tests {
                 &snapshot_of(vec![tunnel(TunnelStateDto::Active)]),
                 UNICODE_PLAIN
             ),
-            "Adonis  local  3333 → nova:3333  [dev, adonis]"
+            "local  3333 → nova:3333  [dev, adonis]"
         );
     }
 
@@ -1045,10 +1042,10 @@ mod tests {
             (
                 json.contains('\n'),
                 &parsed["daemonVersion"],
-                &parsed["tunnels"][0]["name"],
+                &parsed["tunnels"][0]["listenPort"],
                 &parsed["tunnels"][0]["state"]["kind"],
             ),
-            (false, &"0.1.0".into(), &"Adonis".into(), &"active".into())
+            (false, &"0.1.0".into(), &3333.into(), &"active".into())
         );
     }
 

@@ -99,15 +99,15 @@ fn reload_handler(
 mod tests {
     use super::*;
     use crate::store::model::{StoreDocument, TunnelKind};
-    use crate::store::test_support::named_tunnel;
+    use crate::store::test_support::tunnel_on;
     use std::fs;
     use std::path::PathBuf;
     use tokio::time::timeout;
 
     const EVENT_TIMEOUT: Duration = Duration::from_secs(5);
     const QUIET_PERIOD: Duration = Duration::from_millis(1000);
-    const VALID_FILE: &str = "[[tunnels]]\nid = \"01JA0000000000000000000000\"\nname = \"Web\"\nhost = \"nova\"\nkind = \"local\"\nlisten_port = 8080\n";
-    const EDITED_FILE: &str = "[[tunnels]]\nid = \"01JA0000000000000000000000\"\nname = \"Web\"\nhost = \"nova\"\nkind = \"local\"\nlisten_port = 9090\n";
+    const VALID_FILE: &str = "[[tunnels]]\nid = \"01JA0000000000000000000000\"\nhost = \"nova\"\nkind = \"local\"\nlisten_port = 8080\n";
+    const EDITED_FILE: &str = "[[tunnels]]\nid = \"01JA0000000000000000000000\"\nhost = \"nova\"\nkind = \"local\"\nlisten_port = 9090\n";
 
     struct Fixture {
         _directory: tempfile::TempDir,
@@ -189,7 +189,7 @@ mod tests {
     async fn should_emit_nothing_when_the_store_saves_its_own_document() {
         let mut fixture = fixture();
         let document = StoreDocument {
-            tunnels: vec![named_tunnel(TunnelKind::Dynamic, "Socks", 1080)],
+            tunnels: vec![tunnel_on(TunnelKind::Dynamic, 1080)],
             ..StoreDocument::default()
         };
 

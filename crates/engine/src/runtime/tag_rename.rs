@@ -51,10 +51,9 @@ mod tests {
     use super::*;
     use crate::store::{TunnelId, TunnelKind};
 
-    fn tunnel(name: &str, tags: &[&str]) -> TunnelDefinition {
+    fn tunnel(tags: &[&str]) -> TunnelDefinition {
         TunnelDefinition {
             id: TunnelId::generate(),
-            name: name.to_owned(),
             host: "host".to_owned(),
             kind: TunnelKind::Local,
             listen_port: 8080,
@@ -71,7 +70,7 @@ mod tests {
 
     #[test]
     fn should_rename_the_tag_in_place_when_a_tunnel_carries_it() {
-        let tunnels = [tunnel("alpha", &["dev", "web"])];
+        let tunnels = [tunnel(&["dev", "web"])];
 
         let renamed = rename_tag(&tunnels, &[], "dev", "staging");
 
@@ -80,7 +79,7 @@ mod tests {
 
     #[test]
     fn should_count_only_the_tunnels_that_carried_the_tag() {
-        let tunnels = [tunnel("alpha", &["dev"]), tunnel("beta", &["web"])];
+        let tunnels = [tunnel(&["dev"]), tunnel(&["web"])];
 
         let renamed = rename_tag(&tunnels, &[], "dev", "staging");
 
@@ -89,7 +88,7 @@ mod tests {
 
     #[test]
     fn should_keep_the_target_once_when_a_tunnel_already_carries_it() {
-        let tunnels = [tunnel("alpha", &["dev", "web"])];
+        let tunnels = [tunnel(&["dev", "web"])];
 
         let renamed = rename_tag(&tunnels, &[], "dev", "web");
 
@@ -98,7 +97,7 @@ mod tests {
 
     #[test]
     fn should_leave_the_other_tunnels_untouched() {
-        let tunnels = [tunnel("alpha", &["dev"]), tunnel("beta", &["web"])];
+        let tunnels = [tunnel(&["dev"]), tunnel(&["web"])];
 
         let renamed = rename_tag(&tunnels, &[], "dev", "staging");
 

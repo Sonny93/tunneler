@@ -772,7 +772,6 @@ mod tests {
     fn definition() -> TunnelDefinition {
         TunnelDefinition {
             id: TunnelId::generate(),
-            name: "Adonis".to_owned(),
             host: "nova".to_owned(),
             kind: TunnelKind::Local,
             listen_port: 3333,
@@ -834,10 +833,10 @@ mod tests {
     }
 
     #[test]
-    fn should_keep_running_when_only_the_name_changes() {
+    fn should_keep_running_when_only_the_tags_change() {
         let mut current = definition();
         let renamed = TunnelDefinition {
-            name: "Renamed".to_owned(),
+            tags: vec!["dev".to_owned()],
             ..current.clone()
         };
 
@@ -847,16 +846,16 @@ mod tests {
     }
 
     #[test]
-    fn should_adopt_the_new_name_when_only_the_name_changes() {
+    fn should_adopt_the_new_tags_when_only_the_tags_change() {
         let mut current = definition();
         let renamed = TunnelDefinition {
-            name: "Renamed".to_owned(),
+            tags: vec!["dev".to_owned()],
             ..current.clone()
         };
 
         interrupt_for(&mut current, Some(TunnelCommand::UpdateDefinition(renamed)));
 
-        assert_eq!(current.name, "Renamed");
+        assert_eq!(current.tags, vec!["dev".to_owned()]);
     }
 
     #[test]

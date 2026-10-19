@@ -93,10 +93,12 @@ The `release` workflow checks that the three versions and the tag agree, builds 
 
 ```sh
 tunneler                 # start the daemon (or ask the running one to show its window)
-tunneler up dev          # start every tunnel named or tagged "dev" (starts the daemon if needed)
+tunneler up dev          # start every tunnel tagged "dev" (starts the daemon if needed)
+tunneler up 3333         # start the tunnel listening on port 3333
+tunneler up nova:3333    # same, picking the host when several tunnels share the port
 tunneler status          # runtime state, one tunnel per line (--json for scripts)
 tunneler down --all
 tunneler quit            # asks for confirmation when tunnels are active (--yes to skip)
 ```
 
-Tunnels live in `tunnels.toml` (`~/.config/tunneler/` on Linux, `%APPDATA%\tunneler\` on Windows), reloaded on change. `tunneler --help` lists every command, the environment variables and the exit codes.
+Tunnels live in `tunnels.toml` (`~/.config/tunneler/` on Linux, `%APPDATA%\tunneler\` on Windows), reloaded on change. Tunnels have no name: tags group them, and the CLI selects them by port, `host:port` or tag. `tunneler --help` lists every command, the environment variables and the exit codes.

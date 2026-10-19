@@ -54,8 +54,8 @@ pub struct ImportCandidate {
     pub target_host: Option<String>,
     /// The port the traffic is forwarded to; `None` for a dynamic forward or a bare port.
     pub target_port: Option<u16>,
-    /// A name taken from the comment next to the port.
-    pub label: Option<String>,
+    /// The comment written next to the port.
+    pub comment: Option<String>,
     /// The 1-based line of the pasted text; `None` for an `ssh_config` import.
     pub line: Option<u32>,
 }

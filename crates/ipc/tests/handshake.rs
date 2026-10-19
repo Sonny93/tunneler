@@ -24,7 +24,7 @@ async fn should_answer_hello_with_both_versions_when_the_handshake_succeeds() {
     let mut client = daemon.connect_raw().await;
 
     client
-        .send_line(r#"{"id":1,"method":"hello","params":{"protocolVersion":2,"clientKind":"cli","clientVersion":"x","subscribeEvents":false,"canPrompt":false}}"#)
+        .send_line(r#"{"id":1,"method":"hello","params":{"protocolVersion":3,"clientKind":"cli","clientVersion":"x","subscribeEvents":false,"canPrompt":false}}"#)
         .await;
 
     assert_eq!(

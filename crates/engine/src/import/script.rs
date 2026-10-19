@@ -121,7 +121,7 @@ fn expand_template(forward: &RawForward, ports: &[PortEntry]) -> Expansion {
         let text = substitute(&forward.text, entry.port);
         match parse_forward(forward.kind, &text) {
             ParsedForward::Supported(candidate) => candidates.push(ImportCandidate {
-                label: entry.label.clone(),
+                comment: entry.comment.clone(),
                 line: Some(entry.line),
                 ..candidate
             }),
@@ -168,7 +168,7 @@ fn port_drafts(ports: &[PortEntry], fallback: Option<&SshDestination>) -> Vec<Dr
                 listen_port: entry.port,
                 target_host: None,
                 target_port: None,
-                label: entry.label.clone(),
+                comment: entry.comment.clone(),
                 line: Some(entry.line),
             },
             destination: fallback.cloned(),

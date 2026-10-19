@@ -1,8 +1,10 @@
-use ipc::protocol::{TunnelDefinitionDto, TunnelKindDto};
+use ipc::protocol::{SettingsDto, TunnelDefinitionDto, TunnelKindDto};
 
 use super::super::args::OpenArguments;
+use super::super::render::describe_route;
 use super::super::session::{ConnectionMode, connect};
-use super::super::target::find_tunnel_by_name;
+use super::super::style::Style;
+use super::super::target::find_tunnel;
 use super::super::{CliError, Context};
 use crate::logging;
 
@@ -11,16 +13,20 @@ pub fn local_url(listen_port: u16) -> String {
     format!("http://localhost:{listen_port}")
 }
 
-fn browsable_url(definition: &TunnelDefinitionDto) -> Result<String, CliError> {
+fn browsable_url(
+    definition: &TunnelDefinitionDto,
+    settings: &SettingsDto,
+    style: Style,
+) -> Result<String, CliError> {
     let spec = &definition.spec;
     match spec.kind {
         TunnelKindDto::Local => Ok(local_url(spec.listen_port)),
         TunnelKindDto::Remote => Err(CliError::NotOpenable {
-            name: spec.name.clone(),
+            label: describe_route(definition, settings, style),
             kind: "remote",
         }),
         TunnelKindDto::Dynamic => Err(CliError::NotOpenable {
-            name: spec.name.clone(),
+            label: describe_route(definition, settings, style),
             kind: "dynamic",
         }),
     }
@@ -31,13 +37,8 @@ pub async fn open(context: &Context, arguments: &OpenArguments) -> Result<(), Cl
     logging::init_cli_logging();
     let client = connect(&context.endpoint, ConnectionMode::default()).await?;
     let snapshot = client.snapshot().await?;
-    let definitions: Vec<TunnelDefinitionDto> = snapshot
-        .tunnels
-        .into_iter()
-        .map(|tunnel| tunnel.definition)
-        .collect();
-    let definition = find_tunnel_by_name(&arguments.name, &definitions)?;
-    let url = browsable_url(definition)?;
+    let definition = find_tunnel(&arguments.target, &snapshot)?;
+    let url = browsable_url(definition, &snapshot.settings, context.style)?;
     println!("Opening {url}");
     let target = url.clone();
     tokio::task::spawn_blocking(move || open::that_detached(target))

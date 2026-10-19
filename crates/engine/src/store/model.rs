@@ -9,13 +9,14 @@ use ulid::Ulid;
 const DEFAULT_BIND_ADDRESS: &str = "127.0.0.1";
 const DEFAULT_REMOTE_BIND_ADDRESS: &str = "localhost";
 const DEFAULT_TARGET_HOST: &str = "127.0.0.1";
+const LOOPBACK_HOSTS: [&str; 3] = [DEFAULT_TARGET_HOST, "localhost", "::1"];
 const DEFAULT_KEEPALIVE_INTERVAL: Duration = Duration::from_secs(15);
 const DEFAULT_KEEPALIVE_MAX: u32 = 3;
 const DEFAULT_SESSION_IDLE_GRACE: Duration = Duration::from_secs(30);
 const DEFAULT_RECONNECT_INITIAL_DELAY: Duration = Duration::from_millis(1000);
 const DEFAULT_RECONNECT_MAX_DELAY: Duration = Duration::from_millis(60_000);
 
-/// The identifier of a tunnel: a ULID, stable across renames.
+/// The identifier of a tunnel: a ULID, stable across edits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TunnelId(Ulid);
 
@@ -67,8 +68,6 @@ pub enum TunnelKind {
 pub struct TunnelDefinition {
     /// Stable identifier.
     pub id: TunnelId,
-    /// Unique, human-readable name; the CLI addresses tunnels by it.
-    pub name: String,
     /// The `ssh_config` alias the tunnel goes through.
     pub host: String,
     /// The direction of the forward.
@@ -108,6 +107,32 @@ impl TunnelDefinition {
     pub fn effective_target_port(&self) -> u16 {
         self.target_port.unwrap_or(self.listen_port)
     }
+
+    /// What the user sees instead of a name: where the tunnel listens and what
+    /// it reaches, such as `3333 → nova:3333`, `nova:8080 → 127.0.0.1:3000`
+    /// or `1080 (SOCKS via nova)`.
+    pub fn label(&self) -> String {
+        let target_host = self.effective_target_host();
+        let target_port = self.effective_target_port();
+        match self.kind {
+            TunnelKind::Local if is_loopback(target_host) => {
+                format!("{} → {}:{target_port}", self.listen_port, self.host)
+            }
+            TunnelKind::Local => format!(
+                "{} → {target_host}:{target_port} via {}",
+                self.listen_port, self.host
+            ),
+            TunnelKind::Remote => format!(
+                "{}:{} → {target_host}:{target_port}",
+                self.host, self.listen_port
+            ),
+            TunnelKind::Dynamic => format!("{} (SOCKS via {})", self.listen_port, self.host),
+        }
+    }
+}
+
+fn is_loopback(host: &str) -> bool {
+    LOOPBACK_HOSTS.contains(&host)
 }
 
 /// Application-wide settings.
@@ -287,6 +312,35 @@ mod tests {
         };
 
         assert_eq!(definition.effective_target_port(), 5432);
+    }
+
+    #[test]
+    fn should_label_a_local_tunnel_by_its_ports_and_host() {
+        assert_eq!(tunnel(TunnelKind::Local).label(), "3333 → nova:3333");
+    }
+
+    #[test]
+    fn should_label_a_local_tunnel_with_its_target_when_the_target_is_not_the_ssh_host() {
+        let definition = TunnelDefinition {
+            target_host: Some("db.internal".to_owned()),
+            target_port: Some(5432),
+            ..tunnel(TunnelKind::Local)
+        };
+
+        assert_eq!(definition.label(), "3333 → db.internal:5432 via nova");
+    }
+
+    #[test]
+    fn should_label_a_remote_tunnel_by_its_server_side_port_and_target() {
+        assert_eq!(
+            tunnel(TunnelKind::Remote).label(),
+            "nova:3333 → 127.0.0.1:3333"
+        );
+    }
+
+    #[test]
+    fn should_label_a_dynamic_tunnel_as_a_socks_proxy() {
+        assert_eq!(tunnel(TunnelKind::Dynamic).label(), "3333 (SOCKS via nova)");
     }
 
     #[test]

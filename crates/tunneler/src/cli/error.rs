@@ -46,7 +46,7 @@ pub enum CliError {
     /// The daemon part of the program failed.
     #[error(transparent)]
     Daemon(#[from] DaemonError),
-    /// A name on the command line designates no tunnel.
+    /// An argument on the command line designates no tunnel, or too many.
     #[error(transparent)]
     Resolve(#[from] ResolveError),
     /// The endpoint could not be determined.
@@ -60,7 +60,7 @@ pub enum CliError {
     TimedOutWaiting {
         /// How long it was waited for.
         waited: Duration,
-        /// The names of the tunnels that were still starting.
+        /// The labels of the tunnels that were still starting.
         waiting_for: Vec<String>,
     },
     /// Some tunnels failed to start.
@@ -87,10 +87,10 @@ pub enum CliError {
         message: String,
     },
     /// The tunnel cannot be opened in a browser.
-    #[error("the tunnel \"{name}\" is a {kind} tunnel: there is nothing to open on this machine")]
+    #[error("the tunnel {label} is a {kind} tunnel: there is nothing to open on this machine")]
     NotOpenable {
-        /// The tunnel name.
-        name: String,
+        /// The tunnel route.
+        label: String,
         /// Its kind.
         kind: &'static str,
     },
@@ -145,7 +145,7 @@ impl CliError {
     pub fn hint(&self) -> Option<String> {
         match self {
             Self::DaemonNotRunning | Self::Client(ClientError::DaemonNotRunning) => {
-                Some("start it with `tunneler daemon` or run `tunneler up <name>`".to_owned())
+                Some("start it with `tunneler daemon` or run `tunneler up <tag>`".to_owned())
             }
             Self::DaemonExited { .. } | Self::DaemonStartTimedOut { .. } => {
                 Some("run `tunneler daemon` in a terminal to see why it does not start".to_owned())
@@ -245,16 +245,16 @@ mod tests {
     fn should_exit_with_6_when_waiting_timed_out() {
         let error = CliError::TimedOutWaiting {
             waited: Duration::from_secs(30),
-            waiting_for: vec!["Adonis".to_owned()],
+            waiting_for: vec!["3333 → nova:3333".to_owned()],
         };
 
         assert_eq!(error.exit_code(), exit_code::TIMED_OUT);
     }
 
     #[test]
-    fn should_exit_with_1_when_a_name_is_unknown() {
-        let error = CliError::Resolve(ResolveError::UnknownTarget {
-            name: "ghost".to_owned(),
+    fn should_exit_with_1_when_a_target_is_unknown() {
+        let error = CliError::Resolve(ResolveError::UnknownTag {
+            tag: "ghost".to_owned(),
         });
 
         assert_eq!(error.exit_code(), exit_code::ERROR);
@@ -279,14 +279,14 @@ mod tests {
 
         assert_eq!(
             hint,
-            "start it with `tunneler daemon` or run `tunneler up <name>`"
+            "start it with `tunneler daemon` or run `tunneler up <tag>`"
         );
     }
 
     #[test]
-    fn should_suggest_listing_the_tunnels_when_a_name_is_unknown() {
-        let error = CliError::Resolve(ResolveError::UnknownTarget {
-            name: "ghost".to_owned(),
+    fn should_suggest_listing_the_tunnels_when_a_target_is_unknown() {
+        let error = CliError::Resolve(ResolveError::UnknownTag {
+            tag: "ghost".to_owned(),
         });
 
         assert!(error.hint().unwrap().contains("tunneler list"));
@@ -305,12 +305,12 @@ mod tests {
     fn should_name_the_tunnels_still_starting_when_waiting_timed_out() {
         let error = CliError::TimedOutWaiting {
             waited: Duration::from_secs(30),
-            waiting_for: vec!["Adonis".to_owned(), "Mail".to_owned()],
+            waiting_for: vec!["3333 → nova:3333".to_owned(), "5432 → nova:5432".to_owned()],
         };
 
         assert_eq!(
             error.to_string(),
-            "timed out after 30 seconds waiting for: Adonis, Mail"
+            "timed out after 30 seconds waiting for: 3333 → nova:3333, 5432 → nova:5432"
         );
     }
 

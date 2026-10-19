@@ -11,20 +11,22 @@ pub const DEFAULT_WAIT_TIMEOUT_SECONDS: u64 = 30;
 
 const UP_EXAMPLES: &str = "\
 Examples:
-  tunneler up Adonis            Start the tunnel named Adonis
+  tunneler up 3333              Start the tunnel listening on port 3333
+  tunneler up nova:3333         Start the tunnel of host nova listening on port 3333
   tunneler up dev               Start every tunnel tagged dev
-  tunneler up --tag adonis      Start the tunnels tagged adonis, even if a tunnel has that name
   tunneler up --no-wait dev     Ask for the start and return at once
   tunneler up --timeout 60 dev  Wait up to a minute
 
-The daemon is started in the background when it is not running. A name is
-tried first as a tunnel name (ignoring case), then as a tag. When a password,
-a passphrase or an unknown host key has to be confirmed, you are asked here if
-this is a terminal.";
+Tunnels have no name. A number selects the tunnel listening on that port (when
+several hosts have one, pass host:port), host:port selects a host's tunnel, and
+anything else is a tag (ignoring case). The daemon is started in the background
+when it is not running. When a password, a passphrase or an unknown host key
+has to be confirmed, you are asked here if this is a terminal.";
 
 const DOWN_EXAMPLES: &str = "\
 Examples:
-  tunneler down Adonis          Stop the tunnel named Adonis
+  tunneler down 3333            Stop the tunnel listening on port 3333
+  tunneler down nova:3333       Stop the tunnel of host nova listening on port 3333
   tunneler down dev             Stop every tunnel tagged dev
   tunneler down --all           Stop every tunnel";
 
@@ -47,7 +49,9 @@ in camelCase.";
 
 const OPEN_EXAMPLES: &str = "\
 Examples:
-  tunneler open Adonis          Open http://localhost:<port of Adonis> in the browser";
+  tunneler open 3333            Open http://localhost:3333 in the browser
+  tunneler open nova:3333       The same, picking the tunnel by host and port
+  tunneler open adonis          The same, by a tag that only one tunnel carries";
 
 const QUIT_EXAMPLES: &str = "\
 Examples:
@@ -111,10 +115,10 @@ pub enum Command {
     /// Run the daemon in the foreground
     #[command(after_help = DAEMON_EXAMPLES)]
     Daemon,
-    /// Start tunnels, by name or by tag
+    /// Start tunnels, by port, host:port or tag
     #[command(after_help = UP_EXAMPLES)]
     Up(UpArguments),
-    /// Stop tunnels, by name or by tag
+    /// Stop tunnels, by port, host:port or tag
     #[command(after_help = DOWN_EXAMPLES)]
     Down(DownArguments),
     /// Show the daemon and the state of every tunnel
@@ -134,7 +138,7 @@ pub enum Command {
 /// The arguments of `up`.
 #[derive(Debug, Args)]
 pub struct UpArguments {
-    /// Read the targets as tags, never as tunnel names
+    /// Read the targets as tags, never as ports or host:port pairs
     #[arg(long)]
     pub tag: bool,
     /// Return once the start is requested, without waiting for the tunnels
@@ -143,7 +147,7 @@ pub struct UpArguments {
     /// How long to wait for the tunnels, in seconds
     #[arg(long, value_name = "SECONDS", default_value_t = DEFAULT_WAIT_TIMEOUT_SECONDS)]
     pub timeout: u64,
-    /// The tunnel names or tags to start
+    /// The ports, host:port pairs or tags to start
     #[arg(required = true, value_name = "TARGET")]
     pub targets: Vec<String>,
 }
@@ -151,13 +155,13 @@ pub struct UpArguments {
 /// The arguments of `down`.
 #[derive(Debug, Args)]
 pub struct DownArguments {
-    /// Read the targets as tags, never as tunnel names
+    /// Read the targets as tags, never as ports or host:port pairs
     #[arg(long, conflicts_with = "all")]
     pub tag: bool,
     /// Stop every tunnel
     #[arg(long, conflicts_with = "targets")]
     pub all: bool,
-    /// The tunnel names or tags to stop
+    /// The ports, host:port pairs or tags to stop
     #[arg(required_unless_present = "all", value_name = "TARGET")]
     pub targets: Vec<String>,
 }
@@ -173,9 +177,9 @@ pub struct OutputArguments {
 /// The arguments of `open`.
 #[derive(Debug, Args)]
 pub struct OpenArguments {
-    /// The name of the tunnel to open
-    #[arg(value_name = "NAME")]
-    pub name: String,
+    /// The port, host:port pair or tag of the tunnel to open
+    #[arg(value_name = "TARGET")]
+    pub target: String,
 }
 
 /// The arguments of `quit`.

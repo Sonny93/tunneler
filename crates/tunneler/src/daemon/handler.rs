@@ -555,9 +555,8 @@ mod tests {
         }
     }
 
-    fn spec(name: &str, listen_port: u16) -> TunnelSpecDto {
+    fn spec(listen_port: u16) -> TunnelSpecDto {
         TunnelSpecDto {
-            name: name.to_owned(),
             host: "dead".to_owned(),
             kind: TunnelKindDto::Local,
             listen_port,
@@ -568,10 +567,10 @@ mod tests {
         }
     }
 
-    async fn created_tunnel(fixture: &Fixture, name: &str, listen_port: u16) -> TunnelDto {
+    async fn created_tunnel(fixture: &Fixture, listen_port: u16) -> TunnelDto {
         let response = fixture
             .handler
-            .dispatch(None, Request::TunnelCreate(spec(name, listen_port)))
+            .dispatch(None, Request::TunnelCreate(spec(listen_port)))
             .await
             .unwrap();
         match response {
@@ -627,7 +626,8 @@ mod tests {
     #[tokio::test]
     async fn should_list_the_created_tunnel_when_taking_a_snapshot() {
         let fixture = fixture();
-        created_tunnel(&fixture, "Web", free_port().await).await;
+        let port = free_port().await;
+        created_tunnel(&fixture, port).await;
 
         let response = fixture
             .handler
@@ -638,7 +638,7 @@ mod tests {
         let ResponsePayload::Snapshot(snapshot) = response else {
             panic!("expected a snapshot");
         };
-        assert_eq!(snapshot.tunnels[0].definition.spec.name, "Web");
+        assert_eq!(snapshot.tunnels[0].definition.spec.listen_port, port);
     }
 
     #[tokio::test]
@@ -733,7 +733,7 @@ mod tests {
     #[tokio::test]
     async fn should_answer_validation_failed_with_the_messages_when_the_spec_is_invalid() {
         let fixture = fixture();
-        let mut invalid = spec("Web", 8080);
+        let mut invalid = spec(8080);
         invalid.host = String::new();
 
         let error = fixture
@@ -818,7 +818,7 @@ mod tests {
     #[tokio::test]
     async fn should_answer_the_renamed_count_when_renaming_a_tag() {
         let fixture = fixture();
-        created_tunnel(&fixture, "Web", free_port().await).await;
+        created_tunnel(&fixture, free_port().await).await;
 
         let response = fixture
             .handler
@@ -878,7 +878,7 @@ mod tests {
     #[tokio::test]
     async fn should_answer_validation_failed_when_the_new_tag_name_is_invalid() {
         let fixture = fixture();
-        created_tunnel(&fixture, "Web", free_port().await).await;
+        created_tunnel(&fixture, free_port().await).await;
 
         let error = fixture
             .handler
@@ -926,7 +926,7 @@ mod tests {
     #[tokio::test]
     async fn should_answer_invalid_state_when_adopting_a_tunnel_that_is_not_external() {
         let fixture = fixture();
-        let tunnel = created_tunnel(&fixture, "Web", free_port().await).await;
+        let tunnel = created_tunnel(&fixture, free_port().await).await;
 
         let error = fixture
             .handler
@@ -1221,7 +1221,7 @@ mod tests {
     #[tokio::test]
     async fn should_refuse_to_quit_with_the_count_when_tunnels_run_and_force_is_off() {
         let fixture = fixture();
-        let tunnel = created_tunnel(&fixture, "Web", free_port().await).await;
+        let tunnel = created_tunnel(&fixture, free_port().await).await;
         start_and_wait_until_running(&fixture, &tunnel).await;
 
         let error = fixture
@@ -1243,7 +1243,7 @@ mod tests {
     #[tokio::test]
     async fn should_request_the_shutdown_when_tunnels_run_and_force_is_on() {
         let fixture = fixture();
-        let tunnel = created_tunnel(&fixture, "Web", free_port().await).await;
+        let tunnel = created_tunnel(&fixture, free_port().await).await;
         start_and_wait_until_running(&fixture, &tunnel).await;
 
         let response = fixture

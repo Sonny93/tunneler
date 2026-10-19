@@ -26,7 +26,6 @@ const PATIENT_LIMIT: Duration = Duration::from_secs(1);
 const SLOW_USER: Duration = Duration::from_millis(2500);
 const QUIET_PERIOD: Duration = Duration::from_millis(500);
 const PASSWORD: &str = "hunter2";
-const TUNNEL_NAME: &str = "stuck";
 
 fn short_timeouts() -> ConnectTimeouts {
     ConnectTimeouts {
@@ -237,7 +236,7 @@ impl StuckTunnel {
 fn store_text(listen_port: u16) -> String {
     format!(
         "version = 1\n\n[settings]\nreconnect_initial_delay_ms = 20\nreconnect_max_delay_ms = 80\nsession_idle_grace_s = 0\n\n\
-[[tunnels]]\nname = \"{TUNNEL_NAME}\"\nhost = \"{ALIAS}\"\nkind = \"local\"\nlisten_port = {listen_port}\ntarget_port = 9\n"
+[[tunnels]]\nhost = \"{ALIAS}\"\nkind = \"local\"\nlisten_port = {listen_port}\ntarget_port = 9\n"
     )
 }
 

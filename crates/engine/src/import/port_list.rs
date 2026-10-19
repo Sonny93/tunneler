@@ -11,7 +11,7 @@ const LIST_SEPARATOR: char = ',';
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct PortEntry {
     pub port: u16,
-    pub label: Option<String>,
+    pub comment: Option<String>,
     /// 1-based.
     pub line: u32,
 }
@@ -30,7 +30,7 @@ pub(super) fn extract_port_list(lines: &[CommentedLine]) -> Vec<PortEntry> {
 struct PortScanner {
     entries: Vec<PortEntry>,
     is_inside_array: bool,
-    labelable_entry: Option<usize>,
+    commentable_entry: Option<usize>,
 }
 
 impl PortScanner {
@@ -39,7 +39,7 @@ impl PortScanner {
         for piece in &line.pieces {
             match piece {
                 Piece::Code(text) => self.scan_code(text, line.number, is_numeric),
-                Piece::Comment { text, follows_code } => self.attach_label(text, *follows_code),
+                Piece::Comment { text, follows_code } => self.attach_comment(text, *follows_code),
             }
         }
     }
@@ -78,25 +78,25 @@ impl PortScanner {
             Some(port) => {
                 self.entries.push(PortEntry {
                     port,
-                    label: None,
+                    comment: None,
                     line,
                 });
-                self.labelable_entry = Some(self.entries.len() - 1);
+                self.commentable_entry = Some(self.entries.len() - 1);
             }
-            None => self.labelable_entry = None,
+            None => self.commentable_entry = None,
         }
     }
 
-    fn attach_label(&mut self, text: &str, follows_code: bool) {
+    fn attach_comment(&mut self, text: &str, follows_code: bool) {
         if !follows_code || text.is_empty() {
             return;
         }
         if let Some(entry) = self
-            .labelable_entry
+            .commentable_entry
             .take()
             .and_then(|index| self.entries.get_mut(index))
         {
-            entry.label.get_or_insert_with(|| text.to_owned());
+            entry.comment.get_or_insert_with(|| text.to_owned());
         }
     }
 }
@@ -158,24 +158,24 @@ mod tests {
     }
 
     #[test]
-    fn should_label_port_when_block_comment_follows_it() {
+    fn should_attach_comment_to_port_when_block_comment_follows_it() {
         let entries = extract_port_list(&strip_comments("@(\n3333 <# adonis #>,\n)"));
 
-        assert_eq!(entries[0].label.as_deref(), Some("adonis"));
+        assert_eq!(entries[0].comment.as_deref(), Some("adonis"));
     }
 
     #[test]
-    fn should_label_port_when_line_comment_follows_it() {
+    fn should_attach_comment_to_port_when_line_comment_follows_it() {
         let entries = extract_port_list(&strip_comments("3333 # adonis"));
 
-        assert_eq!(entries[0].label.as_deref(), Some("adonis"));
+        assert_eq!(entries[0].comment.as_deref(), Some("adonis"));
     }
 
     #[test]
-    fn should_not_label_port_when_comment_is_on_the_next_line() {
+    fn should_not_attach_comment_to_port_when_comment_is_on_the_next_line() {
         let entries = extract_port_list(&strip_comments("3333\n# unrelated"));
 
-        assert_eq!(entries[0].label, None);
+        assert_eq!(entries[0].comment, None);
     }
 
     #[test]

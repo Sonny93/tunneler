@@ -17,7 +17,6 @@ x11_display = ""                  # empty = $DISPLAY, or 127.0.0.1:0.0 on Window
 
 [[tunnels]]
 id = "01JA0000000000000000000000"  # ULID
-name = "Adonis"
 host = "nova"                     # alias from ~/.ssh/config
 kind = "local"                    # local | remote | dynamic
 listen_port = 3333

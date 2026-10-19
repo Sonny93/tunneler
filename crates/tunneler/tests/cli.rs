@@ -205,15 +205,15 @@ async fn distinct_free_ports() -> [u16; 3] {
 
 fn tunnels_file(listen_ports: [u16; 3], target_port: u16) -> String {
     let definitions = [
-        ("Alpha", listen_ports[0], r#"["dev"]"#),
-        ("Beta", listen_ports[1], r#"["dev"]"#),
-        ("Gamma", listen_ports[2], "[]"),
+        (listen_ports[0], r#"["dev", "alpha"]"#),
+        (listen_ports[1], r#"["dev", "beta"]"#),
+        (listen_ports[2], r#"["gamma"]"#),
     ];
     let tunnels = definitions
         .iter()
-        .map(|(name, listen_port, tags)| {
+        .map(|(listen_port, tags)| {
             format!(
-                "\n[[tunnels]]\nname = \"{name}\"\nhost = \"{ALIAS}\"\nkind = \"local\"\n\
+                "\n[[tunnels]]\nhost = \"{ALIAS}\"\nkind = \"local\"\n\
                  listen_port = {listen_port}\ntarget_port = {target_port}\ntags = {tags}\n"
             )
         })
@@ -264,18 +264,24 @@ async fn wait_until_port_is_closed(port: u16) {
     }
 }
 
-fn tunnel_states(status: &Value) -> Vec<(String, String)> {
+fn tunnel_states(status: &Value) -> Vec<(u64, String)> {
     status["tunnels"]
         .as_array()
         .unwrap()
         .iter()
         .map(|tunnel| {
             (
-                tunnel["name"].as_str().unwrap().to_owned(),
+                tunnel["listenPort"].as_u64().unwrap(),
                 tunnel["state"]["kind"].as_str().unwrap().to_owned(),
             )
         })
         .collect()
+}
+
+fn has_step(output: &str, listen_port: u16, step: &str) -> bool {
+    output.lines().any(|line| {
+        line.starts_with(&format!("{listen_port} ")) && line.ends_with(&format!(": {step}"))
+    })
 }
 
 fn socket_exists(path: &Path) -> bool {
@@ -292,7 +298,7 @@ async fn should_exit_with_3_and_a_hint_when_status_runs_without_a_daemon() {
     let errors = stderr(&output);
     assert!(
         errors.contains("error: the Tunneler daemon is not running")
-            && errors.contains("hint: start it with `tunneler daemon` or run `tunneler up <name>`"),
+            && errors.contains("hint: start it with `tunneler daemon` or run `tunneler up <tag>`"),
         "{errors}"
     );
 }
@@ -306,7 +312,8 @@ async fn should_start_the_daemon_and_forward_traffic_when_up_targets_a_tag() {
     assert_eq!(code(&output), 0, "{}", stderr(&output));
     let steps = stdout(&output);
     assert!(
-        steps.contains("Alpha: active") && steps.contains("Beta: active"),
+        has_step(&steps, fixture.listen_ports[0], "active")
+            && has_step(&steps, fixture.listen_ports[1], "active"),
         "{steps}"
     );
     assert_echoes(fixture.listen_ports[0]).await;
@@ -323,9 +330,9 @@ async fn should_report_the_tagged_tunnels_as_active_when_status_prints_json() {
     assert_eq!(
         tunnel_states(&status),
         vec![
-            ("Alpha".to_owned(), "active".to_owned()),
-            ("Beta".to_owned(), "active".to_owned()),
-            ("Gamma".to_owned(), "stopped".to_owned()),
+            (u64::from(fixture.listen_ports[0]), "active".to_owned()),
+            (u64::from(fixture.listen_ports[1]), "active".to_owned()),
+            (u64::from(fixture.listen_ports[2]), "stopped".to_owned()),
         ]
     );
     assert!(status["daemonVersion"].is_string());
@@ -344,7 +351,8 @@ async fn should_print_words_without_escape_sequences_when_status_runs_without_a_
     assert_eq!(code(&output), 0, "{}", stderr(&output));
     assert!(!text.contains(ESCAPE), "{text}");
     assert!(
-        text.contains("active  Alpha") && text.contains("stopped  Gamma"),
+        text.contains(&format!("active  {} ", fixture.listen_ports[0]))
+            && text.contains(&format!("stopped  {} ", fixture.listen_ports[2])),
         "{text}"
     );
 }
@@ -362,13 +370,15 @@ async fn should_color_the_state_when_color_is_forced() {
 #[tokio::test(flavor = "multi_thread")]
 async fn should_list_the_configured_tunnels_when_the_daemon_runs() {
     let fixture = Fixture::start().await;
-    fixture.run(&["up", "Gamma"]).await;
+    fixture.run(&["up", "gamma"]).await;
 
     let output = fixture.run(&["list"]).await;
 
     let text = stdout(&output);
     assert!(
-        text.contains("Alpha  local") && text.contains("[dev]") && text.contains("Gamma"),
+        text.contains(&format!("local  {} ", fixture.listen_ports[0]))
+            && text.contains("[dev, alpha]")
+            && text.contains("[gamma]"),
         "{text}"
     );
 }
@@ -388,7 +398,7 @@ async fn should_close_the_ports_when_down_stops_a_tag() {
 #[tokio::test(flavor = "multi_thread")]
 async fn should_stop_every_tunnel_when_down_is_given_all() {
     let fixture = Fixture::start().await;
-    fixture.run(&["up", "dev", "Gamma"]).await;
+    fixture.run(&["up", "dev", "gamma"]).await;
 
     let output = fixture.run(&["down", "--all"]).await;
 
@@ -399,7 +409,7 @@ async fn should_stop_every_tunnel_when_down_is_given_all() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn should_exit_with_1_and_a_hint_when_up_targets_an_unknown_name() {
+async fn should_exit_with_1_and_a_hint_when_up_targets_an_unknown_tag() {
     let fixture = Fixture::start().await;
 
     let output = fixture.run(&["up", "nothing"]).await;
@@ -407,7 +417,7 @@ async fn should_exit_with_1_and_a_hint_when_up_targets_an_unknown_name() {
     assert_eq!(code(&output), EXIT_ERROR);
     let errors = stderr(&output);
     assert!(
-        errors.contains("error: no tunnel or tag is named \"nothing\"")
+        errors.contains("error: no tunnel carries the tag \"nothing\"")
             && errors.contains("hint: run `tunneler list`"),
         "{errors}"
     );
@@ -418,11 +428,13 @@ async fn should_exit_with_4_when_a_target_fails_to_start() {
     let fixture = Fixture::start().await;
     let _occupant = std::net::TcpListener::bind(("127.0.0.1", fixture.listen_ports[0])).unwrap();
 
-    let output = fixture.run(&["up", "Alpha"]).await;
+    let output = fixture.run(&["up", "alpha"]).await;
 
     assert_eq!(code(&output), EXIT_TARGETS_FAILED);
     assert!(
-        stdout(&output).contains("Alpha: port held by"),
+        stdout(&output).lines().any(|line| line
+            .starts_with(&format!("{} ", fixture.listen_ports[0]))
+            && line.contains(": port held by")),
         "{}",
         stdout(&output)
     );
@@ -432,10 +444,14 @@ async fn should_exit_with_4_when_a_target_fails_to_start() {
 async fn should_return_at_once_when_up_is_given_no_wait() {
     let fixture = Fixture::start().await;
 
-    let output = fixture.run(&["up", "--no-wait", "Alpha"]).await;
+    let output = fixture.run(&["up", "--no-wait", "alpha"]).await;
 
     assert_eq!(code(&output), 0, "{}", stderr(&output));
-    assert!(stdout(&output).contains("Alpha: start requested"));
+    assert!(has_step(
+        &stdout(&output),
+        fixture.listen_ports[0],
+        "start requested"
+    ));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -469,7 +485,7 @@ async fn should_stop_the_daemon_and_remove_the_socket_when_quit_is_given_yes() {
 #[tokio::test(flavor = "multi_thread")]
 async fn should_refuse_to_start_when_a_daemon_already_runs() {
     let fixture = Fixture::start().await;
-    fixture.run(&["up", "Gamma"]).await;
+    fixture.run(&["up", "gamma"]).await;
 
     let output = fixture.run(&["daemon"]).await;
 
@@ -484,7 +500,7 @@ async fn should_refuse_to_start_when_a_daemon_already_runs() {
 #[tokio::test(flavor = "multi_thread")]
 async fn should_exit_with_1_and_a_hint_when_the_ui_program_cannot_be_launched() {
     let fixture = Fixture::start().await;
-    fixture.run(&["up", "Gamma"]).await;
+    fixture.run(&["up", "gamma"]).await;
 
     let output = fixture.run(&[]).await;
 
@@ -499,7 +515,7 @@ async fn should_exit_with_1_and_a_hint_when_the_ui_program_cannot_be_launched() 
 #[tokio::test(flavor = "multi_thread")]
 async fn should_name_the_missing_ui_program_when_it_cannot_be_launched() {
     let fixture = Fixture::start().await;
-    fixture.run(&["up", "Gamma"]).await;
+    fixture.run(&["up", "gamma"]).await;
 
     let output = fixture.run(&[]).await;
 

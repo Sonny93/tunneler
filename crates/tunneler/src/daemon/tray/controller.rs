@@ -252,7 +252,6 @@ mod tests {
         TunnelSnapshot {
             definition: TunnelDefinition {
                 id: TunnelId::generate(),
-                name: "tunnel".to_owned(),
                 host: "nova".to_owned(),
                 kind: TunnelKind::Local,
                 listen_port: 8080,

@@ -20,7 +20,6 @@ use tokio::sync::broadcast::Receiver;
 const WAIT: Duration = Duration::from_secs(5);
 const PASSPHRASE: &str = "correct horse";
 const WRONG_PASSPHRASE: &str = "battery staple";
-const TUNNEL_NAME: &str = "locked";
 
 struct HarnessBuilder {
     retention: Retention,
@@ -135,7 +134,7 @@ impl HarnessBuilder {
     fn store_text(&self, id: TunnelId, listen_port: u16) -> String {
         format!(
             "version = 1\n\n[settings]\nsession_idle_grace_s = 0\nuse_os_keyring = {}\n\n\
-[[tunnels]]\nid = \"{id}\"\nname = \"{TUNNEL_NAME}\"\nhost = \"{}\"\nkind = \"local\"\nlisten_port = {listen_port}\ntarget_port = 9\n",
+[[tunnels]]\nid = \"{id}\"\nhost = \"{}\"\nkind = \"local\"\nlisten_port = {listen_port}\ntarget_port = 9\n",
             self.is_keyring_enabled,
             support::ALIAS
         )

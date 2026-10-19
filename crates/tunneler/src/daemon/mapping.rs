@@ -59,7 +59,6 @@ pub(crate) fn definition_to_dto(definition: &TunnelDefinition) -> TunnelDefiniti
     TunnelDefinitionDto {
         id: definition.id.to_string(),
         spec: TunnelSpecDto {
-            name: definition.name.clone(),
             host: definition.host.clone(),
             kind: kind_to_dto(definition.kind),
             listen_port: definition.listen_port,
@@ -78,7 +77,6 @@ pub(crate) fn definition_from_dto(
     let spec = dto.spec;
     Ok(TunnelDefinition {
         id,
-        name: spec.name,
         host: spec.host,
         kind: kind_from_dto(spec.kind),
         listen_port: spec.listen_port,
@@ -91,7 +89,6 @@ pub(crate) fn definition_from_dto(
 
 pub(crate) fn new_tunnel_from_spec(spec: TunnelSpecDto) -> NewTunnel {
     NewTunnel {
-        name: spec.name,
         host: spec.host,
         kind: kind_from_dto(spec.kind),
         listen_port: spec.listen_port,
@@ -352,7 +349,7 @@ fn import_candidate_to_dto(candidate: &ImportCandidate) -> ImportCandidateDto {
         listen_address: candidate.listen_address.clone(),
         target_host: candidate.target_host.clone(),
         target_port: candidate.target_port,
-        label: candidate.label.clone(),
+        comment: candidate.comment.clone(),
         line: candidate.line,
     }
 }
@@ -479,7 +476,7 @@ mod tests {
             listen_port: 9000,
             target_host: Some("localhost".to_owned()),
             target_port: Some(80),
-            label: Some("web".to_owned()),
+            comment: Some("web".to_owned()),
             line: Some(3),
         }
     }
@@ -500,7 +497,7 @@ mod tests {
                 listen_address: Some("0.0.0.0".to_owned()),
                 target_host: Some("localhost".to_owned()),
                 target_port: Some(80),
-                label: Some("web".to_owned()),
+                comment: Some("web".to_owned()),
                 line: Some(3),
             }]
         );
@@ -582,7 +579,6 @@ mod tests {
     fn sample_definition() -> TunnelDefinition {
         TunnelDefinition {
             id: TunnelId::generate(),
-            name: "Adonis".to_owned(),
             host: "nova".to_owned(),
             kind: TunnelKind::Local,
             listen_port: 3333,
@@ -624,8 +620,8 @@ mod tests {
         let new_tunnel = new_tunnel_from_spec(spec.clone());
 
         assert_eq!(
-            (new_tunnel.name, new_tunnel.target_host, new_tunnel.tags),
-            (spec.name, spec.target_host, spec.tags)
+            (new_tunnel.host, new_tunnel.target_host, new_tunnel.tags),
+            (spec.host, spec.target_host, spec.tags)
         );
     }
 

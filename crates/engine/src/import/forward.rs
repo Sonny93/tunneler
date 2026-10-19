@@ -10,7 +10,7 @@ use crate::store::TunnelKind;
 
 /// What reading one forward specification gave.
 pub(super) enum ParsedForward {
-    /// A TCP forward, without host, label or line.
+    /// A TCP forward, without host, comment or line.
     Supported(ImportCandidate),
     /// A Unix socket or a remote SOCKS proxy.
     Unsupported,
@@ -83,7 +83,7 @@ fn blank_candidate(
         listen_port,
         target_host: None,
         target_port: None,
-        label: None,
+        comment: None,
         line: None,
     }
 }

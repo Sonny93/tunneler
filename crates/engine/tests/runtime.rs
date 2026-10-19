@@ -2,7 +2,6 @@
 
 mod support;
 
-use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -355,9 +354,8 @@ fn tunnel_block(spec: &TunnelSpec) -> String {
         format!("target_port = {}\n", spec.target_port)
     };
     format!(
-        "[[tunnels]]\nid = \"{}\"\nname = \"{}\"\nhost = \"{}\"\nkind = \"{}\"\nlisten_port = {}\n{target_line}tags = [{}]\n\n",
+        "[[tunnels]]\nid = \"{}\"\nhost = \"{}\"\nkind = \"{}\"\nlisten_port = {}\n{target_line}tags = [{}]\n\n",
         spec.id,
-        spec.name,
         support::ALIAS,
         spec.kind,
         spec.listen_port,
@@ -1970,14 +1968,14 @@ async fn should_restart_the_tunnel_on_the_new_port_when_the_file_changes_its_lis
 }
 
 #[tokio::test]
-async fn should_not_restart_the_tunnel_when_the_file_only_renames_it() {
+async fn should_not_restart_the_tunnel_when_the_file_only_changes_its_tags() {
     let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
     harness.start_and_wait_active("alpha").await;
     let mut client = TcpStream::connect((LOOPBACK, harness.port("alpha")))
         .await
         .unwrap();
 
-    harness.specs[0].name = "renamed".to_owned();
+    harness.specs[0].tags = vec!["renamed".to_owned()];
     harness.rewrite_store();
     harness.wait_for_config_reload().await;
 
@@ -1988,7 +1986,7 @@ async fn should_not_restart_the_tunnel_when_the_file_only_renames_it() {
         .unwrap()
         .unwrap();
     let snapshot = harness.engine.snapshot();
-    assert_eq!(snapshot.tunnels[0].definition.name, "renamed");
+    assert_eq!(snapshot.tunnels[0].definition.tags, ["renamed"]);
     assert!(matches!(snapshot.tunnels[0].state, TunnelState::Active));
     assert_eq!(harness.server.connection_count(), 1);
 }
@@ -2004,14 +2002,14 @@ async fn should_stop_the_tunnel_when_the_file_deletes_it() {
     harness.rewrite_store();
     harness.wait_for_config_reload().await;
 
-    let remaining: Vec<String> = harness
+    let remaining: Vec<TunnelId> = harness
         .engine
         .snapshot()
         .tunnels
         .into_iter()
-        .map(|tunnel| tunnel.definition.name)
+        .map(|tunnel| tunnel.definition.id)
         .collect();
-    assert_eq!(remaining, vec!["beta".to_owned()]);
+    assert_eq!(remaining, vec![harness.id("beta")]);
     assert!(can_bind(port).await);
     assert_eq!(echo_through(harness.port("beta"), PAYLOAD).await, PAYLOAD);
 }
@@ -2019,18 +2017,18 @@ async fn should_stop_the_tunnel_when_the_file_deletes_it() {
 #[tokio::test]
 async fn should_add_a_stopped_tunnel_and_save_its_id_when_the_file_gains_a_tunnel_without_id() {
     let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let added_port = free_port().await;
     let text = format!(
-        "{}[[tunnels]]\nname = \"added\"\nhost = \"{}\"\nkind = \"local\"\nlisten_port = {}\n",
+        "{}[[tunnels]]\nhost = \"{}\"\nkind = \"local\"\nlisten_port = {added_port}\n",
         store_text(&harness.specs, &harness.timing),
         support::ALIAS,
-        free_port().await
     );
 
     std::fs::write(harness.store_path(), text).unwrap();
     harness.wait_for_config_reload().await;
 
     let snapshot = harness.engine.snapshot();
-    assert_eq!(snapshot.tunnels[1].definition.name, "added");
+    assert_eq!(snapshot.tunnels[1].definition.listen_port, added_port);
     assert_eq!(snapshot.tunnels[1].state, TunnelState::Stopped);
     let path = harness.store_path();
     wait_until(WAIT, "the generated id to be saved", || {
@@ -2060,9 +2058,8 @@ async fn should_report_the_file_as_invalid_and_keep_running_when_the_file_breaks
     assert_eq!(echo_through(harness.port("alpha"), PAYLOAD).await, PAYLOAD);
 }
 
-fn new_tunnel(name: &str, listen_port: u16) -> NewTunnel {
+fn new_tunnel(listen_port: u16) -> NewTunnel {
     NewTunnel {
-        name: name.to_owned(),
         host: support::ALIAS.to_owned(),
         kind: TunnelKind::Local,
         listen_port,
@@ -2073,13 +2070,13 @@ fn new_tunnel(name: &str, listen_port: u16) -> NewTunnel {
     }
 }
 
-fn saved_tunnel_names(harness: &Harness) -> Vec<String> {
+fn saved_tunnel_ports(harness: &Harness) -> Vec<u16> {
     let (store, _) = Store::open(harness.store_path()).unwrap();
     store
         .document()
         .tunnels
         .into_iter()
-        .map(|tunnel| tunnel.name)
+        .map(|tunnel| tunnel.listen_port)
         .collect()
 }
 
@@ -2087,13 +2084,17 @@ fn saved_tunnel_names(harness: &Harness) -> Vec<String> {
 async fn should_persist_the_tunnel_when_it_is_created() {
     let harness = HarnessBuilder::new(&["alpha"]).start().await;
 
+    let created_port = free_port().await;
     let id = harness
         .engine
-        .create_tunnel(new_tunnel("created", free_port().await))
+        .create_tunnel(new_tunnel(created_port))
         .await
         .unwrap();
 
-    assert_eq!(saved_tunnel_names(&harness), ["alpha", "created"]);
+    assert_eq!(
+        saved_tunnel_ports(&harness),
+        [harness.port("alpha"), created_port]
+    );
     let created = harness.engine.snapshot().tunnels.pop().unwrap();
     assert_eq!(
         (created.definition.id, created.state),
@@ -2102,12 +2103,12 @@ async fn should_persist_the_tunnel_when_it_is_created() {
 }
 
 #[tokio::test]
-async fn should_refuse_to_create_a_tunnel_when_the_name_is_taken() {
+async fn should_refuse_to_create_a_tunnel_when_the_listen_port_is_taken() {
     let harness = HarnessBuilder::new(&["alpha"]).start().await;
 
     let outcome = harness
         .engine
-        .create_tunnel(new_tunnel("alpha", free_port().await))
+        .create_tunnel(new_tunnel(harness.port("alpha")))
         .await;
 
     assert!(matches!(outcome, Err(EngineError::Store(_))), "{outcome:?}");
@@ -2119,13 +2120,12 @@ async fn should_persist_the_change_when_a_tunnel_is_updated() {
     let harness = HarnessBuilder::new(&["alpha"]).start().await;
     let mut definition = harness.engine.snapshot().tunnels.remove(0).definition;
 
-    definition.name = "renamed".to_owned();
+    definition.tags = vec!["renamed".to_owned()];
     harness.engine.update_tunnel(definition).await.unwrap();
 
-    assert_eq!(saved_tunnel_names(&harness), ["renamed"]);
     assert_eq!(
-        harness.engine.snapshot().tunnels[0].definition.name,
-        "renamed"
+        harness.engine.snapshot().tunnels[0].definition.tags,
+        ["renamed"]
     );
 }
 
@@ -2169,7 +2169,7 @@ async fn should_persist_and_stop_the_tunnel_when_it_is_deleted() {
         .await
         .unwrap();
 
-    assert_eq!(saved_tunnel_names(&harness), ["beta"]);
+    assert_eq!(saved_tunnel_ports(&harness), [harness.port("beta")]);
     assert_eq!(harness.engine.snapshot().tunnels.len(), 1);
     assert!(can_bind(port).await);
 }
@@ -2179,7 +2179,7 @@ async fn should_not_reload_again_when_the_engine_writes_its_own_file() {
     let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
     harness
         .engine
-        .create_tunnel(new_tunnel("created", free_port().await))
+        .create_tunnel(new_tunnel(free_port().await))
         .await
         .unwrap();
     harness.wait_for_config_reload().await;
@@ -2304,12 +2304,13 @@ async fn should_report_the_state_and_the_settings_when_a_snapshot_is_taken() {
 
     let snapshot = harness.engine.snapshot();
 
-    let by_name: HashMap<String, TunnelState> = snapshot
+    let alpha = harness.id("alpha");
+    let alpha_state = snapshot
         .tunnels
         .into_iter()
-        .map(|tunnel| (tunnel.definition.name, tunnel.state))
-        .collect();
-    assert!(matches!(by_name["alpha"], TunnelState::Active));
+        .find(|tunnel| tunnel.definition.id == alpha)
+        .map(|tunnel| tunnel.state);
+    assert!(matches!(alpha_state, Some(TunnelState::Active)));
     assert_eq!(snapshot.settings.reconnect_initial_delay, RECONNECT_INITIAL);
 }
 

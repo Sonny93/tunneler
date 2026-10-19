@@ -192,11 +192,11 @@ fn decode<'a>(path: &Path, content: &'a [u8]) -> Result<&'a str, StoreError> {
 mod tests {
     use super::*;
     use crate::store::model::TunnelKind;
-    use crate::store::test_support::named_tunnel;
+    use crate::store::test_support::tunnel_on;
     use pretty_assertions::assert_eq;
     use std::fs;
 
-    const HAND_WRITTEN: &str = "# my tunnels\nversion = 1\n\n[[tunnels]]\n# the web app\nname = \"Web\"\nhost = \"nova\"\nkind = \"local\"\nlisten_port = 8080\n";
+    const HAND_WRITTEN: &str = "# my tunnels\nversion = 1\n\n[[tunnels]]\n# the web app\nhost = \"nova\"\nkind = \"local\"\nlisten_port = 8080\n";
 
     fn store_path(directory: &tempfile::TempDir) -> PathBuf {
         directory.path().join("tunneler").join("tunnels.toml")
@@ -211,7 +211,7 @@ mod tests {
 
     fn document_with_one_tunnel() -> StoreDocument {
         StoreDocument {
-            tunnels: vec![named_tunnel(TunnelKind::Local, "Adonis", 3333)],
+            tunnels: vec![tunnel_on(TunnelKind::Local, 3333)],
             ..StoreDocument::default()
         }
     }
@@ -245,7 +245,7 @@ mod tests {
 
         let (store, _) = Store::open(path).unwrap();
 
-        assert_eq!(store.document().tunnels[0].name, "Web");
+        assert_eq!(store.document().tunnels[0].host, "nova");
     }
 
     #[test]
@@ -293,7 +293,7 @@ mod tests {
         let text = fs::read_to_string(path).unwrap();
 
         assert!(
-            text.starts_with("# my tunnels\nversion = 1\n") && text.contains("# the web app\nname"),
+            text.starts_with("# my tunnels\nversion = 1\n") && text.contains("# the web app\nhost"),
             "{text}"
         );
     }
@@ -339,7 +339,7 @@ mod tests {
         let path = store_path(&directory);
         let (store, _) = Store::open(path.clone()).unwrap();
         let invalid = StoreDocument {
-            tunnels: vec![named_tunnel(TunnelKind::Local, "Adonis", 0)],
+            tunnels: vec![tunnel_on(TunnelKind::Local, 0)],
             ..StoreDocument::default()
         };
 
@@ -353,7 +353,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let (store, _) = Store::open(store_path(&directory)).unwrap();
         let invalid = StoreDocument {
-            tunnels: vec![named_tunnel(TunnelKind::Local, "Adonis", 0)],
+            tunnels: vec![tunnel_on(TunnelKind::Local, 0)],
             ..StoreDocument::default()
         };
 

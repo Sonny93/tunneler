@@ -18,7 +18,7 @@ enum TargetStatus {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Target {
     id: String,
-    name: String,
+    label: String,
     status: TargetStatus,
 }
 
@@ -41,33 +41,33 @@ impl ProgressTracker {
             .iter()
             .map(|resolved| Target {
                 id: resolved.id.clone(),
-                name: resolved.name.clone(),
+                label: resolved.label.clone(),
                 status: initial_status(&resolved.id, snapshot),
             })
             .collect();
         Self { targets }
     }
 
-    /// The names of the tunnels that were active before anything was asked.
+    /// The labels of the tunnels that were active before anything was asked.
     pub fn already_active(&self) -> Vec<&str> {
         self.targets
             .iter()
             .filter(|target| target.status == TargetStatus::Active)
-            .map(|target| target.name.as_str())
+            .map(|target| target.label.as_str())
             .collect()
     }
 
-    /// The names of the tunnels an external process provided before anything
+    /// The labels of the tunnels an external process provided before anything
     /// was asked.
     pub fn already_provided(&self) -> Vec<&str> {
         self.targets
             .iter()
             .filter(|target| target.status == TargetStatus::Provided)
-            .map(|target| target.name.as_str())
+            .map(|target| target.label.as_str())
             .collect()
     }
 
-    /// Takes a state change into account; returns the name of the tunnel it
+    /// Takes a state change into account; returns the label of the tunnel it
     /// concerns, or `None` when it is not one of the tracked tunnels.
     pub fn apply(&mut self, change: &TunnelChangedEvent) -> Option<&str> {
         let target = self
@@ -75,7 +75,7 @@ impl ProgressTracker {
             .iter_mut()
             .find(|target| target.id == change.id)?;
         target.status = status_after(&change.state);
-        Some(&target.name)
+        Some(&target.label)
     }
 
     /// Whether every tunnel is either active, provided or unsuccessful.
@@ -98,12 +98,12 @@ impl ProgressTracker {
         self.targets.len()
     }
 
-    /// The names of the tunnels that are still starting.
-    pub fn waiting_names(&self) -> Vec<String> {
+    /// The labels of the tunnels that are still starting.
+    pub fn waiting_labels(&self) -> Vec<String> {
         self.targets
             .iter()
             .filter(|target| target.status == TargetStatus::Waiting)
-            .map(|target| target.name.clone())
+            .map(|target| target.label.clone())
             .collect()
     }
 }
@@ -133,23 +133,24 @@ fn status_after(state: &TunnelStateDto) -> TargetStatus {
     }
 }
 
-/// The line that announces a step of `tunnel_name`, such as `Adonis: active`.
-pub fn describe_step(tunnel_name: &str, state: &TunnelStateDto, style: Style) -> String {
+/// The line that announces a step of `tunnel_label`, such as
+/// `3333 → nova:3333: active`.
+pub fn describe_step(tunnel_label: &str, state: &TunnelStateDto, style: Style) -> String {
     match state {
-        TunnelStateDto::Starting => format!("{tunnel_name}: connecting{}", style.ellipsis()),
-        TunnelStateDto::Active => format!("{tunnel_name}: active"),
+        TunnelStateDto::Starting => format!("{tunnel_label}: connecting{}", style.ellipsis()),
+        TunnelStateDto::Active => format!("{tunnel_label}: active"),
         TunnelStateDto::Reconnecting { attempt, .. } => {
-            format!("{tunnel_name}: reconnecting (attempt {attempt})")
+            format!("{tunnel_label}: reconnecting (attempt {attempt})")
         }
         TunnelStateDto::Failed { reason } => {
-            format!("{tunnel_name}: failed: {}", describe_failure(reason))
+            format!("{tunnel_label}: failed: {}", describe_failure(reason))
         }
-        TunnelStateDto::Stopped => format!("{tunnel_name}: stopped"),
+        TunnelStateDto::Stopped => format!("{tunnel_label}: stopped"),
         TunnelStateDto::External { owner } => {
-            format!("{tunnel_name}: {}", describe_external(owner))
+            format!("{tunnel_label}: {}", describe_external(owner))
         }
         TunnelStateDto::Conflict { owner } => {
-            format!("{tunnel_name}: {}", describe_conflict(owner.as_ref()))
+            format!("{tunnel_label}: {}", describe_conflict(owner.as_ref()))
         }
     }
 }
@@ -172,15 +173,14 @@ mod tests {
         unicode: false,
     };
 
-    fn tunnel(id: &str, name: &str, state: TunnelStateDto) -> TunnelDto {
+    fn tunnel(id: &str, listen_port: u16, state: TunnelStateDto) -> TunnelDto {
         TunnelDto {
             definition: TunnelDefinitionDto {
                 id: id.to_owned(),
                 spec: TunnelSpecDto {
-                    name: name.to_owned(),
                     host: "nova".to_owned(),
                     kind: TunnelKindDto::Local,
-                    listen_port: 3333,
+                    listen_port,
                     listen_address: None,
                     target_host: None,
                     target_port: None,
@@ -193,10 +193,10 @@ mod tests {
         }
     }
 
-    fn resolved(id: &str, name: &str) -> ResolvedTunnel {
+    fn resolved(id: &str, label: &str) -> ResolvedTunnel {
         ResolvedTunnel {
             id: id.to_owned(),
-            name: name.to_owned(),
+            label: label.to_owned(),
         }
     }
 
@@ -235,10 +235,13 @@ mod tests {
 
     fn tracker_for_two_stopped_tunnels() -> ProgressTracker {
         ProgressTracker::new(
-            &[resolved("1", "Adonis"), resolved("2", "Mail")],
+            &[
+                resolved("1", "3333 → nova:3333"),
+                resolved("2", "5432 → nova:5432"),
+            ],
             &snapshot_of(vec![
-                tunnel("1", "Adonis", TunnelStateDto::Stopped),
-                tunnel("2", "Mail", TunnelStateDto::Stopped),
+                tunnel("1", 3333, TunnelStateDto::Stopped),
+                tunnel("2", 5432, TunnelStateDto::Stopped),
             ]),
         )
     }
@@ -290,21 +293,21 @@ mod tests {
     #[test]
     fn should_consider_a_tunnel_done_when_it_is_already_provided_externally() {
         let tracker = ProgressTracker::new(
-            &[resolved("1", "Adonis")],
-            &snapshot_of(vec![tunnel("1", "Adonis", external())]),
+            &[resolved("1", "3333 → nova:3333")],
+            &snapshot_of(vec![tunnel("1", 3333, external())]),
         );
 
         assert_eq!(
             (tracker.is_settled(), tracker.already_provided()),
-            (true, vec!["Adonis"])
+            (true, vec!["3333 → nova:3333"])
         );
     }
 
     #[test]
     fn should_count_a_failure_when_a_tunnel_is_already_in_conflict() {
         let tracker = ProgressTracker::new(
-            &[resolved("1", "Adonis")],
-            &snapshot_of(vec![tunnel("1", "Adonis", conflict())]),
+            &[resolved("1", "3333 → nova:3333")],
+            &snapshot_of(vec![tunnel("1", 3333, conflict())]),
         );
 
         assert_eq!(
@@ -317,14 +320,18 @@ mod tests {
     fn should_word_the_external_and_conflict_steps() {
         assert_eq!(
             [
-                describe_step("Adonis", &external(), UNICODE),
-                describe_step("Adonis", &conflict(), UNICODE),
-                describe_step("Adonis", &TunnelStateDto::Conflict { owner: None }, UNICODE),
+                describe_step("3333 → nova:3333", &external(), UNICODE),
+                describe_step("3333 → nova:3333", &conflict(), UNICODE),
+                describe_step(
+                    "3333 → nova:3333",
+                    &TunnelStateDto::Conflict { owner: None },
+                    UNICODE
+                ),
             ],
             [
-                "Adonis: provided by external ssh (pid 4242)",
-                "Adonis: port held by node (pid 4242)",
-                "Adonis: port held by an unknown process",
+                "3333 → nova:3333: provided by external ssh (pid 4242)",
+                "3333 → nova:3333: port held by node (pid 4242)",
+                "3333 → nova:3333: port held by an unknown process",
             ]
         );
     }
@@ -337,13 +344,13 @@ mod tests {
     #[test]
     fn should_consider_a_tunnel_done_when_it_is_already_active() {
         let tracker = ProgressTracker::new(
-            &[resolved("1", "Adonis")],
-            &snapshot_of(vec![tunnel("1", "Adonis", TunnelStateDto::Active)]),
+            &[resolved("1", "3333 → nova:3333")],
+            &snapshot_of(vec![tunnel("1", 3333, TunnelStateDto::Active)]),
         );
 
         assert_eq!(
             (tracker.is_settled(), tracker.already_active()),
-            (true, vec!["Adonis"])
+            (true, vec!["3333 → nova:3333"])
         );
     }
 
@@ -355,8 +362,8 @@ mod tests {
             },
         };
         let tracker = ProgressTracker::new(
-            &[resolved("1", "Adonis")],
-            &snapshot_of(vec![tunnel("1", "Adonis", failure)]),
+            &[resolved("1", "3333 → nova:3333")],
+            &snapshot_of(vec![tunnel("1", 3333, failure)]),
         );
 
         assert!(!tracker.is_settled());
@@ -409,7 +416,10 @@ mod tests {
             },
         ));
 
-        assert_eq!(tracker.waiting_names(), vec!["Mail".to_owned()]);
+        assert_eq!(
+            tracker.waiting_labels(),
+            vec!["5432 → nova:5432".to_owned()]
+        );
     }
 
     #[test]
@@ -420,12 +430,12 @@ mod tests {
     }
 
     #[test]
-    fn should_name_the_tunnel_when_applying_a_change() {
+    fn should_label_the_tunnel_when_applying_a_change() {
         let mut tracker = tracker_for_two_stopped_tunnels();
 
         assert_eq!(
             tracker.apply(&change("2", TunnelStateDto::Starting)),
-            Some("Mail")
+            Some("5432 → nova:5432")
         );
     }
 
@@ -433,10 +443,10 @@ mod tests {
     fn should_word_each_step_of_a_start() {
         assert_eq!(
             [
-                describe_step("Adonis", &TunnelStateDto::Starting, UNICODE),
-                describe_step("Adonis", &TunnelStateDto::Active, UNICODE),
+                describe_step("3333 → nova:3333", &TunnelStateDto::Starting, UNICODE),
+                describe_step("3333 → nova:3333", &TunnelStateDto::Active, UNICODE),
                 describe_step(
-                    "Adonis",
+                    "3333 → nova:3333",
                     &TunnelStateDto::Reconnecting {
                         attempt: 2,
                         next_retry_at: 0
@@ -444,7 +454,7 @@ mod tests {
                     UNICODE
                 ),
                 describe_step(
-                    "Adonis",
+                    "3333 → nova:3333",
                     &TunnelStateDto::Failed {
                         reason: FailureReasonDto::Connect {
                             message: "authentication failed".to_owned()
@@ -454,10 +464,10 @@ mod tests {
                 ),
             ],
             [
-                "Adonis: connecting…",
-                "Adonis: active",
-                "Adonis: reconnecting (attempt 2)",
-                "Adonis: failed: authentication failed",
+                "3333 → nova:3333: connecting…",
+                "3333 → nova:3333: active",
+                "3333 → nova:3333: reconnecting (attempt 2)",
+                "3333 → nova:3333: failed: authentication failed",
             ]
         );
     }
@@ -465,8 +475,8 @@ mod tests {
     #[test]
     fn should_end_the_connecting_step_with_three_dots_when_unicode_is_off() {
         assert_eq!(
-            describe_step("Adonis", &TunnelStateDto::Starting, ASCII),
-            "Adonis: connecting..."
+            describe_step("3333 → nova:3333", &TunnelStateDto::Starting, ASCII),
+            "3333 → nova:3333: connecting..."
         );
     }
 }

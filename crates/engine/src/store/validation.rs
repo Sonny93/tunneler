@@ -13,22 +13,22 @@ const MIN_PORT: u16 = 1;
 pub struct TunnelReference {
     /// The tunnel identifier.
     pub id: TunnelId,
-    /// The tunnel name.
-    pub name: String,
+    /// The tunnel label, such as `3333 → nova:3333`.
+    pub label: String,
 }
 
 impl TunnelReference {
     fn of(tunnel: &TunnelDefinition) -> Self {
         Self {
             id: tunnel.id,
-            name: tunnel.name.clone(),
+            label: tunnel.label(),
         }
     }
 }
 
 impl fmt::Display for TunnelReference {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "tunnel \"{}\" ({})", self.name, self.id)
+        write!(formatter, "tunnel \"{}\" ({})", self.label, self.id)
     }
 }
 
@@ -44,6 +44,12 @@ pub enum TagProblem {
     /// The tag contains a comma.
     #[error("it contains a comma")]
     ContainsComma,
+    /// The tag contains a colon, which the CLI reads as `host:port`.
+    #[error("it contains a colon (the CLI reads host:port as a port selector)")]
+    ContainsColon,
+    /// The tag is only digits, which the CLI reads as a port.
+    #[error("it is only digits (the CLI reads a number as a port selector)")]
+    OnlyDigits,
 }
 
 /// A rule broken by the content of the store.
@@ -53,20 +59,6 @@ pub enum ValidationError {
     #[error("{tunnel}: the id is already used by another tunnel")]
     DuplicateId {
         /// The second tunnel carrying the identifier.
-        tunnel: TunnelReference,
-    },
-    /// Two tunnels share a name, ignoring case.
-    #[error("{tunnel}: the name is already used by {first} (names are compared ignoring case)")]
-    DuplicateName {
-        /// The later tunnel.
-        tunnel: TunnelReference,
-        /// The first tunnel carrying the name.
-        first: TunnelReference,
-    },
-    /// The name is empty.
-    #[error("{tunnel}: the name must not be empty")]
-    EmptyName {
-        /// The offending tunnel.
         tunnel: TunnelReference,
     },
     /// The host alias is empty.
@@ -259,7 +251,6 @@ fn validate_tunnels(document: &StoreDocument) -> Vec<ValidationError> {
         .iter()
         .flat_map(validate_tunnel)
         .chain(find_duplicate_ids(tunnels))
-        .chain(find_duplicate_names(tunnels))
         .chain(find_listen_conflicts(tunnels, &document.settings))
         .collect()
 }
@@ -267,11 +258,6 @@ fn validate_tunnels(document: &StoreDocument) -> Vec<ValidationError> {
 fn validate_tunnel(tunnel: &TunnelDefinition) -> Vec<ValidationError> {
     let reference = TunnelReference::of(tunnel);
     let mut errors = Vec::new();
-    if tunnel.name.trim().is_empty() {
-        errors.push(ValidationError::EmptyName {
-            tunnel: reference.clone(),
-        });
-    }
     if tunnel.host.trim().is_empty() {
         errors.push(ValidationError::EmptyHost {
             tunnel: reference.clone(),
@@ -359,6 +345,12 @@ pub(crate) fn find_tag_problem(tag: &str) -> Option<TagProblem> {
     if tag.contains(',') {
         return Some(TagProblem::ContainsComma);
     }
+    if tag.contains(':') {
+        return Some(TagProblem::ContainsColon);
+    }
+    if tag.chars().all(|character| character.is_ascii_digit()) {
+        return Some(TagProblem::OnlyDigits);
+    }
     None
 }
 
@@ -372,27 +364,6 @@ fn find_duplicate_ids(tunnels: &[TunnelDefinition]) -> Vec<ValidationError> {
             });
         }
         seen.push(tunnel.id);
-    }
-    errors
-}
-
-fn find_duplicate_names(tunnels: &[TunnelDefinition]) -> Vec<ValidationError> {
-    let mut first_by_name: HashMap<String, &TunnelDefinition> = HashMap::new();
-    let mut errors = Vec::new();
-    for tunnel in tunnels {
-        let normalized_name = tunnel.name.trim().to_lowercase();
-        if normalized_name.is_empty() {
-            continue;
-        }
-        match first_by_name.get(&normalized_name) {
-            Some(first) => errors.push(ValidationError::DuplicateName {
-                tunnel: TunnelReference::of(tunnel),
-                first: TunnelReference::of(first),
-            }),
-            None => {
-                first_by_name.insert(normalized_name, tunnel);
-            }
-        }
     }
     errors
 }
@@ -495,7 +466,7 @@ fn validate_launchers(launchers: &[X11Launcher]) -> Vec<ValidationError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::store::test_support::{named_tunnel, tunnel};
+    use crate::store::test_support::{tunnel, tunnel_on};
     use pretty_assertions::assert_eq;
 
     fn document_with(tunnels: Vec<TunnelDefinition>) -> StoreDocument {
@@ -519,8 +490,8 @@ mod tests {
     #[test]
     fn should_accept_document_when_every_rule_holds() {
         let document = document_with(vec![
-            named_tunnel(TunnelKind::Local, "Adonis", 3333),
-            named_tunnel(TunnelKind::Remote, "Mail", 3333),
+            tunnel_on(TunnelKind::Local, 3333),
+            tunnel_on(TunnelKind::Remote, 3333),
         ]);
 
         assert_eq!(validate(&document), Ok(()));
@@ -530,7 +501,6 @@ mod tests {
     fn should_reject_duplicate_ids() {
         let first = tunnel(TunnelKind::Local);
         let second = TunnelDefinition {
-            name: "Other".to_owned(),
             listen_port: 4444,
             ..first.clone()
         };
@@ -540,33 +510,6 @@ mod tests {
         assert!(matches!(
             errors.as_slice(),
             [ValidationError::DuplicateId { .. }]
-        ));
-    }
-
-    #[test]
-    fn should_reject_duplicate_names_ignoring_case() {
-        let document = document_with(vec![
-            named_tunnel(TunnelKind::Local, "Adonis", 3333),
-            named_tunnel(TunnelKind::Local, "adonis", 4444),
-        ]);
-
-        let errors = errors_of(&document);
-
-        assert!(matches!(
-            errors.as_slice(),
-            [ValidationError::DuplicateName { .. }]
-        ));
-    }
-
-    #[test]
-    fn should_reject_empty_name() {
-        let document = document_with(vec![named_tunnel(TunnelKind::Local, "  ", 3333)]);
-
-        let errors = errors_of(&document);
-
-        assert!(matches!(
-            errors.as_slice(),
-            [ValidationError::EmptyName { .. }]
         ));
     }
 
@@ -605,7 +548,7 @@ mod tests {
 
     #[test]
     fn should_reject_zero_listen_port() {
-        let document = document_with(vec![named_tunnel(TunnelKind::Local, "Adonis", 0)]);
+        let document = document_with(vec![tunnel_on(TunnelKind::Local, 0)]);
 
         let errors = errors_of(&document);
 
@@ -634,7 +577,7 @@ mod tests {
     fn should_reject_dynamic_tunnel_when_it_has_a_target_host() {
         let dynamic = TunnelDefinition {
             target_host: Some("db.internal".to_owned()),
-            ..named_tunnel(TunnelKind::Dynamic, "Socks", 1080)
+            ..tunnel_on(TunnelKind::Dynamic, 1080)
         };
 
         let errors = errors_of(&document_with(vec![dynamic]));
@@ -652,7 +595,7 @@ mod tests {
     fn should_reject_dynamic_tunnel_when_it_has_a_target_port() {
         let dynamic = TunnelDefinition {
             target_port: Some(5432),
-            ..named_tunnel(TunnelKind::Dynamic, "Socks", 1080)
+            ..tunnel_on(TunnelKind::Dynamic, 1080)
         };
 
         let errors = errors_of(&document_with(vec![dynamic]));
@@ -668,7 +611,7 @@ mod tests {
 
     #[test]
     fn should_accept_dynamic_tunnel_when_it_has_no_target() {
-        let dynamic = named_tunnel(TunnelKind::Dynamic, "Socks", 1080);
+        let dynamic = tunnel_on(TunnelKind::Dynamic, 1080);
 
         assert_eq!(validate(&document_with(vec![dynamic])), Ok(()));
     }
@@ -678,7 +621,7 @@ mod tests {
         let remote = TunnelDefinition {
             target_host: Some("localhost".to_owned()),
             target_port: Some(3000),
-            ..named_tunnel(TunnelKind::Remote, "Dev", 8080)
+            ..tunnel_on(TunnelKind::Remote, 8080)
         };
 
         assert_eq!(validate(&document_with(vec![remote])), Ok(()));
@@ -686,8 +629,8 @@ mod tests {
 
     #[test]
     fn should_accept_remote_and_dynamic_tunnels_when_the_remote_port_is_the_local_listen_port() {
-        let remote = named_tunnel(TunnelKind::Remote, "Dev", 1080);
-        let dynamic = named_tunnel(TunnelKind::Dynamic, "Socks", 1080);
+        let remote = tunnel_on(TunnelKind::Remote, 1080);
+        let dynamic = tunnel_on(TunnelKind::Dynamic, 1080);
 
         assert_eq!(validate(&document_with(vec![remote, dynamic])), Ok(()));
     }
@@ -696,9 +639,9 @@ mod tests {
     fn should_reject_local_tunnels_when_they_share_the_effective_listen_endpoint() {
         let explicit = TunnelDefinition {
             listen_address: Some("127.0.0.1".to_owned()),
-            ..named_tunnel(TunnelKind::Local, "Explicit", 3333)
+            ..tunnel_on(TunnelKind::Local, 3333)
         };
-        let implicit = named_tunnel(TunnelKind::Dynamic, "Implicit", 3333);
+        let implicit = tunnel_on(TunnelKind::Dynamic, 3333);
 
         let errors = errors_of(&document_with(vec![explicit, implicit]));
 
@@ -713,10 +656,10 @@ mod tests {
 
     #[test]
     fn should_accept_local_tunnels_when_listen_addresses_differ() {
-        let loopback = named_tunnel(TunnelKind::Local, "Loopback", 3333);
+        let loopback = tunnel_on(TunnelKind::Local, 3333);
         let any = TunnelDefinition {
             listen_address: Some("0.0.0.0".to_owned()),
-            ..named_tunnel(TunnelKind::Local, "Any", 3333)
+            ..tunnel_on(TunnelKind::Local, 3333)
         };
 
         assert_eq!(validate(&document_with(vec![loopback, any])), Ok(()));
@@ -724,8 +667,8 @@ mod tests {
 
     #[test]
     fn should_reject_remote_tunnels_when_they_share_endpoint_on_the_same_host() {
-        let first = named_tunnel(TunnelKind::Remote, "First", 8080);
-        let second = named_tunnel(TunnelKind::Remote, "Second", 8080);
+        let first = tunnel_on(TunnelKind::Remote, 8080);
+        let second = tunnel_on(TunnelKind::Remote, 8080);
 
         let errors = errors_of(&document_with(vec![first, second]));
 
@@ -737,10 +680,10 @@ mod tests {
 
     #[test]
     fn should_accept_remote_tunnels_when_they_go_through_different_hosts() {
-        let first = named_tunnel(TunnelKind::Remote, "First", 8080);
+        let first = tunnel_on(TunnelKind::Remote, 8080);
         let second = TunnelDefinition {
             host: "other".to_owned(),
-            ..named_tunnel(TunnelKind::Remote, "Second", 8080)
+            ..tunnel_on(TunnelKind::Remote, 8080)
         };
 
         assert_eq!(validate(&document_with(vec![first, second])), Ok(()));
@@ -748,8 +691,8 @@ mod tests {
 
     #[test]
     fn should_accept_local_and_remote_tunnels_when_they_share_a_port() {
-        let local = named_tunnel(TunnelKind::Local, "Local", 8080);
-        let remote = named_tunnel(TunnelKind::Remote, "Remote", 8080);
+        let local = tunnel_on(TunnelKind::Local, 8080);
+        let remote = tunnel_on(TunnelKind::Remote, 8080);
 
         assert_eq!(validate(&document_with(vec![local, remote])), Ok(()));
     }
@@ -798,6 +741,40 @@ mod tests {
                 ..
             }]
         ));
+    }
+
+    #[test]
+    fn should_reject_tag_with_colon() {
+        let errors = errors_of(&document_with(vec![tunnel_with_tags(&["nova:3333"])]));
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::InvalidTag {
+                problem: TagProblem::ContainsColon,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_tag_made_only_of_digits() {
+        let errors = errors_of(&document_with(vec![tunnel_with_tags(&["3333"])]));
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::InvalidTag {
+                problem: TagProblem::OnlyDigits,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_accept_tag_mixing_digits_and_letters() {
+        assert_eq!(
+            validate(&document_with(vec![tunnel_with_tags(&["v2"])])),
+            Ok(())
+        );
     }
 
     #[test]
@@ -945,25 +922,25 @@ mod tests {
     #[test]
     fn should_collect_every_error_when_several_rules_are_broken() {
         let document = document_with(vec![
-            named_tunnel(TunnelKind::Local, "", 0),
+            tunnel_on(TunnelKind::Local, 0),
             TunnelDefinition {
                 host: String::new(),
-                ..named_tunnel(TunnelKind::Local, "Adonis", 3333)
+                ..tunnel_on(TunnelKind::Local, 3333)
             },
         ]);
 
-        assert_eq!(errors_of(&document).len(), 3);
+        assert_eq!(errors_of(&document).len(), 2);
     }
 
     #[test]
-    fn should_name_the_tunnel_id_and_name_when_formatting_an_error() {
-        let definition = named_tunnel(TunnelKind::Local, "Adonis", 0);
+    fn should_name_the_tunnel_label_and_id_when_formatting_an_error() {
+        let definition = tunnel_on(TunnelKind::Local, 0);
         let message = errors_of(&document_with(vec![definition.clone()]))[0].to_string();
 
         assert_eq!(
             message,
             format!(
-                "tunnel \"Adonis\" ({}): listen_port must be between 1 and 65535, found 0",
+                "tunnel \"0 → nova:0\" ({}): listen_port must be between 1 and 65535, found 0",
                 definition.id
             )
         );

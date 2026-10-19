@@ -19,8 +19,6 @@ pub enum TunnelKindDto {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TunnelSpecDto {
-    /// Unique, human-readable name.
-    pub name: String,
     /// The `ssh_config` alias the tunnel goes through.
     pub host: String,
     /// The direction of the forward.
@@ -528,9 +526,9 @@ pub struct ImportCandidateDto {
     /// The port the traffic is forwarded to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target_port: Option<u16>,
-    /// A name taken from the comment next to the port.
+    /// The comment written next to the port.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
+    pub comment: Option<String>,
     /// The 1-based line of the pasted text.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub line: Option<u32>,

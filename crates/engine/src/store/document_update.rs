@@ -8,6 +8,7 @@ use super::model::{
 const VERSION_KEY: &str = "version";
 const SETTINGS_KEY: &str = "settings";
 const TUNNELS_KEY: &str = "tunnels";
+const LEGACY_NAME_KEY: &str = "name";
 const HOSTS_KEY: &str = "hosts";
 const LAUNCHERS_KEY: &str = "x11_launchers";
 const X11_DISPLAY_KEY: &str = "x11_display";
@@ -101,7 +102,7 @@ fn assign_tunnels(array: &ArrayOfTables, tunnels: &[TunnelDefinition]) -> Vec<Op
         .collect();
     for (table, assignment) in array.iter().zip(assignments.iter_mut()) {
         if assignment.is_none() && !table.contains_key("id") {
-            *assignment = claim_tunnel_by_name(table, tunnels, &mut claimed);
+            *assignment = claim_tunnel_by_route(table, tunnels, &mut claimed);
         }
     }
     assignments
@@ -116,14 +117,18 @@ fn claim_tunnel_by_id(
     claim(tunnels, claimed, |tunnel| tunnel.id == id)
 }
 
-fn claim_tunnel_by_name(
+fn claim_tunnel_by_route(
     table: &Table,
     tunnels: &[TunnelDefinition],
     claimed: &mut [bool],
 ) -> Option<usize> {
-    let name = table.get("name")?.as_str()?.trim().to_lowercase();
+    let host = table.get("host")?.as_str()?;
+    let kind = table.get("kind")?.as_str()?;
+    let listen_port = table.get("listen_port")?.as_integer()?;
     claim(tunnels, claimed, |tunnel| {
-        tunnel.name.trim().to_lowercase() == name
+        tunnel.host == host
+            && kind_name(tunnel.kind) == kind
+            && i64::from(tunnel.listen_port) == listen_port
     })
 }
 
@@ -142,7 +147,7 @@ fn claim<Definition>(
 
 fn apply_tunnel(table: &mut Table, tunnel: &TunnelDefinition) {
     set_value(table, "id", Value::from(tunnel.id.to_string()));
-    set_value(table, "name", Value::from(tunnel.name.as_str()));
+    table.remove(LEGACY_NAME_KEY);
     set_value(table, "host", Value::from(tunnel.host.as_str()));
     set_value(table, "kind", Value::from(kind_name(tunnel.kind)));
     set_value(
@@ -351,7 +356,7 @@ fn has_same_content(existing: &Value, replacement: &Value) -> bool {
 mod tests {
     use super::*;
     use crate::store::format::{parse_document, render_document};
-    use crate::store::test_support::named_tunnel;
+    use crate::store::test_support::tunnel_on;
     use pretty_assertions::assert_eq;
     use std::path::Path;
 
@@ -365,7 +370,6 @@ keepalive_max = 3  # drop after three misses
 # my favourite tunnel
 [[tunnels]]
 id = "01JA0000000000000000000000"
-name = "Adonis"
 host = "nova"
 kind = "local"
 listen_port = 3333
@@ -374,7 +378,6 @@ tags = ["dev"]
 # the database
 [[tunnels]]
 id = "01JA0000000000000000000001"
-name = "Database"  # postgres
 host = "nova"
 kind = "local"
 listen_port = 5432
@@ -445,14 +448,11 @@ tags = []
     #[test]
     fn should_keep_trailing_comment_when_a_tunnel_value_changes() {
         let mut document = load(COMMENTED_FILE);
-        document.tunnels[1].name = "Postgres".to_owned();
+        document.tunnels[1].host = "other".to_owned();
 
         let updated = update(COMMENTED_FILE, &document);
 
-        assert!(
-            updated.contains("name = \"Postgres\"  # postgres"),
-            "{updated}"
-        );
+        assert!(updated.contains("host = \"other\""), "{updated}");
     }
 
     #[test]
@@ -470,9 +470,7 @@ tags = []
     #[test]
     fn should_append_a_tunnel_when_the_document_has_a_new_one() {
         let mut document = load(COMMENTED_FILE);
-        document
-            .tunnels
-            .push(named_tunnel(TunnelKind::Dynamic, "Socks", 1080));
+        document.tunnels.push(tunnel_on(TunnelKind::Dynamic, 1080));
 
         let updated = update(COMMENTED_FILE, &document);
 
@@ -482,9 +480,7 @@ tags = []
     #[test]
     fn should_keep_existing_text_untouched_when_a_tunnel_is_appended() {
         let mut document = load(COMMENTED_FILE);
-        document
-            .tunnels
-            .push(named_tunnel(TunnelKind::Dynamic, "Socks", 1080));
+        document.tunnels.push(tunnel_on(TunnelKind::Dynamic, 1080));
 
         let updated = update(COMMENTED_FILE, &document);
 
@@ -513,7 +509,7 @@ tags = []
 
     #[test]
     fn should_remove_optional_key_when_the_value_becomes_none() {
-        let text = "[[tunnels]]\nid = \"01JA0000000000000000000000\"\nname = \"A\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\nlisten_address = \"0.0.0.0\"\ntags = []\n";
+        let text = "[[tunnels]]\nid = \"01JA0000000000000000000000\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\nlisten_address = \"0.0.0.0\"\ntags = []\n";
         let mut document = load(text);
         document.tunnels[0].listen_address = None;
 
@@ -523,22 +519,21 @@ tags = []
     }
 
     #[test]
-    fn should_match_an_id_less_tunnel_by_name_and_keep_its_comment() {
-        let text = "# by hand\n[[tunnels]]\nname = \"A\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n";
+    fn should_match_an_id_less_tunnel_by_route_and_keep_its_comment() {
+        let text = "# by hand\n[[tunnels]]\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n";
         let document = load(text);
 
         let updated = update(text, &document);
 
         assert!(
-            updated.contains("\n# by hand\n[[tunnels]]\nname = \"A\"")
-                && updated.contains("id = \""),
+            updated.contains("\n# by hand\n[[tunnels]]\n") && updated.contains("id = \""),
             "{updated}"
         );
     }
 
     #[test]
     fn should_write_the_generated_id_when_saving_an_id_less_tunnel() {
-        let text = "[[tunnels]]\nname = \"A\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n";
+        let text = "[[tunnels]]\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n";
         let document = load(text);
 
         let updated = update(text, &document);
@@ -602,7 +597,7 @@ tags = []
 
     #[test]
     fn should_place_settings_before_tunnels_when_the_file_had_none() {
-        let text = "[[tunnels]]\nname = \"A\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n";
+        let text = "[[tunnels]]\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n";
         let updated = update(text, &load(text));
 
         assert!(

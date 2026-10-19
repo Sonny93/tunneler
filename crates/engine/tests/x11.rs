@@ -29,7 +29,6 @@ const REAL_COOKIE: [u8; 16] = [0x5a; 16];
 const REMOTE_DISPLAY: &str = "localhost:10.0";
 const LAUNCHER_NAME: &str = "Editor";
 const LAUNCHER_COMMAND: &str = "code --wait";
-const PLAIN_TUNNEL_NAME: &str = "plain";
 
 enum Authority {
     Cookie,
@@ -191,7 +190,7 @@ impl HarnessBuilder {
 fn store_text(plain_tunnel_port: u16) -> String {
     format!(
         "version = 1\n\n[settings]\nreconnect_initial_delay_ms = {RECONNECT_INITIAL_MILLISECONDS}\nreconnect_max_delay_ms = {RECONNECT_MAXIMUM_MILLISECONDS}\nsession_idle_grace_s = 0\n\n\
-[[tunnels]]\nname = \"{PLAIN_TUNNEL_NAME}\"\nhost = \"{host}\"\nkind = \"local\"\nlisten_port = {plain_tunnel_port}\ntarget_port = 9\n\n\
+[[tunnels]]\nhost = \"{host}\"\nkind = \"local\"\nlisten_port = {plain_tunnel_port}\ntarget_port = 9\n\n\
 [[x11_launchers]]\nhost = \"{host}\"\nname = \"{LAUNCHER_NAME}\"\ncommand = \"{LAUNCHER_COMMAND}\"\n",
         host = support::ALIAS
     )
@@ -565,14 +564,7 @@ async fn should_refuse_the_x11_channel_when_x11_is_not_enabled_on_the_session() 
 }
 
 fn plain_tunnel_id(engine: &Engine) -> TunnelId {
-    engine
-        .snapshot()
-        .tunnels
-        .iter()
-        .find(|tunnel| tunnel.definition.name == PLAIN_TUNNEL_NAME)
-        .unwrap()
-        .definition
-        .id
+    engine.snapshot().tunnels.first().unwrap().definition.id
 }
 
 #[tokio::test]
