@@ -96,6 +96,7 @@ tunneler                 # start the daemon (or ask the running one to show its 
 tunneler up dev          # start every tunnel tagged "dev" (starts the daemon if needed)
 tunneler up 3333         # start the tunnel listening on port 3333
 tunneler up nova:3333    # same, picking the host when several tunnels share the port
+tunneler up nova -L 5000 # temporary tunnel: never saved, removed by `tunneler down` or when the daemon quits
 tunneler status          # runtime state, one tunnel per line (--json for scripts)
 tunneler down --all
 tunneler quit            # asks for confirmation when tunnels are active (--yes to skip)

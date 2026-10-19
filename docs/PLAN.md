@@ -166,6 +166,8 @@ command = "code --wait"
 
 L'état courant est stocké à part dans `state.toml` (dossier state/data) pour ne pas polluer le fichier édité à la main : `running` (tunnels démarrés par l'utilisateur, pas vidé par « Tout arrêter et quitter », relancés si `restore_on_launch`) et `keyring_entries` (passphrases déposées dans le trousseau, pour pouvoir les oublier).
 
+**Tunnels temporaires.** Un tunnel temporaire vit uniquement dans le daemon : il est dans le catalogue (drapeau `isTemporary` du `TunnelDto`, `TunnelSnapshot::is_temporary`) et tourne comme les autres (sessions partagées par hôte, reconnexion, métriques, journal, détection d'externes et de conflits), mais il n'est **jamais** écrit dans `tunnels.toml`, n'entre pas dans l'ensemble `running` de `state.toml` et n'est pas relancé au démarrage. Le catalogue ne fournit les définitions destinées au store que par `persistent_definitions()`, qui exclut les temporaires : une sauvegarde ne peut donc pas en écrire un par oubli. Arrêter un tunnel temporaire (`tunnel.stop`, interrupteur, `tunneler down`) le retire du catalogue (même événement `config.reloaded` qu'une suppression) ; un échec de connexion le laisse listé dans son état d'échec. Un arrêt par tag ne le touche pas (il n'a pas de tag). `tunnel.persist` l'écrit dans le store avec sa définition courante, sans le redémarrer, et le mémorise comme voulu s'il tourne. Il disparaît à l'arrêt du daemon. Les temporaires sont listés après les tunnels enregistrés. Seules les règles propres à un tunnel sont vérifiées au démarrage (port, adresses, genre) ; un port déjà pris se voit comme pour tout tunnel (`conflict`).
+
 ---
 
 ## 5. X11
@@ -191,6 +193,8 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 |---|---|
 | `state.snapshot` | tunnels + états + santé + métriques + settings + statut du tray |
 | `tunnel.create` / `update` / `delete` / `start` / `stop` / `restart` | |
+| `tunnel.start_temporary { host, kind, listenPort, … }` | démarre un tunnel temporaire (sans `id` ni tags) → `TunnelDto` avec `isTemporary: true` ; `validation_failed` si la définition est invalide |
+| `tunnel.persist { id }` | enregistre un tunnel temporaire dans `tunnels.toml`, sans le redémarrer ; `not_found` si l'id est inconnu, `invalid_state` s'il n'est pas temporaire |
 | `tag.start` / `tag.stop` | |
 | `tags.rename { from, to }` | renomme le tag dans tous les tunnels et dans `start_on_launch_tags` (une écriture, fusion si `to` existe) → `{ renamedCount }` |
 | `tags.delete { tag }` | retire le tag de tous les tunnels et de `start_on_launch_tags` (une écriture, les tunnels sont conservés, aucun redémarrage) → `{ removedCount }` ; `not_found` si aucun tunnel ne le porte |
@@ -252,6 +256,7 @@ Cible : **WCAG 2.2 niveau AA** pour l'UI ; CLI conforme aux conventions `NO_COLO
 - Erreurs : message clair sur stderr avec la cause et l'action suggérée, codes de sortie documentés.
 - Confirmations interactives contournables (`--yes`), jamais de prompt bloquant hors TTY.
 - `--help` complet avec exemples, aide par sous-commande.
+- **Tunnels temporaires** : `tunneler up <hôte> -L [bind:]port[:hôte:port] | -R [bind:]port[:hôte:port] | -D [bind:]port` (syntaxe OpenSSH, un seul forward par appel ; un port seul vaut le même port sur le loopback de l'hôte, comme les défauts du formulaire). Si un tunnel enregistré fait déjà ce forward (genre, hôte, port d'écoute, cible), il est démarré à la place ; sinon un tunnel temporaire est démarré et la commande d'arrêt est affichée (`tunneler down hôte:port`). `list`/`status` ajoutent `(temporaire)` et leur `--json` porte `isTemporary`.
 - **Sélecteurs de tunnel** (`up`, `down`, `open`) : un nombre (`3333`) désigne le tunnel qui écoute sur ce port (erreur listant les `hôte:port` candidats s'il y en a plusieurs), `hôte:port` (`nova:3333`) celui de cet hôte, tout le reste est un tag (casse ignorée). `--tag` force la lecture en tag. `open` exige un seul tunnel. `list` et `status` affichent le libellé de la route, pas un nom.
 
 ---
