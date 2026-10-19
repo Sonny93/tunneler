@@ -65,4 +65,4 @@ Déjà acquis par les tests automatiques (chaque composant et écran) : `axe` sa
 
 | # | Plateforme | Critère | Constat | Suite |
 |---|---|---|---|---|
-| | | | | |
+| 1 | Toutes | Contraste des bordures de contrôles (1.4.11) | Cases, champs, boutons outline de `@minimalstuff/ui` sous 3:1 | Écart assumé : pas de surcharge, rendu préféré (2026-10-19) |
