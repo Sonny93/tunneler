@@ -91,10 +91,10 @@ export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 						{problems}
 					</span>
 				)}
-				<div className="flex min-w-40 flex-1 flex-col gap-1">
+				<div className="flex min-w-min flex-1 flex-col gap-1">
 					<TunnelEndpoint
 						tunnel={tunnel}
-						className="font-semibold text-tn-text"
+						className="font-semibold whitespace-nowrap text-tn-text"
 					/>
 					<TunnelTagChips tags={tunnel.tags} />
 				</div>
