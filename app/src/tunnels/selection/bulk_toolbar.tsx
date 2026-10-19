@@ -1,12 +1,9 @@
-import { Button, IconButton } from '@minimalstuff/ui';
+import { Button, IconButton, Toolbar } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
-import { useRovingToolbar } from '#/tunnels/selection/use_roving_toolbar';
 import { useBulkTunnelActions } from '#/tunnels/selection/use_bulk_tunnel_actions';
 import { describeSelectionCount } from '#/tunnels/selection/describe_selection_count';
-
-const CLEAR_ITEM_KEY = 'clear';
 
 type BulkToolbarProps = {
 	selectedTunnels: readonly TunnelDto[];
@@ -18,18 +15,13 @@ export function BulkToolbar({ selectedTunnels }: Readonly<BulkToolbarProps>) {
 	const clearTunnelSelection = useUiStore(
 		(state) => state.clearTunnelSelection
 	);
-	const enabledKeys = [
-		...actions.filter(({ isDisabled }) => !isDisabled).map(({ key }) => key),
-		CLEAR_ITEM_KEY,
-	];
-	const { getItemProps, toolbarProps } = useRovingToolbar(enabledKeys);
 
 	return (
-		<div
-			role="toolbar"
+		<Toolbar
 			aria-label="Actions sur la sélection"
+			orientation="horizontal"
+			unstyled
 			className="flex flex-wrap items-center gap-2"
-			{...toolbarProps}
 		>
 			<span className="text-sm font-semibold">
 				{describeSelectionCount(selectedTunnels.length)}
@@ -43,7 +35,6 @@ export function BulkToolbar({ selectedTunnels }: Readonly<BulkToolbarProps>) {
 					startIcon={icon}
 					disabled={isDisabled}
 					onClick={perform}
-					{...getItemProps(key)}
 				>
 					{label}
 				</Button>
@@ -56,8 +47,7 @@ export function BulkToolbar({ selectedTunnels }: Readonly<BulkToolbarProps>) {
 				variant="ghost"
 				color="neutral"
 				onClick={clearTunnelSelection}
-				{...getItemProps(CLEAR_ITEM_KEY)}
 			/>
-		</div>
+		</Toolbar>
 	);
 }
