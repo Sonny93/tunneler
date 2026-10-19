@@ -17,9 +17,9 @@ pub use dto::{
     CredentialRequestDto, EpochMillis, ExternalForwardDto, ExternalProcessDto, FailureReasonDto,
     HostKeyAlertReasonDto, HostKeyDecisionDto, HostOptionDto, ImportCandidateDto, ImportPreviewDto,
     ImportWarningDto, LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, PromptDto, RememberDto,
-    ResolvedHostDto, SettingsDto, SnapshotDto, TargetHealthDto, TrayStatusDto, TunnelDefinitionDto,
-    TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11LauncherDto,
-    X11StateDto,
+    ResolvedHostDto, SettingsDto, SnapshotDto, TargetHealthDto, TemporaryTunnelSpecDto,
+    TrayStatusDto, TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto,
+    X11AnchorDto, X11LauncherDto, X11StateDto,
 };
 pub use error::{ErrorCode, IpcError};
 pub use event::{

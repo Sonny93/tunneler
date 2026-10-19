@@ -17,9 +17,9 @@ use ipc::protocol::{
     ExternalsChangedEvent, FailureReasonDto, HostKeyAlertReasonDto, HostKeyDecisionDto,
     HostKeyRequestEvent, HostOptionDto, ImportCandidateDto, ImportPreviewDto, ImportWarningDto,
     LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, RememberDto, ResolvedHostDto, SettingsDto,
-    SnapshotDto, TargetHealthDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto,
-    TunnelDto, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto,
-    X11AnchorDto, X11ChangedEvent, X11LauncherDto, X11StateDto,
+    SnapshotDto, TargetHealthDto, TemporaryTunnelSpecDto, TrayStatusDto, TunnelChangedEvent,
+    TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent,
+    TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11ChangedEvent, X11LauncherDto, X11StateDto,
 };
 
 use ssh_config::Resolution;
@@ -96,6 +96,18 @@ pub(crate) fn new_tunnel_from_spec(spec: TunnelSpecDto) -> NewTunnel {
         target_host: spec.target_host,
         target_port: spec.target_port,
         tags: spec.tags,
+    }
+}
+
+pub(crate) fn new_temporary_tunnel_from_spec(spec: TemporaryTunnelSpecDto) -> NewTunnel {
+    NewTunnel {
+        host: spec.host,
+        kind: kind_from_dto(spec.kind),
+        listen_port: spec.listen_port,
+        listen_address: spec.listen_address,
+        target_host: spec.target_host,
+        target_port: spec.target_port,
+        tags: Vec::new(),
     }
 }
 
@@ -197,6 +209,7 @@ pub(crate) fn tunnel_to_dto(snapshot: &TunnelSnapshot) -> TunnelDto {
         state: state_to_dto(&snapshot.state),
         health: health_to_dto(&snapshot.health),
         metrics: metrics_to_dto(&snapshot.metrics),
+        is_temporary: snapshot.is_temporary,
     }
 }
 

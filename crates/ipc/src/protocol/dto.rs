@@ -39,6 +39,28 @@ pub struct TunnelSpecDto {
     pub tags: Vec<String>,
 }
 
+/// The definition of a temporary tunnel: a [`TunnelSpecDto`] without tags,
+/// since a temporary tunnel is never saved and so is never selected by tag.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TemporaryTunnelSpecDto {
+    /// The `ssh_config` alias the tunnel goes through.
+    pub host: String,
+    /// The direction of the forward.
+    pub kind: TunnelKindDto,
+    /// The port to listen on.
+    pub listen_port: u16,
+    /// Overrides the default bind address.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listen_address: Option<String>,
+    /// The host the traffic is forwarded to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_host: Option<String>,
+    /// The port the traffic is forwarded to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_port: Option<u16>,
+}
+
 /// A configured tunnel: its identifier and its [`TunnelSpecDto`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -190,6 +212,10 @@ pub struct TunnelDto {
     pub health: TargetHealthDto,
     /// What it carried.
     pub metrics: MetricsDto,
+    /// Whether the tunnel lives only in the daemon: it is never saved, and
+    /// stopping it removes it.
+    #[serde(default)]
+    pub is_temporary: bool,
 }
 
 /// How serious a log entry is.

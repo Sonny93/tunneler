@@ -268,6 +268,30 @@ async fn should_fail_with_the_remote_error_when_the_handler_refuses() {
 }
 
 #[tokio::test]
+async fn should_persist_the_tunnel_when_the_handler_accepts() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    assert!(client.persist_tunnel("temporary").await.is_ok());
+}
+
+#[tokio::test]
+async fn should_fail_with_not_found_when_persisting_an_unknown_tunnel() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let error = client.persist_tunnel(MISSING_TUNNEL_ID).await.unwrap_err();
+
+    assert!(matches!(
+        error,
+        ClientError::Remote {
+            code: ErrorCode::NotFound,
+            ..
+        }
+    ));
+}
+
+#[tokio::test]
 async fn should_carry_the_error_data_when_the_handler_refuses_with_details() {
     let daemon = TestDaemon::start();
     let client = daemon.connect(ClientKind::Ui, false).await;

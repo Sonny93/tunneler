@@ -15,8 +15,8 @@ use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use super::mapping::{
-    definition_from_dto, import_preview_to_dto, log_entry_to_dto, new_tunnel_from_spec,
-    resolved_host_to_dto, settings_from_dto, snapshot_to_dto, tunnel_to_dto,
+    definition_from_dto, import_preview_to_dto, log_entry_to_dto, new_temporary_tunnel_from_spec,
+    new_tunnel_from_spec, resolved_host_to_dto, settings_from_dto, snapshot_to_dto, tunnel_to_dto,
 };
 use super::prompts::PromptBroker;
 use super::tray::TrayStatus;
@@ -64,6 +64,8 @@ impl DaemonHandler {
             Request::StateSnapshot {} => Ok(self.snapshot()),
             Request::TunnelCreate(spec) => self.create_tunnel(spec).await,
             Request::TunnelUpdate(definition) => self.update_tunnel(definition).await,
+            Request::TunnelStartTemporary(spec) => self.start_temporary_tunnel(spec).await,
+            Request::TunnelPersist(params) => self.persist_tunnel(params).await,
             Request::TunnelDelete(params) => self.delete_tunnel(params).await,
             Request::TunnelStart(params) => self.start_tunnel(&params),
             Request::TunnelStop(params) => self.stop_tunnel(&params),
@@ -214,6 +216,26 @@ impl DaemonHandler {
             .await
             .map_err(engine_error_to_ipc)?;
         self.tunnel_response(id)
+    }
+
+    async fn start_temporary_tunnel(
+        &self,
+        spec: ipc::protocol::TemporaryTunnelSpecDto,
+    ) -> Result<ResponsePayload, IpcError> {
+        let id = self
+            .engine
+            .start_temporary_tunnel(new_temporary_tunnel_from_spec(spec))
+            .await
+            .map_err(engine_error_to_ipc)?;
+        self.tunnel_response(id)
+    }
+
+    async fn persist_tunnel(&self, params: TunnelIdParams) -> Result<ResponsePayload, IpcError> {
+        self.engine
+            .persist_tunnel(parse_tunnel_id(&params)?)
+            .await
+            .map(|()| ResponsePayload::empty())
+            .map_err(engine_error_to_ipc)
     }
 
     async fn update_tunnel(
@@ -387,7 +409,9 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         EngineError::InvalidTag { .. } => IpcError::validation_failed(&[error.to_string()]),
         EngineError::Store(error) => store_error_to_ipc(error),
         EngineError::ShutDown => IpcError::internal("the daemon is shutting down"),
-        EngineError::NotExternal(_) => IpcError::invalid_state(error.to_string()),
+        EngineError::NotExternal(_)
+        | EngineError::TunnelIsTemporary(_)
+        | EngineError::TunnelIsNotTemporary(_) => IpcError::invalid_state(error.to_string()),
         EngineError::UnknownProcess(_) | EngineError::UnknownLauncher { .. } => {
             IpcError::not_found(error.to_string())
         }
@@ -1279,6 +1303,162 @@ mod tests {
                 .unwrap()
                 .contains("keepalive_max = 9")
         );
+    }
+
+    fn temporary_spec(listen_port: u16) -> ipc::protocol::TemporaryTunnelSpecDto {
+        ipc::protocol::TemporaryTunnelSpecDto {
+            host: "dead".to_owned(),
+            kind: TunnelKindDto::Local,
+            listen_port,
+            listen_address: None,
+            target_host: None,
+            target_port: None,
+        }
+    }
+
+    async fn started_temporary_tunnel(fixture: &Fixture, listen_port: u16) -> TunnelDto {
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::TunnelStartTemporary(temporary_spec(listen_port)),
+            )
+            .await
+            .unwrap();
+        match response {
+            ResponsePayload::Tunnel(tunnel) => tunnel,
+            other => panic!("expected a tunnel, got {other:?}"),
+        }
+    }
+
+    fn tunnel_id_params(tunnel: &TunnelDto) -> TunnelIdParams {
+        TunnelIdParams {
+            id: tunnel.definition.id.clone(),
+        }
+    }
+
+    #[tokio::test]
+    async fn should_answer_a_temporary_tunnel_when_one_is_started() {
+        let fixture = fixture();
+
+        let tunnel = started_temporary_tunnel(&fixture, free_port().await).await;
+
+        assert!(tunnel.is_temporary);
+    }
+
+    #[tokio::test]
+    async fn should_not_save_the_tunnel_when_a_temporary_tunnel_is_started() {
+        let fixture = fixture();
+
+        started_temporary_tunnel(&fixture, free_port().await).await;
+
+        assert!(
+            !std::fs::read_to_string(&fixture.store_path)
+                .unwrap_or_default()
+                .contains("[[tunnels]]")
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_validation_failed_when_a_temporary_tunnel_is_invalid() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(None, Request::TunnelStartTemporary(temporary_spec(0)))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::ValidationFailed);
+    }
+
+    #[tokio::test]
+    async fn should_remove_the_tunnel_when_a_temporary_tunnel_is_stopped() {
+        let fixture = fixture();
+        let tunnel = started_temporary_tunnel(&fixture, free_port().await).await;
+
+        fixture
+            .handler
+            .dispatch(None, Request::TunnelStop(tunnel_id_params(&tunnel)))
+            .await
+            .unwrap();
+
+        assert_eq!(fixture.engine.snapshot().tunnels, Vec::new());
+    }
+
+    #[tokio::test]
+    async fn should_save_the_tunnel_when_a_temporary_tunnel_is_persisted() {
+        let fixture = fixture();
+        let port = free_port().await;
+        let tunnel = started_temporary_tunnel(&fixture, port).await;
+
+        fixture
+            .handler
+            .dispatch(None, Request::TunnelPersist(tunnel_id_params(&tunnel)))
+            .await
+            .unwrap();
+
+        assert!(
+            std::fs::read_to_string(&fixture.store_path)
+                .unwrap()
+                .contains(&format!("listen_port = {port}"))
+        );
+        assert!(!fixture.engine.snapshot().tunnels[0].is_temporary);
+    }
+
+    #[tokio::test]
+    async fn should_answer_invalid_state_when_a_saved_tunnel_is_persisted() {
+        let fixture = fixture();
+        let tunnel = created_tunnel(&fixture, free_port().await).await;
+
+        let error = fixture
+            .handler
+            .dispatch(None, Request::TunnelPersist(tunnel_id_params(&tunnel)))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::InvalidState);
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_an_unknown_tunnel_is_persisted() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::TunnelPersist(TunnelIdParams {
+                    id: TunnelId::generate().to_string(),
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    async fn should_flag_temporary_tunnels_when_taking_a_snapshot() {
+        let fixture = fixture();
+        started_temporary_tunnel(&fixture, free_port().await).await;
+        created_tunnel(&fixture, free_port().await).await;
+
+        let response = fixture
+            .handler
+            .dispatch(None, Request::StateSnapshot {})
+            .await
+            .unwrap();
+
+        let ResponsePayload::Snapshot(snapshot) = response else {
+            panic!("expected a snapshot");
+        };
+        let flags: Vec<bool> = snapshot
+            .tunnels
+            .iter()
+            .map(|tunnel| tunnel.is_temporary)
+            .collect();
+        assert_eq!(flags, vec![false, true]);
     }
 
     fn settings_to_dto_of(fixture: &Fixture) -> SettingsDto {

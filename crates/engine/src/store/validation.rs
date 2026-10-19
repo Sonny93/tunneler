@@ -207,6 +207,18 @@ pub(crate) fn validate(document: &StoreDocument) -> Result<(), Vec<ValidationErr
     Err(errors)
 }
 
+/// Checks the rules of a single tunnel, such as a temporary one that is not
+/// part of any document.
+pub(crate) fn validate_tunnel_definition(
+    tunnel: &TunnelDefinition,
+) -> Result<(), Vec<ValidationError>> {
+    let errors = validate_tunnel(tunnel);
+    if errors.is_empty() {
+        return Ok(());
+    }
+    Err(errors)
+}
+
 fn validate_settings(settings: &Settings) -> Vec<ValidationError> {
     let mut errors = Vec::new();
     if settings.reconnect_initial_delay.is_zero() {

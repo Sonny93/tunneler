@@ -190,6 +190,7 @@ mod tests {
             state,
             health: TargetHealthDto::Unknown,
             metrics: MetricsDto::default(),
+            is_temporary: false,
         }
     }
 

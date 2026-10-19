@@ -84,7 +84,7 @@ pub enum ResponsePayload {
     Hello(HelloResult),
     /// The answer to `state.snapshot`.
     Snapshot(SnapshotDto),
-    /// The answer to `tunnel.create` and `tunnel.update`.
+    /// The answer to `tunnel.create`, `tunnel.update` and `tunnel.start_temporary`.
     Tunnel(TunnelDto),
     /// The answer to `tunnel.logs`.
     Logs(LogsResult),

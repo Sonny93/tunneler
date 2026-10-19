@@ -9,7 +9,7 @@
 use ipc::protocol::{SnapshotDto, TunnelDefinitionDto};
 use thiserror::Error;
 
-use super::render::{describe_route, kind_word};
+use super::render::{describe_tunnel_route, kind_word};
 use super::style::Style;
 
 const ENDPOINT_SEPARATOR: char = ':';
@@ -280,9 +280,17 @@ fn resolved_tunnel(
     snapshot: &SnapshotDto,
     style: Style,
 ) -> ResolvedTunnel {
+    let label = snapshot
+        .tunnels
+        .iter()
+        .find(|tunnel| tunnel.definition.id == definition.id)
+        .map_or_else(
+            || definition.id.clone(),
+            |tunnel| describe_tunnel_route(tunnel, &snapshot.settings, style),
+        );
     ResolvedTunnel {
         id: definition.id.clone(),
-        label: describe_route(definition, &snapshot.settings, style),
+        label,
     }
 }
 
@@ -386,6 +394,7 @@ mod tests {
                     state: TunnelStateDto::Stopped,
                     health: ipc::protocol::TargetHealthDto::Unknown,
                     metrics: ipc::protocol::MetricsDto::default(),
+                    is_temporary: false,
                 })
                 .collect(),
             settings: SettingsDto {

@@ -29,6 +29,9 @@ pub struct TunnelSnapshot {
     pub health: TargetHealth,
     /// What it carried.
     pub metrics: TunnelMetrics,
+    /// Whether the tunnel lives only in the daemon: it is never saved to the
+    /// store and is removed when it is stopped.
+    pub is_temporary: bool,
 }
 
 /// Builds the task of a tunnel.
@@ -43,7 +46,7 @@ pub(crate) struct TunnelFactory {
 }
 
 impl TunnelFactory {
-    fn spawn(&self, definition: TunnelDefinition) -> TunnelEntry {
+    fn spawn(&self, definition: TunnelDefinition, is_temporary: bool) -> TunnelEntry {
         let shared = TunnelShared::new(definition.id, self.bus.clone(), Arc::clone(&self.clock));
         let handle = spawn_tunnel(TunnelContext {
             definition: definition.clone(),
@@ -54,13 +57,18 @@ impl TunnelFactory {
             options: self.options,
             port_watch: Arc::clone(&self.port_watch),
         });
-        TunnelEntry { definition, handle }
+        TunnelEntry {
+            definition,
+            handle,
+            is_temporary,
+        }
     }
 }
 
 pub(crate) struct TunnelEntry {
     definition: TunnelDefinition,
     handle: TunnelHandle,
+    is_temporary: bool,
 }
 
 impl TunnelEntry {
@@ -75,6 +83,7 @@ impl TunnelEntry {
             state: status.state,
             health: status.health,
             metrics: self.handle.shared.metrics(),
+            is_temporary: self.is_temporary,
         }
     }
 
@@ -84,7 +93,12 @@ impl TunnelEntry {
     }
 }
 
-/// The tunnels the engine runs, in configuration order.
+/// The tunnels the engine runs, in configuration order, then the temporary
+/// ones in the order they were started.
+///
+/// Temporary tunnels live only here. The only way to read definitions for the
+/// store is [`persistent_definitions`](Self::persistent_definitions), which
+/// leaves them out, so a save cannot write one by forgetting to filter.
 pub(crate) struct Catalog {
     factory: TunnelFactory,
     entries: Vec<TunnelEntry>,
@@ -94,7 +108,7 @@ impl Catalog {
     pub(crate) fn new(factory: TunnelFactory, definitions: Vec<TunnelDefinition>) -> Self {
         let entries = definitions
             .into_iter()
-            .map(|definition| factory.spawn(definition))
+            .map(|definition| factory.spawn(definition, false))
             .collect();
         Self { factory, entries }
     }
@@ -103,18 +117,41 @@ impl Catalog {
         self.entries.iter().map(TunnelEntry::snapshot).collect()
     }
 
-    pub(crate) fn definitions(&self) -> Vec<TunnelDefinition> {
+    /// The definitions that belong in the store: every tunnel but the
+    /// temporary ones.
+    pub(crate) fn persistent_definitions(&self) -> Vec<TunnelDefinition> {
+        self.entries
+            .iter()
+            .filter(|entry| !entry.is_temporary)
+            .map(|entry| entry.definition.clone())
+            .collect()
+    }
+
+    /// The definitions of every tunnel the daemon runs, temporary ones
+    /// included. Never write these to the store.
+    pub(crate) fn running_definitions(&self) -> Vec<TunnelDefinition> {
         self.entries
             .iter()
             .map(|entry| entry.definition.clone())
             .collect()
     }
 
-    pub(crate) fn ids(&self) -> Vec<TunnelId> {
+    /// The ids of the tunnels the store knows.
+    pub(crate) fn persistent_ids(&self) -> Vec<TunnelId> {
         self.entries
             .iter()
+            .filter(|entry| !entry.is_temporary)
             .map(|entry| entry.definition.id)
             .collect()
+    }
+
+    pub(crate) fn is_temporary(&self, id: TunnelId) -> bool {
+        self.find(id).is_some_and(|entry| entry.is_temporary)
+    }
+
+    pub(crate) fn is_running(&self, id: TunnelId) -> bool {
+        self.find(id)
+            .is_some_and(|entry| entry.handle.shared.status().state.is_running())
     }
 
     /// The tunnels to start at launch, in configuration order: those in
@@ -126,6 +163,7 @@ impl Catalog {
     ) -> Vec<TunnelId> {
         self.entries
             .iter()
+            .filter(|entry| !entry.is_temporary)
             .filter(|entry| {
                 let definition = &entry.definition;
                 restored.is_some_and(|ids| ids.contains(&definition.id))
@@ -185,7 +223,57 @@ impl Catalog {
     }
 
     pub(crate) fn add(&mut self, definition: TunnelDefinition) {
-        self.entries.push(self.factory.spawn(definition));
+        let entry = self.factory.spawn(definition, false);
+        let position = self
+            .entries
+            .iter()
+            .position(|existing| existing.is_temporary)
+            .unwrap_or(self.entries.len());
+        self.entries.insert(position, entry);
+    }
+
+    pub(crate) fn add_temporary(&mut self, definition: TunnelDefinition) {
+        self.entries.push(self.factory.spawn(definition, true));
+    }
+
+    /// Turns a temporary tunnel into a persistent one; `false` when there is
+    /// no temporary tunnel with this id.
+    pub(crate) fn mark_persistent(&mut self, id: TunnelId) -> bool {
+        self.set_temporary(id, true, false)
+    }
+
+    /// Turns a persistent tunnel back into a temporary one; `false` when
+    /// there is no persistent tunnel with this id.
+    pub(crate) fn mark_temporary(&mut self, id: TunnelId) -> bool {
+        self.set_temporary(id, false, true)
+    }
+
+    fn set_temporary(&mut self, id: TunnelId, from: bool, to: bool) -> bool {
+        let Some(entry) = self
+            .entries
+            .iter_mut()
+            .find(|entry| entry.definition.id == id && entry.is_temporary == from)
+        else {
+            return false;
+        };
+        entry.is_temporary = to;
+        self.entries.sort_by_key(|entry| entry.is_temporary);
+        true
+    }
+
+    /// Removes a temporary tunnel and tells it to terminate; `false` when
+    /// there is no temporary tunnel with this id. The tunnel finishes
+    /// stopping in the background.
+    pub(crate) fn remove_temporary(&mut self, id: TunnelId) -> bool {
+        let Some(position) = self
+            .entries
+            .iter()
+            .position(|entry| entry.definition.id == id && entry.is_temporary)
+        else {
+            return false;
+        };
+        self.entries.remove(position).terminate();
+        true
     }
 
     pub(crate) fn replace(&mut self, definition: TunnelDefinition) -> bool {
@@ -214,7 +302,7 @@ impl Catalog {
             removed,
             added,
             changed,
-        } = plan_reload(&self.definitions(), next);
+        } = plan_reload(&self.persistent_definitions(), next);
         let stopping = removed
             .into_iter()
             .filter_map(|id| self.remove(id))
@@ -241,6 +329,7 @@ impl Catalog {
             definitions
                 .iter()
                 .position(|definition| definition.id == entry.definition.id)
+                .unwrap_or(usize::MAX)
         });
     }
 

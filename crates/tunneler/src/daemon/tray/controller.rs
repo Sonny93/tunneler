@@ -263,6 +263,7 @@ mod tests {
             state,
             health: TargetHealth::Unknown,
             metrics: TunnelMetrics::default(),
+            is_temporary: false,
         }
     }
 

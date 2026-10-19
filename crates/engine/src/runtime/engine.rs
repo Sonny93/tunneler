@@ -29,7 +29,7 @@ use crate::runtime::x11_state::X11AnchorSnapshot;
 use crate::state_tracker::StateTracker;
 use crate::store::{
     Settings, StateStore, Store, StoreError, TagProblem, TunnelDefinition, TunnelId, TunnelKind,
-    X11Launcher, find_tag_problem,
+    X11Launcher, find_tag_problem, validate_tunnel_definition,
 };
 use crate::x11::{LocalX11Resolver, X11Environment, X11Error};
 
@@ -56,6 +56,12 @@ pub enum EngineError {
     /// The engine was shut down.
     #[error("the engine was shut down")]
     ShutDown,
+    /// The operation applies to saved tunnels, and this one is temporary.
+    #[error("the tunnel {0} is temporary")]
+    TunnelIsTemporary(TunnelId),
+    /// The operation applies to temporary tunnels, and this one is saved.
+    #[error("the tunnel {0} is not temporary")]
+    TunnelIsNotTemporary(TunnelId),
     /// The tunnel is not provided by an external process.
     #[error("the tunnel {0} is not provided by an external process")]
     NotExternal(TunnelId),
@@ -181,6 +187,7 @@ impl EngineInner {
     }
 
     /// Remembers that the user wants these tunnels running.
+    /// Temporary tunnels are never remembered.
     pub(crate) fn record_wanted(&self, ids: &[TunnelId]) {
         self.update_wanted(|running| running.extend(ids.iter().copied()));
     }
@@ -195,7 +202,7 @@ impl EngineInner {
     }
 
     fn update_wanted(&self, change: impl FnOnce(&mut BTreeSet<TunnelId>)) {
-        let known: HashSet<TunnelId> = self.catalog().ids().into_iter().collect();
+        let known: HashSet<TunnelId> = self.catalog().persistent_ids().into_iter().collect();
         self.state.update(|state| {
             change(&mut state.running);
             state.running.retain(|id| known.contains(id));
@@ -357,7 +364,7 @@ impl Engine {
         self.ensure_running()?;
         let definition = new_tunnel.into_definition(TunnelId::generate());
         let id = definition.id;
-        let mut tunnels = self.inner.catalog().definitions();
+        let mut tunnels = self.inner.catalog().persistent_definitions();
         tunnels.push(definition.clone());
         self.inner.persist_tunnels(tunnels).await?;
         self.inner.catalog().add(definition);
@@ -371,10 +378,13 @@ impl Engine {
     pub async fn update_tunnel(&self, definition: TunnelDefinition) -> Result<(), EngineError> {
         let _serialized = self.inner.mutation.lock().await;
         self.ensure_running()?;
+        if self.inner.catalog().is_temporary(definition.id) {
+            return Err(EngineError::TunnelIsTemporary(definition.id));
+        }
         let tunnels: Vec<TunnelDefinition> = self
             .inner
             .catalog()
-            .definitions()
+            .persistent_definitions()
             .into_iter()
             .map(|existing| {
                 if existing.id == definition.id {
@@ -427,7 +437,7 @@ impl Engine {
             return Ok(0);
         }
         let mut document = self.inner.store.document();
-        let current = self.inner.catalog().definitions();
+        let current = self.inner.catalog().persistent_definitions();
         let renamed = rename_tag(&current, &document.settings.start_on_launch_tags, from, to);
         document.tunnels.clone_from(&renamed.tunnels);
         document.settings.start_on_launch_tags = renamed.start_on_launch_tags;
@@ -454,7 +464,7 @@ impl Engine {
             return Err(EngineError::UnknownTag(tag.to_owned()));
         }
         let mut document = self.inner.store.document();
-        let current = self.inner.catalog().definitions();
+        let current = self.inner.catalog().persistent_definitions();
         let deletion = delete_tag(&current, &document.settings.start_on_launch_tags, tag);
         document.tunnels.clone_from(&deletion.tunnels);
         document.settings.start_on_launch_tags = deletion.start_on_launch_tags;
@@ -471,20 +481,79 @@ impl Engine {
         Ok(deletion.removed_count)
     }
 
-    /// Stops the tunnel if it runs, removes it and saves the store.
+    /// Stops the tunnel if it runs, removes it and saves the store. A
+    /// temporary tunnel is only removed: the store never held it.
     pub async fn delete_tunnel(&self, id: TunnelId) -> Result<(), EngineError> {
         let _serialized = self.inner.mutation.lock().await;
         self.ensure_running()?;
         if !self.inner.catalog().contains(id) {
             return Err(EngineError::UnknownTunnel(id));
         }
-        let mut tunnels = self.inner.catalog().definitions();
+        if self.inner.catalog().remove_temporary(id) {
+            self.inner.bus.publish(EngineEvent::ConfigReloaded);
+            return Ok(());
+        }
+        let mut tunnels = self.inner.catalog().persistent_definitions();
         tunnels.retain(|definition| definition.id != id);
         self.inner.persist_tunnels(tunnels).await?;
         let stopping = self.inner.catalog().remove(id);
         self.inner.record_unwanted(&[id]);
         if let Some(task) = stopping {
             let _ = task.await;
+        }
+        self.inner.bus.publish(EngineEvent::ConfigReloaded);
+        Ok(())
+    }
+
+    /// Starts a tunnel that lives only in the daemon and returns its new id.
+    ///
+    /// The tunnel is validated like any other, runs like any other, and is
+    /// never saved to the store nor remembered in the state file. It is
+    /// removed when it is stopped. Its tags are dropped: it has none. Use
+    /// [`persist_tunnel`](Self::persist_tunnel) to keep it.
+    pub async fn start_temporary_tunnel(
+        &self,
+        new_tunnel: NewTunnel,
+    ) -> Result<TunnelId, EngineError> {
+        let _serialized = self.inner.mutation.lock().await;
+        self.ensure_running()?;
+        let definition = NewTunnel {
+            tags: Vec::new(),
+            ..new_tunnel
+        }
+        .into_definition(TunnelId::generate());
+        validate_tunnel_definition(&definition).map_err(StoreError::Validation)?;
+        let id = definition.id;
+        {
+            let mut catalog = self.inner.catalog();
+            catalog.add_temporary(definition);
+            catalog.send(id, TunnelCommand::Start);
+        }
+        self.inner.bus.publish(EngineEvent::ConfigReloaded);
+        Ok(id)
+    }
+
+    /// Saves a temporary tunnel to the store with its current definition. It
+    /// becomes a regular tunnel and keeps running, without restarting.
+    pub async fn persist_tunnel(&self, id: TunnelId) -> Result<(), EngineError> {
+        let _serialized = self.inner.mutation.lock().await;
+        self.ensure_running()?;
+        let tunnels = {
+            let mut catalog = self.inner.catalog();
+            if !catalog.contains(id) {
+                return Err(EngineError::UnknownTunnel(id));
+            }
+            if !catalog.mark_persistent(id) {
+                return Err(EngineError::TunnelIsNotTemporary(id));
+            }
+            catalog.persistent_definitions()
+        };
+        if let Err(error) = self.inner.persist_tunnels(tunnels).await {
+            self.inner.catalog().mark_temporary(id);
+            return Err(error.into());
+        }
+        if self.inner.catalog().is_running(id) {
+            self.inner.record_wanted(&[id]);
         }
         self.inner.bus.publish(EngineEvent::ConfigReloaded);
         Ok(())
@@ -497,8 +566,15 @@ impl Engine {
         Ok(())
     }
 
-    /// Stops the tunnel. Does nothing when it is already stopped.
+    /// Stops the tunnel. Does nothing when it is already stopped. A temporary
+    /// tunnel is removed instead, whatever its state, and clients are told as
+    /// for a deletion.
     pub fn stop_tunnel(&self, id: TunnelId) -> Result<(), EngineError> {
+        self.ensure_running()?;
+        if self.inner.catalog().remove_temporary(id) {
+            self.inner.bus.publish(EngineEvent::ConfigReloaded);
+            return Ok(());
+        }
         self.send(id, TunnelCommand::Stop)?;
         self.inner.record_unwanted(&[id]);
         Ok(())
@@ -516,7 +592,8 @@ impl Engine {
         Ok(ids)
     }
 
-    /// Stops every tunnel carrying the tag and returns their ids.
+    /// Stops every tunnel carrying the tag and returns their ids. Temporary
+    /// tunnels carry no tag, so they are never touched.
     pub fn stop_tag(&self, tag: &str) -> Result<Vec<TunnelId>, EngineError> {
         let ids = self.send_to_tag(tag, || TunnelCommand::Stop)?;
         self.inner.record_unwanted(&ids);

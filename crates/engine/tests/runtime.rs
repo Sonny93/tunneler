@@ -3138,3 +3138,338 @@ async fn should_not_record_the_launch_starts_as_wishes_of_the_user() {
 
     assert_eq!(wanted_ids(&harness), Vec::<TunnelId>::new());
 }
+
+fn temporary_tunnel(listen_port: u16, target_port: u16) -> NewTunnel {
+    NewTunnel {
+        tags: Vec::new(),
+        target_port: Some(target_port),
+        ..new_tunnel(listen_port)
+    }
+}
+
+fn snapshot_of(harness: &Harness, id: TunnelId) -> Option<engine::TunnelSnapshot> {
+    harness
+        .engine
+        .snapshot()
+        .tunnels
+        .into_iter()
+        .find(|tunnel| tunnel.definition.id == id)
+}
+
+async fn start_active_temporary(harness: &mut Harness) -> (TunnelId, u16) {
+    let port = free_port().await;
+    let id = harness
+        .engine
+        .start_temporary_tunnel(temporary_tunnel(port, harness.echo.port))
+        .await
+        .unwrap();
+    wait_for_state(
+        &mut harness.events,
+        id,
+        |state| matches!(state, TunnelState::Active),
+        WAIT,
+    )
+    .await;
+    (id, port)
+}
+
+#[tokio::test]
+async fn should_run_a_temporary_tunnel_like_any_other_when_it_is_started() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let (id, port) = start_active_temporary(&mut harness).await;
+
+    assert_eq!(echo_through(port, PAYLOAD).await, PAYLOAD);
+    assert!(snapshot_of(&harness, id).unwrap().is_temporary);
+}
+
+#[tokio::test]
+async fn should_drop_the_tags_when_a_temporary_tunnel_is_started() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let id = harness
+        .engine
+        .start_temporary_tunnel(new_tunnel(free_port().await))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        snapshot_of(&harness, id).unwrap().definition.tags,
+        Vec::<String>::new()
+    );
+}
+
+#[tokio::test]
+async fn should_never_write_a_temporary_tunnel_when_the_store_is_saved_by_other_changes() {
+    let mut harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+    let (_, temporary_port) = start_active_temporary(&mut harness).await;
+
+    let created_port = free_port().await;
+    harness
+        .engine
+        .create_tunnel(new_tunnel(created_port))
+        .await
+        .unwrap();
+    harness.engine.rename_tag("dev", "staging").await.unwrap();
+    harness.engine.delete_tag("staging").await.unwrap();
+    let settings = harness.engine.snapshot().settings;
+    harness.engine.update_settings(settings).await.unwrap();
+    let alpha = harness.engine.snapshot().tunnels.remove(0).definition;
+    harness.engine.update_tunnel(alpha).await.unwrap();
+    harness
+        .engine
+        .delete_tunnel(harness.id("alpha"))
+        .await
+        .unwrap();
+
+    assert_eq!(saved_tunnel_ports(&harness), [created_port]);
+    let file_text = std::fs::read_to_string(harness.store_path()).unwrap();
+    assert!(!file_text.contains(&temporary_port.to_string()));
+}
+
+#[tokio::test]
+async fn should_keep_a_temporary_tunnel_when_the_store_file_is_edited() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let (id, _) = start_active_temporary(&mut harness).await;
+
+    harness.rewrite_store();
+    std::fs::write(
+        harness.store_path(),
+        format!(
+            "{}\n",
+            std::fs::read_to_string(harness.store_path()).unwrap()
+        ),
+    )
+    .unwrap();
+    harness.wait_for_config_reload().await;
+
+    assert!(snapshot_of(&harness, id).is_some());
+    assert_eq!(harness.engine.snapshot().tunnels.len(), 2);
+}
+
+#[tokio::test]
+async fn should_not_remember_a_temporary_tunnel_as_wanted_when_it_runs() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    start_active_temporary(&mut harness).await;
+    harness.start_tunnel("alpha");
+    wait_until_wanted(&harness, "alpha", true).await;
+
+    assert_eq!(wanted_ids(&harness), vec![harness.id("alpha")]);
+}
+
+#[tokio::test]
+async fn should_not_start_a_temporary_tunnel_when_the_launch_tunnels_start() {
+    let mut harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+    configure_launch(&harness, true, &["dev"]).await;
+    let (id, _) = start_active_temporary(&mut harness).await;
+
+    let started = harness.engine.start_launch_tunnels().unwrap();
+
+    assert_eq!(started, vec![harness.id("alpha")]);
+    assert!(!started.contains(&id));
+}
+
+#[tokio::test]
+async fn should_remove_the_tunnel_and_free_its_port_when_a_temporary_tunnel_is_stopped() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let (id, port) = start_active_temporary(&mut harness).await;
+
+    harness.engine.stop_tunnel(id).unwrap();
+
+    harness.wait_for_config_reload().await;
+    assert!(snapshot_of(&harness, id).is_none());
+    wait_until(WAIT, "the port to be released", || {
+        std::net::TcpListener::bind((LOOPBACK, port)).is_ok()
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn should_remove_the_tunnel_when_a_temporary_tunnel_is_deleted() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let (id, _) = start_active_temporary(&mut harness).await;
+
+    harness.engine.delete_tunnel(id).await.unwrap();
+
+    assert!(snapshot_of(&harness, id).is_none());
+    assert_eq!(saved_tunnel_ports(&harness), [harness.port("alpha")]);
+}
+
+#[tokio::test]
+async fn should_leave_a_temporary_tunnel_alone_when_a_tag_is_stopped() {
+    let mut harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+    let (id, _) = start_active_temporary(&mut harness).await;
+
+    harness.engine.stop_tag("dev").unwrap();
+    sleep(QUIET_PERIOD).await;
+
+    assert!(snapshot_of(&harness, id).is_some());
+}
+
+#[tokio::test]
+async fn should_keep_a_temporary_tunnel_in_its_failed_state_when_the_connection_fails() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .with_unauthorized_client_key()
+        .start()
+        .await;
+
+    let id = harness
+        .engine
+        .start_temporary_tunnel(temporary_tunnel(free_port().await, harness.echo.port))
+        .await
+        .unwrap();
+    wait_for_state(
+        &mut harness.events,
+        id,
+        |state| matches!(state, TunnelState::Failed { .. }),
+        WAIT,
+    )
+    .await;
+
+    let snapshot = snapshot_of(&harness, id).unwrap();
+    assert!(snapshot.is_temporary && matches!(snapshot.state, TunnelState::Failed { .. }));
+}
+
+#[tokio::test]
+async fn should_refuse_a_temporary_tunnel_when_its_definition_is_invalid() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let outcome = harness
+        .engine
+        .start_temporary_tunnel(temporary_tunnel(0, harness.echo.port))
+        .await;
+
+    assert!(matches!(
+        outcome,
+        Err(EngineError::Store(StoreError::Validation(_)))
+    ));
+}
+
+#[tokio::test]
+async fn should_report_a_conflict_when_the_port_of_a_temporary_tunnel_is_already_taken() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let squatter = TcpListener::bind((LOOPBACK, 0)).await.unwrap();
+    let port = squatter.local_addr().unwrap().port();
+
+    let id = harness
+        .engine
+        .start_temporary_tunnel(temporary_tunnel(port, harness.echo.port))
+        .await
+        .unwrap();
+
+    let state = wait_for_state(
+        &mut harness.events,
+        id,
+        |state| matches!(state, TunnelState::Conflict { .. }),
+        WAIT,
+    )
+    .await;
+    assert!(matches!(state, TunnelState::Conflict { .. }));
+}
+
+#[tokio::test]
+async fn should_refuse_to_update_a_tunnel_when_it_is_temporary() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let (id, _) = start_active_temporary(&mut harness).await;
+    let definition = snapshot_of(&harness, id).unwrap().definition;
+
+    let outcome = harness.engine.update_tunnel(definition).await;
+
+    assert!(matches!(outcome, Err(EngineError::TunnelIsTemporary(_))));
+}
+
+#[tokio::test]
+async fn should_save_the_tunnel_once_and_keep_it_running_when_it_is_persisted() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let (id, port) = start_active_temporary(&mut harness).await;
+
+    harness.engine.persist_tunnel(id).await.unwrap();
+
+    assert_eq!(saved_tunnel_ports(&harness), [harness.port("alpha"), port]);
+    let snapshot = snapshot_of(&harness, id).unwrap();
+    assert!(!snapshot.is_temporary && snapshot.state == TunnelState::Active);
+    assert_eq!(echo_through(port, PAYLOAD).await, PAYLOAD);
+}
+
+#[tokio::test]
+async fn should_not_restart_the_tunnel_when_it_is_persisted() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let (id, _) = start_active_temporary(&mut harness).await;
+    let connections = harness.server.connection_count();
+
+    harness.engine.persist_tunnel(id).await.unwrap();
+    sleep(QUIET_PERIOD).await;
+
+    assert_eq!(harness.server.connection_count(), connections);
+}
+
+#[tokio::test]
+async fn should_remember_the_tunnel_as_wanted_when_a_running_temporary_tunnel_is_persisted() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let (id, _) = start_active_temporary(&mut harness).await;
+
+    harness.engine.persist_tunnel(id).await.unwrap();
+
+    let store = Arc::clone(&harness.state_store);
+    wait_until(WAIT, "the saved state to follow the command", move || {
+        store.state().running.contains(&id)
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn should_keep_a_persisted_tunnel_when_it_is_stopped() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let (id, _) = start_active_temporary(&mut harness).await;
+    harness.engine.persist_tunnel(id).await.unwrap();
+
+    harness.engine.stop_tunnel(id).unwrap();
+    wait_for_state(
+        &mut harness.events,
+        id,
+        |state| matches!(state, TunnelState::Stopped),
+        WAIT,
+    )
+    .await;
+
+    assert!(snapshot_of(&harness, id).is_some());
+}
+
+#[tokio::test]
+async fn should_fail_with_unknown_tunnel_when_persisting_a_tunnel_that_does_not_exist() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let outcome = harness.engine.persist_tunnel(TunnelId::generate()).await;
+
+    assert!(matches!(outcome, Err(EngineError::UnknownTunnel(_))));
+}
+
+#[tokio::test]
+async fn should_fail_with_not_temporary_when_persisting_a_saved_tunnel() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let outcome = harness.engine.persist_tunnel(harness.id("alpha")).await;
+
+    assert!(matches!(outcome, Err(EngineError::TunnelIsNotTemporary(_))));
+}
+
+#[tokio::test]
+async fn should_list_the_temporary_tunnels_last_when_a_tunnel_is_created_after_them() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let (temporary_id, _) = start_active_temporary(&mut harness).await;
+
+    let created_id = harness
+        .engine
+        .create_tunnel(new_tunnel(free_port().await))
+        .await
+        .unwrap();
+
+    let order: Vec<TunnelId> = harness
+        .engine
+        .snapshot()
+        .tunnels
+        .iter()
+        .map(|tunnel| tunnel.definition.id)
+        .collect();
+    assert_eq!(order, vec![harness.id("alpha"), created_id, temporary_id]);
+}

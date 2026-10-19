@@ -11,10 +11,11 @@ use ipc::protocol::{
     PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent, QuitParams,
     RememberDto, RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload,
     Secret, ServerFrame, SettingsDto, SnapshotDto, TagParams, TagRenameParams, TargetHealthDto,
-    TrayChangedEvent, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
-    TunnelIdParams, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto,
-    TunnelStateDto, UiClaimResult, X11AnchorDto, X11ChangedEvent, X11HostParams, X11LaunchParams,
-    X11LauncherDto, X11StateDto, encode_event, encode_response,
+    TemporaryTunnelSpecDto, TrayChangedEvent, TrayStatusDto, TunnelChangedEvent,
+    TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto, TunnelLogEvent,
+    TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, UiClaimResult, X11AnchorDto,
+    X11ChangedEvent, X11HostParams, X11LaunchParams, X11LauncherDto, X11StateDto, encode_event,
+    encode_response,
 };
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -76,6 +77,18 @@ fn tunnel() -> TunnelDto {
             bytes_out: 20,
             last_activity: Some(1_700_000_001_000),
         },
+        is_temporary: false,
+    }
+}
+
+fn temporary_spec() -> TemporaryTunnelSpecDto {
+    TemporaryTunnelSpecDto {
+        host: "nova".to_owned(),
+        kind: TunnelKindDto::Local,
+        listen_port: 5000,
+        listen_address: None,
+        target_host: None,
+        target_port: None,
     }
 }
 
@@ -156,7 +169,9 @@ fn every_request() -> Vec<Request> {
         Request::TunnelStart(tunnel_id.clone()),
         Request::TunnelStop(tunnel_id.clone()),
         Request::TunnelRestart(tunnel_id.clone()),
-        Request::TunnelLogs(tunnel_id),
+        Request::TunnelLogs(tunnel_id.clone()),
+        Request::TunnelStartTemporary(temporary_spec()),
+        Request::TunnelPersist(tunnel_id),
         Request::HostsList {},
         Request::HostsResolve(HostParams {
             host: "nova".to_owned(),
@@ -346,6 +361,54 @@ fn should_serialize_tunnel_create_as_documented() {
         serde_json::to_string(&envelope).unwrap(),
         r#"{"id":2,"method":"tunnel.create","params":{"host":"nova","kind":"local","listenPort":3333,"targetHost":"db.internal","targetPort":5432,"tags":["dev"]}}"#
     );
+}
+
+#[test]
+fn should_serialize_tunnel_start_temporary_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 3,
+        request: Request::TunnelStartTemporary(temporary_spec()),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":3,"method":"tunnel.start_temporary","params":{"host":"nova","kind":"local","listenPort":5000}}"#
+    );
+}
+
+#[test]
+fn should_serialize_tunnel_persist_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 5,
+        request: Request::TunnelPersist(TunnelIdParams {
+            id: TUNNEL_ID.to_owned(),
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":5,"method":"tunnel.persist","params":{"id":"01J9ZK3Q8M5N7R2T4V6X8Y0ABC"}}"#
+    );
+}
+
+#[test]
+fn should_serialize_a_temporary_tunnel_with_its_flag() {
+    let temporary = TunnelDto {
+        is_temporary: true,
+        ..tunnel()
+    };
+
+    assert_eq!(to_json(&temporary)["isTemporary"], json!(true));
+}
+
+#[test]
+fn should_deserialize_a_tunnel_without_the_temporary_flag_as_saved() {
+    let mut value = to_json(&tunnel());
+    value.as_object_mut().unwrap().remove("isTemporary");
+
+    let parsed: TunnelDto = serde_json::from_value(value).unwrap();
+
+    assert!(!parsed.is_temporary);
 }
 
 #[test]
@@ -840,7 +903,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#"{"id":4,"result":{"tunnels":[{"id":"01J9ZK3Q8M5N7R2T4V6X8Y0ABC","host":"nova","kind":"local","listenPort":3333,"targetHost":"db.internal","targetPort":5432,"tags":["dev"],"#,
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
-            r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000}}],"#,
+            r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isTemporary":false}],"#,
             r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"healthProbe":true,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[]}}"#,
             "\n"
         )
@@ -1206,8 +1269,8 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_thirty_one_methods() {
-    assert_eq!(METHOD_NAMES.len(), 31);
+fn should_list_thirty_three_methods() {
+    assert_eq!(METHOD_NAMES.len(), 33);
 }
 
 #[test]

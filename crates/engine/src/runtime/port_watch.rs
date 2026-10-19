@@ -169,7 +169,7 @@ impl EngineInner {
         let definitions = {
             let catalog = self.catalog();
             catalog.observe_ports(&settings, scan, &ignored, own_pid);
-            catalog.definitions()
+            catalog.running_definitions()
         };
         let externals = unmanaged_processes(&definitions, &settings, scan, &ignored, own_pid);
         if self.port_watch.replace_externals(externals.clone()) {

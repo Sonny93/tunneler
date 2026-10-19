@@ -20,9 +20,9 @@ use crate::protocol::{
     EventMessage, ForgetSecretsResult, Hello, HostKeyDecisionDto, HostKeyResponseParams,
     HostParams, HostsResult, ImportPreviewDto, ImportScriptParams, LogEntryDto, LogsResult,
     ProcessParams, QuitParams, RememberDto, RenameTagResult, Request, RequestEnvelope,
-    ResolvedHostDto, SettingsDto, SnapshotDto, TagParams, TagRenameParams, TunnelDefinitionDto,
-    TunnelDto, TunnelIdParams, TunnelSpecDto, UiClaimResult, X11HostParams, X11LaunchParams,
-    encode_line,
+    ResolvedHostDto, SettingsDto, SnapshotDto, TagParams, TagRenameParams, TemporaryTunnelSpecDto,
+    TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelSpecDto, UiClaimResult, X11HostParams,
+    X11LaunchParams, encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -129,6 +129,29 @@ impl IpcClient {
     /// Fails when the call fails; see [`ClientError`].
     pub async fn create_tunnel(&self, spec: TunnelSpecDto) -> Result<TunnelDto, ClientError> {
         self.call(Request::TunnelCreate(spec)).await
+    }
+
+    /// Starts a temporary tunnel: it is never saved and stopping it removes
+    /// it.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn start_temporary_tunnel(
+        &self,
+        spec: TemporaryTunnelSpecDto,
+    ) -> Result<TunnelDto, ClientError> {
+        self.call(Request::TunnelStartTemporary(spec)).await
+    }
+
+    /// Saves a temporary tunnel; it keeps running.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn persist_tunnel(&self, id: &str) -> Result<(), ClientError> {
+        self.call_without_result(Request::TunnelPersist(tunnel_id(id)))
+            .await
     }
 
     /// Replaces the definition of a tunnel.

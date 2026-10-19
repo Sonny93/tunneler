@@ -23,6 +23,7 @@ const BYTE_UNITS: [&str; 4] = ["KiB", "MiB", "GiB", "TiB"];
 const NO_TUNNELS_MESSAGE: &str = "No tunnels configured.";
 const UNMANAGED_HEADING: &str = "Unmanaged ssh processes:";
 const X11_HEADING: &str = "X11:";
+const TEMPORARY_MARKER: &str = "(temporaire)";
 
 /// The reason of a failure, as a sentence fragment.
 pub fn describe_failure(reason: &FailureReasonDto) -> String {
@@ -216,6 +217,15 @@ pub fn describe_route(
     }
 }
 
+/// The route of a tunnel, followed by `(temporaire)` when it is temporary.
+pub fn describe_tunnel_route(tunnel: &TunnelDto, settings: &SettingsDto, style: Style) -> String {
+    let route = describe_route(&tunnel.definition, settings, style);
+    if tunnel.is_temporary {
+        return format!("{route} {TEMPORARY_MARKER}");
+    }
+    route
+}
+
 fn describe_tags(tags: &[String]) -> Option<String> {
     if tags.is_empty() {
         return None;
@@ -254,7 +264,7 @@ fn render_tunnel_line(tunnel: &TunnelDto, settings: &SettingsDto, style: Style) 
     let definition = &tunnel.definition;
     let mut parts = vec![
         describe_state(&tunnel.state, style),
-        describe_route(definition, settings, style),
+        describe_tunnel_route(tunnel, settings, style),
     ];
     parts.extend(describe_tags(&definition.spec.tags));
     let mut line = parts.join("  ");
@@ -397,7 +407,7 @@ pub fn render_list(snapshot: &SnapshotDto, style: Style) -> String {
             let definition = &tunnel.definition;
             let mut parts = vec![
                 kind_word(definition.spec.kind).to_owned(),
-                describe_route(definition, &snapshot.settings, style),
+                describe_tunnel_route(tunnel, &snapshot.settings, style),
             ];
             parts.extend(describe_tags(&definition.spec.tags));
             parts.join("  ")
@@ -415,8 +425,16 @@ struct StatusJson<'a> {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ListedTunnelJson<'a> {
+    #[serde(flatten)]
+    definition: &'a TunnelDefinitionDto,
+    is_temporary: bool,
+}
+
+#[derive(Serialize)]
 struct ListJson<'a> {
-    tunnels: Vec<&'a TunnelDefinitionDto>,
+    tunnels: Vec<ListedTunnelJson<'a>>,
 }
 
 /// The `status --json` output: `{"daemonVersion", "tunnels": [TunnelDto…],
@@ -433,13 +451,16 @@ pub fn render_status_json(
 }
 
 /// The `list --json` output: `{"tunnels": [TunnelDefinitionDto…]}` on a single
-/// line.
+/// line, each definition carrying `isTemporary` too.
 pub fn render_list_json(snapshot: &SnapshotDto) -> Result<String, serde_json::Error> {
     serde_json::to_string(&ListJson {
         tunnels: snapshot
             .tunnels
             .iter()
-            .map(|tunnel| &tunnel.definition)
+            .map(|tunnel| ListedTunnelJson {
+                definition: &tunnel.definition,
+                is_temporary: tunnel.is_temporary,
+            })
             .collect(),
     })
 }
@@ -500,6 +521,7 @@ mod tests {
             state,
             health: TargetHealthDto::Unknown,
             metrics: MetricsDto::default(),
+            is_temporary: false,
         }
     }
 
@@ -996,6 +1018,60 @@ mod tests {
             ),
             "local  3333 → nova:3333  [dev, adonis]"
         );
+    }
+
+    #[test]
+    fn should_mark_a_temporary_tunnel_when_rendering_the_status() {
+        let temporary = TunnelDto {
+            is_temporary: true,
+            ..tunnel(TunnelStateDto::Active)
+        };
+
+        assert_eq!(
+            render_status(&snapshot_of(vec![temporary]), ASCII_PLAIN),
+            "[ok] active  3333 -> nova:3333 (temporaire)  [dev, adonis]"
+        );
+    }
+
+    #[test]
+    fn should_mark_a_temporary_tunnel_when_listing() {
+        let temporary = TunnelDto {
+            is_temporary: true,
+            ..tunnel(TunnelStateDto::Active)
+        };
+
+        assert_eq!(
+            render_list(&snapshot_of(vec![temporary]), ASCII_PLAIN),
+            "local  3333 -> nova:3333 (temporaire)  [dev, adonis]"
+        );
+    }
+
+    #[test]
+    fn should_not_mark_a_saved_tunnel() {
+        assert!(
+            !render_status(
+                &snapshot_of(vec![tunnel(TunnelStateDto::Active)]),
+                ASCII_PLAIN
+            )
+            .contains("temporaire")
+        );
+    }
+
+    #[test]
+    fn should_flag_each_tunnel_when_listing_json() {
+        let temporary = TunnelDto {
+            is_temporary: true,
+            ..tunnel(TunnelStateDto::Active)
+        };
+
+        let json = render_list_json(&snapshot_of(vec![
+            tunnel(TunnelStateDto::Active),
+            temporary,
+        ]))
+        .unwrap();
+
+        assert_eq!(json.matches("\"isTemporary\":true").count(), 1);
+        assert_eq!(json.matches("\"isTemporary\":false").count(), 1);
     }
 
     #[test]

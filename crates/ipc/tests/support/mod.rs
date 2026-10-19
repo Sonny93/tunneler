@@ -62,6 +62,9 @@ impl RequestHandler for FakeHandler {
             Request::TunnelDelete(params) if params.id == MISSING_TUNNEL_ID => {
                 Err(IpcError::not_found("no such tunnel"))
             }
+            Request::TunnelPersist(params) if params.id == MISSING_TUNNEL_ID => {
+                Err(IpcError::not_found("no such tunnel"))
+            }
             Request::HostsResolve(params) => Ok(ResponsePayload::ResolvedHost(ResolvedHostDto {
                 host: params.host,
                 options: vec![HostOptionDto {

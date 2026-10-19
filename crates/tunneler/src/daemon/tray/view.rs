@@ -201,6 +201,7 @@ mod tests {
             state,
             health,
             metrics: TunnelMetrics::default(),
+            is_temporary: false,
         }
     }
 

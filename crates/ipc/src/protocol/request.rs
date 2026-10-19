@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::protocol::dto::{
-    HostKeyDecisionDto, RememberDto, SettingsDto, TunnelDefinitionDto, TunnelSpecDto,
+    HostKeyDecisionDto, RememberDto, SettingsDto, TemporaryTunnelSpecDto, TunnelDefinitionDto,
+    TunnelSpecDto,
 };
 use crate::protocol::error::IpcError;
 use crate::protocol::hello::Hello;
@@ -16,7 +17,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 31] = [
+pub const METHOD_NAMES: [&str; 33] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -26,6 +27,8 @@ pub const METHOD_NAMES: [&str; 31] = [
     "tunnel.stop",
     "tunnel.restart",
     "tunnel.logs",
+    "tunnel.start_temporary",
+    "tunnel.persist",
     "hosts.list",
     "hosts.resolve",
     "import.ssh_config",
@@ -193,6 +196,16 @@ pub enum Request {
     /// Reads the recent log of a tunnel.
     #[serde(rename = "tunnel.logs")]
     TunnelLogs(TunnelIdParams),
+    /// Starts a temporary tunnel: it runs in the daemon, is never saved and
+    /// is removed when stopped. Answers `validation_failed` when the
+    /// definition is invalid.
+    #[serde(rename = "tunnel.start_temporary")]
+    TunnelStartTemporary(TemporaryTunnelSpecDto),
+    /// Saves a temporary tunnel, which keeps running; answers `not_found`
+    /// when the tunnel does not exist and `invalid_state` when it is not
+    /// temporary.
+    #[serde(rename = "tunnel.persist")]
+    TunnelPersist(TunnelIdParams),
     /// Lists the concrete `Host` aliases of the user's `ssh_config`.
     #[serde(rename = "hosts.list")]
     HostsList {},
