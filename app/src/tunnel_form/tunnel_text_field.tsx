@@ -1,7 +1,6 @@
 import { Input } from '@minimalstuff/ui';
-import { useId, type ChangeEvent } from 'react';
+import type { ChangeEvent } from 'react';
 
-import { FormHint } from '#/shared/form_hint';
 import type { TunnelFormTextField } from '#/tunnel_form/tunnel_form_reducer';
 
 type TunnelTextFieldProps = {
@@ -29,27 +28,22 @@ export function TunnelTextField({
 	inputMode,
 	listId,
 }: Readonly<TunnelTextFieldProps>) {
-	const hintId = useId();
-
 	const handleChange = (event: ChangeEvent<HTMLInputElement>) =>
 		onChange(field, event.target.value);
 
 	return (
-		<div>
-			<Input
-				name={field}
-				label={label}
-				value={value}
-				onChange={handleChange}
-				error={error}
-				required={isRequired}
-				placeholder={placeholder}
-				inputMode={inputMode}
-				list={listId}
-				autoComplete="off"
-				aria-describedby={hint ? hintId : undefined}
-			/>
-			{hint && <FormHint id={hintId}>{hint}</FormHint>}
-		</div>
+		<Input
+			name={field}
+			label={label}
+			value={value}
+			onChange={handleChange}
+			error={error}
+			description={hint}
+			required={isRequired}
+			placeholder={placeholder}
+			inputMode={inputMode}
+			list={listId}
+			autoComplete="off"
+		/>
 	);
 }

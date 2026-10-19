@@ -1,7 +1,6 @@
 import { Input } from '@minimalstuff/ui';
-import { useId, type ChangeEvent } from 'react';
+import type { ChangeEvent } from 'react';
 
-import { FormHint } from '#/shared/form_hint';
 import type { SettingsFormValues } from '#/settings/settings_form_values';
 import type { SettingsFormErrors } from '#/settings/validate_settings_form';
 import type {
@@ -23,26 +22,21 @@ function SettingsField({
 	error,
 	onChange,
 }: Readonly<SettingsFieldProps>) {
-	const hintId = useId();
-
 	const handleChange = (event: ChangeEvent<HTMLInputElement>) =>
 		onChange(spec.field, event.target.value);
 
 	return (
-		<div>
-			<Input
-				name={spec.field}
-				label={spec.label}
-				value={value}
-				onChange={handleChange}
-				error={error}
-				required={!spec.isOptional}
-				inputMode={spec.inputMode}
-				autoComplete="off"
-				aria-describedby={spec.hint ? hintId : undefined}
-			/>
-			{spec.hint && <FormHint id={hintId}>{spec.hint}</FormHint>}
-		</div>
+		<Input
+			name={spec.field}
+			label={spec.label}
+			value={value}
+			onChange={handleChange}
+			error={error}
+			description={spec.hint}
+			required={!spec.isOptional}
+			inputMode={spec.inputMode}
+			autoComplete="off"
+		/>
 	);
 }
 

@@ -1,8 +1,8 @@
+import { useState, type ChangeEvent } from 'react';
 import { Button, Textarea } from '@minimalstuff/ui';
-import { useId, useState, type ChangeEvent } from 'react';
 
-import { FormHint } from '#/shared/form_hint';
-
+const SCRIPT_HINT =
+	'Script PowerShell ou shell (ssh -L …), liste de ports (3333, 5432), ou une option par ligne.';
 const EMPTY_TEXT_ERROR =
 	'Collez un script, une liste de ports ou des options -L/-R/-D.';
 
@@ -19,7 +19,6 @@ export function ImportScriptTab({
 	onTextChange,
 	onAnalyze,
 }: Readonly<ImportScriptTabProps>) {
-	const hintId = useId();
 	const [error, setError] = useState<string>();
 
 	const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -36,25 +35,19 @@ export function ImportScriptTab({
 
 	return (
 		<div className="flex flex-col gap-3 pt-3">
-			<div>
-				<Textarea
-					name="script"
-					label="Script, liste de ports ou options -L/-R/-D"
-					value={text}
-					onChange={handleChange}
-					error={error}
-					rows={8}
-					required
-					spellCheck={false}
-					autoComplete="off"
-					aria-describedby={hintId}
-					className="font-mono"
-				/>
-				<FormHint id={hintId}>
-					Script PowerShell ou shell (ssh -L …), liste de ports (3333, 5432), ou
-					une option par ligne.
-				</FormHint>
-			</div>
+			<Textarea
+				name="script"
+				label="Script, liste de ports ou options -L/-R/-D"
+				description={SCRIPT_HINT}
+				value={text}
+				onChange={handleChange}
+				error={error}
+				rows={8}
+				required
+				spellCheck={false}
+				autoComplete="off"
+				className="font-mono"
+			/>
 			<div>
 				<Button
 					startIcon="i-mdi-text-search"

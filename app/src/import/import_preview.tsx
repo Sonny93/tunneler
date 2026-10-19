@@ -1,7 +1,6 @@
 import { Button, Input, Select } from '@minimalstuff/ui';
 import { useEffect, useId, useMemo, useRef, type ChangeEvent } from 'react';
 
-import { FormHint } from '#/shared/form_hint';
 import { useDaemonStore } from '#/state/daemon_store';
 import { summarizeTags } from '#/sidebar/summarize_tags';
 import { useImportForm } from '#/import/use_import_form';
@@ -15,6 +14,9 @@ import {
 	describeImportAction,
 } from '#/import/import_texts';
 
+const TAGS_HINT =
+	'Optionnel. Ajouté à chaque tunnel importé ; séparer plusieurs tags par des virgules.';
+
 type ImportPreviewProps = {
 	preview: ImportPreviewDto;
 	settings: SettingsDto;
@@ -26,7 +28,6 @@ export function ImportPreview({
 	settings,
 }: Readonly<ImportPreviewProps>) {
 	const headingId = useId();
-	const tagsHintId = useId();
 	const tagsListId = useId();
 	const headingRef = useRef<HTMLHeadingElement>(null);
 	const hosts = useDaemonStore((state) => state.hosts);
@@ -94,9 +95,9 @@ export function ImportPreview({
 							label="Tag à ajouter"
 							value={form.tagsText}
 							onChange={handleTagsChange}
+							description={TAGS_HINT}
 							autoComplete="off"
 							list={tagsListId}
-							aria-describedby={tagsHintId}
 						/>
 						<datalist id={tagsListId}>
 							{existingTags.map(({ tag }) => (
@@ -105,10 +106,6 @@ export function ImportPreview({
 								</option>
 							))}
 						</datalist>
-						<FormHint id={tagsHintId}>
-							Optionnel. Ajouté à chaque tunnel importé ; séparer plusieurs tags
-							par des virgules.
-						</FormHint>
 					</div>
 					<ImportCandidateList
 						candidates={candidates}

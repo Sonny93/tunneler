@@ -1,7 +1,6 @@
 import { Input } from '@minimalstuff/ui';
-import { useId, type ChangeEvent } from 'react';
+import type { ChangeEvent } from 'react';
 
-import { FormHint } from '#/shared/form_hint';
 import { useDaemonStore } from '#/state/daemon_store';
 import { summarizeTags } from '#/sidebar/summarize_tags';
 import { SettingsSwitch } from '#/settings/settings_switch';
@@ -23,7 +22,6 @@ export function SettingsStartupFieldset({
 	onChangeToggle,
 }: Readonly<SettingsStartupFieldsetProps>) {
 	const tunnels = useDaemonStore((state) => state.tunnels);
-	const tagsHintId = useId();
 	const existingTags = summarizeTags(tunnels).map(({ tag }) => tag);
 	const tagsHint =
 		existingTags.length === 0
@@ -50,17 +48,14 @@ export function SettingsStartupFieldset({
 				isChecked={values.restoreOnLaunch}
 				onChange={onChangeToggle}
 			/>
-			<div>
-				<Input
-					name="startOnLaunchTags"
-					label="Tags démarrés au lancement"
-					value={values.startOnLaunchTags}
-					onChange={handleTagsChange}
-					autoComplete="off"
-					aria-describedby={tagsHintId}
-				/>
-				<FormHint id={tagsHintId}>{tagsHint}</FormHint>
-			</div>
+			<Input
+				name="startOnLaunchTags"
+				label="Tags démarrés au lancement"
+				description={tagsHint}
+				value={values.startOnLaunchTags}
+				onChange={handleTagsChange}
+				autoComplete="off"
+			/>
 		</fieldset>
 	);
 }

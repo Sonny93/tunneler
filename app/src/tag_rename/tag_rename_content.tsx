@@ -7,7 +7,6 @@ import {
 	type FormEvent,
 } from 'react';
 
-import { FormHint } from '#/shared/form_hint';
 import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useToastStore } from '#/shared/toasts/toast_store';
@@ -40,7 +39,6 @@ export function TagRenameContent({
 	isFocusingRow,
 }: Readonly<TagRenameContentProps>) {
 	const formId = useId();
-	const mergeNoteId = useId();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const gateway = useDaemonGateway();
 	const tunnels = useDaemonStore((state) => state.tunnels);
@@ -126,13 +124,10 @@ export function TagRenameContent({
 					value={name}
 					onChange={handleChange}
 					error={error}
+					description={isMerge ? describeMerge(trimmedName) : undefined}
 					autoComplete="off"
 					required
-					aria-describedby={isMerge ? mergeNoteId : undefined}
 				/>
-				{isMerge && (
-					<FormHint id={mergeNoteId}>{describeMerge(trimmedName)}</FormHint>
-				)}
 			</form>
 			<ModalFooter>
 				<Button variant="outline" color="neutral" onClick={handleCancel}>

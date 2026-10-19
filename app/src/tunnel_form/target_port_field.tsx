@@ -1,7 +1,7 @@
-import { useId, type ChangeEvent } from 'react';
+import type { ChangeEvent } from 'react';
 import { Button, Input } from '@minimalstuff/ui';
 
-import { FormHint } from '#/shared/form_hint';
+const LINKED_HINT = "Suit le port d'écoute";
 
 type TargetPortFieldProps = {
 	value: string;
@@ -18,8 +18,6 @@ export function TargetPortField({
 	onChange,
 	onRelink,
 }: Readonly<TargetPortFieldProps>) {
-	const hintId = useId();
-
 	const handleChange = (event: ChangeEvent<HTMLInputElement>) =>
 		onChange(event.target.value);
 
@@ -34,11 +32,9 @@ export function TargetPortField({
 				required
 				inputMode="numeric"
 				autoComplete="off"
-				aria-describedby={isLinked ? hintId : undefined}
+				description={isLinked ? LINKED_HINT : undefined}
 			/>
-			{isLinked ? (
-				<FormHint id={hintId}>Suit le port d'écoute</FormHint>
-			) : (
+			{!isLinked && (
 				<Button variant="ghost" size="xs" type="button" onClick={onRelink}>
 					Lier au port d'écoute
 				</Button>
