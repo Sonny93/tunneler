@@ -98,7 +98,7 @@ export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 					<TunnelTagChips tags={tunnel.tags} />
 				</div>
 				<div className="flex min-w-0 flex-1 basis-56 flex-col items-start gap-1">
-					<div className="flex max-w-full flex-wrap gap-1">
+					<div className="flex w-full min-w-0 flex-nowrap gap-1">
 						<TunnelStatusBadge state={tunnel.state} isDetailTruncated />
 						<TargetHealthBadge health={tunnel.health} isDetailTruncated />
 					</div>

@@ -175,7 +175,7 @@ describe('TunnelRow', () => {
 		expect(screen.getAllByText(error).at(-1)).toHaveClass('truncate');
 	});
 
-	it('should show the whole health error in a tooltip on hover', async () => {
+	it('should not open a tooltip when the truncated health error is hovered', async () => {
 		const error = 'dial tcp 198.51.100.10:5432: connect: connection timed out';
 		const user = userEvent.setup();
 		renderRow({
@@ -185,7 +185,7 @@ describe('TunnelRow', () => {
 
 		await user.hover(screen.getAllByText(error).at(-1) as HTMLElement);
 
-		expect(await screen.findByRole('tooltip')).toHaveTextContent(error);
+		expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 	});
 
 	it('should have no axe violations when the health error is truncated', async () => {
