@@ -97,11 +97,10 @@ export function useBulkTunnelActions(
 
 	const askTagChange = async (): Promise<TagChange | null> => {
 		const answer: { change: TagChange | null } = { change: null };
-		const close = () => Modal.end(call, undefined);
-		const call = Modal.call({
+		await Modal.call({
 			title: `Tags de ${formatTunnelCount(tunnels.length)}`,
 			size: 'sm',
-			children: (
+			children: (close) => (
 				<BulkTagsContent
 					presentTags={listKnownTags(tunnels)}
 					knownTags={listKnownTags(useDaemonStore.getState().tunnels)}
@@ -113,7 +112,6 @@ export function useBulkTunnelActions(
 				/>
 			),
 		});
-		await call;
 		return answer.change;
 	};
 
