@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { Checkbox } from '@minimalstuff/ui';
 
 type SelectAllCheckboxProps = {
@@ -15,13 +14,8 @@ export function SelectAllCheckbox({
 	onSelectAll,
 	onClear,
 }: Readonly<SelectAllCheckboxProps>) {
-	const inputRef = useRef<HTMLInputElement>(null);
 	const isEverythingSelected = selectedCount === visibleCount;
 	const isPartial = selectedCount > 0 && !isEverythingSelected;
-
-	useEffect(() => {
-		if (inputRef.current) inputRef.current.indeterminate = isPartial;
-	}, [isPartial]);
 
 	const handleChange = () => {
 		if (selectedCount > 0 && isEverythingSelected) {
@@ -33,9 +27,9 @@ export function SelectAllCheckbox({
 
 	return (
 		<Checkbox
-			ref={inputRef}
 			label="Tout sélectionner"
 			checked={selectedCount > 0 && isEverythingSelected}
+			indeterminate={isPartial}
 			onChange={handleChange}
 		/>
 	);
