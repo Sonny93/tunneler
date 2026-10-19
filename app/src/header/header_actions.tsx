@@ -50,11 +50,7 @@ export function HeaderActions() {
 			/>
 			{/* View transitions crash the WebKitGTK 2.54 web process */}
 			<Tooltip content={getThemeAriaLabel(theme)}>
-				<ThemeToggle
-					variant="ghost"
-					getAriaLabel={getThemeAriaLabel}
-					isTransitionEnabled={false}
-				/>
+				<ThemeToggle variant="ghost" isTransitionEnabled={false} />
 			</Tooltip>
 			<TooltipIconButton
 				icon="i-mdi-keyboard-outline"

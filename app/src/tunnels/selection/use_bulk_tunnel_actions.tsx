@@ -45,8 +45,6 @@ const UPDATED: BulkParticiple = {
 	plural: 'mis à jour',
 };
 
-const MODAL_CLOSE_LABEL = 'Fermer';
-
 function listKnownTags(tunnels: readonly TunnelDto[]): string[] {
 	return [...new Set(tunnels.flatMap(({ tags }) => tags))].sort();
 }
@@ -85,8 +83,6 @@ export function useBulkTunnelActions(
 			title: `Supprimer ${formatTunnelCount(tunnels.length)} ?`,
 			children: <TunnelNameList tunnels={tunnels} />,
 			confirmLabel: 'Supprimer',
-			cancelLabel: 'Annuler',
-			closeLabel: MODAL_CLOSE_LABEL,
 			confirmColor: 'danger',
 		});
 		if (!isConfirmed) return;
@@ -105,7 +101,6 @@ export function useBulkTunnelActions(
 		const call = Modal.call({
 			title: `Tags de ${formatTunnelCount(tunnels.length)}`,
 			size: 'sm',
-			closeLabel: MODAL_CLOSE_LABEL,
 			children: (
 				<BulkTagsContent
 					presentTags={listKnownTags(tunnels)}

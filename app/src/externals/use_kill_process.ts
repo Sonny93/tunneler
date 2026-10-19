@@ -20,8 +20,6 @@ export function useKillProcess(): ConfirmKillProcess {
 			title: `Arrêter ${description} ?`,
 			children: consequence,
 			confirmLabel: 'Arrêter le processus',
-			cancelLabel: 'Annuler',
-			closeLabel: 'Fermer',
 			confirmColor: 'danger',
 		});
 		if (!isConfirmed) return;

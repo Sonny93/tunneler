@@ -31,9 +31,7 @@ export function useQuitFlow(): UseQuitFlowReturn {
 				title: 'Quitter Tunneler ?',
 				children: <p>{describeTunnelsToStop(runningCount)}</p>,
 				confirmLabel: 'Tout arrêter et quitter',
-				cancelLabel: 'Annuler',
 				confirmColor: 'danger',
-				closeLabel: 'Fermer',
 			});
 			if (isConfirmed)
 				await run((daemon) => daemon.quit(true), QUIT_FAILURE_MESSAGE);

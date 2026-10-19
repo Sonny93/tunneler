@@ -15,8 +15,6 @@ async function confirmRisk(host: string): Promise<boolean> {
 		title: `Activer X11 pour ${host} ?`,
 		children: `Le serveur ${host} aura un accès complet à votre affichage local (capture du clavier et de l'écran possible). N'activez X11 que pour un hôte de confiance.`,
 		confirmLabel: 'Activer X11',
-		cancelLabel: 'Annuler',
-		closeLabel: 'Fermer',
 		confirmColor: 'danger',
 	});
 	if (isConfirmed) confirmX11Host(host);

@@ -14,8 +14,6 @@ export function useForgetSecrets(): () => Promise<void> {
 			children:
 				'Les passphrases gardées en mémoire et dans le trousseau du système seront effacées ; elles seront redemandées à la prochaine connexion.',
 			confirmLabel: 'Oublier',
-			cancelLabel: 'Annuler',
-			closeLabel: 'Fermer',
 			confirmColor: 'danger',
 		});
 		if (!isConfirmed) return;

@@ -16,7 +16,6 @@ export function ShortcutsHelp(): null {
 				props: {
 					title: 'Raccourcis clavier',
 					size: 'sm' as const,
-					closeLabel: 'Fermer',
 					children: <ShortcutsHelpContent />,
 				},
 			}

@@ -31,7 +31,6 @@ export function CommandPalette(): null {
 				props: {
 					title: 'Palette de commandes',
 					size: 'lg' as const,
-					closeLabel: 'Fermer',
 					children: (close: () => void) => (
 						<PaletteContent
 							onRun={(action) => {

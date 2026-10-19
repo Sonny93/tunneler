@@ -9,7 +9,6 @@ import { HostKeyPromptContent } from '#/prompts/host_key_prompt_content';
 import { CredentialPromptContent } from '#/prompts/credential_prompt_content';
 
 const HOST_KEY_TITLE = 'Hôte inconnu';
-const CLOSE_LABEL = 'Fermer';
 
 /** The lib modal showing `prompt`; each answer goes through `actions` and removes the prompt from the store. */
 export function buildPromptModalRequest(
@@ -24,7 +23,6 @@ export function buildPromptModalRequest(
 				props: {
 					title: getCredentialTitle(prompt.request),
 					size: 'sm',
-					closeLabel: CLOSE_LABEL,
 					children: (
 						<CredentialPromptContent
 							request={prompt.request}
@@ -41,7 +39,6 @@ export function buildPromptModalRequest(
 				id,
 				props: {
 					title: HOST_KEY_TITLE,
-					closeLabel: CLOSE_LABEL,
 					children: (
 						<HostKeyPromptContent
 							prompt={prompt}

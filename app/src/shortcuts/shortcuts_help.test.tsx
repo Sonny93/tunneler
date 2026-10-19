@@ -5,15 +5,16 @@ import userEvent from '@testing-library/user-event';
 import { act, render, screen, waitFor } from '@testing-library/react';
 
 import { useUiStore } from '#/state/ui_store';
+import { AppUIProvider } from '#/shared/app_ui_provider';
 import { ShortcutsHelp } from '#/shortcuts/shortcuts_help';
 
 function renderHelp() {
 	return render(
-		<>
+		<AppUIProvider>
 			<button>Déclencheur</button>
 			<ModalProvider />
 			<ShortcutsHelp />
-		</>
+		</AppUIProvider>
 	);
 }
 

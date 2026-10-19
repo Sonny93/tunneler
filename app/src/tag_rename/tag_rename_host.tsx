@@ -17,7 +17,6 @@ export function TagRenameHost(): null {
 					props: {
 						title: `Renommer le tag ${tagRename.tag}`,
 						size: 'sm' as const,
-						closeLabel: 'Fermer',
 						children: (
 							<TagRenameContent
 								tag={tagRename.tag}
