@@ -165,6 +165,38 @@ describe('TunnelRow', () => {
 		);
 	});
 
+	it('should keep the whole health error in the row and truncate its rendering', () => {
+		const error = 'dial tcp 198.51.100.10:5432: connect: connection timed out';
+		renderRow({
+			state: { kind: 'active' },
+			health: { kind: 'unreachable', since: 0, error },
+		});
+
+		expect(screen.getAllByText(error).at(-1)).toHaveClass('truncate');
+	});
+
+	it('should show the whole health error in a tooltip on hover', async () => {
+		const error = 'dial tcp 198.51.100.10:5432: connect: connection timed out';
+		const user = userEvent.setup();
+		renderRow({
+			state: { kind: 'active' },
+			health: { kind: 'unreachable', since: 0, error },
+		});
+
+		await user.hover(screen.getAllByText(error).at(-1) as HTMLElement);
+
+		expect(await screen.findByRole('tooltip')).toHaveTextContent(error);
+	});
+
+	it('should have no axe violations when the health error is truncated', async () => {
+		const { container } = renderRow({
+			state: { kind: 'active' },
+			health: { kind: 'unreachable', since: 0, error: 'timeout' },
+		});
+
+		expect(await axe(container)).toHaveNoViolations();
+	});
+
 	it('should describe the owner on the switch when the tunnel is external', () => {
 		renderRow({
 			state: { kind: 'external', owner: { pid: 4242, process: 'ssh' } },

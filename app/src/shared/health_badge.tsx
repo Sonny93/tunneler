@@ -1,4 +1,5 @@
 import { cn } from '#/shared/cn';
+import { BadgeDetail } from '#/shared/badge_detail';
 import type { TargetHealthDto } from '#/daemon/protocol';
 import {
 	getTargetHealthError,
@@ -22,11 +23,13 @@ const HEALTH_APPEARANCES: Readonly<
 
 type TargetHealthBadgeProps = {
 	health: TargetHealthDto;
+	isDetailTruncated?: boolean;
 	className?: string;
 };
 
 export function TargetHealthBadge({
 	health,
+	isDetailTruncated = false,
 	className,
 }: Readonly<TargetHealthBadgeProps>) {
 	if (health.kind === 'unknown') return null;
@@ -36,14 +39,20 @@ export function TargetHealthBadge({
 	return (
 		<span
 			className={cn(
-				'tn-status-badge inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium',
+				'tn-status-badge inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium',
 				toneClassName,
 				className
 			)}
 		>
 			<span aria-hidden="true" className={cn(icon, 'size-4 shrink-0')} />
-			<span>{getTargetHealthLabel(health)}</span>
-			{error && <span className="font-normal opacity-90">{error}</span>}
+			<span className="shrink-0">{getTargetHealthLabel(health)}</span>
+			{error && (
+				<BadgeDetail
+					text={error}
+					isTruncated={isDetailTruncated}
+					className="font-normal opacity-90"
+				/>
+			)}
 		</span>
 	);
 }

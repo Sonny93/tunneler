@@ -1,4 +1,5 @@
 import { cn } from '#/shared/cn';
+import { BadgeDetail } from '#/shared/badge_detail';
 import type { TunnelStateDto } from '#/daemon/protocol';
 import { getTunnelStateLabel } from '#/tunnels/tunnel_state_label';
 import { getTunnelStateDetail } from '#/tunnels/tunnel_state_detail';
@@ -40,11 +41,13 @@ const STATE_APPEARANCES: Readonly<
 
 type TunnelStatusBadgeProps = {
 	state: TunnelStateDto;
+	isDetailTruncated?: boolean;
 	className?: string;
 };
 
 export const TunnelStatusBadge = ({
 	state,
+	isDetailTruncated = false,
 	className,
 }: Readonly<TunnelStatusBadgeProps>) => {
 	const { icon, toneClassName } = STATE_APPEARANCES[state.kind];
@@ -53,14 +56,20 @@ export const TunnelStatusBadge = ({
 	return (
 		<span
 			className={cn(
-				'tn-status-badge inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium',
+				'tn-status-badge inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium',
 				toneClassName,
 				className
 			)}
 		>
 			<span aria-hidden="true" className={cn(icon, 'size-4 shrink-0')} />
-			<span>{getTunnelStateLabel(state)}</span>
-			{detail !== null && <span className="font-normal">{detail}</span>}
+			<span className="shrink-0">{getTunnelStateLabel(state)}</span>
+			{detail !== null && (
+				<BadgeDetail
+					text={detail}
+					isTruncated={isDetailTruncated}
+					className="font-normal"
+				/>
+			)}
 		</span>
 	);
 };
