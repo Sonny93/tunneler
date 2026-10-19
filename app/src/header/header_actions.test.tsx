@@ -29,6 +29,70 @@ describe('HeaderActions', () => {
 		});
 	});
 
+	it('should reach the chevron with Tab right after the main button', async () => {
+		const user = userEvent.setup();
+		renderActions();
+
+		await user.tab();
+		await user.tab();
+
+		expect(
+			screen.getByRole('button', { name: 'Autres façons de créer un tunnel' })
+		).toHaveFocus();
+	});
+
+	it('should announce a menu on the chevron', () => {
+		renderActions();
+
+		expect(
+			screen.getByRole('button', { name: 'Autres façons de créer un tunnel' })
+		).toHaveAttribute('aria-haspopup');
+	});
+
+	it.each(['{Enter}', '{ArrowDown}'])(
+		'should open the menu from the chevron with %s',
+		async (key) => {
+			const user = userEvent.setup();
+			renderActions();
+			screen
+				.getByRole('button', { name: 'Autres façons de créer un tunnel' })
+				.focus();
+
+			await user.keyboard(key);
+
+			expect(
+				await screen.findByRole('menuitem', { name: 'Tunnel temporaire…' })
+			).toBeInTheDocument();
+		}
+	);
+
+	it('should open the temporary tunnel form from the menu', async () => {
+		const user = userEvent.setup();
+		renderActions();
+
+		await user.click(
+			screen.getByRole('button', { name: 'Autres façons de créer un tunnel' })
+		);
+		await user.click(
+			await screen.findByRole('menuitem', { name: 'Tunnel temporaire…' })
+		);
+
+		expect(useUiStore.getState().panel).toEqual({
+			kind: 'temporaryTunnelEditor',
+		});
+	});
+
+	it('should have no axe violations with the menu open', async () => {
+		const user = userEvent.setup();
+		const { container } = renderActions();
+		await user.click(
+			screen.getByRole('button', { name: 'Autres façons de créer un tunnel' })
+		);
+		await screen.findByRole('menuitem', { name: 'Tunnel temporaire…' });
+
+		expect(await axe(container)).toHaveNoViolations();
+	});
+
 	it('should open the import panel', async () => {
 		const user = userEvent.setup();
 		renderActions();

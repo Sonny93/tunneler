@@ -20,6 +20,9 @@ export type TunnelSpecDto = {
 	tags: string[];
 };
 
+/** A temporary tunnel is never selected by tag, so it has none. */
+export type TemporaryTunnelSpecDto = Omit<TunnelSpecDto, 'tags'>;
+
 export type TunnelDefinitionDto = TunnelSpecDto & { id: string };
 
 export type FailureReasonDto =
@@ -57,6 +60,8 @@ export type TunnelDto = TunnelDefinitionDto & {
 	state: TunnelStateDto;
 	health: TargetHealthDto;
 	metrics: MetricsDto;
+	/** Lives only in the daemon: never saved, and stopping it removes it. */
+	isTemporary: boolean;
 };
 
 export type LogLevelDto = 'info' | 'warn' | 'error';

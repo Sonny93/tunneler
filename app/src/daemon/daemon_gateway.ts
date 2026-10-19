@@ -11,6 +11,7 @@ import type {
 	SnapshotDto,
 	TunnelDefinitionDto,
 	TunnelDto,
+	TemporaryTunnelSpecDto,
 	TunnelSpecDto,
 } from '#/daemon/protocol';
 
@@ -26,6 +27,10 @@ export type DaemonGateway = {
 	listHosts(): Promise<readonly string[]>;
 	createTunnel(spec: TunnelSpecDto): Promise<TunnelDto>;
 	updateTunnel(definition: TunnelDefinitionDto): Promise<TunnelDto>;
+	/** Starts a tunnel that lives only in the daemon: never saved, removed when stopped. */
+	startTemporaryTunnel(spec: TemporaryTunnelSpecDto): Promise<TunnelDto>;
+	/** Saves a temporary tunnel; it keeps running. */
+	persistTunnel(id: string): Promise<void>;
 	deleteTunnel(id: string): Promise<void>;
 	startTunnel(id: string): Promise<void>;
 	stopTunnel(id: string): Promise<void>;

@@ -20,7 +20,7 @@ export function TunnelActionsSection({
 	const browserReasonId = useId();
 	const restartReasonId = useId();
 	const openTunnelEditor = useUiStore((state) => state.openTunnelEditor);
-	const { restart } = useTunnelActions(tunnel);
+	const { restart, stopAndRemove, persist } = useTunnelActions(tunnel);
 	const { target, isRunning, open } = useOpenInBrowser(tunnel);
 	const command = buildSshCommand(tunnel);
 
@@ -84,14 +84,35 @@ export function TunnelActionsSection({
 					>
 						Redémarrer
 					</Button>
-					<Button
-						startIcon="i-mdi-pencil-outline"
-						variant="outline"
-						color="neutral"
-						onClick={handleEdit}
-					>
-						Modifier
-					</Button>
+					{tunnel.isTemporary ? (
+						<>
+							<Button
+								startIcon="i-mdi-content-save-outline"
+								variant="outline"
+								color="neutral"
+								onClick={persist}
+							>
+								Enregistrer le tunnel
+							</Button>
+							<Button
+								startIcon="i-mdi-stop"
+								variant="outline"
+								color="danger"
+								onClick={stopAndRemove}
+							>
+								Arrêter et retirer
+							</Button>
+						</>
+					) : (
+						<Button
+							startIcon="i-mdi-pencil-outline"
+							variant="outline"
+							color="neutral"
+							onClick={handleEdit}
+						>
+							Modifier
+						</Button>
+					)}
 				</div>
 				{!isRunning && (
 					<p id={restartReasonId} className="m-0 text-xs text-tn-muted">

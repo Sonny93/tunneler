@@ -20,6 +20,12 @@ const GENERAL_COMMANDS: readonly PaletteCommand[] = [
 		action: { kind: 'newTunnel' },
 	},
 	{
+		id: 'general:new-temporary-tunnel',
+		label: 'Nouveau tunnel temporaire…',
+		category: 'Général',
+		action: { kind: 'newTemporaryTunnel' },
+	},
+	{
 		id: 'general:import',
 		label: 'Importer des tunnels',
 		category: 'Général',

@@ -26,6 +26,8 @@ export function createTauriGateway(): DaemonGateway {
 		listHosts: () => call('list_hosts'),
 		createTunnel: (spec) => call('create_tunnel', { spec }),
 		updateTunnel: (definition) => call('update_tunnel', { definition }),
+		startTemporaryTunnel: (spec) => call('start_temporary_tunnel', { spec }),
+		persistTunnel: (id) => call('persist_tunnel', { id }),
 		deleteTunnel: (id) => call('delete_tunnel', { id }),
 		startTunnel: (id) => call('start_tunnel', { id }),
 		stopTunnel: (id) => call('stop_tunnel', { id }),

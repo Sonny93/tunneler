@@ -31,6 +31,9 @@ function TunnelEditor({ tunnelId, draft }: Readonly<TunnelEditorProps>) {
 /** The create/edit drawer, open while the UI panel is the tunnel editor. */
 export function TunnelFormDrawer() {
 	const panel = useUiStore((state) => state.panel);
+	if (panel.kind === 'temporaryTunnelEditor') {
+		return <TunnelFormPanel tunnel={null} mode="temporary" />;
+	}
 	if (panel.kind !== 'tunnelEditor') return null;
 
 	return (

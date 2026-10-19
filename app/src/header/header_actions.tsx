@@ -1,4 +1,10 @@
-import { Button, IconButton, ThemeToggle } from '@minimalstuff/ui';
+import {
+	Button,
+	IconButton,
+	Menu,
+	MenuItem,
+	ThemeToggle,
+} from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
 import { QuitButton } from '#/quit/quit_button';
@@ -6,6 +12,9 @@ import { formatShortcutTooltip } from '#/shared/shortcut_tooltip';
 
 export function HeaderActions() {
 	const openTunnelEditor = useUiStore((state) => state.openTunnelEditor);
+	const openTemporaryTunnelEditor = useUiStore(
+		(state) => state.openTemporaryTunnelEditor
+	);
 	const openImport = useUiStore((state) => state.openImport);
 	const setPaletteOpen = useUiStore((state) => state.setPaletteOpen);
 	const openSettings = useUiStore((state) => state.openSettings);
@@ -17,9 +26,30 @@ export function HeaderActions() {
 
 	return (
 		<>
-			<Button startIcon="i-mdi-plus" onClick={handleNewTunnel}>
-				Nouveau tunnel
-			</Button>
+			<div className="inline-flex">
+				<Button
+					startIcon="i-mdi-plus"
+					className="relative rounded-r-none focus-visible:z-10"
+					onClick={handleNewTunnel}
+				>
+					Nouveau tunnel
+				</Button>
+				<Menu
+					align="end"
+					trigger={
+						<IconButton
+							icon="i-mdi-chevron-down"
+							aria-label="Autres façons de créer un tunnel"
+							tooltip
+							className="relative rounded-l-none border-l border-l-white/40 focus-visible:z-10"
+						/>
+					}
+				>
+					<MenuItem icon="i-mdi-timer-sand" onClick={openTemporaryTunnelEditor}>
+						Tunnel temporaire…
+					</MenuItem>
+				</Menu>
+			</div>
 			<Button
 				startIcon="i-mdi-import"
 				variant="ghost"

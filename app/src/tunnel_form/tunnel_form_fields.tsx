@@ -17,12 +17,15 @@ type TunnelFormFieldsProps = {
 	values: TunnelFormValues;
 	errors: TunnelFormErrors;
 	dispatch: (action: TunnelFormAction) => void;
+	/** Temporary tunnels are never selected by tag, so they have no tags field. */
+	hasTags?: boolean;
 };
 
 export function TunnelFormFields({
 	values,
 	errors,
 	dispatch,
+	hasTags = true,
 }: Readonly<TunnelFormFieldsProps>) {
 	const hosts = useDaemonStore((state) => state.hosts);
 	const defaultBindAddress = useDaemonStore((state) =>
@@ -98,13 +101,15 @@ export function TunnelFormFields({
 				placeholder={defaultBindAddress}
 				hint={`Laisser vide pour utiliser l'adresse par défaut (${defaultBindAddress ?? 'inconnue'})`}
 			/>
-			<TunnelTextField
-				field="tags"
-				label="Tags séparés par des virgules"
-				value={values.tags}
-				onChange={changeText}
-				error={errors.tags}
-			/>
+			{hasTags && (
+				<TunnelTextField
+					field="tags"
+					label="Tags séparés par des virgules"
+					value={values.tags}
+					onChange={changeText}
+					error={errors.tags}
+				/>
+			)}
 		</div>
 	);
 }

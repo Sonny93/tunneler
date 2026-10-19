@@ -37,6 +37,7 @@ export function buildTunnel(
 		state: { kind: 'stopped' },
 		health: { kind: 'unknown' },
 		metrics: buildMetrics(),
+		isTemporary: false,
 		...overrides,
 	};
 }

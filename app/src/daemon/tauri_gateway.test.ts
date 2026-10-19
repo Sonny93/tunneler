@@ -39,6 +39,13 @@ describe('createTauriGateway', () => {
 			'update_tunnel',
 			{ definition: { id: '1' } },
 		],
+		[
+			'startTemporaryTunnel',
+			[{ host: 'nova' }],
+			'start_temporary_tunnel',
+			{ spec: { host: 'nova' } },
+		],
+		['persistTunnel', ['1'], 'persist_tunnel', { id: '1' }],
 		['deleteTunnel', ['1'], 'delete_tunnel', { id: '1' }],
 		['startTunnel', ['1'], 'start_tunnel', { id: '1' }],
 		['stopTunnel', ['1'], 'stop_tunnel', { id: '1' }],

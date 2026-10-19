@@ -16,13 +16,14 @@ export function applyTagChange(
 	return tags.filter((tag) => tag !== change.tag);
 }
 
-/** The tunnels whose tags the change would modify. */
+/** The tunnels whose tags the change would modify; temporary tunnels have none and are skipped. */
 export function findTunnelsToRetag(
 	tunnels: readonly TunnelDto[],
 	change: Readonly<TagChange>
 ): TunnelDto[] {
 	return tunnels.filter(
-		({ tags }) => applyTagChange(tags, change).length !== tags.length
+		({ tags, isTemporary }) =>
+			!isTemporary && applyTagChange(tags, change).length !== tags.length
 	);
 }
 

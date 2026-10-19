@@ -1,5 +1,6 @@
 export type PaletteAction =
 	| { kind: 'newTunnel' }
+	| { kind: 'newTemporaryTunnel' }
 	| { kind: 'importTunnels' }
 	| { kind: 'openSettings' }
 	| { kind: 'revealConfig' }

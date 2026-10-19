@@ -77,3 +77,14 @@ describe('toRetaggedDefinition', () => {
 		expect(definition).not.toHaveProperty('state');
 	});
 });
+
+describe('findTunnelsToRetag with a temporary tunnel', () => {
+	it('should skip the temporary tunnels', () => {
+		const temporary = buildTunnel({ id: 'temporary', isTemporary: true });
+		const saved = buildTunnel({ id: 'saved' });
+
+		expect(
+			findTunnelsToRetag([temporary, saved], { kind: 'add', tags: ['dev'] })
+		).toEqual([saved]);
+	});
+});

@@ -1,13 +1,16 @@
 import { useReducer, useState, type FormEvent } from 'react';
 
 import { useUiStore } from '#/state/ui_store';
-import { toTunnelSpec } from '#/tunnel_form/to_tunnel_spec';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import { toTunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import { clearEditedFieldErrors } from '#/tunnel_form/clear_edited_field_errors';
+import {
+	toTemporaryTunnelSpec,
+	toTunnelSpec,
+} from '#/tunnel_form/to_tunnel_spec';
 import type {
 	TunnelDefinitionDto,
 	TunnelDto,
@@ -22,6 +25,9 @@ import {
 	validateTunnelForm,
 	type TunnelFormErrors,
 } from '#/tunnel_form/validate_tunnel_form';
+
+/** A `temporary` form starts a tunnel that is never saved. */
+export type TunnelFormMode = 'saved' | 'temporary';
 
 type UseTunnelFormReturn = {
 	values: ReturnType<typeof toTunnelFormValues>;
@@ -39,7 +45,8 @@ function focusField(form: HTMLFormElement, fieldName: string): void {
 
 export function useTunnelForm(
 	tunnel: Readonly<TunnelDefinitionDto> | null,
-	draft: Readonly<TunnelSpecDto> | null = null
+	draft: Readonly<TunnelSpecDto> | null = null,
+	mode: TunnelFormMode = 'saved'
 ): UseTunnelFormReturn {
 	const source = tunnel ?? draft;
 	const gateway = useDaemonGateway();
@@ -57,25 +64,36 @@ export function useTunnelForm(
 		dispatchToReducer(action);
 	};
 
+	const submitToDaemon = (spec: TunnelSpecDto): Promise<TunnelDto> => {
+		if (mode === 'temporary') {
+			return gateway.startTemporaryTunnel(toTemporaryTunnelSpec(values));
+		}
+		return tunnel
+			? gateway.updateTunnel({ id: tunnel.id, ...spec })
+			: gateway.createTunnel(spec);
+	};
+
+	const describeOutcome = (spec: TunnelSpecDto): string => {
+		const label = getTunnelEndpointLabel(spec);
+		if (mode === 'temporary') return `Tunnel temporaire ${label} démarré`;
+		return `Tunnel ${label} ${tunnel ? 'enregistré' : 'créé'}`;
+	};
+
 	const save = async () => {
 		const spec = toTunnelSpec(values);
 		setIsSaving(true);
 		summary.clearFailure();
 		let savedTunnel: TunnelDto;
 		try {
-			savedTunnel = await (tunnel
-				? gateway.updateTunnel({ id: tunnel.id, ...spec })
-				: gateway.createTunnel(spec));
+			savedTunnel = await submitToDaemon(spec);
 		} catch (rejection) {
 			setIsSaving(false);
 			summary.reportFailure(rejection);
 			return;
 		}
-		const outcome = tunnel ? 'enregistré' : 'créé';
-		useToastStore.getState().pushToast({
-			tone: 'success',
-			message: `Tunnel ${getTunnelEndpointLabel(spec)} ${outcome}`,
-		});
+		useToastStore
+			.getState()
+			.pushToast({ tone: 'success', message: describeOutcome(spec) });
 		if (tunnel) useUiStore.getState().closePanel();
 		else useUiStore.getState().closePanelFocusingTunnel(savedTunnel.id);
 	};

@@ -65,6 +65,12 @@ export function useBulkTunnelActions(
 	);
 	const idleTunnels = tunnels.filter(({ state }) => !isTunnelRunning(state));
 	const runningTunnels = tunnels.filter(({ state }) => isTunnelRunning(state));
+	const stoppableTunnels = tunnels.filter(
+		({ state, isTemporary }) => isTemporary || isTunnelRunning(state)
+	);
+	const hasOnlyTemporaryTunnels = tunnels.every(
+		({ isTemporary }) => isTemporary
+	);
 
 	const runOn = async (
 		targets: readonly TunnelDto[],
@@ -76,6 +82,18 @@ export function useBulkTunnelActions(
 			.getState()
 			.pushToast(describeBulkOutcome(outcome, participle));
 		return outcome;
+	};
+
+	const stop = async () => {
+		const { succeededIds } = await runOn(
+			stoppableTunnels,
+			({ id }) => gateway.stopTunnel(id),
+			STOPPED
+		);
+		const removedIds = stoppableTunnels
+			.filter(({ id, isTemporary }) => isTemporary && succeededIds.includes(id))
+			.map(({ id }) => id);
+		if (removedIds.length > 0) requestFocusAfterRemoval(removedIds);
 	};
 
 	const confirmRemoval = async () => {
@@ -147,9 +165,8 @@ export function useBulkTunnelActions(
 			label: 'Arrêter',
 			icon: 'i-mdi-stop',
 			isDanger: false,
-			isDisabled: runningTunnels.length === 0,
-			perform: () =>
-				void runOn(runningTunnels, ({ id }) => gateway.stopTunnel(id), STOPPED),
+			isDisabled: stoppableTunnels.length === 0,
+			perform: () => void stop(),
 		},
 		{
 			key: 'restart',
@@ -169,7 +186,7 @@ export function useBulkTunnelActions(
 			label: 'Tags…',
 			icon: 'i-mdi-tag-multiple-outline',
 			isDanger: false,
-			isDisabled: false,
+			isDisabled: hasOnlyTemporaryTunnels,
 			perform: () => void editTags(),
 		},
 		{

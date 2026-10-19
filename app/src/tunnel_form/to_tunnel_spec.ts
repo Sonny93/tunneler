@@ -1,7 +1,7 @@
 import { parsePort } from '#/tunnel_form/parse_port';
 import { parseTags } from '#/tunnel_form/parse_tags';
-import type { TunnelSpecDto } from '#/daemon/protocol';
 import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
+import type { TemporaryTunnelSpecDto, TunnelSpecDto } from '#/daemon/protocol';
 
 function toOptionalText(text: string): string | undefined {
 	const trimmed = text.trim();
@@ -31,4 +31,12 @@ export function toTunnelSpec(
 				: undefined,
 		tags: parseTags(values.tags),
 	};
+}
+
+/** Builds the spec of a temporary tunnel: the same fields, without tags. */
+export function toTemporaryTunnelSpec(
+	values: Readonly<TunnelFormValues>
+): TemporaryTunnelSpecDto {
+	const { tags: _tags, ...spec } = toTunnelSpec(values);
+	return spec;
 }

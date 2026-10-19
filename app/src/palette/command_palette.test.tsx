@@ -103,9 +103,24 @@ describe('CommandPalette', () => {
 		renderPalette();
 		await openPalette(user);
 
-		const option = screen.getByRole('option', { name: /Nouveau tunnel/ });
+		const option = screen.getByRole('option', {
+			name: /Nouveau tunnel(?! temporaire)/,
+		});
 
 		expect(option).toHaveTextContent('Général');
+	});
+
+	it('should open the temporary tunnel form from the palette', async () => {
+		const user = userEvent.setup();
+		renderPalette();
+		await openPalette(user);
+
+		await user.type(getInput(), 'temporaire');
+		await user.keyboard('{Enter}');
+
+		expect(
+			await screen.findByRole('dialog', { name: 'Nouveau tunnel temporaire' })
+		).toBeInTheDocument();
 	});
 
 	it('should announce the number of commands', async () => {

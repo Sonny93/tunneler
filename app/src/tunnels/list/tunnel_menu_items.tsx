@@ -14,7 +14,8 @@ type TunnelMenuItemsProps = {
 export function TunnelMenuItems({ tunnel }: Readonly<TunnelMenuItemsProps>) {
 	const openTunnelEditor = useUiStore((state) => state.openTunnelEditor);
 	const openTunnelDetails = useUiStore((state) => state.openTunnelDetails);
-	const { restart, confirmRemoval } = useTunnelActions(tunnel);
+	const { restart, stopAndRemove, persist, confirmRemoval } =
+		useTunnelActions(tunnel);
 	const { target, isRunning, open } = useOpenInBrowser(tunnel);
 
 	const handleDetails = () => openTunnelDetails(tunnel.id);
@@ -32,15 +33,27 @@ export function TunnelMenuItems({ tunnel }: Readonly<TunnelMenuItemsProps>) {
 				</MenuItem>
 			)}
 			<ExternalMenuItems tunnel={tunnel} />
-			<MenuItem icon="i-mdi-pencil-outline" onClick={handleEdit}>
-				Modifier
-			</MenuItem>
+			{tunnel.isTemporary ? (
+				<MenuItem icon="i-mdi-content-save-outline" onClick={persist}>
+					Enregistrer le tunnel
+				</MenuItem>
+			) : (
+				<MenuItem icon="i-mdi-pencil-outline" onClick={handleEdit}>
+					Modifier
+				</MenuItem>
+			)}
 			<MenuItem icon="i-mdi-restart" disabled={!isRunning} onClick={restart}>
 				Redémarrer
 			</MenuItem>
-			<MenuItem icon="i-mdi-delete-outline" danger onClick={handleRemove}>
-				Supprimer
-			</MenuItem>
+			{tunnel.isTemporary ? (
+				<MenuItem icon="i-mdi-stop" danger onClick={stopAndRemove}>
+					Arrêter et retirer
+				</MenuItem>
+			) : (
+				<MenuItem icon="i-mdi-delete-outline" danger onClick={handleRemove}>
+					Supprimer
+				</MenuItem>
+			)}
 		</>
 	);
 }

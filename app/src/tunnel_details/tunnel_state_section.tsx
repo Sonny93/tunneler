@@ -1,6 +1,7 @@
 import { useId } from 'react';
 
 import type { TunnelDto } from '#/daemon/protocol';
+import { TemporaryBadge } from '#/shared/temporary_badge';
 import { TunnelStatusBadge } from '#/shared/status_badge';
 import { TargetHealthBadge } from '#/shared/health_badge';
 import { TunnelEndpoint } from '#/tunnels/list/tunnel_endpoint';
@@ -20,6 +21,7 @@ export function TunnelStateSection({
 				État
 			</h3>
 			<div className="flex flex-wrap gap-1">
+				{tunnel.isTemporary && <TemporaryBadge />}
 				<TunnelStatusBadge state={tunnel.state} />
 				<TargetHealthBadge health={tunnel.health} />
 			</div>

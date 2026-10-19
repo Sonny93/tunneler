@@ -294,3 +294,40 @@ describe('TunnelDetailsDrawer', () => {
 		expect(await axe(document.body)).toHaveNoViolations();
 	});
 });
+
+describe('TunnelDetailsDrawer for a temporary tunnel', () => {
+	it('should show the badge and swap Modifier for save and stop actions', () => {
+		setUp({ isTemporary: true, state: { kind: 'active' } });
+		renderDrawer();
+
+		const actions = screen.getByRole('region', { name: 'Actions' });
+		expect(screen.getAllByText('Temporaire')).toHaveLength(1);
+		expect(
+			within(actions).queryByRole('button', { name: 'Modifier' })
+		).not.toBeInTheDocument();
+		expect(
+			within(actions).getByRole('button', { name: 'Enregistrer le tunnel' })
+		).toBeInTheDocument();
+		expect(
+			within(actions).getByRole('button', { name: 'Arrêter et retirer' })
+		).toBeInTheDocument();
+	});
+
+	it('should save the tunnel when the save action is clicked', async () => {
+		setUp({ isTemporary: true });
+		const { gateway } = renderDrawer();
+
+		await userEvent.click(
+			screen.getByRole('button', { name: 'Enregistrer le tunnel' })
+		);
+
+		expect(gateway.persistTunnel).toHaveBeenCalledWith('tunnel-1');
+	});
+
+	it('should have no axe violations', async () => {
+		setUp({ isTemporary: true });
+		renderDrawer();
+
+		expect(await axe(document.body)).toHaveNoViolations();
+	});
+});

@@ -15,6 +15,8 @@ export function useRunPaletteAction(): RunPaletteAction {
 		switch (action.kind) {
 			case 'newTunnel':
 				return ui.openTunnelEditor(null);
+			case 'newTemporaryTunnel':
+				return ui.openTemporaryTunnelEditor();
 			case 'importTunnels':
 				return ui.openImport();
 			case 'openSettings':

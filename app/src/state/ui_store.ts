@@ -10,6 +10,7 @@ import {
 export type Panel =
 	| { kind: 'none' }
 	| { kind: 'tunnelEditor'; tunnelId: string | null; draft?: TunnelSpecDto }
+	| { kind: 'temporaryTunnelEditor' }
 	| { kind: 'settings' }
 	| { kind: 'x11'; host: string }
 	| { kind: 'tunnelDetails'; tunnelId: string }
@@ -58,6 +59,8 @@ type UiActions = {
 	openTunnelEditor: (tunnelId: string | null) => void;
 	/** Opens the editor in create mode, prefilled from the spec of an external forward. */
 	openTunnelImport: (draft: TunnelSpecDto) => void;
+	/** Opens the form of a tunnel that is not saved. */
+	openTemporaryTunnelEditor: () => void;
 	openSettings: () => void;
 	openX11: (host: string) => void;
 	openTunnelDetails: (tunnelId: string) => void;
@@ -110,6 +113,8 @@ export const useUiStore = create<UiState & UiActions>()((set) => ({
 		set({ panel: { kind: 'tunnelEditor', tunnelId } }),
 	openTunnelImport: (draft) =>
 		set({ panel: { kind: 'tunnelEditor', tunnelId: null, draft } }),
+	openTemporaryTunnelEditor: () =>
+		set({ panel: { kind: 'temporaryTunnelEditor' } }),
 	openSettings: () => set({ panel: { kind: 'settings' } }),
 	openX11: (host) => set({ panel: { kind: 'x11', host } }),
 	openTunnelDetails: (tunnelId) =>

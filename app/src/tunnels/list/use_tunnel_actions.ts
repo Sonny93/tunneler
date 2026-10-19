@@ -5,12 +5,17 @@ import type { TunnelDto } from '#/daemon/protocol';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
+import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import { RemovalFocusContext } from '#/tunnels/list/removal_focus_context';
 
 type UseTunnelActionsReturn = {
 	toggleRunning: () => void;
 	restart: () => void;
+	/** Stops a temporary tunnel, which removes it. */
+	stopAndRemove: () => void;
+	/** Saves a temporary tunnel; it keeps running. */
+	persist: () => void;
 	confirmRemoval: () => Promise<void>;
 };
 
@@ -22,8 +27,40 @@ export function useTunnelActions(
 	const { id } = tunnel;
 	const label = getTunnelEndpointLabel(tunnel);
 
+	const stopAndRemove = () => {
+		void (async () => {
+			const isStopped = await runDaemonAction(
+				(gateway) => gateway.stopTunnel(id),
+				'Arrêt impossible'
+			);
+			if (!isStopped) return;
+			useAnnouncerStore
+				.getState()
+				.announce(`Tunnel temporaire ${label} arrêté et retiré`, 'polite');
+			requestFocusAfterRemoval([id]);
+		})();
+	};
+
+	const persist = () => {
+		void (async () => {
+			const isSaved = await runDaemonAction(
+				(gateway) => gateway.persistTunnel(id),
+				'Enregistrement impossible'
+			);
+			if (!isSaved) return;
+			useToastStore
+				.getState()
+				.pushToast({ tone: 'success', message: `Tunnel ${label} enregistré` });
+		})();
+	};
+
 	const toggleRunning = () => {
-		if (isTunnelRunning(tunnel.state)) {
+		const isRunning = isTunnelRunning(tunnel.state);
+		if (isRunning && tunnel.isTemporary) {
+			stopAndRemove();
+			return;
+		}
+		if (isRunning) {
 			void runDaemonAction(
 				(gateway) => gateway.stopTunnel(id),
 				'Arrêt impossible'
@@ -63,5 +100,5 @@ export function useTunnelActions(
 		requestFocusAfterRemoval([id]);
 	};
 
-	return { toggleRunning, restart, confirmRemoval };
+	return { toggleRunning, restart, stopAndRemove, persist, confirmRemoval };
 }

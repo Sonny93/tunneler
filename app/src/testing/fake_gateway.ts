@@ -34,6 +34,17 @@ export function createFakeGateway(
 		updateTunnel: vi.fn((definition) =>
 			Promise.resolve(buildTunnel(definition))
 		),
+		startTemporaryTunnel: vi.fn((spec) =>
+			Promise.resolve(
+				buildTunnel({
+					...spec,
+					tags: [],
+					id: 'temporary-tunnel',
+					isTemporary: true,
+				})
+			)
+		),
+		persistTunnel: vi.fn(() => Promise.resolve()),
 		deleteTunnel: vi.fn(() => Promise.resolve()),
 		startTunnel: vi.fn(() => Promise.resolve()),
 		stopTunnel: vi.fn(() => Promise.resolve()),

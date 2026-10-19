@@ -4,6 +4,7 @@ import { Checkbox, ContextMenu, Switch } from '@minimalstuff/ui';
 import { cn } from '#/shared/cn';
 import type { TunnelDto } from '#/daemon/protocol';
 import { TunnelStatusBadge } from '#/shared/status_badge';
+import { TemporaryBadge } from '#/shared/temporary_badge';
 import { TargetHealthBadge } from '#/shared/health_badge';
 import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { TunnelEndpoint } from '#/tunnels/list/tunnel_endpoint';
@@ -99,6 +100,7 @@ export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 				</div>
 				<div className="flex min-w-0 flex-1 basis-56 flex-col items-start gap-1">
 					<div className="flex w-full min-w-0 flex-nowrap gap-1">
+						{tunnel.isTemporary && <TemporaryBadge />}
 						<TunnelStatusBadge state={tunnel.state} isDetailTruncated />
 						<TargetHealthBadge health={tunnel.health} isDetailTruncated />
 					</div>

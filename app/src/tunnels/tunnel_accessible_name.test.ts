@@ -20,3 +20,13 @@ describe('getTunnelAccessibleName', () => {
 		).toBe('Tunnel 3333 vers nova:3333, externe');
 	});
 });
+
+describe('getTunnelAccessibleName for a temporary tunnel', () => {
+	it('should say temporaire before the state', () => {
+		expect(
+			getTunnelAccessibleName(
+				buildTunnel({ isTemporary: true, state: { kind: 'active' } })
+			)
+		).toBe('Tunnel 3333 vers nova:3333, temporaire, actif');
+	});
+});

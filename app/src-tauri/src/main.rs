@@ -38,6 +38,8 @@ fn main() -> tauri::Result<()> {
             commands::open_in_browser,
             commands::create_tunnel,
             commands::update_tunnel,
+            commands::start_temporary_tunnel,
+            commands::persist_tunnel,
             commands::delete_tunnel,
             commands::start_tunnel,
             commands::stop_tunnel,

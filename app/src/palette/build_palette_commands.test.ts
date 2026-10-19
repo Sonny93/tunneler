@@ -17,6 +17,7 @@ describe('buildPaletteCommands', () => {
 	it('should always offer the general commands first', () => {
 		expect(labelsOf(build())).toEqual([
 			'Nouveau tunnel',
+			'Nouveau tunnel temporaire…',
 			'Importer des tunnels',
 			'Ouvrir les paramètres',
 			'Ouvrir le dossier de configuration',

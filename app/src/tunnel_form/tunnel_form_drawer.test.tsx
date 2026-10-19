@@ -51,6 +51,107 @@ describe('TunnelFormDrawer', () => {
 		).toBeInTheDocument();
 	});
 
+	describe('in temporary mode', () => {
+		const openTemporaryEditor = () => {
+			useUiStore.getState().openTemporaryTunnelEditor();
+			useDaemonStore.setState({
+				settings: buildSettings({ defaultBindAddress: '127.0.0.1' }),
+				hosts: ['nova'],
+			});
+		};
+
+		it('should be titled "Nouveau tunnel temporaire"', () => {
+			openTemporaryEditor();
+			renderDrawer();
+
+			expect(
+				screen.getByRole('dialog', { name: 'Nouveau tunnel temporaire' })
+			).toBeInTheDocument();
+		});
+
+		it('should explain that the tunnel is not saved', () => {
+			openTemporaryEditor();
+			renderDrawer();
+
+			expect(
+				screen.getByText(
+					"Non enregistré : disparaît quand on l'arrête ou quand Tunneler quitte."
+				)
+			).toBeInTheDocument();
+		});
+
+		it('should have no tags field', () => {
+			openTemporaryEditor();
+			renderDrawer();
+
+			expect(
+				screen.queryByRole('textbox', { name: /^Tags/ })
+			).not.toBeInTheDocument();
+		});
+
+		it('should have no axe violations', async () => {
+			openTemporaryEditor();
+			renderDrawer();
+
+			expect(await axe(document.body)).toHaveNoViolations();
+		});
+
+		it('should start the tunnel without tags and close the drawer', async () => {
+			openTemporaryEditor();
+			const user = userEvent.setup();
+			const { gateway } = renderDrawer();
+			await fillRequiredFields(user);
+
+			await user.click(screen.getByRole('button', { name: 'Démarrer' }));
+
+			await waitFor(() =>
+				expect(useUiStore.getState().panel.kind).toBe('none')
+			);
+			expect(gateway.startTemporaryTunnel).toHaveBeenCalledWith({
+				host: 'nova',
+				kind: 'local',
+				listenPort: 3333,
+				listenAddress: undefined,
+				targetHost: undefined,
+				targetPort: undefined,
+			});
+			expect(gateway.createTunnel).not.toHaveBeenCalled();
+		});
+
+		it('should toast that the temporary tunnel started', async () => {
+			openTemporaryEditor();
+			const user = userEvent.setup();
+			renderDrawer();
+			await fillRequiredFields(user);
+
+			await user.click(screen.getByRole('button', { name: 'Démarrer' }));
+
+			await waitFor(() =>
+				expect(useToastStore.getState().toasts).toEqual([
+					expect.objectContaining({
+						message: 'Tunnel temporaire 3333 → nova:3333 démarré',
+					}),
+				])
+			);
+		});
+
+		it('should stay open and show the error when the start fails', async () => {
+			openTemporaryEditor();
+			const user = userEvent.setup();
+			const gateway = createFakeGateway();
+			gateway.startTemporaryTunnel.mockRejectedValue(
+				new DaemonCommandError('io_error', 'Port invalide')
+			);
+			renderDrawer(gateway);
+			await fillRequiredFields(user);
+
+			await user.click(screen.getByRole('button', { name: 'Démarrer' }));
+
+			expect(await screen.findByText(/Port invalide/)).toBeInTheDocument();
+			expect(useUiStore.getState().panel.kind).toBe('temporaryTunnelEditor');
+		});
+	});
+
 	it('should have no axe violations', async () => {
 		openEditor();
 		renderDrawer();
