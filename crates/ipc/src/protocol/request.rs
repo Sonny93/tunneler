@@ -16,7 +16,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 30] = [
+pub const METHOD_NAMES: [&str; 31] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -46,6 +46,7 @@ pub const METHOD_NAMES: [&str; 30] = [
     "secrets.forget",
     "ui.claim",
     "tags.rename",
+    "tags.delete",
     "daemon.paths",
 ];
 
@@ -260,6 +261,10 @@ pub enum Request {
     /// `to` is not a valid tag.
     #[serde(rename = "tags.rename")]
     TagsRename(TagRenameParams),
+    /// Removes a tag from every tunnel and from the launch tags, keeping the
+    /// tunnels; answers `not_found` when no tunnel carries it.
+    #[serde(rename = "tags.delete")]
+    TagsDelete(TagParams),
     /// Reads where the daemon keeps its files.
     #[serde(rename = "daemon.paths")]
     DaemonPaths {},

@@ -58,6 +58,14 @@ pub struct RenameTagResult {
     pub renamed_count: u64,
 }
 
+/// The result of `tags.delete`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteTagResult {
+    /// How many tunnels carried the tag.
+    pub removed_count: u64,
+}
+
 /// The result of `daemon.paths`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -94,6 +102,8 @@ pub enum ResponsePayload {
     UiClaim(UiClaimResult),
     /// The answer to `tags.rename`.
     RenameTag(RenameTagResult),
+    /// The answer to `tags.delete`.
+    DeleteTag(DeleteTagResult),
     /// The answer to `daemon.paths`.
     DaemonPaths(DaemonPathsResult),
 }

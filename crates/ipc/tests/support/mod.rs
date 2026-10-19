@@ -8,7 +8,7 @@ use interprocess::local_socket::tokio::Stream;
 use interprocess::local_socket::traits::tokio::Stream as _;
 use interprocess::local_socket::{GenericFilePath, ToFsName};
 use ipc::protocol::{
-    AdoptResult, ClientKind, ConfigInvalidEvent, DaemonPathsResult, EventMessage,
+    AdoptResult, ClientKind, ConfigInvalidEvent, DaemonPathsResult, DeleteTagResult, EventMessage,
     ForgetSecretsResult, Hello, HostOptionDto, ImportCandidateDto, ImportPreviewDto, IpcError,
     LogEntryDto, LogLevelDto, LogsResult, RenameTagResult, Request, RequestEnvelope,
     ResolvedHostDto, ResponsePayload, TunnelKindDto, UiClaimResult,
@@ -31,6 +31,7 @@ pub const MISSING_LAUNCHER_NAME: &str = "missing";
 pub const UNKILLABLE_PID: u32 = 1;
 pub const FORGOTTEN_COUNT: u64 = 3;
 pub const RENAMED_COUNT: u64 = 2;
+pub const REMOVED_COUNT: u64 = 3;
 pub const MISSING_TAG: &str = "missing";
 pub const CONFIG_FILE: &str = "/config/tunnels.toml";
 pub const SLOW_DELAY: Duration = Duration::from_millis(300);
@@ -98,6 +99,12 @@ impl RequestHandler for FakeHandler {
             }
             Request::TagsRename(_) => Ok(ResponsePayload::RenameTag(RenameTagResult {
                 renamed_count: RENAMED_COUNT,
+            })),
+            Request::TagsDelete(params) if params.tag == MISSING_TAG => {
+                Err(IpcError::not_found("no such tag"))
+            }
+            Request::TagsDelete(_) => Ok(ResponsePayload::DeleteTag(DeleteTagResult {
+                removed_count: REMOVED_COUNT,
             })),
             Request::DaemonPaths {} => Ok(ResponsePayload::DaemonPaths(DaemonPathsResult {
                 config_file: CONFIG_FILE.to_owned(),

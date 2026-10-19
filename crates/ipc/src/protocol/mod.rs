@@ -37,7 +37,7 @@ pub use request::{
     X11LaunchParams,
 };
 pub use response::{
-    AdoptResult, DaemonPathsResult, EmptyResult, ForgetSecretsResult, HostsResult, LogsResult,
-    RenameTagResult, ResponsePayload, UiClaimResult,
+    AdoptResult, DaemonPathsResult, DeleteTagResult, EmptyResult, ForgetSecretsResult, HostsResult,
+    LogsResult, RenameTagResult, ResponsePayload, UiClaimResult,
 };
 pub use secret::Secret;

@@ -12,7 +12,7 @@ use pretty_assertions::assert_eq;
 use serde_json::json;
 use support::{
     CONFIG_FILE, FORGOTTEN_COUNT, MISSING_LAUNCHER_NAME, MISSING_TAG, MISSING_TUNNEL_ID,
-    RENAMED_COUNT, SLOW_DELAY, SLOW_TUNNEL_ID, TestDaemon, UNKILLABLE_PID,
+    REMOVED_COUNT, RENAMED_COUNT, SLOW_DELAY, SLOW_TUNNEL_ID, TestDaemon, UNKILLABLE_PID,
 };
 use tokio::task::JoinSet;
 
@@ -80,6 +80,32 @@ async fn should_fail_with_not_found_when_the_renamed_tag_is_unknown() {
     let client = daemon.connect(ClientKind::Ui, false).await;
 
     let error = client.rename_tag(MISSING_TAG, "staging").await.unwrap_err();
+
+    assert!(matches!(
+        error,
+        ClientError::Remote {
+            code: ErrorCode::NotFound,
+            ..
+        }
+    ));
+}
+
+#[tokio::test]
+async fn should_return_the_removed_count_when_a_tag_is_deleted() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let removed_count = client.delete_tag("dev").await.unwrap();
+
+    assert_eq!(removed_count, REMOVED_COUNT);
+}
+
+#[tokio::test]
+async fn should_fail_with_not_found_when_the_deleted_tag_is_unknown() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let error = client.delete_tag(MISSING_TAG).await.unwrap_err();
 
     assert!(matches!(
         error,

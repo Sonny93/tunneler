@@ -2,15 +2,15 @@
 
 use ipc::protocol::{
     AdoptResult, ClientKind, ConfigInvalidEvent, CredentialAnswer, CredentialRequestDto,
-    CredentialRequestEvent, CredentialResponseParams, DaemonPathsResult, ErrorCode, EventMessage,
-    ExternalForwardDto, ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto,
-    ForgetSecretsResult, Hello, HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent,
-    HostKeyResponseParams, HostOptionDto, HostParams, HostsResult, ImportCandidateDto,
-    ImportPreviewDto, ImportScriptParams, ImportWarningDto, IpcError, LogEntryDto, LogLevelDto,
-    MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, PROTOCOL_VERSION,
-    PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent, QuitParams, RememberDto,
-    RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload, Secret,
-    ServerFrame, SettingsDto, SnapshotDto, TagParams, TagRenameParams, TargetHealthDto,
+    CredentialRequestEvent, CredentialResponseParams, DaemonPathsResult, DeleteTagResult,
+    ErrorCode, EventMessage, ExternalForwardDto, ExternalProcessDto, ExternalsChangedEvent,
+    FailureReasonDto, ForgetSecretsResult, Hello, HostKeyAlertReasonDto, HostKeyDecisionDto,
+    HostKeyRequestEvent, HostKeyResponseParams, HostOptionDto, HostParams, HostsResult,
+    ImportCandidateDto, ImportPreviewDto, ImportScriptParams, ImportWarningDto, IpcError,
+    LogEntryDto, LogLevelDto, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto,
+    PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent, QuitParams,
+    RememberDto, RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload,
+    Secret, ServerFrame, SettingsDto, SnapshotDto, TagParams, TagRenameParams, TargetHealthDto,
     TrayChangedEvent, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
     TunnelIdParams, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto,
     TunnelStateDto, UiClaimResult, X11AnchorDto, X11ChangedEvent, X11HostParams, X11LaunchParams,
@@ -193,6 +193,9 @@ fn every_request() -> Vec<Request> {
         Request::TagsRename(TagRenameParams {
             from: "dev".to_owned(),
             to: "staging".to_owned(),
+        }),
+        Request::TagsDelete(TagParams {
+            tag: "dev".to_owned(),
         }),
         Request::DaemonPaths {},
     ]
@@ -726,6 +729,27 @@ fn should_serialize_a_tags_rename_response_as_documented() {
 }
 
 #[test]
+fn should_serialize_the_tags_delete_request_as_documented() {
+    let request = Request::TagsDelete(TagParams {
+        tag: "dev".to_owned(),
+    });
+
+    assert_eq!(
+        to_json(&request),
+        json!({"method":"tags.delete","params":{"tag":"dev"}})
+    );
+}
+
+#[test]
+fn should_serialize_a_tags_delete_response_as_documented() {
+    let result = DeleteTagResult { removed_count: 3 };
+
+    let line = encode_response(Some(7), &Ok(ResponsePayload::DeleteTag(result))).unwrap();
+
+    assert_eq!(line, "{\"id\":7,\"result\":{\"removedCount\":3}}\n");
+}
+
+#[test]
 fn should_serialize_the_daemon_paths_request_as_documented() {
     assert_eq!(
         to_json(&Request::DaemonPaths {}),
@@ -1183,8 +1207,8 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_thirty_methods() {
-    assert_eq!(METHOD_NAMES.len(), 30);
+fn should_list_thirty_one_methods() {
+    assert_eq!(METHOD_NAMES.len(), 31);
 }
 
 #[test]

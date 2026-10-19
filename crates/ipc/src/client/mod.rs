@@ -16,12 +16,13 @@ use tokio::task::JoinHandle;
 use crate::endpoint::Endpoint;
 use crate::error::ClientError;
 use crate::protocol::{
-    AdoptResult, CredentialAnswer, CredentialResponseParams, DaemonPathsResult, EventMessage,
-    ForgetSecretsResult, Hello, HostKeyDecisionDto, HostKeyResponseParams, HostParams, HostsResult,
-    ImportPreviewDto, ImportScriptParams, LogEntryDto, LogsResult, ProcessParams, QuitParams,
-    RememberDto, RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, SettingsDto,
-    SnapshotDto, TagParams, TagRenameParams, TunnelDefinitionDto, TunnelDto, TunnelIdParams,
-    TunnelSpecDto, UiClaimResult, X11HostParams, X11LaunchParams, encode_line,
+    AdoptResult, CredentialAnswer, CredentialResponseParams, DaemonPathsResult, DeleteTagResult,
+    EventMessage, ForgetSecretsResult, Hello, HostKeyDecisionDto, HostKeyResponseParams,
+    HostParams, HostsResult, ImportPreviewDto, ImportScriptParams, LogEntryDto, LogsResult,
+    ProcessParams, QuitParams, RememberDto, RenameTagResult, Request, RequestEnvelope,
+    ResolvedHostDto, SettingsDto, SnapshotDto, TagParams, TagRenameParams, TunnelDefinitionDto,
+    TunnelDto, TunnelIdParams, TunnelSpecDto, UiClaimResult, X11HostParams, X11LaunchParams,
+    encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -434,6 +435,22 @@ impl IpcClient {
         };
         let renamed: RenameTagResult = self.call(Request::TagsRename(params)).await?;
         Ok(renamed.renamed_count)
+    }
+
+    /// Removes a tag from every tunnel and from the launch tags; returns how
+    /// many tunnels carried it.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. The daemon answers
+    /// [`ErrorCode::NotFound`](crate::protocol::ErrorCode::NotFound) when no
+    /// tunnel carries the tag.
+    pub async fn delete_tag(&self, tag: &str) -> Result<u64, ClientError> {
+        let params = TagParams {
+            tag: tag.to_owned(),
+        };
+        let deleted: DeleteTagResult = self.call(Request::TagsDelete(params)).await?;
+        Ok(deleted.removed_count)
     }
 
     /// Reads where the daemon keeps its files.

@@ -6,9 +6,9 @@ use engine::{
     preview_ssh_config,
 };
 use ipc::protocol::{
-    AdoptResult, DaemonPathsResult, ForgetSecretsResult, HostsResult, IpcError, LogsResult,
-    ProcessParams, QuitParams, RenameTagResult, Request, ResponsePayload, SettingsDto,
-    TagRenameParams, TunnelIdParams, UiClaimResult, X11HostParams, X11LaunchParams,
+    AdoptResult, DaemonPathsResult, DeleteTagResult, ForgetSecretsResult, HostsResult, IpcError,
+    LogsResult, ProcessParams, QuitParams, RenameTagResult, Request, ResponsePayload, SettingsDto,
+    TagParams, TagRenameParams, TunnelIdParams, UiClaimResult, X11HostParams, X11LaunchParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
@@ -95,6 +95,7 @@ impl DaemonHandler {
             Request::SecretsForget {} => Ok(self.forget_secrets().await),
             Request::UiClaim {} => Ok(self.claim_ui(requester)),
             Request::TagsRename(params) => self.rename_tag(&params).await,
+            Request::TagsDelete(params) => self.delete_tag(&params).await,
             Request::DaemonPaths {} => self.daemon_paths(),
         }
     }
@@ -174,6 +175,17 @@ impl DaemonHandler {
             .map_err(engine_error_to_ipc)?;
         Ok(ResponsePayload::RenameTag(RenameTagResult {
             renamed_count: u64::try_from(renamed_count).unwrap_or(u64::MAX),
+        }))
+    }
+
+    async fn delete_tag(&self, params: &TagParams) -> Result<ResponsePayload, IpcError> {
+        let removed_count = self
+            .engine
+            .delete_tag(&params.tag)
+            .await
+            .map_err(engine_error_to_ipc)?;
+        Ok(ResponsePayload::DeleteTag(DeleteTagResult {
+            removed_count: u64::try_from(removed_count).unwrap_or(u64::MAX),
         }))
     }
 
@@ -790,6 +802,12 @@ mod tests {
         assert_eq!(error.code, ErrorCode::NotFound);
     }
 
+    fn delete_request(tag: &str) -> Request {
+        Request::TagsDelete(TagParams {
+            tag: tag.to_owned(),
+        })
+    }
+
     fn rename_request(from: &str, to: &str) -> Request {
         Request::TagsRename(TagRenameParams {
             from: from.to_owned(),
@@ -812,6 +830,36 @@ mod tests {
             response,
             ResponsePayload::RenameTag(RenameTagResult { renamed_count: 1 })
         );
+    }
+
+    #[tokio::test]
+    async fn should_answer_the_removed_count_when_deleting_a_tag() {
+        let fixture = fixture();
+        created_tunnel(&fixture, "Web", free_port().await).await;
+
+        let response = fixture
+            .handler
+            .dispatch(None, delete_request("dev"))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response,
+            ResponsePayload::DeleteTag(DeleteTagResult { removed_count: 1 })
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_deleting_an_unknown_tag() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(None, delete_request("missing"))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
     }
 
     #[tokio::test]
