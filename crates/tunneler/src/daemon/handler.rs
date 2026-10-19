@@ -835,7 +835,7 @@ mod tests {
     #[tokio::test]
     async fn should_answer_the_removed_count_when_deleting_a_tag() {
         let fixture = fixture();
-        created_tunnel(&fixture, "Web", free_port().await).await;
+        created_tunnel(&fixture, free_port().await).await;
 
         let response = fixture
             .handler
