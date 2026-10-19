@@ -5,6 +5,7 @@ mod args;
 mod commands;
 mod error;
 pub mod exit_code;
+mod forward_spec;
 mod launcher;
 mod locations;
 mod progress;

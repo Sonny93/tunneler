@@ -23,6 +23,7 @@ const WAIT: Duration = Duration::from_secs(10);
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
 const ECHO_MESSAGE: &[u8] = b"ping";
 const EXIT_ERROR: i32 = 1;
+const EXIT_USAGE: i32 = 2;
 const EXIT_DAEMON_NOT_RUNNING: i32 = 3;
 const EXIT_TARGETS_FAILED: i32 = 4;
 const EXIT_CONFIRMATION_REQUIRED: i32 = 5;
@@ -34,6 +35,7 @@ const UI_MARKER_NAME: &str = "ui-marker";
 struct Fixture {
     workspace: Workspace,
     listen_ports: [u16; 3],
+    echo_port: u16,
     _server: TestServer,
     _echo: EchoServer,
 }
@@ -74,6 +76,7 @@ impl Fixture {
         Self {
             workspace,
             listen_ports,
+            echo_port: echo.port,
             _server: server,
             _echo: echo,
         }
@@ -559,4 +562,188 @@ async fn should_reclaim_the_socket_when_the_daemon_was_killed() {
 
     assert_eq!(code(&output), 0, "{}", stderr(&output));
     assert_echoes(fixture.listen_ports[0]).await;
+}
+
+fn find_tunnel(status: &Value, listen_port: u16) -> Option<&Value> {
+    status["tunnels"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|tunnel| tunnel["listenPort"].as_u64() == Some(u64::from(listen_port)))
+}
+
+async fn start_temporary_forward(fixture: &Fixture) -> (u16, Output) {
+    let port = free_port().await;
+    let forward = format!("{port}:127.0.0.1:{}", fixture.echo_port);
+    let output = fixture.run(&["up", ALIAS, "-L", &forward]).await;
+    (port, output)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_start_a_temporary_tunnel_and_say_how_to_stop_it_when_up_is_given_a_forward() {
+    let fixture = Fixture::start().await;
+
+    let (port, output) = start_temporary_forward(&fixture).await;
+
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    let steps = stdout(&output);
+    assert!(
+        steps
+            .lines()
+            .any(|line| line.contains("(temporaire): active")),
+        "{steps}"
+    );
+    assert!(
+        steps.contains(&format!("tunneler down {ALIAS}:{port}")),
+        "{steps}"
+    );
+    assert_echoes(port).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_never_write_the_temporary_tunnel_to_the_tunnels_file() {
+    let fixture = Fixture::start().await;
+    let before = std::fs::read_to_string(fixture.workspace.file("tunnels.toml")).unwrap();
+
+    let (port, _) = start_temporary_forward(&fixture).await;
+    fixture.run(&["up", "gamma"]).await;
+    fixture.run(&["down", "gamma"]).await;
+
+    let after = std::fs::read_to_string(fixture.workspace.file("tunnels.toml")).unwrap();
+    assert!(!after.contains(&port.to_string()), "{after}");
+    assert_eq!(
+        after.matches("[[tunnels]]").count(),
+        before.matches("[[tunnels]]").count()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_mark_the_temporary_tunnel_when_status_and_list_run() {
+    let fixture = Fixture::start().await;
+    let (port, _) = start_temporary_forward(&fixture).await;
+
+    let status = fixture.run(&["status"]).await;
+    let list = fixture.run(&["list"]).await;
+
+    assert!(
+        stdout(&status).contains("(temporaire)") && stdout(&list).contains("(temporaire)"),
+        "{}\n{}",
+        stdout(&status),
+        stdout(&list)
+    );
+    assert!(!stdout(&list).contains("tunneler") && stdout(&list).contains(&port.to_string()));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_flag_the_temporary_tunnel_when_status_prints_json() {
+    let fixture = Fixture::start().await;
+    let (port, _) = start_temporary_forward(&fixture).await;
+
+    let status = fixture.status_json().await;
+
+    assert_eq!(
+        (
+            find_tunnel(&status, port).map(|tunnel| tunnel["isTemporary"].clone()),
+            find_tunnel(&status, fixture.listen_ports[0])
+                .map(|tunnel| tunnel["isTemporary"].clone())
+        ),
+        (Some(Value::Bool(true)), Some(Value::Bool(false)))
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_flag_the_temporary_tunnel_when_list_prints_json() {
+    let fixture = Fixture::start().await;
+    let (port, _) = start_temporary_forward(&fixture).await;
+
+    let output = fixture.run(&["list", "--json"]).await;
+
+    let listed: Value = serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(
+        find_tunnel(&listed, port).map(|tunnel| tunnel["isTemporary"].clone()),
+        Some(Value::Bool(true))
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_remove_the_temporary_tunnel_when_down_stops_it() {
+    let fixture = Fixture::start().await;
+    let (port, _) = start_temporary_forward(&fixture).await;
+
+    let output = fixture.run(&["down", &port.to_string()]).await;
+
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    wait_until_port_is_closed(port).await;
+    let status = fixture.status_json().await;
+    assert!(find_tunnel(&status, port).is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_start_the_saved_tunnel_when_the_forward_matches_one() {
+    let fixture = Fixture::start().await;
+    let port = fixture.listen_ports[0];
+    let forward = format!("{port}:127.0.0.1:{}", fixture.echo_port);
+
+    let output = fixture.run(&["up", ALIAS, "-L", &forward]).await;
+
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("already a saved tunnel"),
+        "{}",
+        stdout(&output)
+    );
+    let status = fixture.status_json().await;
+    assert_eq!(status["tunnels"].as_array().unwrap().len(), 3);
+    assert_echoes(port).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_start_a_temporary_socks_proxy_when_up_is_given_a_dynamic_forward() {
+    let fixture = Fixture::start().await;
+    let port = free_port().await;
+
+    let output = fixture.run(&["up", ALIAS, "-D", &port.to_string()]).await;
+
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    let status = fixture.status_json().await;
+    assert_eq!(
+        find_tunnel(&status, port).map(|tunnel| tunnel["kind"].clone()),
+        Some(Value::String("dynamic".to_owned()))
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_exit_with_2_and_a_hint_when_the_forward_is_malformed() {
+    let fixture = Fixture::start().await;
+
+    let output = fixture.run(&["up", ALIAS, "-L", "nonsense"]).await;
+
+    assert_eq!(code(&output), EXIT_USAGE);
+    let errors = stderr(&output);
+    assert!(
+        errors.contains("not a valid -L specification") && errors.contains("tunneler up --help"),
+        "{errors}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_exit_with_2_when_a_forward_is_given_several_hosts() {
+    let fixture = Fixture::start().await;
+
+    let output = fixture.run(&["up", ALIAS, "other", "-L", "5000"]).await;
+
+    assert_eq!(code(&output), EXIT_USAGE);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_show_the_forward_examples_when_up_prints_its_help() {
+    let fixture = Fixture::start().await;
+
+    let output = fixture.run(&["up", "--help"]).await;
+
+    assert!(
+        stdout(&output).contains("tunneler up nova -L 5000"),
+        "{}",
+        stdout(&output)
+    );
 }

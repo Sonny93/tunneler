@@ -7,6 +7,7 @@ use ipc::{ClientError, EndpointError};
 use thiserror::Error;
 
 use super::exit_code;
+use super::forward_spec::ForwardSpecError;
 use super::target::ResolveError;
 use crate::daemon::DaemonError;
 
@@ -49,6 +50,15 @@ pub enum CliError {
     /// An argument on the command line designates no tunnel, or too many.
     #[error(transparent)]
     Resolve(#[from] ResolveError),
+    /// A `-L`, `-R` or `-D` specification cannot become a tunnel.
+    #[error(transparent)]
+    ForwardSpec(#[from] ForwardSpecError),
+    /// A forward was given with something other than one host.
+    #[error("a forward goes through exactly one host, but {count} were given")]
+    ForwardNeedsOneHost {
+        /// How many targets were given.
+        count: usize,
+    },
     /// The endpoint could not be determined.
     #[error(transparent)]
     Endpoint(#[from] EndpointError),
@@ -120,6 +130,7 @@ impl CliError {
             Self::DaemonNotRunning | Self::Client(ClientError::DaemonNotRunning) => {
                 exit_code::DAEMON_NOT_RUNNING
             }
+            Self::ForwardSpec(_) | Self::ForwardNeedsOneHost { .. } => exit_code::USAGE,
             Self::TargetsFailed { .. } => exit_code::TARGETS_FAILED,
             Self::ConfirmationRequired { .. } => exit_code::CONFIRMATION_REQUIRED,
             Self::TimedOutWaiting { .. } | Self::DaemonStopTimedOut { .. } => exit_code::TIMED_OUT,
@@ -166,6 +177,9 @@ impl CliError {
                     .to_owned(),
             ),
             Self::Resolve(error) => Some(error.hint()),
+            Self::ForwardSpec(_) | Self::ForwardNeedsOneHost { .. } => {
+                Some("see `tunneler up --help` for the forward syntax".to_owned())
+            }
             Self::TimedOutWaiting { .. } => Some(
                 "raise --timeout, or look at `tunneler status` to see what they are doing"
                     .to_owned(),
@@ -249,6 +263,14 @@ mod tests {
         };
 
         assert_eq!(error.exit_code(), exit_code::TIMED_OUT);
+    }
+
+    #[test]
+    fn should_exit_with_2_when_a_forward_goes_through_several_hosts() {
+        assert_eq!(
+            CliError::ForwardNeedsOneHost { count: 2 }.exit_code(),
+            exit_code::USAGE
+        );
     }
 
     #[test]

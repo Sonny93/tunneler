@@ -1,14 +1,16 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use ipc::protocol::{EventMessage, HostKeyRequestEvent, SnapshotDto};
+use ipc::protocol::{EventMessage, HostKeyRequestEvent, SnapshotDto, TunnelSpecDto};
 use ipc::{EventReceiver, IpcClient};
 use tokio::time::Instant;
 
 use super::super::args::UpArguments;
+use super::super::forward_spec::ForwardRequest;
 use super::super::launcher::ensure_daemon_running;
 use super::super::progress::{ProgressTracker, describe_step};
 use super::super::prompting::{LocalPrompts, describe_host_key_alert};
+use super::super::render::describe_tunnel_route;
 use super::super::session::{ConnectionMode, connect};
 use super::super::style::Style;
 use super::super::target::{ResolvedTunnel, TargetInterpretation, resolve_targets};
@@ -30,7 +32,8 @@ pub async fn up(context: &Context, arguments: UpArguments) -> Result<(), CliErro
     let events = client.take_events();
     let client = Arc::new(client);
     let snapshot = client.snapshot().await?;
-    let targets = resolve(&arguments, &snapshot, context.style)?;
+    let selection = select_targets(&client, &arguments, &snapshot, context.style).await?;
+    let targets = selection.tunnels;
     let tracker = ProgressTracker::new(&targets, &snapshot);
     for label in tracker.already_active() {
         println!("{label}: already active");
@@ -38,7 +41,7 @@ pub async fn up(context: &Context, arguments: UpArguments) -> Result<(), CliErro
     for label in tracker.already_provided() {
         println!("{label}: already provided by an external process");
     }
-    request_starts(&client, &targets).await?;
+    request_starts(&client, &selection.to_start).await?;
     let Some(events) = events.filter(|_| will_wait) else {
         for target in &targets {
             println!("{}: start requested", target.label);
@@ -55,7 +58,91 @@ pub async fn up(context: &Context, arguments: UpArguments) -> Result<(), CliErro
         style: context.style,
         timeout: Duration::from_secs(arguments.timeout),
     };
-    waiting.run().await
+    waiting.run().await.inspect_err(|_| {
+        if let Some(stop_command) = &selection.leftover_stop_command {
+            eprintln!(
+                "the temporary tunnel stays listed with its failure; remove it with `{stop_command}`"
+            );
+        }
+    })
+}
+
+/// The tunnels `up` waits for, and what to ask the daemon to start.
+struct Selection {
+    tunnels: Vec<ResolvedTunnel>,
+    to_start: Vec<ResolvedTunnel>,
+    leftover_stop_command: Option<String>,
+}
+
+async fn select_targets(
+    client: &IpcClient,
+    arguments: &UpArguments,
+    snapshot: &SnapshotDto,
+    style: Style,
+) -> Result<Selection, CliError> {
+    let Some((option, specification)) = arguments.forward() else {
+        let tunnels = resolve(arguments, snapshot, style)?;
+        return Ok(Selection {
+            to_start: tunnels.clone(),
+            tunnels,
+            leftover_stop_command: None,
+        });
+    };
+    let [host] = arguments.targets.as_slice() else {
+        return Err(CliError::ForwardNeedsOneHost {
+            count: arguments.targets.len(),
+        });
+    };
+    let request = ForwardRequest::parse(option, specification)?;
+    forward_selection(client, host, request, snapshot, style).await
+}
+
+/// Picks the tunnel that already does the forward, or starts a temporary one.
+async fn forward_selection(
+    client: &IpcClient,
+    host: &str,
+    request: ForwardRequest,
+    snapshot: &SnapshotDto,
+    style: Style,
+) -> Result<Selection, CliError> {
+    if let Some(existing) = request.find_in(host, snapshot) {
+        let label = describe_tunnel_route(existing, &snapshot.settings, style);
+        let kind = if existing.is_temporary {
+            "already a temporary tunnel"
+        } else {
+            "already a saved tunnel"
+        };
+        println!("{label}: {kind}, starting it");
+        let tunnel = ResolvedTunnel {
+            id: existing.definition.id.clone(),
+            label,
+        };
+        return Ok(Selection {
+            to_start: vec![tunnel.clone()],
+            tunnels: vec![tunnel],
+            leftover_stop_command: existing
+                .is_temporary
+                .then(|| stop_command(&existing.definition.spec)),
+        });
+    }
+    let started = client
+        .start_temporary_tunnel(request.into_temporary_spec(host))
+        .await?;
+    let label = describe_tunnel_route(&started, &snapshot.settings, style);
+    let stop_command = stop_command(&started.definition.spec);
+    println!("{label}: starting. Stop and remove it with `{stop_command}`");
+    Ok(Selection {
+        tunnels: vec![ResolvedTunnel {
+            id: started.definition.id,
+            label,
+        }],
+        to_start: Vec::new(),
+        leftover_stop_command: Some(stop_command),
+    })
+}
+
+fn stop_command(spec: &TunnelSpecDto) -> String {
+    format!("tunneler down {}:{}", spec.host, spec.listen_port)
 }
 
 fn resolve(

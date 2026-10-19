@@ -3,6 +3,7 @@
 use clap::{Args, Parser, Subcommand};
 
 use super::exit_code::describe_exit_codes;
+use super::forward_spec::ForwardOption;
 use super::locations::Locations;
 use super::style::ColorChoice;
 
@@ -16,12 +17,26 @@ Examples:
   tunneler up dev               Start every tunnel tagged dev
   tunneler up --no-wait dev     Ask for the start and return at once
   tunneler up --timeout 60 dev  Wait up to a minute
+  tunneler up nova -L 5000      Temporary tunnel: local 5000 to port 5000 of nova
+  tunneler up nova -L 5000:db.internal:5432
+                                Temporary tunnel: local 5000 to db.internal:5432 via nova
+  tunneler up nova -R 9000:localhost:3000
+                                Temporary tunnel: nova:9000 to local port 3000
+  tunneler up nova -D 1080      Temporary SOCKS proxy on local port 1080 via nova
 
 Tunnels have no name. A number selects the tunnel listening on that port (when
 several hosts have one, pass host:port), host:port selects a host's tunnel, and
 anything else is a tag (ignoring case). The daemon is started in the background
 when it is not running. When a password, a passphrase or an unknown host key
-has to be confirmed, you are asked here if this is a terminal.";
+has to be confirmed, you are asked here if this is a terminal.
+
+With -L, -R or -D the only argument is the ssh_config host, and the forward uses
+the syntax of ssh: -L [bind_address:]port[:host:hostport], -R
+[bind_address:]port[:host:hostport], -D [bind_address:]port. A bare port stands
+for the same port on the host's loopback. When a saved tunnel already does that
+forward, it is started instead. Otherwise a temporary tunnel is started: it is
+never saved, and `tunneler down` (or stopping it in the app) removes it, as does
+quitting the daemon.";
 
 const DOWN_EXAMPLES: &str = "\
 Examples:
@@ -115,7 +130,7 @@ pub enum Command {
     /// Run the daemon in the foreground
     #[command(after_help = DAEMON_EXAMPLES)]
     Daemon,
-    /// Start tunnels, by port, host:port or tag
+    /// Start tunnels, by port, host:port or tag, or a temporary forward
     #[command(after_help = UP_EXAMPLES)]
     Up(UpArguments),
     /// Stop tunnels, by port, host:port or tag
@@ -139,17 +154,51 @@ pub enum Command {
 #[derive(Debug, Args)]
 pub struct UpArguments {
     /// Read the targets as tags, never as ports or host:port pairs
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["local_forward", "remote_forward", "dynamic_forward"])]
     pub tag: bool,
+    /// Start a temporary local forward through the host, as ssh -L does
+    #[arg(
+        short = 'L',
+        value_name = "SPEC",
+        conflicts_with_all = ["remote_forward", "dynamic_forward"]
+    )]
+    pub local_forward: Option<String>,
+    /// Start a temporary remote forward through the host, as ssh -R does
+    #[arg(
+        short = 'R',
+        value_name = "SPEC",
+        conflicts_with_all = ["local_forward", "dynamic_forward"]
+    )]
+    pub remote_forward: Option<String>,
+    /// Start a temporary SOCKS proxy through the host, as ssh -D does
+    #[arg(
+        short = 'D',
+        value_name = "SPEC",
+        conflicts_with_all = ["local_forward", "remote_forward"]
+    )]
+    pub dynamic_forward: Option<String>,
     /// Return once the start is requested, without waiting for the tunnels
     #[arg(long)]
     pub no_wait: bool,
     /// How long to wait for the tunnels, in seconds
     #[arg(long, value_name = "SECONDS", default_value_t = DEFAULT_WAIT_TIMEOUT_SECONDS)]
     pub timeout: u64,
-    /// The ports, host:port pairs or tags to start
+    /// The ports, host:port pairs or tags to start; with -L, -R or -D, the host
     #[arg(required = true, value_name = "TARGET")]
     pub targets: Vec<String>,
+}
+
+impl UpArguments {
+    /// The forward asked for with `-L`, `-R` or `-D`, when there is one.
+    pub fn forward(&self) -> Option<(ForwardOption, &str)> {
+        [
+            (ForwardOption::Local, &self.local_forward),
+            (ForwardOption::Remote, &self.remote_forward),
+            (ForwardOption::Dynamic, &self.dynamic_forward),
+        ]
+        .into_iter()
+        .find_map(|(option, specification)| specification.as_deref().map(|text| (option, text)))
+    }
 }
 
 /// The arguments of `down`.
@@ -232,6 +281,61 @@ mod tests {
             (cli.locations.socket, cli.color),
             (Some("/tmp/s".into()), ColorChoice::Never)
         );
+    }
+
+    #[test]
+    fn should_read_the_forward_when_up_is_given_a_local_forward() {
+        let Some(Command::Up(arguments)) = parse(&["up", "nova", "-L", "5000"]).unwrap().command
+        else {
+            panic!("expected up");
+        };
+
+        assert_eq!(arguments.forward(), Some((ForwardOption::Local, "5000")));
+        assert_eq!(arguments.targets, ["nova".to_owned()]);
+    }
+
+    #[test]
+    fn should_read_the_forward_when_up_is_given_a_remote_forward() {
+        let Some(Command::Up(arguments)) = parse(&["up", "-R", "9000:localhost:3000", "nova"])
+            .unwrap()
+            .command
+        else {
+            panic!("expected up");
+        };
+
+        assert_eq!(
+            arguments.forward(),
+            Some((ForwardOption::Remote, "9000:localhost:3000"))
+        );
+    }
+
+    #[test]
+    fn should_read_the_forward_when_up_is_given_a_dynamic_forward() {
+        let Some(Command::Up(arguments)) = parse(&["up", "nova", "-D", "1080"]).unwrap().command
+        else {
+            panic!("expected up");
+        };
+
+        assert_eq!(arguments.forward(), Some((ForwardOption::Dynamic, "1080")));
+    }
+
+    #[test]
+    fn should_have_no_forward_when_up_is_given_only_targets() {
+        let Some(Command::Up(arguments)) = parse(&["up", "dev"]).unwrap().command else {
+            panic!("expected up");
+        };
+
+        assert_eq!(arguments.forward(), None);
+    }
+
+    #[test]
+    fn should_refuse_two_forwards_when_starting() {
+        assert!(parse(&["up", "nova", "-L", "5000", "-D", "1080"]).is_err());
+    }
+
+    #[test]
+    fn should_refuse_tag_mode_together_with_a_forward() {
+        assert!(parse(&["up", "--tag", "nova", "-L", "5000"]).is_err());
     }
 
     #[test]
