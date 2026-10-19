@@ -1834,6 +1834,105 @@ async fn should_refuse_a_new_tag_name_that_breaks_the_tag_syntax() {
 }
 
 #[tokio::test]
+async fn should_remove_the_deleted_tag_from_every_tunnel_that_carries_it() {
+    let harness = HarnessBuilder::tagged(&[
+        ("alpha", &["dev"]),
+        ("beta", &["dev", "web"]),
+        ("gamma", &["web"]),
+    ])
+    .start()
+    .await;
+
+    let removed_count = harness.engine.delete_tag("dev").await.unwrap();
+
+    assert_eq!(
+        (
+            removed_count,
+            tags_of(&harness, "alpha"),
+            tags_of(&harness, "beta"),
+            tags_of(&harness, "gamma"),
+        ),
+        (2, strings(&[]), strings(&["web"]), strings(&["web"]),)
+    );
+}
+
+#[tokio::test]
+async fn should_keep_the_tunnels_when_their_tag_is_deleted() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev"]), ("beta", &["dev"])])
+        .start()
+        .await;
+
+    harness.engine.delete_tag("dev").await.unwrap();
+
+    assert_eq!(harness.engine.snapshot().tunnels.len(), 2);
+}
+
+#[tokio::test]
+async fn should_persist_the_tunnels_and_the_launch_tags_in_one_write_when_a_tag_is_deleted() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev", "web"])])
+        .start()
+        .await;
+    configure_launch(&harness, false, &["dev", "web"]).await;
+
+    harness.engine.delete_tag("dev").await.unwrap();
+
+    let (reopened, _) = Store::open(harness.store_path()).unwrap();
+    let document = reopened.document();
+    assert_eq!(
+        (
+            document.tunnels[0].tags.clone(),
+            document.settings.start_on_launch_tags
+        ),
+        (strings(&["web"]), strings(&["web"]))
+    );
+}
+
+#[tokio::test]
+async fn should_remove_the_deleted_tag_from_the_start_on_launch_tags() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+    configure_launch(&harness, false, &["dev"]).await;
+
+    harness.engine.delete_tag("dev").await.unwrap();
+
+    assert_eq!(
+        harness.engine.snapshot().settings.start_on_launch_tags,
+        strings(&[])
+    );
+}
+
+#[tokio::test]
+async fn should_announce_a_reload_when_a_tag_is_deleted() {
+    let mut harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+
+    harness.engine.delete_tag("dev").await.unwrap();
+
+    wait_for_event(&mut harness.events, WAIT, |event| {
+        (*event == EngineEvent::ConfigReloaded).then_some(())
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn should_keep_the_tunnel_running_when_its_tag_is_deleted() {
+    let mut harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+    harness.start_tunnel("alpha");
+    harness.wait_all_active(&["alpha"]).await;
+
+    harness.engine.delete_tag("dev").await.unwrap();
+
+    assert_eq!(harness.engine.active_tunnel_count(), 1);
+}
+
+#[tokio::test]
+async fn should_refuse_to_delete_a_tag_nobody_carries() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+
+    let outcome = harness.engine.delete_tag("missing").await;
+
+    assert!(matches!(outcome, Err(EngineError::UnknownTag(tag)) if tag == "missing"));
+}
+
+#[tokio::test]
 async fn should_fail_with_unknown_tunnel_when_the_id_does_not_exist() {
     let harness = HarnessBuilder::new(&["alpha"]).start().await;
     let unknown = TunnelId::generate();

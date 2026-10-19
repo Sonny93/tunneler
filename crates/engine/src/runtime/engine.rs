@@ -20,6 +20,7 @@ use crate::runtime::options::EngineOptions;
 use crate::runtime::port_watch::{PortWatch, run_scan_loop};
 use crate::runtime::reload::run_reload_loop;
 use crate::runtime::session_manager::SessionManager;
+use crate::runtime::tag_delete::delete_tag;
 use crate::runtime::tag_rename::rename_tag;
 use crate::runtime::tunnel_actor::TunnelCommand;
 use crate::runtime::x11_anchors::X11Anchors;
@@ -444,6 +445,33 @@ impl Engine {
         }
         self.inner.bus.publish(EngineEvent::ConfigReloaded);
         Ok(renamed.renamed_count)
+    }
+
+    /// Removes a tag from every tunnel and from `Settings::start_on_launch_tags`
+    /// with one write of the store, and returns how many tunnels carried it.
+    /// The tunnels are kept and running tunnels are not interrupted.
+    pub async fn delete_tag(&self, tag: &str) -> Result<usize, EngineError> {
+        let _serialized = self.inner.mutation.lock().await;
+        self.ensure_running()?;
+        if self.inner.catalog().ids_with_tag(tag).is_empty() {
+            return Err(EngineError::UnknownTag(tag.to_owned()));
+        }
+        let mut document = self.inner.store.document();
+        let current = self.inner.catalog().definitions();
+        let deletion = delete_tag(&current, &document.settings.start_on_launch_tags, tag);
+        document.tunnels.clone_from(&deletion.tunnels);
+        document.settings.start_on_launch_tags = deletion.start_on_launch_tags;
+        let settings = document.settings.clone();
+        let store = Arc::clone(&self.inner.store);
+        run_blocking(move || store.save(document)).await?;
+        self.inner.settings.send_replace(settings);
+        for (before, after) in current.iter().zip(deletion.tunnels) {
+            if before.tags != after.tags {
+                self.inner.catalog().replace(after);
+            }
+        }
+        self.inner.bus.publish(EngineEvent::ConfigReloaded);
+        Ok(deletion.removed_count)
     }
 
     /// Stops the tunnel if it runs, removes it and saves the store.
