@@ -47,8 +47,7 @@ export function HeaderActions() {
 				color="neutral"
 				onClick={openSettings}
 			/>
-			{/* View transitions crash the WebKitGTK 2.54 web process */}
-			<ThemeToggle variant="ghost" isTransitionEnabled={false} tooltip />
+			<ThemeToggle variant="ghost" tooltip />
 			<IconButton
 				icon="i-mdi-keyboard-outline"
 				aria-label="Raccourcis clavier"
