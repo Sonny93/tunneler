@@ -213,6 +213,20 @@ describe('CommandPalette', () => {
 		);
 	});
 
+	it('should ask for confirmation before deleting a tag', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderPalette();
+		useDaemonStore.setState({ tunnels: [buildTunnel({ tags: ['dev'] })] });
+		await openPalette(user);
+
+		await user.type(getInput(), 'Supprimer le tag dev{Enter}');
+
+		expect(
+			await screen.findByRole('alertdialog', { name: 'Supprimer le tag dev ?' })
+		).toBeInTheDocument();
+		expect(gateway.deleteTag).not.toHaveBeenCalled();
+	});
+
 	it('should open the host configuration of a host', async () => {
 		const user = userEvent.setup();
 		renderPalette();

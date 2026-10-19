@@ -88,6 +88,20 @@ describe('buildPaletteCommands', () => {
 		]);
 	});
 
+	it('should offer to delete every tag', () => {
+		const commands = build([
+			buildTunnel({ tags: ['dev'] }),
+			buildTunnel({ id: 'tunnel-2', tags: ['dev', 'db'] }),
+		]);
+
+		expect(
+			commands.filter(({ action }) => action.kind === 'deleteTag')
+		).toEqual([
+			expect.objectContaining({ label: 'Supprimer le tag db…' }),
+			expect.objectContaining({ label: 'Supprimer le tag dev…' }),
+		]);
+	});
+
 	it('should offer to start a tag that is not fully active', () => {
 		const labels = labelsOf(build([buildTunnel({ tags: ['dev'] })]));
 

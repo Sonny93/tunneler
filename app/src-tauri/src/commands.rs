@@ -1,8 +1,9 @@
 //! The commands the front end invokes; each one forwards to the daemon.
 
 use ipc::protocol::{
-    ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto, LogEntryDto, RememberDto,
-    ResolvedHostDto, SettingsDto, SnapshotDto, TunnelDefinitionDto, TunnelDto, TunnelSpecDto,
+    DeleteTagResult, ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto, LogEntryDto,
+    RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, TunnelDefinitionDto, TunnelDto,
+    TunnelSpecDto,
 };
 use std::path::Path;
 
@@ -129,6 +130,16 @@ pub async fn rename_tag(
     to: String,
 ) -> CommandResult<u64> {
     Ok(state.client()?.rename_tag(&from, &to).await?)
+}
+
+/// Removes a tag from every tunnel; returns how many tunnels carried it.
+#[tauri::command]
+pub async fn delete_tag(
+    state: State<'_, BridgeState>,
+    tag: String,
+) -> CommandResult<DeleteTagResult> {
+    let removed_count = state.client()?.delete_tag(&tag).await?;
+    Ok(DeleteTagResult { removed_count })
 }
 
 /// Shows the configuration file in the file manager; the path comes from the

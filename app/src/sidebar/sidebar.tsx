@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { useUiStore } from '#/state/ui_store';
 import { SIDEBAR_ID } from '#/sidebar/sidebar_id';
@@ -21,6 +21,17 @@ export function Sidebar() {
 	const tagSummaries = useMemo(() => summarizeTags(tunnels), [tunnels]);
 	const hostSummaries = useMemo(() => summarizeHosts(tunnels), [tunnels]);
 
+	const allFilterRef = useRef<HTMLDivElement>(null);
+	const isAllFilterFocusPending = useUiStore(
+		(state) => state.isAllFilterFocusPending
+	);
+
+	useEffect(() => {
+		if (!isAllFilterFocusPending) return;
+		allFilterRef.current?.querySelector('button')?.focus();
+		useUiStore.getState().clearAllFilterFocus();
+	}, [isAllFilterFocusPending]);
+
 	const handleSelectAll = () => setFilter({ kind: 'all' });
 
 	return (
@@ -29,7 +40,7 @@ export function Sidebar() {
 			aria-label="Filtres des tunnels"
 			className="flex flex-col gap-4"
 		>
-			<div className="flex">
+			<div ref={allFilterRef} className="flex">
 				<FilterButton
 					label="Tous les tunnels"
 					count={countActiveTunnels(tunnels)}

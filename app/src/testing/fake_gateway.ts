@@ -41,6 +41,7 @@ export function createFakeGateway(
 		startTag: vi.fn(() => Promise.resolve()),
 		stopTag: vi.fn(() => Promise.resolve()),
 		renameTag: vi.fn(() => Promise.resolve(0)),
+		deleteTag: vi.fn(() => Promise.resolve({ removedCount: 0 })),
 		startX11: vi.fn(() => Promise.resolve()),
 		stopX11: vi.fn(() => Promise.resolve()),
 		launchX11: vi.fn(() => Promise.resolve()),

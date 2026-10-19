@@ -33,6 +33,7 @@ export function createTauriGateway(): DaemonGateway {
 		startTag: (tag) => call('start_tag', { tag }),
 		stopTag: (tag) => call('stop_tag', { tag }),
 		renameTag: (from, to) => call('rename_tag', { from, to }),
+		deleteTag: (tag) => call('delete_tag', { tag }),
 		startX11: (host) => call('start_x11', { host }),
 		stopX11: (host) => call('stop_x11', { host }),
 		launchX11: (host, name) => call('launch_x11', { host, name }),

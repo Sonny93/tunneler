@@ -133,6 +133,12 @@ function buildTagCommands(
 			category: 'Tag',
 			action: { kind: 'renameTag', tag },
 		});
+		commands.push({
+			id: `tag:${tag}:delete`,
+			label: `Supprimer le tag ${tag}…`,
+			category: 'Tag',
+			action: { kind: 'deleteTag', tag },
+		});
 		return commands;
 	});
 }

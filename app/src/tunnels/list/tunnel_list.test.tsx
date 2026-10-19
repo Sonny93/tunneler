@@ -1,5 +1,6 @@
 import { axe } from 'vitest-axe';
 import { describe, expect, it } from 'vitest';
+import { ModalProvider } from '@minimalstuff/ui';
 import userEvent from '@testing-library/user-event';
 import { screen, within } from '@testing-library/react';
 
@@ -142,6 +143,35 @@ describe('TunnelList', () => {
 
 		expect(
 			screen.queryByRole('button', { name: 'Renommer le tag' })
+		).not.toBeInTheDocument();
+	});
+
+	it('should ask for confirmation before deleting the tag the list is filtered by', async () => {
+		seedTunnels();
+		useUiStore.getState().setFilter({ kind: 'tag', tag: 'dev' });
+		const { gateway } = renderWithGateway(
+			<>
+				<ModalProvider />
+				<TunnelList />
+			</>
+		);
+
+		await userEvent.click(
+			screen.getByRole('button', { name: 'Supprimer le tag' })
+		);
+
+		expect(
+			await screen.findByRole('alertdialog', { name: 'Supprimer le tag dev ?' })
+		).toBeInTheDocument();
+		expect(gateway.deleteTag).not.toHaveBeenCalled();
+	});
+
+	it('should not offer to delete a tag without a tag filter', () => {
+		seedTunnels();
+		renderWithGateway(<TunnelList />);
+
+		expect(
+			screen.queryByRole('button', { name: 'Supprimer le tag' })
 		).not.toBeInTheDocument();
 	});
 });

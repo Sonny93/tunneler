@@ -1,5 +1,6 @@
 import { axe } from 'vitest-axe';
 import { describe, expect, it } from 'vitest';
+import { ModalProvider } from '@minimalstuff/ui';
 import userEvent from '@testing-library/user-event';
 import { act, fireEvent, screen, within } from '@testing-library/react';
 
@@ -210,7 +211,7 @@ describe('Sidebar', () => {
 
 			expect(
 				screen.getAllByRole('menuitem').map((item) => item.textContent)
-			).toEqual(['Renommer…', 'Démarrer le tag']);
+			).toEqual(['Renommer…', 'Supprimer le tag…', 'Démarrer le tag']);
 		});
 
 		it('should offer to stop a fully running tag', () => {
@@ -249,6 +250,29 @@ describe('Sidebar', () => {
 			});
 		});
 
+		it('should ask for confirmation before deleting the tag from the menu', async () => {
+			const user = userEvent.setup();
+			seedTunnels();
+			const { gateway } = renderWithGateway(
+				<>
+					<ModalProvider />
+					<Sidebar />
+				</>
+			);
+			fireEvent.contextMenu(screen.getByRole('button', { name: /^dev/ }));
+
+			await user.click(
+				screen.getByRole('menuitem', { name: 'Supprimer le tag…' })
+			);
+
+			expect(
+				await screen.findByRole('alertdialog', {
+					name: 'Supprimer le tag dev ?',
+				})
+			).toBeInTheDocument();
+			expect(gateway.deleteTag).not.toHaveBeenCalled();
+		});
+
 		it('should focus the row of a just-renamed tag', () => {
 			seedTunnels();
 			renderWithGateway(<Sidebar />);
@@ -258,5 +282,17 @@ describe('Sidebar', () => {
 			expect(screen.getByRole('button', { name: /^dev/ })).toHaveFocus();
 			expect(useUiStore.getState().pendingFocusTag).toBeNull();
 		});
+	});
+
+	it('should focus the all tunnels filter when asked', () => {
+		seedTunnels();
+		renderWithGateway(<Sidebar />);
+
+		act(() => useUiStore.getState().focusAllFilter());
+
+		expect(
+			screen.getByRole('button', { name: /Tous les tunnels/ })
+		).toHaveFocus();
+		expect(useUiStore.getState().isAllFilterFocusPending).toBe(false);
 	});
 });

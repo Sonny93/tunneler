@@ -13,6 +13,7 @@ export type PaletteAction =
 	| { kind: 'startTag'; tag: string }
 	| { kind: 'stopTag'; tag: string }
 	| { kind: 'renameTag'; tag: string }
+	| { kind: 'deleteTag'; tag: string }
 	| { kind: 'showHostConfig'; host: string }
 	| { kind: 'showX11'; host: string };
 

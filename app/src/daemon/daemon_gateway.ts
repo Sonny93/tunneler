@@ -2,6 +2,7 @@ import type {
 	EventMessage,
 	HostKeyDecisionDto,
 	ImportPreviewDto,
+	DeleteTagResultDto,
 	ForgetSecretsResultDto,
 	LogEntryDto,
 	RememberDto,
@@ -33,6 +34,8 @@ export type DaemonGateway = {
 	stopTag(tag: string): Promise<void>;
 	/** Renames a tag in every tunnel and in the launch tags; resolves to the number of tunnels that carried it. */
 	renameTag(from: string, to: string): Promise<number>;
+	/** Removes a tag from every tunnel and from the launch tags, keeping the tunnels. */
+	deleteTag(tag: string): Promise<DeleteTagResultDto>;
 	startX11(host: string): Promise<void>;
 	stopX11(host: string): Promise<void>;
 	launchX11(host: string, name: string): Promise<void>;

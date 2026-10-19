@@ -175,6 +175,8 @@ export type RememberDto = 'session' | 'keyring';
 
 export type ForgetSecretsResultDto = { forgottenCount: number };
 
+export type DeleteTagResultDto = { removedCount: number };
+
 export type HostKeyDecisionDto = 'acceptAndSave' | 'acceptOnce' | 'reject';
 
 export type HostKeyAlertReasonDto =

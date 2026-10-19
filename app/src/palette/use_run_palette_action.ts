@@ -1,4 +1,5 @@
 import { useUiStore } from '#/state/ui_store';
+import { useDeleteTag } from '#/tag_delete/use_delete_tag';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import type { PaletteAction } from '#/palette/palette_command';
 
@@ -7,6 +8,7 @@ type RunPaletteAction = (action: PaletteAction) => void;
 /** Runs a palette action with the same effects as the matching buttons and menu items. */
 export function useRunPaletteAction(): RunPaletteAction {
 	const runDaemonAction = useDaemonAction();
+	const deleteTag = useDeleteTag();
 
 	return (action) => {
 		const ui = useUiStore.getState();
@@ -24,6 +26,8 @@ export function useRunPaletteAction(): RunPaletteAction {
 				);
 			case 'renameTag':
 				return ui.openTagRename(action.tag, 'palette');
+			case 'deleteTag':
+				return void deleteTag(action.tag);
 			case 'toggleSidebar':
 				return ui.toggleSidebar();
 			case 'showShortcuts':

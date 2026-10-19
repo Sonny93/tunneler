@@ -51,6 +51,7 @@ describe('createTauriGateway', () => {
 			'rename_tag',
 			{ from: 'dev', to: 'staging' },
 		],
+		['deleteTag', ['dev'], 'delete_tag', { tag: 'dev' }],
 		['startX11', ['nova'], 'start_x11', { host: 'nova' }],
 		['stopX11', ['nova'], 'stop_x11', { host: 'nova' }],
 		[

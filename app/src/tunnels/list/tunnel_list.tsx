@@ -5,6 +5,7 @@ import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { filterTunnels } from '#/tunnels/filter_tunnels';
 import { TunnelGroup } from '#/tunnels/list/tunnel_group';
+import { useDeleteTag } from '#/tag_delete/use_delete_tag';
 import { useRovingRows } from '#/tunnels/list/use_roving_rows';
 import { BulkToolbar } from '#/tunnels/selection/bulk_toolbar';
 import { useResolvedFilter } from '#/tunnels/use_resolved_filter';
@@ -47,6 +48,7 @@ export function TunnelList() {
 		(state) => state.clearTunnelSelection
 	);
 	const openTagRename = useUiStore((state) => state.openTagRename);
+	const deleteTag = useDeleteTag();
 	const createButtonRef = useRef<HTMLButtonElement>(null);
 	const { activeRowId, containerProps } = useRovingRows(rowIds);
 	const requestFocusAfterRemoval = useFocusAfterRemoval(
@@ -60,6 +62,9 @@ export function TunnelList() {
 
 	const handleRenameTag = () => {
 		if (filter.kind === 'tag') openTagRename(filter.tag, 'list');
+	};
+	const handleDeleteTag = () => {
+		if (filter.kind === 'tag') void deleteTag(filter.tag);
 	};
 	const handleSelectAll = () => selectTunnels(rowIds);
 	const handleClearSelection = () => {
@@ -84,6 +89,16 @@ export function TunnelList() {
 						variant="ghost"
 						color="neutral"
 						onClick={handleRenameTag}
+					/>
+				)}
+				{filter.kind === 'tag' && (
+					<IconButton
+						icon="i-mdi-tag-remove-outline"
+						aria-label="Supprimer le tag"
+						tooltip
+						variant="ghost"
+						color="neutral"
+						onClick={handleDeleteTag}
 					/>
 				)}
 			</div>

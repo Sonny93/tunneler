@@ -39,6 +39,8 @@ type UiState = {
 	tagRename: TagRenameRequest | null;
 	/** A just-renamed tag whose sidebar row takes the focus once it is rendered. */
 	pendingFocusTag: string | null;
+	/** Whether the « Tous les tunnels » filter takes the focus once rendered, e.g. after a tag was deleted. */
+	isAllFilterFocusPending: boolean;
 	/** The tray problem the user hid; a different problem shows the notice again. */
 	dismissedTrayProblem: TrayProblemKind | null;
 	/** A just-created tunnel whose switch takes the focus once its row is rendered. */
@@ -73,6 +75,8 @@ type UiActions = {
 	closeTagRename: () => void;
 	focusTagRow: (tag: string) => void;
 	clearPendingFocusTag: () => void;
+	focusAllFilter: () => void;
+	clearAllFilterFocus: () => void;
 	dismissTrayProblem: (kind: TrayProblemKind) => void;
 	toggleTunnelSelection: (tunnelId: string) => void;
 	/** Selects every tunnel between the anchor and `tunnelId` in `orderedIds`. */
@@ -91,6 +95,7 @@ export const INITIAL_UI_STATE: UiState = {
 	isSidebarCollapsed: false,
 	tagRename: null,
 	pendingFocusTag: null,
+	isAllFilterFocusPending: false,
 	dismissedTrayProblem: null,
 	pendingFocusTunnelId: null,
 	confirmedX11Hosts: [],
@@ -132,6 +137,8 @@ export const useUiStore = create<UiState & UiActions>()((set) => ({
 	closeTagRename: () => set({ tagRename: null }),
 	focusTagRow: (pendingFocusTag) => set({ pendingFocusTag }),
 	clearPendingFocusTag: () => set({ pendingFocusTag: null }),
+	focusAllFilter: () => set({ isAllFilterFocusPending: true }),
+	clearAllFilterFocus: () => set({ isAllFilterFocusPending: false }),
 	dismissTrayProblem: (dismissedTrayProblem) => set({ dismissedTrayProblem }),
 	toggleTunnelSelection: (tunnelId) =>
 		set((state) => {
