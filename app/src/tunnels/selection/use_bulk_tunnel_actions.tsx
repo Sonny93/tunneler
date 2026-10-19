@@ -7,7 +7,7 @@ import { useDaemonStore } from '#/state/daemon_store';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { TunnelNameList } from '#/tunnels/selection/tunnel_name_list';
+import { TunnelLabelList } from '#/tunnels/selection/tunnel_label_list';
 import { BulkTagsContent } from '#/tunnels/selection/bulk_tags_content';
 import { runBulkOperation } from '#/tunnels/selection/run_bulk_operation';
 import { RemovalFocusContext } from '#/tunnels/list/removal_focus_context';
@@ -81,7 +81,7 @@ export function useBulkTunnelActions(
 	const confirmRemoval = async () => {
 		const isConfirmed = await ConfirmModal.call({
 			title: `Supprimer ${formatTunnelCount(tunnels.length)} ?`,
-			children: <TunnelNameList tunnels={tunnels} />,
+			children: <TunnelLabelList tunnels={tunnels} />,
 			confirmLabel: 'Supprimer',
 			confirmColor: 'danger',
 		});

@@ -34,7 +34,7 @@ describe('buildPaletteCommands', () => {
 	it('should offer to start a stopped tunnel', () => {
 		expect(build([buildTunnel()])).toContainEqual(
 			expect.objectContaining({
-				label: 'Démarrer Adonis',
+				label: 'Démarrer 3333 → nova:3333',
 				category: 'Tunnel',
 				action: { kind: 'startTunnel', tunnelId: 'tunnel-1' },
 			})
@@ -46,15 +46,15 @@ describe('buildPaletteCommands', () => {
 			build([buildTunnel({ state: { kind: 'active' } })])
 		);
 
-		expect(labels).toContain('Arrêter Adonis');
-		expect(labels).not.toContain('Démarrer Adonis');
+		expect(labels).toContain('Arrêter 3333 → nova:3333');
+		expect(labels).not.toContain('Démarrer 3333 → nova:3333');
 	});
 
 	it('should offer details and edition for every tunnel', () => {
 		const labels = labelsOf(build([buildTunnel()]));
 
-		expect(labels).toContain('Détails de Adonis');
-		expect(labels).toContain('Modifier Adonis');
+		expect(labels).toContain('Détails de 3333 → nova:3333');
+		expect(labels).toContain('Modifier 3333 → nova:3333');
 	});
 
 	it('should offer the browser for a running local tunnel only', () => {
@@ -62,16 +62,16 @@ describe('buildPaletteCommands', () => {
 
 		expect(build([buildTunnel(running)])).toContainEqual(
 			expect.objectContaining({
-				label: 'Ouvrir Adonis dans le navigateur',
+				label: 'Ouvrir 3333 → nova:3333 dans le navigateur',
 				action: { kind: 'openInBrowser', host: '127.0.0.1', port: 3333 },
 			})
 		);
 		expect(labelsOf(build([buildTunnel()]))).not.toContain(
-			'Ouvrir Adonis dans le navigateur'
+			'Ouvrir 3333 → nova:3333 dans le navigateur'
 		);
 		expect(
 			labelsOf(build([buildTunnel({ ...running, kind: 'remote' })]))
-		).not.toContain('Ouvrir Adonis dans le navigateur');
+		).not.toContain('Ouvrir 3333 → nova:3333 dans le navigateur');
 	});
 
 	it('should offer to rename every tag', () => {

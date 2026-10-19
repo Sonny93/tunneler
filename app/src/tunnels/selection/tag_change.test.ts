@@ -57,7 +57,6 @@ describe('toRetaggedDefinition', () => {
 		expect(toRetaggedDefinition(tunnel, { kind: 'add', tags: ['db'] })).toEqual(
 			{
 				id: 'a',
-				name: 'Adonis',
 				host: 'nova',
 				kind: 'local',
 				listenPort: 3333,

@@ -3,6 +3,7 @@ import { Menu, IconButton } from '@minimalstuff/ui';
 import type { TunnelDto } from '#/daemon/protocol';
 import { TunnelMenuItems } from '#/tunnels/list/tunnel_menu_items';
 import { ROVING_CONTROL_ATTRIBUTE } from '#/tunnels/list/use_roving_rows';
+import { getTunnelAccessibleEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 type TunnelActionsMenuProps = {
 	tunnel: TunnelDto;
@@ -16,7 +17,7 @@ export function TunnelActionsMenu({
 	const trigger = (
 		<IconButton
 			icon="i-mdi-dots-vertical"
-			aria-label={`Actions pour ${tunnel.name}`}
+			aria-label={`Actions pour ${getTunnelAccessibleEndpointLabel(tunnel)}`}
 			tooltip
 			variant="ghost"
 			color="neutral"

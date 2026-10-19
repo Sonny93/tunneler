@@ -4,8 +4,8 @@ import { buildTunnel } from '#/testing/factories';
 import { runBulkOperation } from '#/tunnels/selection/run_bulk_operation';
 
 const targets = [
-	buildTunnel({ id: 'a', name: 'Alpha' }),
-	buildTunnel({ id: 'b', name: 'Beta' }),
+	buildTunnel({ id: 'a', listenPort: 3001 }),
+	buildTunnel({ id: 'b', listenPort: 3002 }),
 ];
 
 describe('runBulkOperation', () => {
@@ -27,7 +27,7 @@ describe('runBulkOperation', () => {
 		expect(outcome).toEqual({
 			total: 2,
 			succeededIds: ['b'],
-			failures: [{ name: 'Alpha', message: 'boom' }],
+			failures: [{ label: '3001 → nova:3001', message: 'boom' }],
 		});
 	});
 });

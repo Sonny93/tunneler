@@ -4,7 +4,6 @@ export type ImportSpec = { index: number; spec: TunnelSpecDto };
 
 type BuildImportSpecsInput = {
 	candidates: readonly Readonly<ImportCandidateDto>[];
-	names: readonly string[];
 	selectedIndexes: ReadonlySet<number>;
 	fallbackHost: string;
 	tags: readonly string[];
@@ -12,7 +11,6 @@ type BuildImportSpecsInput = {
 
 function buildSpec(
 	candidate: Readonly<ImportCandidateDto>,
-	name: string,
 	fallbackHost: string,
 	tags: readonly string[]
 ): TunnelSpecDto {
@@ -21,7 +19,6 @@ function buildSpec(
 		candidate.targetPort === undefined ||
 		candidate.targetPort === candidate.listenPort;
 	return {
-		name,
 		host: candidate.host ?? fallbackHost,
 		kind: candidate.kind,
 		listenPort: candidate.listenPort,
@@ -41,14 +38,12 @@ function buildSpec(
 /** The specs of the selected candidates, in candidate order, each with the index of its candidate. */
 export function buildImportSpecs({
 	candidates,
-	names,
 	selectedIndexes,
 	fallbackHost,
 	tags,
 }: Readonly<BuildImportSpecsInput>): ImportSpec[] {
 	return candidates.flatMap((candidate, index) => {
-		const name = names[index];
-		if (!selectedIndexes.has(index) || name === undefined) return [];
-		return [{ index, spec: buildSpec(candidate, name, fallbackHost, tags) }];
+		if (!selectedIndexes.has(index)) return [];
+		return [{ index, spec: buildSpec(candidate, fallbackHost, tags) }];
 	});
 }

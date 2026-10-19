@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest';
 
 import { EMPTY_TUNNEL_FORM_VALUES } from '#/tunnel_form/tunnel_form_values';
 import {
+	COLON_TAG_MESSAGE,
+	DIGITS_TAG_MESSAGE,
+} from '#/shared/reserved_tag_problem';
+import {
 	getFirstInvalidField,
 	validateTunnelForm,
 } from '#/tunnel_form/validate_tunnel_form';
 
 const valid = {
 	...EMPTY_TUNNEL_FORM_VALUES,
-	name: 'Adonis',
 	host: 'nova',
 	listenPort: '3333',
 };
@@ -18,15 +21,21 @@ describe('validateTunnelForm', () => {
 		expect(validateTunnelForm(valid)).toEqual({});
 	});
 
-	it('should require a name', () => {
-		expect(validateTunnelForm({ ...valid, name: '  ' }).name).toBe(
-			'Le nom est obligatoire.'
-		);
-	});
-
 	it('should require a host', () => {
 		expect(validateTunnelForm({ ...valid, host: '' }).host).toBe(
 			"L'hôte est obligatoire."
+		);
+	});
+
+	it('should reject a tag made only of digits', () => {
+		expect(validateTunnelForm({ ...valid, tags: 'dev, 3333' }).tags).toBe(
+			DIGITS_TAG_MESSAGE
+		);
+	});
+
+	it('should reject a tag containing a colon', () => {
+		expect(validateTunnelForm({ ...valid, tags: 'nova:3333' }).tags).toBe(
+			COLON_TAG_MESSAGE
 		);
 	});
 

@@ -1,7 +1,8 @@
 import type { TunnelDto } from '#/daemon/protocol';
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
-export type BulkFailure = { name: string; message: string };
+export type BulkFailure = { label: string; message: string };
 
 export type BulkOutcome = {
 	total: number;
@@ -18,13 +19,13 @@ export async function runBulkOperation(
 	const succeededIds: string[] = [];
 	const failures: BulkFailure[] = [];
 	settlements.forEach((settlement, index) => {
-		const { id, name } = targets[index];
+		const target = targets[index];
 		if (settlement.status === 'fulfilled') {
-			succeededIds.push(id);
+			succeededIds.push(target.id);
 			return;
 		}
 		failures.push({
-			name,
+			label: getTunnelEndpointLabel(target),
 			message: toDaemonCommandError(settlement.reason).message,
 		});
 	});

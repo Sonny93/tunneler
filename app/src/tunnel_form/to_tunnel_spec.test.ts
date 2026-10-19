@@ -5,7 +5,6 @@ import { EMPTY_TUNNEL_FORM_VALUES } from '#/tunnel_form/tunnel_form_values';
 
 const valid = {
 	...EMPTY_TUNNEL_FORM_VALUES,
-	name: ' Adonis ',
 	host: 'nova',
 	listenPort: '3333',
 	targetPort: '3333',
@@ -39,10 +38,14 @@ describe('toTunnelSpec', () => {
 		]);
 	});
 
-	it('should trim the name and parse the tags', () => {
-		const spec = toTunnelSpec({ ...valid, tags: 'db, db ,web' });
+	it('should trim the host and parse the tags', () => {
+		const spec = toTunnelSpec({
+			...valid,
+			host: ' nova ',
+			tags: 'db, db ,web',
+		});
 
-		expect([spec.name, spec.tags]).toEqual(['Adonis', ['db', 'web']]);
+		expect([spec.host, spec.tags]).toEqual(['nova', ['db', 'web']]);
 	});
 
 	it('should keep the given kind', () => {

@@ -156,8 +156,8 @@ describe('ExternalSection', () => {
 			})
 		);
 
-		expect(await screen.findByRole('textbox', { name: /Nom/ })).toHaveValue(
-			'nova 3333'
+		expect(await screen.findByRole('combobox', { name: /^Host/ })).toHaveValue(
+			'nova'
 		);
 	});
 
@@ -182,7 +182,6 @@ describe('ExternalSection', () => {
 
 		await waitFor(() =>
 			expect(gateway.createTunnel).toHaveBeenCalledWith({
-				name: 'nova 3333',
 				host: 'nova',
 				kind: 'local',
 				listenPort: 3333,

@@ -3,19 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { describeImportConflict } from '#/import/describe_import_conflict';
 
 describe('describeImportConflict', () => {
-	it('should name the tunnel already configured', () => {
-		expect(
-			describeImportConflict({
-				kind: 'alreadyConfigured',
-				tunnelName: 'Adonis',
-			})
-		).toBe('Déjà configuré (Adonis)');
+	it('should say the tunnel is already configured', () => {
+		expect(describeImportConflict({ kind: 'alreadyConfigured' })).toBe(
+			'Déjà configuré'
+		);
 	});
 
 	it('should name the tunnel using the port', () => {
 		expect(
-			describeImportConflict({ kind: 'listenConflict', tunnelName: 'Adonis' })
-		).toBe('Port déjà utilisé par Adonis');
+			describeImportConflict({
+				kind: 'listenConflict',
+				tunnelLabel: '3333 → nova:3333',
+			})
+		).toBe('Port déjà utilisé par 3333 → nova:3333');
 	});
 
 	it('should point to an earlier candidate', () => {

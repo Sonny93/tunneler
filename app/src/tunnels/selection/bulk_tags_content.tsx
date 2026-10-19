@@ -14,6 +14,7 @@ import {
 } from '@minimalstuff/ui';
 
 import { parseTags } from '#/tunnel_form/parse_tags';
+import { validateTags } from '#/tunnel_form/validate_tags';
 import type { TagChange } from '#/tunnels/selection/tag_change';
 
 type TagMode = 'add' | 'remove';
@@ -75,6 +76,12 @@ export function BulkTagsContent({
 		const tags = parseTags(tagText);
 		if (tags.length === 0) {
 			setError(MISSING_TAG_ERROR);
+			addInputRef.current?.focus();
+			return;
+		}
+		const tagsProblem = validateTags(tagText);
+		if (tagsProblem !== null) {
+			setError(tagsProblem);
 			addInputRef.current?.focus();
 			return;
 		}

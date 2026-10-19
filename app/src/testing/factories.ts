@@ -30,7 +30,6 @@ export function buildTunnel(
 ): TunnelDto {
 	return {
 		id: 'tunnel-1',
-		name: 'Adonis',
 		host: 'nova',
 		kind: 'local',
 		listenPort: DEFAULT_LISTEN_PORT,

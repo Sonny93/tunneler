@@ -113,7 +113,7 @@ describe('CommandPalette', () => {
 		renderPalette();
 		await openPalette(user);
 
-		await user.type(getInput(), 'adonis');
+		await user.type(getInput(), '3333');
 
 		expect(screen.getByRole('status')).toHaveTextContent('3 commandes');
 	});
@@ -206,7 +206,7 @@ describe('CommandPalette', () => {
 		const { gateway } = renderPalette();
 		await openPalette(user);
 
-		await user.type(getInput(), 'Démarrer Adonis{Enter}');
+		await user.type(getInput(), 'Démarrer 3333 → nova:3333{Enter}');
 
 		await waitFor(() =>
 			expect(gateway.startTunnel).toHaveBeenCalledWith('tunnel-1')

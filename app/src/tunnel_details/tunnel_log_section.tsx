@@ -6,12 +6,12 @@ import { useTunnelLogs } from '#/tunnel_details/use_tunnel_logs';
 
 type TunnelLogSectionProps = {
 	tunnelId: string;
-	tunnelName: string;
+	tunnelLabel: string;
 };
 
 export function TunnelLogSection({
 	tunnelId,
-	tunnelName,
+	tunnelLabel,
 }: Readonly<TunnelLogSectionProps>) {
 	const headingId = useId();
 	const { state, retry } = useTunnelLogs(tunnelId);
@@ -44,7 +44,7 @@ export function TunnelLogSection({
 				</div>
 			)}
 			{state.status === 'ready' && (
-				<TunnelLogList entries={state.entries} tunnelName={tunnelName} />
+				<TunnelLogList entries={state.entries} tunnelLabel={tunnelLabel} />
 			)}
 		</section>
 	);

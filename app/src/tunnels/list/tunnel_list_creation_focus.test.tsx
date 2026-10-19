@@ -14,7 +14,7 @@ const CREATED_ID = 'created-tunnel';
 
 function renderCreation() {
 	useDaemonStore.setState({
-		tunnels: [buildTunnel({ id: 'a', name: 'Alpha', host: 'nova' })],
+		tunnels: [buildTunnel({ id: 'a', host: 'nova' })],
 		settings: buildSettings({ defaultBindAddress: '127.0.0.1' }),
 		hosts: ['nova'],
 	});
@@ -38,11 +38,10 @@ function renderCreation() {
 	return gateway;
 }
 
-async function createTunnelNamed(name: string, host: string) {
+async function createTunnelOn(host: string) {
 	const user = userEvent.setup();
 	useUiStore.getState().openTunnelEditor(null);
-	await user.type(await screen.findByRole('textbox', { name: /^Nom/ }), name);
-	await user.type(screen.getByRole('combobox', { name: /^Host/ }), host);
+	await user.type(await screen.findByRole('combobox', { name: /^Host/ }), host);
 	await user.type(
 		screen.getByRole('textbox', { name: /^Port d'écoute/ }),
 		'4444'
@@ -54,11 +53,11 @@ describe('TunnelList focus after creation', () => {
 	it('should focus the switch of the new tunnel when the drawer closes', async () => {
 		renderCreation();
 
-		await createTunnelNamed('Nouveau', 'nova');
+		await createTunnelOn('nova');
 
 		await waitFor(() =>
 			expect(
-				screen.getByRole('switch', { name: /^Tunnel Nouveau,/ })
+				screen.getByRole('switch', { name: /^Tunnel 4444 vers nova:4444,/ })
 			).toHaveFocus()
 		);
 	});
@@ -66,11 +65,11 @@ describe('TunnelList focus after creation', () => {
 	it('should make the new row the active roving row', async () => {
 		renderCreation();
 
-		await createTunnelNamed('Nouveau', 'nova');
+		await createTunnelOn('nova');
 
 		await waitFor(() =>
 			expect(
-				screen.getByRole('switch', { name: /^Tunnel Nouveau,/ })
+				screen.getByRole('switch', { name: /^Tunnel 4444 vers nova:4444,/ })
 			).toHaveAttribute('tabindex', '0')
 		);
 	});
@@ -79,12 +78,10 @@ describe('TunnelList focus after creation', () => {
 		renderCreation();
 		useUiStore.getState().setFilter({ kind: 'tag', tag: 'other' });
 		useDaemonStore.setState({
-			tunnels: [
-				buildTunnel({ id: 'a', name: 'Alpha', host: 'nova', tags: ['other'] }),
-			],
+			tunnels: [buildTunnel({ id: 'a', host: 'nova', tags: ['other'] })],
 		});
 
-		await createTunnelNamed('Nouveau', 'nova');
+		await createTunnelOn('nova');
 
 		await waitFor(() =>
 			expect(useUiStore.getState().pendingFocusTunnelId).toBeNull()

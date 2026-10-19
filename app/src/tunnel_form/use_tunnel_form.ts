@@ -6,6 +6,7 @@ import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import { toTunnelFormValues } from '#/tunnel_form/tunnel_form_values';
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import { clearEditedFieldErrors } from '#/tunnel_form/clear_edited_field_errors';
 import type {
 	TunnelDefinitionDto,
@@ -73,7 +74,7 @@ export function useTunnelForm(
 		const outcome = tunnel ? 'enregistré' : 'créé';
 		useToastStore.getState().pushToast({
 			tone: 'success',
-			message: `Tunnel ${spec.name} ${outcome}`,
+			message: `Tunnel ${getTunnelEndpointLabel(spec)} ${outcome}`,
 		});
 		if (tunnel) useUiStore.getState().closePanel();
 		else useUiStore.getState().closePanelFocusingTunnel(savedTunnel.id);

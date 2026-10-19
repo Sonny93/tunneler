@@ -4,6 +4,7 @@ import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import type { TunnelSpecDto } from '#/daemon/protocol';
 import { TunnelFormPanel } from '#/tunnel_form/tunnel_form_panel';
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 const NEW_TUNNEL_KEY = 'new';
 
@@ -34,7 +35,10 @@ export function TunnelFormDrawer() {
 
 	return (
 		<TunnelEditor
-			key={panel.tunnelId ?? panel.draft?.name ?? NEW_TUNNEL_KEY}
+			key={
+				panel.tunnelId ??
+				(panel.draft ? getTunnelEndpointLabel(panel.draft) : NEW_TUNNEL_KEY)
+			}
 			tunnelId={panel.tunnelId}
 			draft={panel.draft}
 		/>

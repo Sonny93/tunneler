@@ -6,6 +6,7 @@ import { useUiStore } from '#/state/ui_store';
 import { useTunnelForm } from '#/tunnel_form/use_tunnel_form';
 import { FormErrorSummary } from '#/shared/form_error_summary';
 import { TunnelFormFields } from '#/tunnel_form/tunnel_form_fields';
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import type { TunnelDefinitionDto, TunnelSpecDto } from '#/daemon/protocol';
 
 type TunnelFormPanelProps = {
@@ -17,7 +18,7 @@ function getTitle(
 	tunnel: Readonly<TunnelDefinitionDto> | null,
 	draft: Readonly<TunnelSpecDto> | undefined
 ): string {
-	if (tunnel) return `Modifier ${tunnel.name}`;
+	if (tunnel) return `Modifier ${getTunnelEndpointLabel(tunnel)}`;
 	return draft ? 'Importer un tunnel' : 'Nouveau tunnel';
 }
 

@@ -6,7 +6,7 @@ export type TunnelGroup = {
 	tunnels: readonly TunnelDto[];
 };
 
-/** Hosts sorted, and the tunnels of each host sorted by name, case-insensitively. */
+/** Hosts sorted case-insensitively, and the tunnels of each host sorted by listen port. */
 export function groupTunnelsByHost(
 	tunnels: readonly Readonly<TunnelDto>[]
 ): readonly TunnelGroup[] {
@@ -20,8 +20,8 @@ export function groupTunnelsByHost(
 	return [...tunnelsByHost]
 		.map(([host, hostTunnels]) => ({
 			host,
-			tunnels: [...hostTunnels].sort((left, right) =>
-				compareTextCaseInsensitively(left.name, right.name)
+			tunnels: [...hostTunnels].sort(
+				(left, right) => left.listenPort - right.listenPort
 			),
 		}))
 		.sort((left, right) => compareTextCaseInsensitively(left.host, right.host));

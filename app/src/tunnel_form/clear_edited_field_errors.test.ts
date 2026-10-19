@@ -4,8 +4,8 @@ import { toTunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 import { clearEditedFieldErrors } from '#/tunnel_form/clear_edited_field_errors';
 
 const ALL_ERRORS = {
-	name: 'name error',
 	host: 'host error',
+	tags: 'tags error',
 	listenPort: 'listen error',
 	targetPort: 'target error',
 };
@@ -18,9 +18,9 @@ describe('clearEditedFieldErrors', () => {
 		expect(
 			clearEditedFieldErrors(
 				ALL_ERRORS,
-				{ type: 'textChanged', field: 'name', value: 'a' },
+				{ type: 'textChanged', field: 'host', value: 'a' },
 				linkedValues
-			).name
+			).host
 		).toBeUndefined();
 	});
 
@@ -28,11 +28,11 @@ describe('clearEditedFieldErrors', () => {
 		expect(
 			clearEditedFieldErrors(
 				ALL_ERRORS,
-				{ type: 'textChanged', field: 'name', value: 'a' },
+				{ type: 'textChanged', field: 'host', value: 'a' },
 				linkedValues
 			)
 		).toEqual({
-			host: 'host error',
+			tags: 'tags error',
 			listenPort: 'listen error',
 			targetPort: 'target error',
 		});

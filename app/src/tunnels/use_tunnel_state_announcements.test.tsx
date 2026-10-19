@@ -13,7 +13,9 @@ const loadTunnels = (...ids: string[]) =>
 	act(() =>
 		useDaemonStore.getState().applySnapshot(
 			buildSnapshot({
-				tunnels: ids.map((id) => buildTunnel({ id, name: id.toUpperCase() })),
+				tunnels: ids.map((id, index) =>
+					buildTunnel({ id, listenPort: 3001 + index })
+				),
 			})
 		)
 	);
@@ -53,7 +55,7 @@ describe('useTunnelStateAnnouncements', () => {
 		activate('a');
 		void act(() => vi.advanceTimersByTime(ANNOUNCEMENT_THROTTLE_MS));
 
-		expect(politeMessage()).toBe('A : Actif');
+		expect(politeMessage()).toBe('3001 vers nova:3001 : Actif');
 	});
 
 	it('should wait for the end of the window before announcing', () => {
@@ -75,7 +77,7 @@ describe('useTunnelStateAnnouncements', () => {
 		void act(() => vi.advanceTimersByTime(ANNOUNCEMENT_THROTTLE_MS));
 
 		expect(politeMessage()).toBe(
-			"2 tunnels ont changé d'état. A : Actif. B : Actif"
+			"2 tunnels ont changé d'état. 3001 vers nova:3001 : Actif. 3002 vers nova:3002 : Actif"
 		);
 	});
 

@@ -61,12 +61,14 @@ describe('App', () => {
 
 	it('should list the tunnels of the snapshot once connected', async () => {
 		const gateway = createFakeGateway({
-			snapshot: buildSnapshot({ tunnels: [buildTunnel({ name: 'Adonis' })] }),
+			snapshot: buildSnapshot({ tunnels: [buildTunnel()] }),
 		});
 		renderWithGateway(<App />, gateway);
 
 		expect(
-			await screen.findByRole('switch', { name: /^Tunnel Adonis,/ })
+			await screen.findByRole('switch', {
+				name: /^Tunnel 3333 vers nova:3333,/,
+			})
 		).toBeInTheDocument();
 	});
 

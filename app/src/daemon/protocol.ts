@@ -11,7 +11,6 @@ export type EpochMillis = number;
 export type TunnelKindDto = 'local' | 'remote' | 'dynamic';
 
 export type TunnelSpecDto = {
-	name: string;
 	host: string;
 	kind: TunnelKindDto;
 	listenPort: number;
@@ -84,7 +83,7 @@ export type ImportCandidateDto = {
 	listenAddress?: string;
 	targetHost?: string;
 	targetPort?: number;
-	label?: string;
+	comment?: string;
 	line?: number;
 };
 

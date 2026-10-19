@@ -11,22 +11,30 @@ import { TunnelList } from '#/tunnels/list/tunnel_list';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { DIGITS_TAG_MESSAGE } from '#/shared/reserved_tag_problem';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 
 const ACTIVE = { kind: 'active' } as const;
+const ALPHA = '3001 vers nova:3001';
+const BETA = '3002 vers nova:3002';
+const GAMMA = '3003 vers nova:3003';
+const DELTA = '3004 vers zeta:3004';
+const ALPHA_ARROW = '3001 → nova:3001';
+const BETA_ARROW = '3002 → nova:3002';
+const GAMMA_ARROW = '3003 → nova:3003';
 
 function seedTunnels() {
 	useDaemonStore.setState({
 		tunnels: [
-			buildTunnel({ id: 'a', name: 'Alpha', host: 'nova', state: ACTIVE }),
-			buildTunnel({ id: 'b', name: 'Beta', host: 'nova', tags: ['dev'] }),
+			buildTunnel({ id: 'a', listenPort: 3001, host: 'nova', state: ACTIVE }),
+			buildTunnel({ id: 'b', listenPort: 3002, host: 'nova', tags: ['dev'] }),
 			buildTunnel({
 				id: 'c',
-				name: 'Gamma',
+				listenPort: 3003,
 				host: 'nova',
 				tags: ['dev', 'db'],
 			}),
-			buildTunnel({ id: 'd', name: 'Delta', host: 'zeta' }),
+			buildTunnel({ id: 'd', listenPort: 3004, host: 'zeta' }),
 		],
 	});
 }
@@ -42,8 +50,8 @@ function renderList(gateway = createFakeGateway()) {
 	);
 }
 
-const rowCheckbox = (name: string) =>
-	screen.getByRole('checkbox', { name: `Sélectionner ${name}` });
+const rowCheckbox = (label: string) =>
+	screen.getByRole('checkbox', { name: `Sélectionner ${label}` });
 const selectAll = () =>
 	screen.getByRole('checkbox', { name: 'Tout sélectionner' });
 const toolbar = () =>
@@ -52,8 +60,8 @@ const toolbarButton = (name: string) =>
 	within(toolbar()).getByRole('button', { name });
 const lastToastMessage = () => useToastStore.getState().toasts.at(-1)?.message;
 
-async function select(...names: string[]) {
-	for (const name of names) await userEvent.click(rowCheckbox(name));
+async function select(...labels: string[]) {
+	for (const label of labels) await userEvent.click(rowCheckbox(label));
 }
 
 describe('TunnelList selection', () => {
@@ -66,16 +74,16 @@ describe('TunnelList selection', () => {
 	it('should select a tunnel with its checkbox', async () => {
 		renderList();
 
-		await select('Alpha');
+		await select(ALPHA);
 
-		expect(rowCheckbox('Alpha')).toBeChecked();
-		expect(rowCheckbox('Beta')).not.toBeChecked();
+		expect(rowCheckbox(ALPHA)).toBeChecked();
+		expect(rowCheckbox(BETA)).not.toBeChecked();
 	});
 
 	it('should count the selection in the toolbar with a singular', async () => {
 		renderList();
 
-		await select('Alpha');
+		await select(ALPHA);
 
 		expect(toolbar()).toHaveTextContent('1 tunnel sélectionné');
 	});
@@ -83,7 +91,7 @@ describe('TunnelList selection', () => {
 	it('should count the selection in the toolbar with a plural', async () => {
 		renderList();
 
-		await select('Alpha', 'Beta');
+		await select(ALPHA, BETA);
 
 		expect(toolbar()).toHaveTextContent('2 tunnels sélectionnés');
 	});
@@ -91,14 +99,14 @@ describe('TunnelList selection', () => {
 	it('should select the range from the last toggled row with Shift+click', async () => {
 		const user = userEvent.setup();
 		renderList();
-		await select('Alpha');
+		await select(ALPHA);
 
 		await user.keyboard('{Shift>}');
-		await user.click(rowCheckbox('Gamma'));
+		await user.click(rowCheckbox(GAMMA));
 		await user.keyboard('{/Shift}');
 
 		expect(
-			['Alpha', 'Beta', 'Gamma', 'Delta'].map(
+			[ALPHA, BETA, GAMMA, DELTA].map(
 				(name) => (rowCheckbox(name) as HTMLInputElement).checked
 			)
 		).toEqual([true, true, true, false]);
@@ -106,11 +114,11 @@ describe('TunnelList selection', () => {
 
 	it('should toggle a checkbox with Space', async () => {
 		renderList();
-		rowCheckbox('Beta').focus();
+		rowCheckbox(BETA).focus();
 
 		await userEvent.keyboard(' ');
 
-		expect(rowCheckbox('Beta')).toBeChecked();
+		expect(rowCheckbox(BETA)).toBeChecked();
 	});
 
 	it('should select every visible tunnel with the select-all checkbox', async () => {
@@ -125,14 +133,14 @@ describe('TunnelList selection', () => {
 	it('should mark the select-all checkbox as mixed while the selection is partial', async () => {
 		renderList();
 
-		await select('Alpha');
+		await select(ALPHA);
 
 		expect(selectAll()).toBePartiallyChecked();
 	});
 
 	it('should select everything from a partial selection', async () => {
 		renderList();
-		await select('Alpha');
+		await select(ALPHA);
 
 		await userEvent.click(selectAll());
 
@@ -159,7 +167,7 @@ describe('TunnelList selection', () => {
 
 	it('should select every visible tunnel with Ctrl+A inside the list', async () => {
 		renderList();
-		rowCheckbox('Beta').focus();
+		rowCheckbox(BETA).focus();
 
 		await userEvent.keyboard('{Control>}a{/Control}');
 
@@ -168,8 +176,8 @@ describe('TunnelList selection', () => {
 
 	it('should clear the selection with Escape inside the list', async () => {
 		renderList();
-		await select('Alpha');
-		rowCheckbox('Alpha').focus();
+		await select(ALPHA);
+		rowCheckbox(ALPHA).focus();
 
 		await userEvent.keyboard('{Escape}');
 
@@ -178,9 +186,9 @@ describe('TunnelList selection', () => {
 
 	it('should keep the selection when Escape closes an open menu', async () => {
 		renderList();
-		await select('Alpha');
+		await select(ALPHA);
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Actions pour Beta' })
+			screen.getByRole('button', { name: `Actions pour ${BETA}` })
 		);
 
 		await userEvent.keyboard('{Escape}');
@@ -190,7 +198,7 @@ describe('TunnelList selection', () => {
 
 	it('should drop from the selection the tunnels a filter hides', async () => {
 		renderList();
-		await select('Alpha', 'Beta');
+		await select(ALPHA, BETA);
 
 		act(() => useUiStore.getState().setFilter({ kind: 'tag', tag: 'dev' }));
 
@@ -200,7 +208,7 @@ describe('TunnelList selection', () => {
 
 	it('should drop from the selection the tunnels that are deleted', async () => {
 		renderList();
-		await select('Alpha', 'Beta');
+		await select(ALPHA, BETA);
 
 		act(() =>
 			useDaemonStore.setState({
@@ -216,7 +224,7 @@ describe('TunnelList selection', () => {
 	it('should announce the new count politely', async () => {
 		renderList();
 
-		await select('Alpha', 'Beta');
+		await select(ALPHA, BETA);
 
 		expect(useAnnouncerStore.getState().polite.message).toBe(
 			'2 tunnels sélectionnés'
@@ -231,7 +239,7 @@ describe('TunnelList selection', () => {
 
 	it('should clear the selection with the deselect button', async () => {
 		renderList();
-		await select('Alpha');
+		await select(ALPHA);
 
 		await userEvent.click(toolbarButton('Tout désélectionner'));
 
@@ -240,7 +248,7 @@ describe('TunnelList selection', () => {
 
 	it('should have no axe violations with a selection', async () => {
 		const { container } = renderList();
-		await select('Alpha', 'Beta');
+		await select(ALPHA, BETA);
 
 		expect(await axe(container)).toHaveNoViolations();
 	});
@@ -249,7 +257,7 @@ describe('TunnelList selection', () => {
 describe('TunnelList toolbar keyboard', () => {
 	it('should make the toolbar a single tab stop', async () => {
 		renderList();
-		await select('Alpha');
+		await select(ALPHA);
 
 		expect(
 			within(toolbar())
@@ -260,7 +268,7 @@ describe('TunnelList toolbar keyboard', () => {
 
 	it('should move between toolbar buttons with the arrow keys', async () => {
 		renderList();
-		await select('Alpha', 'Beta');
+		await select(ALPHA, BETA);
 		toolbarButton('Arrêter').focus();
 
 		await userEvent.keyboard('{ArrowRight}');
@@ -270,7 +278,7 @@ describe('TunnelList toolbar keyboard', () => {
 
 	it('should skip disabled buttons', async () => {
 		renderList();
-		await select('Beta');
+		await select(BETA);
 		toolbarButton('Démarrer').focus();
 
 		await userEvent.keyboard('{ArrowRight}');
@@ -280,7 +288,7 @@ describe('TunnelList toolbar keyboard', () => {
 
 	it('should jump to the last button with End', async () => {
 		renderList();
-		await select('Alpha');
+		await select(ALPHA);
 		toolbarButton('Arrêter').focus();
 
 		await userEvent.keyboard('{End}');
@@ -292,7 +300,7 @@ describe('TunnelList toolbar keyboard', () => {
 describe('TunnelList bulk actions', () => {
 	it('should start only the tunnels that are not running', async () => {
 		const { gateway } = renderList();
-		await select('Alpha', 'Beta', 'Gamma');
+		await select(ALPHA, BETA, GAMMA);
 
 		await userEvent.click(toolbarButton('Démarrer'));
 
@@ -304,7 +312,7 @@ describe('TunnelList bulk actions', () => {
 
 	it('should stop only the running tunnels', async () => {
 		const { gateway } = renderList();
-		await select('Alpha', 'Beta');
+		await select(ALPHA, BETA);
 
 		await userEvent.click(toolbarButton('Arrêter'));
 
@@ -315,7 +323,7 @@ describe('TunnelList bulk actions', () => {
 
 	it('should restart only the running tunnels', async () => {
 		const { gateway } = renderList();
-		await select('Alpha', 'Beta');
+		await select(ALPHA, BETA);
 
 		await userEvent.click(toolbarButton('Redémarrer'));
 
@@ -326,7 +334,7 @@ describe('TunnelList bulk actions', () => {
 	it('should disable stopping when no selected tunnel is running', async () => {
 		renderList();
 
-		await select('Beta');
+		await select(BETA);
 
 		expect(toolbarButton('Arrêter')).toBeDisabled();
 	});
@@ -337,35 +345,35 @@ describe('TunnelList bulk actions', () => {
 			id === 'c' ? Promise.reject(new Error('port occupé')) : Promise.resolve()
 		);
 		renderList(gateway);
-		await select('Beta', 'Gamma', 'Delta');
+		await select(BETA, GAMMA, DELTA);
 
 		await userEvent.click(toolbarButton('Démarrer'));
 
 		await waitFor(() =>
 			expect(lastToastMessage()).toBe(
-				'2 sur 3 démarrés ; échec : Gamma (port occupé)'
+				'2 sur 3 démarrés ; échec : 3003 → nova:3003 (port occupé)'
 			)
 		);
 		expect(useToastStore.getState().toasts.at(-1)?.tone).toBe('error');
 	});
 
-	it('should ask for confirmation, listing the names, before deleting', async () => {
+	it('should ask for confirmation, listing the endpoints, before deleting', async () => {
 		const { gateway } = renderList();
-		await select('Alpha', 'Beta');
+		await select(ALPHA, BETA);
 
 		await userEvent.click(toolbarButton('Supprimer'));
 
 		const dialog = await screen.findByRole('alertdialog', {
 			name: 'Supprimer 2 tunnels ?',
 		});
-		expect(dialog).toHaveTextContent('Alpha');
-		expect(dialog).toHaveTextContent('Beta');
+		expect(dialog).toHaveTextContent(ALPHA_ARROW);
+		expect(dialog).toHaveTextContent(BETA_ARROW);
 		expect(gateway.deleteTunnel).not.toHaveBeenCalled();
 	});
 
 	it('should keep everything when the deletion is cancelled', async () => {
 		const { gateway } = renderList();
-		await select('Alpha', 'Beta');
+		await select(ALPHA, BETA);
 		await userEvent.click(toolbarButton('Supprimer'));
 
 		await userEvent.click(
@@ -385,7 +393,7 @@ describe('TunnelList bulk actions', () => {
 			return Promise.resolve();
 		});
 		renderList(gateway);
-		await select('Beta', 'Gamma');
+		await select(BETA, GAMMA);
 		await userEvent.click(toolbarButton('Supprimer'));
 
 		await userEvent.click(
@@ -399,7 +407,7 @@ describe('TunnelList bulk actions', () => {
 		);
 		expect(lastToastMessage()).toBe('2 tunnels supprimés');
 		expect(
-			screen.getByRole('switch', { name: /^Tunnel Delta,/ })
+			screen.getByRole('switch', { name: /^Tunnel 3004 vers zeta:3004,/ })
 		).toHaveFocus();
 	});
 });
@@ -407,7 +415,7 @@ describe('TunnelList bulk actions', () => {
 describe('TunnelList bulk tags', () => {
 	it('should add a tag to the tunnels that lack it', async () => {
 		const { gateway } = renderList();
-		await select('Beta', 'Gamma', 'Delta');
+		await select(BETA, GAMMA, DELTA);
 		await userEvent.click(toolbarButton('Tags…'));
 		const dialog = await screen.findByRole('dialog', {
 			name: 'Tags de 3 tunnels',
@@ -427,7 +435,7 @@ describe('TunnelList bulk tags', () => {
 
 	it('should require a tag when adding', async () => {
 		const { gateway } = renderList();
-		await select('Beta');
+		await select(BETA);
 		await userEvent.click(toolbarButton('Tags…'));
 		const dialog = await screen.findByRole('dialog');
 
@@ -440,9 +448,28 @@ describe('TunnelList bulk tags', () => {
 		expect(gateway.updateTunnel).not.toHaveBeenCalled();
 	});
 
+	it('should refuse a tag the CLI would read as a port', async () => {
+		const { gateway } = renderList();
+		await select(BETA);
+		await userEvent.click(toolbarButton('Tags…'));
+		const dialog = await screen.findByRole('dialog');
+
+		await userEvent.type(
+			within(dialog).getByLabelText('Tag à ajouter'),
+			'3333'
+		);
+		await userEvent.click(
+			within(dialog).getByRole('button', { name: 'Appliquer' })
+		);
+
+		expect(within(dialog).getByLabelText('Tag à ajouter')).toBeInvalid();
+		expect(within(dialog).getByText(DIGITS_TAG_MESSAGE)).toBeInTheDocument();
+		expect(gateway.updateTunnel).not.toHaveBeenCalled();
+	});
+
 	it('should remove a tag present in the selection', async () => {
 		const { gateway } = renderList();
-		await select('Beta', 'Gamma');
+		await select(BETA, GAMMA);
 		await userEvent.click(toolbarButton('Tags…'));
 		const dialog = await screen.findByRole('dialog');
 
@@ -465,7 +492,7 @@ describe('TunnelList bulk tags', () => {
 
 	it('should not update anything when cancelled', async () => {
 		const { gateway } = renderList();
-		await select('Beta');
+		await select(BETA);
 		await userEvent.click(toolbarButton('Tags…'));
 		const dialog = await screen.findByRole('dialog');
 
@@ -478,7 +505,7 @@ describe('TunnelList bulk tags', () => {
 
 	it('should suggest the existing tags', async () => {
 		renderList();
-		await select('Delta');
+		await select(DELTA);
 		await userEvent.click(toolbarButton('Tags…'));
 		const dialog = await screen.findByRole('dialog');
 
@@ -495,19 +522,19 @@ describe('TunnelList bulk tags', () => {
 });
 
 describe('TunnelList context menu', () => {
-	const rightClick = (name: string) =>
+	const rightClick = (label: string) =>
 		userEvent.pointer({
 			keys: '[MouseRight]',
-			target: screen.getByText(name),
+			target: screen.getByText(label),
 		});
 
 	it('should open the tunnel menu on right-click', async () => {
 		renderList();
 
-		await rightClick('Alpha');
+		await rightClick(ALPHA_ARROW);
 
 		const menu = await screen.findByRole('menu', {
-			name: 'Actions pour Alpha',
+			name: `Actions pour ${ALPHA}`,
 		});
 		expect(
 			within(menu)
@@ -518,11 +545,13 @@ describe('TunnelList context menu', () => {
 
 	it('should open the selection menu on a row of a multi-selection', async () => {
 		renderList();
-		await select('Alpha', 'Beta');
+		await select(ALPHA, BETA);
 
-		await rightClick('Beta');
+		await rightClick(BETA_ARROW);
 
-		const menu = await screen.findByRole('menu', { name: 'Actions pour Beta' });
+		const menu = await screen.findByRole('menu', {
+			name: `Actions pour ${BETA}`,
+		});
 		expect(
 			within(menu)
 				.getAllByRole('menuitem')
@@ -535,8 +564,8 @@ describe('TunnelList context menu', () => {
 
 	it('should apply a selection menu action to the selection', async () => {
 		const { gateway } = renderList();
-		await select('Alpha', 'Beta');
-		await rightClick('Beta');
+		await select(ALPHA, BETA);
+		await rightClick(BETA_ARROW);
 
 		await userEvent.click(
 			await screen.findByRole('menuitem', { name: 'Démarrer' })
@@ -548,9 +577,9 @@ describe('TunnelList context menu', () => {
 
 	it('should open the tunnel menu on a row outside the selection', async () => {
 		renderList();
-		await select('Alpha', 'Beta');
+		await select(ALPHA, BETA);
 
-		await rightClick('Gamma');
+		await rightClick(GAMMA_ARROW);
 
 		expect(
 			await screen.findByRole('menuitem', { name: 'Détails' })
@@ -559,9 +588,9 @@ describe('TunnelList context menu', () => {
 
 	it('should open the tunnel menu when only one tunnel is selected', async () => {
 		renderList();
-		await select('Alpha');
+		await select(ALPHA);
 
-		await rightClick('Alpha');
+		await rightClick(ALPHA_ARROW);
 
 		expect(
 			await screen.findByRole('menuitem', { name: 'Détails' })
@@ -570,7 +599,7 @@ describe('TunnelList context menu', () => {
 
 	it('should have no axe violations with the context menu open', async () => {
 		renderList();
-		await rightClick('Alpha');
+		await rightClick(ALPHA_ARROW);
 		await screen.findByRole('menu');
 
 		expect(

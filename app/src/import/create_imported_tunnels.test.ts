@@ -7,7 +7,6 @@ import { createImportedTunnels } from '#/import/create_imported_tunnels';
 const buildImportSpec = (index: number) => ({
 	index,
 	spec: {
-		name: `tunnel ${index}`,
 		host: 'nova',
 		kind: 'local' as const,
 		listenPort: 3000 + index,
@@ -25,10 +24,9 @@ describe('createImportedTunnels', () => {
 			vi.fn()
 		);
 
-		expect(gateway.createTunnel.mock.calls.map(([spec]) => spec.name)).toEqual([
-			'tunnel 0',
-			'tunnel 2',
-		]);
+		expect(
+			gateway.createTunnel.mock.calls.map(([spec]) => spec.listenPort)
+		).toEqual([3000, 3002]);
 	});
 
 	it('should report the created indexes and the progress', async () => {
@@ -58,7 +56,9 @@ describe('createImportedTunnels', () => {
 
 		expect(outcome).toEqual({
 			createdIndexes: [1],
-			failures: [{ index: 0, name: 'tunnel 0', messages: ['Port pris'] }],
+			failures: [
+				{ index: 0, label: '3000 → nova:3000', messages: ['Port pris'] },
+			],
 		});
 	});
 });

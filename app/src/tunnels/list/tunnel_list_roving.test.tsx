@@ -10,12 +10,16 @@ import { renderWithGateway } from '#/testing/render_with_gateway';
 function seedTunnels() {
 	useDaemonStore.setState({
 		tunnels: [
-			buildTunnel({ id: 'a', name: 'Alpha', host: 'nova' }),
-			buildTunnel({ id: 'b', name: 'Beta', host: 'nova' }),
-			buildTunnel({ id: 'c', name: 'Gamma', host: 'zeta' }),
+			buildTunnel({ id: 'a', listenPort: 3001, host: 'nova' }),
+			buildTunnel({ id: 'b', listenPort: 3002, host: 'nova' }),
+			buildTunnel({ id: 'c', listenPort: 3003, host: 'zeta' }),
 		],
 	});
 }
+
+const ALPHA = '3001 vers nova:3001';
+const BETA = '3002 vers nova:3002';
+const GAMMA = '3003 vers zeta:3003';
 
 const rowCheckbox = (name: string) =>
 	screen.getByRole('checkbox', { name: `Sélectionner ${name}` });
@@ -52,7 +56,7 @@ describe('TunnelList roving focus', () => {
 
 		await tabIntoFirstRow();
 
-		expect(rowSwitch('Alpha')).toHaveFocus();
+		expect(rowSwitch(ALPHA)).toHaveFocus();
 	});
 
 	it('should reach the first actions button with a second Tab', async () => {
@@ -62,7 +66,7 @@ describe('TunnelList roving focus', () => {
 		await tabIntoFirstRow();
 		await userEvent.tab();
 
-		expect(actionsButton('Alpha')).toHaveFocus();
+		expect(actionsButton(ALPHA)).toHaveFocus();
 	});
 
 	it('should reach the first row checkbox just before its switch', async () => {
@@ -77,51 +81,51 @@ describe('TunnelList roving focus', () => {
 			await userEvent.tab();
 		}
 
-		expect(rowCheckbox('Alpha')).toHaveFocus();
+		expect(rowCheckbox(ALPHA)).toHaveFocus();
 	});
 
 	it('should move from checkbox to checkbox with ArrowDown', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		rowCheckbox('Alpha').focus();
+		rowCheckbox(ALPHA).focus();
 
 		await userEvent.keyboard('{ArrowDown}');
 
-		expect(rowCheckbox('Beta')).toHaveFocus();
+		expect(rowCheckbox(BETA)).toHaveFocus();
 	});
 
 	it('should move across the controls of a row with ArrowRight', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		rowCheckbox('Alpha').focus();
+		rowCheckbox(ALPHA).focus();
 
 		await userEvent.keyboard('{ArrowRight}');
-		expect(rowSwitch('Alpha')).toHaveFocus();
+		expect(rowSwitch(ALPHA)).toHaveFocus();
 
 		await userEvent.keyboard('{ArrowRight}');
-		expect(actionsButton('Alpha')).toHaveFocus();
+		expect(actionsButton(ALPHA)).toHaveFocus();
 	});
 
 	it('should move back across the controls of a row with ArrowLeft', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		actionsButton('Beta').focus();
+		actionsButton(BETA).focus();
 
 		await userEvent.keyboard('{ArrowLeft}');
-		expect(rowSwitch('Beta')).toHaveFocus();
+		expect(rowSwitch(BETA)).toHaveFocus();
 
 		await userEvent.keyboard('{ArrowLeft}');
-		expect(rowCheckbox('Beta')).toHaveFocus();
+		expect(rowCheckbox(BETA)).toHaveFocus();
 	});
 
 	it('should stay on the first control of a row with ArrowLeft', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		rowCheckbox('Alpha').focus();
+		rowCheckbox(ALPHA).focus();
 
 		await userEvent.keyboard('{ArrowLeft}');
 
-		expect(rowCheckbox('Alpha')).toHaveFocus();
+		expect(rowCheckbox(ALPHA)).toHaveFocus();
 	});
 
 	it('should move to the next row switch with ArrowDown', async () => {
@@ -131,37 +135,37 @@ describe('TunnelList roving focus', () => {
 
 		await userEvent.keyboard('{ArrowDown}');
 
-		expect(rowSwitch('Beta')).toHaveFocus();
+		expect(rowSwitch(BETA)).toHaveFocus();
 	});
 
 	it('should cross host groups with ArrowDown', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		rowSwitch('Beta').focus();
+		rowSwitch(BETA).focus();
 
 		await userEvent.keyboard('{ArrowDown}');
 
-		expect(rowSwitch('Gamma')).toHaveFocus();
+		expect(rowSwitch(GAMMA)).toHaveFocus();
 	});
 
 	it('should move to the previous row switch with ArrowUp', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		rowSwitch('Beta').focus();
+		rowSwitch(BETA).focus();
 
 		await userEvent.keyboard('{ArrowUp}');
 
-		expect(rowSwitch('Alpha')).toHaveFocus();
+		expect(rowSwitch(ALPHA)).toHaveFocus();
 	});
 
 	it('should not wrap past the last row', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		rowSwitch('Gamma').focus();
+		rowSwitch(GAMMA).focus();
 
 		await userEvent.keyboard('{ArrowDown}');
 
-		expect(rowSwitch('Gamma')).toHaveFocus();
+		expect(rowSwitch(GAMMA)).toHaveFocus();
 	});
 
 	it('should jump to the last and first rows with End and Home', async () => {
@@ -170,26 +174,26 @@ describe('TunnelList roving focus', () => {
 		await tabIntoFirstRow();
 
 		await userEvent.keyboard('{End}');
-		expect(rowSwitch('Gamma')).toHaveFocus();
+		expect(rowSwitch(GAMMA)).toHaveFocus();
 
 		await userEvent.keyboard('{Home}');
-		expect(rowSwitch('Alpha')).toHaveFocus();
+		expect(rowSwitch(ALPHA)).toHaveFocus();
 	});
 
 	it('should move from actions button to actions button', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		actionsButton('Alpha').focus();
+		actionsButton(ALPHA).focus();
 
 		await userEvent.keyboard('{ArrowDown}');
 
-		expect(actionsButton('Beta')).toHaveFocus();
+		expect(actionsButton(BETA)).toHaveFocus();
 	});
 
 	it('should not open the actions menu with the arrow keys', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		actionsButton('Alpha').focus();
+		actionsButton(ALPHA).focus();
 
 		await userEvent.keyboard('{ArrowDown}');
 
@@ -199,7 +203,7 @@ describe('TunnelList roving focus', () => {
 	it('should open the actions menu with Enter', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		actionsButton('Alpha').focus();
+		actionsButton(ALPHA).focus();
 
 		await userEvent.keyboard('{Enter}');
 
@@ -226,24 +230,24 @@ describe('TunnelList roving focus', () => {
 		expect(
 			screen.getAllByRole('switch').map((item) => item.getAttribute('tabindex'))
 		).toEqual(['-1', '0', '-1']);
-		expect(rowCheckbox('Beta')).toHaveAttribute('tabindex', '0');
-		expect(actionsButton('Beta')).toHaveAttribute('tabindex', '0');
-		expect(actionsButton('Alpha')).toHaveAttribute('tabindex', '-1');
+		expect(rowCheckbox(BETA)).toHaveAttribute('tabindex', '0');
+		expect(actionsButton(BETA)).toHaveAttribute('tabindex', '0');
+		expect(actionsButton(ALPHA)).toHaveAttribute('tabindex', '-1');
 	});
 
 	it('should make a clicked row active', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
 
-		await userEvent.click(actionsButton('Gamma'));
+		await userEvent.click(actionsButton(GAMMA));
 
-		expect(actionsButton('Gamma')).toHaveAttribute('tabindex', '0');
+		expect(actionsButton(GAMMA)).toHaveAttribute('tabindex', '0');
 	});
 
 	it('should fall back to the first row when the active row disappears', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
-		rowSwitch('Gamma').focus();
+		rowSwitch(GAMMA).focus();
 
 		act(() => {
 			useDaemonStore.setState({
@@ -253,7 +257,7 @@ describe('TunnelList roving focus', () => {
 			});
 		});
 
-		expect(rowSwitch('Alpha')).toHaveAttribute('tabindex', '0');
+		expect(rowSwitch(ALPHA)).toHaveAttribute('tabindex', '0');
 	});
 
 	it('should describe the arrow key navigation on each list', () => {

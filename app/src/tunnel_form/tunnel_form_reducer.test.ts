@@ -69,10 +69,10 @@ describe('tunnelFormReducer', () => {
 	it('should update any other text field without touching the target port', () => {
 		const values = tunnelFormReducer(unlinked, {
 			type: 'textChanged',
-			field: 'name',
-			value: 'Adonis',
+			field: 'host',
+			value: 'nova',
 		});
 
-		expect([values.name, values.targetPort]).toEqual(['Adonis', '5432']);
+		expect([values.host, values.targetPort]).toEqual(['nova', '5432']);
 	});
 });

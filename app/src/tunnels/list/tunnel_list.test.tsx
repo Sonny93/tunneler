@@ -13,15 +13,15 @@ import { renderWithGateway } from '#/testing/render_with_gateway';
 function seedTunnels() {
 	useDaemonStore.setState({
 		tunnels: [
-			buildTunnel({ id: 'z1', name: 'Zed', host: 'zeta', tags: ['db'] }),
-			buildTunnel({ id: 'b2', name: 'beta', host: 'nova', tags: ['dev'] }),
-			buildTunnel({ id: 'a1', name: 'Alpha', host: 'nova', tags: ['dev'] }),
+			buildTunnel({ id: 'z1', host: 'zeta', tags: ['db'] }),
+			buildTunnel({ id: 'b2', host: 'nova', listenPort: 8080, tags: ['dev'] }),
+			buildTunnel({ id: 'a1', host: 'nova', listenPort: 3000, tags: ['dev'] }),
 		],
 	});
 }
 
 describe('TunnelList', () => {
-	it('should group tunnels by sorted host with tunnels sorted by name', () => {
+	it('should group tunnels by sorted host with tunnels sorted by listen port', () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
 
@@ -40,8 +40,8 @@ describe('TunnelList', () => {
 				.getAllByRole('switch')
 				.map((rowSwitch) => rowSwitch.getAttribute('aria-label'))
 		).toEqual([
-			'Tunnel Alpha, 3333 vers nova:3333, arrêté',
-			'Tunnel beta, 3333 vers nova:3333, arrêté',
+			'Tunnel 3000 vers nova:3000, arrêté',
+			'Tunnel 8080 vers nova:8080, arrêté',
 		]);
 	});
 

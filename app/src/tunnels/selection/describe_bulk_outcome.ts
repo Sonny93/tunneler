@@ -17,10 +17,12 @@ function agree(count: number, participle: Readonly<BulkParticiple>): string {
 }
 
 function describeFailures(failures: readonly BulkFailure[]): string {
-	return failures.map(({ name, message }) => `${name} (${message})`).join(', ');
+	return failures
+		.map(({ label, message }) => `${label} (${message})`)
+		.join(', ');
 }
 
-/** « 3 tunnels démarrés », or « 2 sur 3 démarrés ; échec : Vite (message) » in the error tone. */
+/** « 3 tunnels démarrés », or « 2 sur 3 démarrés ; échec : 3000 → nova:3000 (message) » in the error tone. */
 export function describeBulkOutcome(
 	{ total, succeededIds, failures }: Readonly<BulkOutcome>,
 	participle: Readonly<BulkParticiple>

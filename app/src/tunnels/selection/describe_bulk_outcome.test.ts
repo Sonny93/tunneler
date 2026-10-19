@@ -29,13 +29,13 @@ describe('describeBulkOutcome', () => {
 				{
 					total: 3,
 					succeededIds: ['a', 'b'],
-					failures: [{ name: 'Vite', message: 'port occupé' }],
+					failures: [{ label: '5173 → nova:5173', message: 'port occupé' }],
 				},
 				STARTED
 			)
 		).toEqual({
 			tone: 'error',
-			message: '2 sur 3 démarrés ; échec : Vite (port occupé)',
+			message: '2 sur 3 démarrés ; échec : 5173 → nova:5173 (port occupé)',
 		});
 	});
 
@@ -46,12 +46,14 @@ describe('describeBulkOutcome', () => {
 					total: 2,
 					succeededIds: [],
 					failures: [
-						{ name: 'Vite', message: 'x' },
-						{ name: 'Api', message: 'y' },
+						{ label: '5173 → nova:5173', message: 'x' },
+						{ label: '8080 → nova:8080', message: 'y' },
 					],
 				},
 				STARTED
 			).message
-		).toBe('0 sur 2 démarrés ; échec : Vite (x), Api (y)');
+		).toBe(
+			'0 sur 2 démarrés ; échec : 5173 → nova:5173 (x), 8080 → nova:8080 (y)'
+		);
 	});
 });

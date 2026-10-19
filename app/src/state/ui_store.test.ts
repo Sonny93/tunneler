@@ -39,7 +39,6 @@ describe('useUiStore', () => {
 
 	it('should open the editor in create mode with a draft when importing', () => {
 		const draft: TunnelSpecDto = {
-			name: 'nova 3333',
 			host: 'nova',
 			kind: 'local',
 			listenPort: 3333,

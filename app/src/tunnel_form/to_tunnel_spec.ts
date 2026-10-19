@@ -20,7 +20,6 @@ export function toTunnelSpec(
 ): TunnelSpecDto {
 	const hasTarget = values.kind !== 'dynamic';
 	return {
-		name: values.name.trim(),
 		host: values.host.trim(),
 		kind: values.kind,
 		listenPort: toPort(values.listenPort),

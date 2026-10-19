@@ -12,7 +12,7 @@ import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { TunnelDetailsDrawer } from '#/tunnel_details/tunnel_details_drawer';
 import { buildMetrics, buildSettings, buildTunnel } from '#/testing/factories';
 
-const LOG_NAME = 'Journal du tunnel Adonis';
+const LOG_NAME = 'Journal du tunnel 3333 vers nova:3333';
 
 function setUp(overrides: Parameters<typeof buildTunnel>[0] = {}) {
 	useDaemonStore.setState({
@@ -34,12 +34,12 @@ describe('TunnelDetailsDrawer', () => {
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 	});
 
-	it('should title the dialog with the tunnel name', () => {
+	it('should title the dialog with the tunnel endpoint', () => {
 		setUp();
 		renderDrawer();
 
 		expect(
-			screen.getByRole('dialog', { name: 'Tunnel Adonis' })
+			screen.getByRole('dialog', { name: 'Tunnel 3333 → nova:3333' })
 		).toBeInTheDocument();
 	});
 

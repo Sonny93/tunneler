@@ -7,13 +7,13 @@ import { useStickToBottom } from '#/tunnel_details/use_stick_to_bottom';
 
 type TunnelLogListProps = {
 	entries: readonly LogEntryDto[];
-	tunnelName: string;
+	tunnelLabel: string;
 };
 
 /** Scrollable and focusable so the keyboard can scroll it; not live, state changes are announced elsewhere. */
 export function TunnelLogList({
 	entries,
-	tunnelName,
+	tunnelLabel,
 }: Readonly<TunnelLogListProps>) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const { handleScroll } = useStickToBottom(containerRef, entries.length);
@@ -23,7 +23,7 @@ export function TunnelLogList({
 			ref={containerRef}
 			role="log"
 			aria-live="off"
-			aria-label={`Journal du tunnel ${tunnelName}`}
+			aria-label={`Journal du tunnel ${tunnelLabel}`}
 			tabIndex={0}
 			onScroll={handleScroll}
 			className="max-h-72 overflow-y-auto rounded-md border border-tn-divider p-2"

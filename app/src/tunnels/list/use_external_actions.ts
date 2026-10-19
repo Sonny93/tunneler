@@ -3,6 +3,7 @@ import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { useKillProcess } from '#/externals/use_kill_process';
 import { useIgnoreProcess } from '#/externals/use_ignore_process';
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import {
 	KILL_CONFLICT_CONSEQUENCE,
 	KILL_EXTERNAL_CONSEQUENCE,
@@ -19,7 +20,7 @@ function describeAdoption(
 	adoptedIds: readonly string[]
 ): string {
 	if (adoptedIds.length > 1) return `${adoptedIds.length} tunnels adoptés`;
-	return `Tunnel ${tunnel.name} adopté`;
+	return `Tunnel ${getTunnelEndpointLabel(tunnel)} adopté`;
 }
 
 /** Actions on a tunnel held by an external ssh process or blocked by another process. */

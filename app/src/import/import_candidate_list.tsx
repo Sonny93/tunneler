@@ -3,11 +3,13 @@ import { Button, Checkbox } from '@minimalstuff/ui';
 import type { ImportCandidateDto } from '#/daemon/protocol';
 import type { ImportConflict } from '#/import/find_import_conflicts';
 import { describeImportConflict } from '#/import/describe_import_conflict';
-import { describeImportCandidate } from '#/import/describe_import_candidate';
+import {
+	describeImportCandidateDetails,
+	describeImportCandidateLabel,
+} from '#/import/describe_import_candidate';
 
 type ImportCandidateListProps = {
 	candidates: readonly ImportCandidateDto[];
-	names: readonly string[];
 	conflicts: readonly (ImportConflict | null)[];
 	selectedIndexes: ReadonlySet<number>;
 	fallbackHost: string;
@@ -18,7 +20,6 @@ type ImportCandidateListProps = {
 
 export function ImportCandidateList({
 	candidates,
-	names,
 	conflicts,
 	selectedIndexes,
 	fallbackHost,
@@ -57,10 +58,9 @@ export function ImportCandidateList({
 					<Checkbox
 						// oxlint-disable-next-line react/no-array-index-key -- candidates have no identity beyond their position in the preview
 						key={index}
-						label={names[index]}
-						description={describeImportCandidate(
+						label={describeImportCandidateLabel(candidate, fallbackHost)}
+						description={describeImportCandidateDetails(
 							candidate,
-							fallbackHost,
 							conflictNote
 						)}
 						checked={selectedIndexes.has(index)}

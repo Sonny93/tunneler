@@ -23,12 +23,12 @@ function renderRow(
 }
 
 describe('TunnelRow', () => {
-	it('should name the switch after the tunnel, endpoint and state', () => {
+	it('should name the switch after the endpoint and state', () => {
 		renderRow({ state: { kind: 'active' } });
 
 		expect(
 			screen.getByRole('switch', {
-				name: 'Tunnel Adonis, 3333 vers nova:3333, actif',
+				name: 'Tunnel 3333 vers nova:3333, actif',
 			})
 		).toBeChecked();
 	});
@@ -39,19 +39,19 @@ describe('TunnelRow', () => {
 		expect(screen.getByRole('switch')).not.toBeChecked();
 	});
 
-	it('should show the name, the state and the tags', () => {
+	it('should show the endpoint, the state and the tags', () => {
 		renderRow({ tags: ['dev'] });
 
-		expect(screen.getByText('Adonis')).toBeInTheDocument();
+		expect(screen.getByText('3333 → nova:3333')).toBeInTheDocument();
 		expect(screen.getByText('Arrêté')).toBeInTheDocument();
 		expect(screen.getByText('dev')).toBeInTheDocument();
 	});
 
-	it('should offer an unlabeled checkbox named after the tunnel', () => {
+	it('should offer an unlabeled checkbox named after the endpoint', () => {
 		renderRow();
 
 		expect(
-			screen.getByRole('checkbox', { name: 'Sélectionner Adonis' })
+			screen.getByRole('checkbox', { name: 'Sélectionner 3333 vers nova:3333' })
 		).not.toBeChecked();
 	});
 
@@ -72,7 +72,7 @@ describe('TunnelRow', () => {
 		);
 
 		expect(
-			screen.getByRole('checkbox', { name: 'Sélectionner Adonis' })
+			screen.getByRole('checkbox', { name: 'Sélectionner 3333 vers nova:3333' })
 		).toBeChecked();
 	});
 

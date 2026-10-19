@@ -105,7 +105,7 @@ describe('Overlays', () => {
 		act(() => useUiStore.getState().openTunnelDetails('tunnel-1'));
 
 		expect(
-			screen.getByRole('dialog', { name: 'Tunnel Adonis' })
+			screen.getByRole('dialog', { name: 'Tunnel 3333 → nova:3333' })
 		).toBeInTheDocument();
 	});
 

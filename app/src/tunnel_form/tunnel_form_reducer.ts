@@ -2,7 +2,6 @@ import type { TunnelKindDto } from '#/daemon/protocol';
 import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 
 export type TunnelFormTextField =
-	| 'name'
 	| 'host'
 	| 'listenPort'
 	| 'targetHost'

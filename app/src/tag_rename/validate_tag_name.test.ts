@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+	COLON_TAG_MESSAGE,
+	DIGITS_TAG_MESSAGE,
+} from '#/shared/reserved_tag_problem';
+import {
 	EMPTY_TAG_MESSAGE,
 	SEPARATOR_TAG_MESSAGE,
 	UNCHANGED_TAG_MESSAGE,
@@ -19,6 +23,14 @@ describe('validateTagName', () => {
 
 	it('should reject inner whitespace', () => {
 		expect(validateTagName('my tag', 'dev')).toBe(WHITESPACE_TAG_MESSAGE);
+	});
+
+	it('should reject a colon', () => {
+		expect(validateTagName('nova:3333', 'dev')).toBe(COLON_TAG_MESSAGE);
+	});
+
+	it('should reject a name made only of digits', () => {
+		expect(validateTagName('3333', 'dev')).toBe(DIGITS_TAG_MESSAGE);
 	});
 
 	it('should reject the current name', () => {

@@ -15,6 +15,7 @@ import { TunnelActionsMenu } from '#/tunnels/list/tunnel_actions_menu';
 import { SelectionMenuItems } from '#/tunnels/list/selection_menu_items';
 import { getTunnelAccessibleName } from '#/tunnels/tunnel_accessible_name';
 import { describeTunnelProblems } from '#/tunnels/describe_tunnel_problems';
+import { getTunnelAccessibleEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import { TunnelSelectionContext } from '#/tunnels/selection/tunnel_selection_context';
 import {
 	ROVING_CONTROL_ATTRIBUTE,
@@ -61,14 +62,14 @@ export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 		<li {...{ [ROVING_ROW_ATTRIBUTE]: tunnel.id }}>
 			<ContextMenu
 				items={menuItems}
-				aria-label={`Actions pour ${tunnel.name}`}
+				aria-label={`Actions pour ${getTunnelAccessibleEndpointLabel(tunnel)}`}
 				className={cn(
 					'flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 hover:bg-tn-surface-raised',
 					isSelected && 'bg-tn-selected'
 				)}
 			>
 				<Checkbox
-					aria-label={`Sélectionner ${tunnel.name}`}
+					aria-label={`Sélectionner ${getTunnelAccessibleEndpointLabel(tunnel)}`}
 					checked={isSelected}
 					onChange={handleSelectionChange}
 					tabIndex={isActiveRow ? 0 : -1}
@@ -90,8 +91,10 @@ export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 					</span>
 				)}
 				<div className="flex min-w-40 flex-1 flex-col gap-1">
-					<span className="font-semibold text-tn-text">{tunnel.name}</span>
-					<TunnelEndpoint tunnel={tunnel} />
+					<TunnelEndpoint
+						tunnel={tunnel}
+						className="font-semibold text-tn-text"
+					/>
 					<TunnelTagChips tags={tunnel.tags} />
 				</div>
 				<div className="flex min-w-0 flex-1 basis-56 flex-col items-start gap-1">

@@ -3,6 +3,7 @@ import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import type { SettingsDto, TunnelDto } from '#/daemon/protocol';
 import type { PaletteCommand } from '#/palette/palette_command';
 import { getBrowserTarget } from '#/tunnel_details/browser_target';
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import { compareTextCaseInsensitively } from '#/tunnels/compare_text_case_insensitively';
 
 type PaletteSources = {
@@ -55,13 +56,13 @@ function buildToggleCommand(tunnel: Readonly<TunnelDto>): PaletteCommand {
 	return isTunnelRunning(tunnel.state)
 		? {
 				id: `tunnel:${tunnelId}:stop`,
-				label: `Arrêter ${tunnel.name}`,
+				label: `Arrêter ${getTunnelEndpointLabel(tunnel)}`,
 				category: 'Tunnel',
 				action: { kind: 'stopTunnel', tunnelId },
 			}
 		: {
 				id: `tunnel:${tunnelId}:start`,
-				label: `Démarrer ${tunnel.name}`,
+				label: `Démarrer ${getTunnelEndpointLabel(tunnel)}`,
 				category: 'Tunnel',
 				action: { kind: 'startTunnel', tunnelId },
 			};
@@ -76,7 +77,7 @@ function buildBrowserCommands(
 	return [
 		{
 			id: `tunnel:${tunnel.id}:browser`,
-			label: `Ouvrir ${tunnel.name} dans le navigateur`,
+			label: `Ouvrir ${getTunnelEndpointLabel(tunnel)} dans le navigateur`,
 			category: 'Tunnel',
 			action: { kind: 'openInBrowser', ...target },
 		},
@@ -92,13 +93,13 @@ function buildTunnelCommands(
 		buildToggleCommand(tunnel),
 		{
 			id: `tunnel:${tunnelId}:details`,
-			label: `Détails de ${tunnel.name}`,
+			label: `Détails de ${getTunnelEndpointLabel(tunnel)}`,
 			category: 'Tunnel',
 			action: { kind: 'showTunnelDetails', tunnelId },
 		},
 		{
 			id: `tunnel:${tunnelId}:edit`,
-			label: `Modifier ${tunnel.name}`,
+			label: `Modifier ${getTunnelEndpointLabel(tunnel)}`,
 			category: 'Tunnel',
 			action: { kind: 'editTunnel', tunnelId },
 		},

@@ -11,6 +11,10 @@ import { buildSettings, buildTunnel } from '#/testing/factories';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { TunnelFormDrawer } from '#/tunnel_form/tunnel_form_drawer';
+import {
+	COLON_TAG_MESSAGE,
+	DIGITS_TAG_MESSAGE,
+} from '#/shared/reserved_tag_problem';
 
 function openEditor(tunnelId: string | null = null) {
 	useUiStore.getState().openTunnelEditor(tunnelId);
@@ -24,7 +28,6 @@ const renderDrawer = (gateway = createFakeGateway()) =>
 	renderWithGateway(<TunnelFormDrawer />, gateway);
 
 async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
-	await user.type(screen.getByRole('textbox', { name: /^Nom/ }), 'Adonis');
 	await user.type(screen.getByRole('combobox', { name: /^Host/ }), 'nova');
 	await user.type(
 		screen.getByRole('textbox', { name: /^Port d'écoute/ }),
@@ -79,7 +82,6 @@ describe('TunnelFormDrawer', () => {
 		await user.click(screen.getByRole('button', { name: 'Créer' }));
 
 		expect(gateway.createTunnel).toHaveBeenCalledWith({
-			name: 'Adonis',
 			host: 'nova',
 			kind: 'local',
 			listenPort: 3333,
@@ -102,7 +104,7 @@ describe('TunnelFormDrawer', () => {
 		expect(useToastStore.getState().toasts).toEqual([
 			expect.objectContaining({
 				tone: 'success',
-				message: 'Tunnel Adonis créé',
+				message: 'Tunnel 3333 → nova:3333 créé',
 			}),
 		]);
 	});
@@ -193,10 +195,12 @@ describe('TunnelFormDrawer', () => {
 
 		await user.click(screen.getByRole('button', { name: 'Créer' }));
 
-		const name = screen.getByRole('textbox', { name: /^Nom/ });
-		expect(name).toHaveFocus();
-		expect(name).toBeInvalid();
-		expect(name).toHaveAccessibleDescription('Le nom est obligatoire.');
+		const host = screen.getByRole('combobox', { name: /^Host/ });
+		expect(host).toHaveFocus();
+		expect(host).toBeInvalid();
+		expect(host).toHaveAccessibleDescription(
+			expect.stringContaining("L'hôte est obligatoire.")
+		);
 		expect(gateway.createTunnel).not.toHaveBeenCalled();
 	});
 
@@ -223,7 +227,7 @@ describe('TunnelFormDrawer', () => {
 		gateway.createTunnel.mockRejectedValueOnce(
 			new DaemonCommandError('validation_failed', 'invalide', [
 				'Le port 3333 est déjà utilisé.',
-				'Nom en double.',
+				'Hôte inconnu.',
 			])
 		);
 		renderDrawer(gateway);
@@ -233,7 +237,7 @@ describe('TunnelFormDrawer', () => {
 
 		const alert = await screen.findByRole('alert');
 		expect(alert).toHaveTextContent('Le port 3333 est déjà utilisé.');
-		expect(alert).toHaveTextContent('Nom en double.');
+		expect(alert).toHaveTextContent('Hôte inconnu.');
 		expect(alert).toHaveFocus();
 		expect(useUiStore.getState().panel.kind).toBe('tunnelEditor');
 	});
@@ -435,7 +439,6 @@ describe('TunnelFormDrawer when editing', () => {
 	const storeTunnel = (overrides = {}) => {
 		const tunnel = buildTunnel({
 			id: 'tunnel-7',
-			name: 'Postgres',
 			listenPort: 5433,
 			kind: 'remote',
 			tags: ['db'],
@@ -446,12 +449,14 @@ describe('TunnelFormDrawer when editing', () => {
 		openEditor('tunnel-7');
 	};
 
-	it('should be titled with the tunnel name', () => {
+	it('should be titled with the tunnel endpoint', () => {
 		storeTunnel();
 		renderDrawer();
 
 		expect(
-			screen.getByRole('dialog', { name: 'Modifier Postgres' })
+			screen.getByRole('dialog', {
+				name: 'Modifier nova:5433 → db.internal:5433',
+			})
 		).toBeInTheDocument();
 	});
 
@@ -460,12 +465,12 @@ describe('TunnelFormDrawer when editing', () => {
 		renderDrawer();
 
 		expect([
-			screen.getByRole('textbox', { name: /^Nom/ }),
+			screen.getByRole('combobox', { name: /^Host/ }),
 			screen.getByRole('textbox', { name: /^Port d'écoute/ }),
 			screen.getByRole('textbox', { name: /^Hôte cible/ }),
 			screen.getByRole('textbox', { name: /^Tags/ }),
 		]).toEqual([
-			expect.objectContaining({ value: 'Postgres' }),
+			expect.objectContaining({ value: 'nova' }),
 			expect.objectContaining({ value: '5433' }),
 			expect.objectContaining({ value: 'db.internal' }),
 			expect.objectContaining({ value: 'db' }),
@@ -509,7 +514,6 @@ describe('TunnelFormDrawer when editing', () => {
 			expect.objectContaining({
 				id: 'tunnel-7',
 				kind: 'remote',
-				name: 'Postgres',
 				targetPort: undefined,
 			})
 		);
@@ -524,7 +528,7 @@ describe('TunnelFormDrawer when editing', () => {
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts[0]?.message).toBe(
-				'Tunnel Postgres enregistré'
+				'Tunnel nova:5433 → db.internal:5433 enregistré'
 			)
 		);
 	});
@@ -539,26 +543,48 @@ describe('TunnelFormDrawer when editing', () => {
 });
 
 describe('TunnelFormDrawer field errors', () => {
-	it('should show the name error when submitting without a name', async () => {
+	it('should show the host error when submitting without a host', async () => {
 		openEditor();
 		const user = userEvent.setup();
 		renderDrawer();
 
 		await user.click(screen.getByRole('button', { name: 'Créer' }));
 
-		expect(screen.getByText('Le nom est obligatoire.')).toBeInTheDocument();
+		expect(screen.getByText("L'hôte est obligatoire.")).toBeInTheDocument();
 	});
 
-	it('should clear the name error when the user types a name', async () => {
+	it('should clear the host error when the user types a host', async () => {
 		openEditor();
 		const user = userEvent.setup();
 		renderDrawer();
 		await user.click(screen.getByRole('button', { name: 'Créer' }));
 
-		await user.type(screen.getByRole('textbox', { name: /^Nom/ }), 'A');
+		await user.type(screen.getByRole('combobox', { name: /^Host/ }), 'b');
 
 		expect(
-			screen.queryByText('Le nom est obligatoire.')
+			screen.queryByText("L'hôte est obligatoire.")
 		).not.toBeInTheDocument();
 	});
+
+	it.each([
+		['3333', DIGITS_TAG_MESSAGE],
+		['nova:3333', COLON_TAG_MESSAGE],
+	])(
+		'should reject the tag "%s" the CLI would read as a port selector',
+		async (tag, message) => {
+			openEditor();
+			const user = userEvent.setup();
+			const { gateway } = renderDrawer();
+			await fillRequiredFields(user);
+			const tags = screen.getByRole('textbox', {
+				name: 'Tags séparés par des virgules',
+			});
+
+			await user.type(tags, tag);
+			await user.click(screen.getByRole('button', { name: 'Créer' }));
+
+			expect(tags).toHaveAccessibleDescription(message);
+			expect(gateway.createTunnel).not.toHaveBeenCalled();
+		}
+	);
 });

@@ -26,9 +26,7 @@ function renderMenu(
 }
 
 async function openMenu() {
-	await userEvent.click(
-		screen.getByRole('button', { name: 'Actions pour Adonis' })
-	);
+	await userEvent.click(screen.getByRole('button', { name: /^Actions pour / }));
 }
 
 describe('TunnelActionsMenu', () => {
@@ -129,7 +127,7 @@ describe('TunnelActionsMenu', () => {
 
 		expect(
 			await screen.findByRole('alertdialog', {
-				name: 'Supprimer le tunnel Adonis ?',
+				name: 'Supprimer le tunnel 3333 → nova:3333 ?',
 			})
 		).toBeInTheDocument();
 		expect(gateway.deleteTunnel).not.toHaveBeenCalled();
@@ -146,7 +144,7 @@ describe('TunnelActionsMenu', () => {
 
 		expect(gateway.deleteTunnel).toHaveBeenCalledWith('tunnel-1');
 		expect(useToastStore.getState().toasts[0]?.message).toBe(
-			'Tunnel Adonis supprimé'
+			'Tunnel 3333 → nova:3333 supprimé'
 		);
 	});
 
@@ -219,7 +217,7 @@ describe('TunnelActionsMenu', () => {
 			expect(gateway.adoptExternal).toHaveBeenCalledWith('tunnel-1');
 			await waitFor(() =>
 				expect(useToastStore.getState().toasts[0]?.message).toBe(
-					'Tunnel Adonis adopté'
+					'Tunnel 3333 → nova:3333 adopté'
 				)
 			);
 		});

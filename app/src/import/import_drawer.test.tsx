@@ -11,6 +11,7 @@ import { createFakeGateway } from '#/testing/fake_gateway';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
+import { DIGITS_TAG_MESSAGE } from '#/shared/reserved_tag_problem';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 import {
 	buildImportCandidate,
@@ -153,14 +154,16 @@ describe('ImportDrawer', () => {
 		expect(alert).toHaveFocus();
 	});
 
-	it('should check every candidate and name them after host and port', async () => {
+	it('should check every candidate and label them with their endpoint', async () => {
 		const user = userEvent.setup();
 		renderDrawer();
 
 		await analyzeScript(user);
 
 		expect(screen.getAllByRole('checkbox')).toHaveLength(8);
-		expect(screen.getByRole('checkbox', { name: /nova 3333/ })).toBeChecked();
+		expect(
+			screen.getByRole('checkbox', { name: '3333 vers nova:3333' })
+		).toBeChecked();
 		expect(
 			screen.getByRole('button', { name: 'Importer 8 tunnels' })
 		).toBeEnabled();
@@ -210,16 +213,16 @@ describe('ImportDrawer', () => {
 
 	it('should uncheck a candidate in conflict and say why', async () => {
 		const user = userEvent.setup();
-		useDaemonStore.setState({ tunnels: [buildTunnel({ name: 'Adonis' })] });
+		useDaemonStore.setState({ tunnels: [buildTunnel()] });
 		renderDrawer();
 
 		await analyzeScript(user);
 
-		const conflicting = screen.getByRole('checkbox', { name: /nova 3333/ });
+		const conflicting = screen.getByRole('checkbox', {
+			name: '3333 vers nova:3333',
+		});
 		expect(conflicting).not.toBeChecked();
-		expect(conflicting).toHaveAccessibleDescription(
-			/Déjà configuré \(Adonis\)/
-		);
+		expect(conflicting).toHaveAccessibleDescription(/Déjà configuré/);
 		expect(
 			screen.getByRole('button', { name: 'Importer 7 tunnels' })
 		).toBeInTheDocument();
@@ -227,11 +230,13 @@ describe('ImportDrawer', () => {
 
 	it('should let the user check a candidate in conflict', async () => {
 		const user = userEvent.setup();
-		useDaemonStore.setState({ tunnels: [buildTunnel({ name: 'Adonis' })] });
+		useDaemonStore.setState({ tunnels: [buildTunnel()] });
 		renderDrawer();
 		await analyzeScript(user);
 
-		await user.click(screen.getByRole('checkbox', { name: /nova 3333/ }));
+		await user.click(
+			screen.getByRole('checkbox', { name: '3333 vers nova:3333' })
+		);
 
 		expect(
 			screen.getByRole('button', { name: 'Importer 8 tunnels' })
@@ -256,18 +261,18 @@ describe('ImportDrawer', () => {
 		).toBeEnabled();
 	});
 
-	it('should suffix a proposed name already taken', async () => {
+	it('should name the tunnel already listening on the port of a candidate', async () => {
 		const user = userEvent.setup();
 		useDaemonStore.setState({
-			tunnels: [buildTunnel({ name: 'NOVA 3334', listenPort: 9999 })],
+			tunnels: [buildTunnel({ listenPort: 3334, targetPort: 80 })],
 		});
 		renderDrawer();
 
 		await analyzeScript(user);
 
 		expect(
-			screen.getByRole('checkbox', { name: 'nova 3334 2' })
-		).toBeInTheDocument();
+			screen.getByRole('checkbox', { name: '3334 vers nova:3334' })
+		).toHaveAccessibleDescription(/Port déjà utilisé par 3334 → nova:80/);
 	});
 
 	describe('candidates without a host', () => {
@@ -313,7 +318,6 @@ describe('ImportDrawer', () => {
 
 			await waitFor(() =>
 				expect(gateway.createTunnel).toHaveBeenCalledWith({
-					name: 'ssh 5000',
 					host: 'other',
 					kind: 'local',
 					listenPort: 5000,
@@ -396,6 +400,26 @@ describe('ImportDrawer', () => {
 			);
 		});
 
+		it('should refuse a tag the CLI would read as a port', async () => {
+			const user = userEvent.setup();
+			const { gateway } = renderDrawer(
+				buildImportPreview({ candidates: [buildImportCandidate()] })
+			);
+			await analyzeScript(user);
+			const field = screen.getByRole('combobox', { name: 'Tag à ajouter' });
+
+			await user.type(field, '3333');
+			await user.click(
+				screen.getByRole('button', { name: 'Importer 1 tunnel' })
+			);
+
+			expect(field).toHaveAccessibleDescription(
+				expect.stringContaining(DIGITS_TAG_MESSAGE)
+			);
+			expect(field).toHaveFocus();
+			expect(gateway.createTunnel).not.toHaveBeenCalled();
+		});
+
 		it('should create the selected tunnels in order with the tags', async () => {
 			const user = userEvent.setup();
 			const { gateway } = renderDrawer(
@@ -423,14 +447,12 @@ describe('ImportDrawer', () => {
 			);
 			expect(gateway.createTunnel.mock.calls.map(([spec]) => spec)).toEqual([
 				{
-					name: 'nova 3333',
 					host: 'nova',
 					kind: 'local',
 					listenPort: 3333,
 					tags: ['dev', 'imported'],
 				},
 				{
-					name: 'nova 4444',
 					host: 'nova',
 					kind: 'local',
 					listenPort: 4444,
@@ -482,13 +504,15 @@ describe('ImportDrawer', () => {
 			const summary = await screen.findByRole('alert');
 			expect(summary).toHaveTextContent('1 tunnel importé, 1 en échec');
 			expect(summary).toHaveTextContent(
-				'nova 4444 : Le port 4444 est déjà utilisé'
+				'4444 → nova:4444 : Le port 4444 est déjà utilisé'
 			);
 			expect(summary).toHaveFocus();
 			expect(
-				screen.getByRole('checkbox', { name: 'nova 3333' })
+				screen.getByRole('checkbox', { name: '3333 vers nova:3333' })
 			).not.toBeChecked();
-			expect(screen.getByRole('checkbox', { name: 'nova 4444' })).toBeChecked();
+			expect(
+				screen.getByRole('checkbox', { name: '4444 vers nova:4444' })
+			).toBeChecked();
 			expect(useUiStore.getState().panel).toEqual({ kind: 'import' });
 		});
 

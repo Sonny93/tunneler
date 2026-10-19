@@ -46,14 +46,6 @@ export function TunnelFormFields({
 		<div className="flex flex-col gap-4">
 			<TunnelKindField value={values.kind} onChange={changeKind} />
 			<TunnelTextField
-				field="name"
-				label="Nom"
-				value={values.name}
-				onChange={changeText}
-				error={errors.name}
-				isRequired
-			/>
-			<TunnelTextField
 				field="host"
 				label="Host"
 				value={values.host}
@@ -111,6 +103,7 @@ export function TunnelFormFields({
 				label="Tags séparés par des virgules"
 				value={values.tags}
 				onChange={changeText}
+				error={errors.tags}
 			/>
 		</div>
 	);

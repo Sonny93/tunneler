@@ -3,14 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { buildImportSpecs } from '#/import/build_import_specs';
 
 const BASE_INPUT = {
-	names: ['one', 'two'],
 	selectedIndexes: new Set([0, 1]),
 	fallbackHost: 'fallback',
 	tags: ['imported'],
 };
 
 describe('buildImportSpecs', () => {
-	it('should build a spec per selected candidate with its name and tags', () => {
+	it('should build a spec per selected candidate with the tags', () => {
 		expect(
 			buildImportSpecs({
 				...BASE_INPUT,
@@ -18,10 +17,10 @@ describe('buildImportSpecs', () => {
 					{ host: 'nova', kind: 'local', listenPort: 3333 },
 					{ host: 'nova', kind: 'local', listenPort: 4444 },
 				],
-			}).map(({ spec }) => [spec.name, spec.tags])
+			}).map(({ spec }) => [spec.listenPort, spec.tags])
 		).toEqual([
-			['one', ['imported']],
-			['two', ['imported']],
+			[3333, ['imported']],
+			[4444, ['imported']],
 		]);
 	});
 
@@ -74,7 +73,6 @@ describe('buildImportSpecs', () => {
 		});
 
 		expect(first?.spec).toEqual({
-			name: 'one',
 			host: 'nova',
 			kind: 'remote',
 			listenPort: 8080,
@@ -100,7 +98,6 @@ describe('buildImportSpecs', () => {
 		});
 
 		expect(first?.spec).toEqual({
-			name: 'one',
 			host: 'nova',
 			kind: 'dynamic',
 			listenPort: 1080,

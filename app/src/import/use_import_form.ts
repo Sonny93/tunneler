@@ -3,12 +3,12 @@ import { useState, type FormEvent } from 'react';
 import { useUiStore } from '#/state/ui_store';
 import { parseTags } from '#/tunnel_form/parse_tags';
 import { useDaemonStore } from '#/state/daemon_store';
+import { validateTags } from '#/tunnel_form/validate_tags';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { describeImportedCount } from '#/import/import_texts';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { buildImportSpecs } from '#/import/build_import_specs';
 import { useImportSelection } from '#/import/use_import_selection';
-import { proposeImportNames } from '#/import/propose_import_names';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import type { ImportPreviewDto, SettingsDto } from '#/daemon/protocol';
 import {
@@ -23,16 +23,17 @@ import {
 
 const MISSING_HOST_ERROR = "Choisissez l'hôte des tunnels sans destination.";
 const HOST_FIELD_NAME = 'defaultHost';
+const TAGS_FIELD_NAME = 'tags';
 
 export type ImportProgress = { doneCount: number; totalCount: number };
 
 type UseImportFormReturn = {
-	names: readonly string[];
 	conflicts: readonly (ImportConflict | null)[];
 	selection: ReturnType<typeof useImportSelection>;
 	defaultHost: string;
 	hostError: string | undefined;
 	tagsText: string;
+	tagsError: string | undefined;
 	progress: ImportProgress | null;
 	summary: ReturnType<typeof useFormErrorSummary>;
 	summaryTitle: string;
@@ -41,8 +42,8 @@ type UseImportFormReturn = {
 	submit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
-function describeFailure({ name, messages }: Readonly<ImportFailure>): string {
-	return `${name} : ${messages.join(', ')}`;
+function describeFailure({ label, messages }: Readonly<ImportFailure>): string {
+	return `${label} : ${messages.join(', ')}`;
 }
 
 function describeSummaryTitle(
@@ -60,12 +61,6 @@ export function useImportForm(
 	const gateway = useDaemonGateway();
 	const tunnels = useDaemonStore((state) => state.tunnels);
 	const { candidates } = preview;
-	const [names] = useState(() =>
-		proposeImportNames(
-			candidates,
-			tunnels.map((tunnel) => tunnel.name)
-		)
-	);
 	const [initialIndexes] = useState(
 		() =>
 			new Set(
@@ -78,6 +73,7 @@ export function useImportForm(
 	const [defaultHost, setDefaultHost] = useState('');
 	const [tagsText, setTagsText] = useState('');
 	const [hostError, setHostError] = useState<string>();
+	const [tagsError, setTagsError] = useState<string>();
 	const [progress, setProgress] = useState<ImportProgress | null>(null);
 	const [summaryTitle, setSummaryTitle] = useState('');
 	const summary = useFormErrorSummary();
@@ -91,6 +87,16 @@ export function useImportForm(
 	const changeDefaultHost = (host: string) => {
 		setDefaultHost(host);
 		setHostError(undefined);
+	};
+
+	const changeTags = (text: string) => {
+		setTagsText(text);
+		setTagsError(undefined);
+	};
+
+	const focusField = (form: HTMLFormElement, fieldName: string) => {
+		const field = form.elements.namedItem(fieldName);
+		if (field instanceof HTMLElement) field.focus();
 	};
 
 	const reportOutcome = (outcome: Readonly<ImportOutcome>) => {
@@ -107,7 +113,6 @@ export function useImportForm(
 	const importSelected = async () => {
 		const importSpecs = buildImportSpecs({
 			candidates,
-			names,
 			selectedIndexes: selection.selectedIndexes,
 			fallbackHost: defaultHost,
 			tags: parseTags(tagsText),
@@ -142,25 +147,30 @@ export function useImportForm(
 			);
 		if (isHostMissing) {
 			setHostError(MISSING_HOST_ERROR);
-			const field = event.currentTarget.elements.namedItem(HOST_FIELD_NAME);
-			if (field instanceof HTMLElement) field.focus();
+			focusField(event.currentTarget, HOST_FIELD_NAME);
+			return;
+		}
+		const foundTagsError = validateTags(tagsText) ?? undefined;
+		setTagsError(foundTagsError);
+		if (foundTagsError !== undefined) {
+			focusField(event.currentTarget, TAGS_FIELD_NAME);
 			return;
 		}
 		void importSelected();
 	};
 
 	return {
-		names,
 		conflicts,
 		selection,
 		defaultHost,
 		hostError,
 		tagsText,
+		tagsError,
 		progress,
 		summary,
 		summaryTitle,
 		changeDefaultHost,
-		changeTags: setTagsText,
+		changeTags,
 		submit,
 	};
 }

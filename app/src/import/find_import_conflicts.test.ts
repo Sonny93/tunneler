@@ -23,9 +23,9 @@ describe('findImportConflicts', () => {
 	it('should flag an identical tunnel as already configured', () => {
 		expect(
 			findFirst({ host: 'nova', kind: 'local', listenPort: 3333 }, [
-				buildTunnel({ name: 'Adonis' }),
+				buildTunnel(),
 			])
-		).toEqual({ kind: 'alreadyConfigured', tunnelName: 'Adonis' });
+		).toEqual({ kind: 'alreadyConfigured' });
 	});
 
 	it('should compare the effective target', () => {
@@ -38,34 +38,34 @@ describe('findImportConflicts', () => {
 					targetHost: '127.0.0.1',
 					targetPort: 3333,
 				},
-				[buildTunnel({ name: 'Adonis' })]
+				[buildTunnel()]
 			)
-		).toEqual({ kind: 'alreadyConfigured', tunnelName: 'Adonis' });
+		).toEqual({ kind: 'alreadyConfigured' });
 	});
 
 	it('should flag the same port with another target as a listen conflict', () => {
 		expect(
 			findFirst(
 				{ host: 'nova', kind: 'local', listenPort: 3333, targetPort: 80 },
-				[buildTunnel({ name: 'Adonis' })]
+				[buildTunnel()]
 			)
-		).toEqual({ kind: 'listenConflict', tunnelName: 'Adonis' });
+		).toEqual({ kind: 'listenConflict', tunnelLabel: '3333 → nova:3333' });
 	});
 
 	it('should flag a listen conflict whatever the ssh host', () => {
 		expect(
 			findFirst({ host: 'other', kind: 'local', listenPort: 3333 }, [
-				buildTunnel({ name: 'Adonis' }),
+				buildTunnel(),
 			])
-		).toEqual({ kind: 'listenConflict', tunnelName: 'Adonis' });
+		).toEqual({ kind: 'listenConflict', tunnelLabel: '3333 → nova:3333' });
 	});
 
 	it('should treat local and dynamic forwards as sharing the local ports', () => {
 		expect(
 			findFirst({ host: 'nova', kind: 'dynamic', listenPort: 3333 }, [
-				buildTunnel({ name: 'Adonis' }),
+				buildTunnel(),
 			])
-		).toEqual({ kind: 'listenConflict', tunnelName: 'Adonis' });
+		).toEqual({ kind: 'listenConflict', tunnelLabel: '3333 → nova:3333' });
 	});
 
 	it('should not flag another listen address', () => {
@@ -94,15 +94,18 @@ describe('findImportConflicts', () => {
 		expect(
 			findFirst(
 				{ host: 'nova', kind: 'remote', listenPort: 8080, targetPort: 80 },
-				[buildTunnel({ name: 'Rev', kind: 'remote', listenPort: 8080 })]
+				[buildTunnel({ kind: 'remote', listenPort: 8080 })]
 			)
-		).toEqual({ kind: 'listenConflict', tunnelName: 'Rev' });
+		).toEqual({
+			kind: 'listenConflict',
+			tunnelLabel: 'nova:8080 → 127.0.0.1:8080',
+		});
 	});
 
 	it('should not flag a remote forward on another host', () => {
 		expect(
 			findFirst({ host: 'other', kind: 'remote', listenPort: 8080 }, [
-				buildTunnel({ name: 'Rev', kind: 'remote', listenPort: 8080 }),
+				buildTunnel({ kind: 'remote', listenPort: 8080 }),
 			])
 		).toBeNull();
 	});
@@ -110,7 +113,7 @@ describe('findImportConflicts', () => {
 	it('should use the fallback host for a candidate without host', () => {
 		expect(
 			findFirst({ kind: 'local', listenPort: 3333 }, [buildTunnel()], 'nova')
-		).toEqual({ kind: 'alreadyConfigured', tunnelName: 'Adonis' });
+		).toEqual({ kind: 'alreadyConfigured' });
 	});
 
 	it('should flag a later candidate repeating an earlier listen identity', () => {

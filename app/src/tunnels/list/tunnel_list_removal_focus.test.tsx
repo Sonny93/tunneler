@@ -9,11 +9,14 @@ import { TunnelList } from '#/tunnels/list/tunnel_list';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 
-const NAMES_BY_ID = { a: 'Alpha', b: 'Beta', c: 'Gamma' } as const;
+const PORTS_BY_ID = { a: 3001, b: 3002, c: 3003 } as const;
+const ALPHA = '3001 vers nova:3001';
+const BETA = '3002 vers nova:3002';
+const GAMMA = '3003 vers nova:3003';
 
-function renderList(ids: readonly (keyof typeof NAMES_BY_ID)[]) {
+function renderList(ids: readonly (keyof typeof PORTS_BY_ID)[]) {
 	useDaemonStore.setState({
-		tunnels: ids.map((id) => buildTunnel({ id, name: NAMES_BY_ID[id] })),
+		tunnels: ids.map((id) => buildTunnel({ id, listenPort: PORTS_BY_ID[id] })),
 	});
 	const gateway = createFakeGateway();
 	gateway.deleteTunnel.mockImplementation((id) => {
@@ -31,7 +34,7 @@ function renderList(ids: readonly (keyof typeof NAMES_BY_ID)[]) {
 	);
 }
 
-async function deleteTunnelNamed(name: string) {
+async function deleteTunnelLabeled(name: string) {
 	await userEvent.click(
 		screen.getByRole('button', { name: `Actions pour ${name}` })
 	);
@@ -48,24 +51,24 @@ describe('TunnelList focus after removal', () => {
 	it('should focus the next row switch when a middle row is deleted', async () => {
 		renderList(['a', 'b', 'c']);
 
-		await deleteTunnelNamed('Beta');
+		await deleteTunnelLabeled(BETA);
 
-		expect(rowSwitch('Gamma')).toHaveFocus();
-		expect(rowSwitch('Gamma')).toHaveAttribute('tabindex', '0');
+		expect(rowSwitch(GAMMA)).toHaveFocus();
+		expect(rowSwitch(GAMMA)).toHaveAttribute('tabindex', '0');
 	});
 
 	it('should focus the previous row switch when the last row is deleted', async () => {
 		renderList(['a', 'b', 'c']);
 
-		await deleteTunnelNamed('Gamma');
+		await deleteTunnelLabeled(GAMMA);
 
-		expect(rowSwitch('Beta')).toHaveFocus();
+		expect(rowSwitch(BETA)).toHaveFocus();
 	});
 
 	it('should focus the create button when the only row is deleted', async () => {
 		renderList(['a']);
 
-		await deleteTunnelNamed('Alpha');
+		await deleteTunnelLabeled(ALPHA);
 
 		expect(
 			screen.getByRole('button', { name: 'Créer un tunnel' })

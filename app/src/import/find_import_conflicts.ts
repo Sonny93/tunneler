@@ -1,3 +1,4 @@
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import type {
 	ImportCandidateDto,
 	SettingsDto,
@@ -8,8 +9,8 @@ import type {
 const DEFAULT_TARGET_HOST = '127.0.0.1';
 
 export type ImportConflict =
-	| { kind: 'alreadyConfigured'; tunnelName: string }
-	| { kind: 'listenConflict'; tunnelName: string }
+	| { kind: 'alreadyConfigured' }
+	| { kind: 'listenConflict'; tunnelLabel: string }
 	| { kind: 'duplicateInImport' };
 
 type ListenSettings = Pick<
@@ -89,7 +90,7 @@ function findAlreadyConfigured(
 			getListenAddress(tunnel, settings) === candidateIdentity.address &&
 			getTargetKey(tunnel) === candidateTargetKey
 	);
-	return match ? { kind: 'alreadyConfigured', tunnelName: match.name } : null;
+	return match ? { kind: 'alreadyConfigured' } : null;
 }
 
 function findListenConflict(
@@ -103,7 +104,9 @@ function findListenConflict(
 			buildListenIdentity(tunnel, tunnel.host, settings)
 		)
 	);
-	return match ? { kind: 'listenConflict', tunnelName: match.name } : null;
+	return match
+		? { kind: 'listenConflict', tunnelLabel: getTunnelEndpointLabel(match) }
+		: null;
 }
 
 /**

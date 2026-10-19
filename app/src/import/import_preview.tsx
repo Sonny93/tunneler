@@ -95,6 +95,7 @@ export function ImportPreview({
 							label="Tag à ajouter"
 							value={form.tagsText}
 							onChange={handleTagsChange}
+							error={form.tagsError}
 							description={TAGS_HINT}
 							autoComplete="off"
 							list={tagsListId}
@@ -109,7 +110,6 @@ export function ImportPreview({
 					</div>
 					<ImportCandidateList
 						candidates={candidates}
-						names={form.names}
 						conflicts={form.conflicts}
 						selectedIndexes={form.selection.selectedIndexes}
 						fallbackHost={form.defaultHost}

@@ -1,9 +1,14 @@
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
 import type { ImportSpec } from '#/import/build_import_specs';
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import { getSubmissionErrorMessages } from '#/shared/submission_error_messages';
 
-export type ImportFailure = { index: number; name: string; messages: string[] };
+export type ImportFailure = {
+	index: number;
+	label: string;
+	messages: string[];
+};
 
 export type ImportOutcome = {
 	createdIndexes: number[];
@@ -26,7 +31,7 @@ export async function createImportedTunnels(
 			const messages = getSubmissionErrorMessages(
 				toDaemonCommandError(rejection)
 			);
-			failures.push({ index, name: spec.name, messages });
+			failures.push({ index, label: getTunnelEndpointLabel(spec), messages });
 		}
 		onProgress(position + 1);
 	}

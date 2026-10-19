@@ -1,3 +1,5 @@
+import { findReservedTagProblem } from '#/shared/reserved_tag_problem';
+
 const TAG_SEPARATOR = ',';
 const WHITESPACE_PATTERN = /\s/u;
 
@@ -15,6 +17,8 @@ export function validateTagName(
 	if (name === '') return EMPTY_TAG_MESSAGE;
 	if (name.includes(TAG_SEPARATOR)) return SEPARATOR_TAG_MESSAGE;
 	if (WHITESPACE_PATTERN.test(name)) return WHITESPACE_TAG_MESSAGE;
+	const reservedProblem = findReservedTagProblem(name);
+	if (reservedProblem !== null) return reservedProblem;
 	if (name === currentTag) return UNCHANGED_TAG_MESSAGE;
 	return null;
 }

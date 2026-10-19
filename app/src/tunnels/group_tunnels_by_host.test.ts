@@ -17,17 +17,15 @@ describe('groupTunnelsByHost', () => {
 		]);
 	});
 
-	it('should sort the tunnels of a host by name, ignoring case', () => {
+	it('should sort the tunnels of a host by listen port', () => {
 		const [group] = groupTunnelsByHost([
-			buildTunnel({ id: '1', name: 'beta' }),
-			buildTunnel({ id: '2', name: 'Alpha' }),
-			buildTunnel({ id: '3', name: 'Gamma' }),
+			buildTunnel({ id: '1', listenPort: 8080 }),
+			buildTunnel({ id: '2', listenPort: 3000 }),
+			buildTunnel({ id: '3', listenPort: 5432 }),
 		]);
 
-		expect(group?.tunnels.map(({ name }) => name)).toEqual([
-			'Alpha',
-			'beta',
-			'Gamma',
+		expect(group?.tunnels.map(({ listenPort }) => listenPort)).toEqual([
+			3000, 5432, 8080,
 		]);
 	});
 

@@ -1,14 +1,16 @@
 import type { TunnelDto } from '#/daemon/protocol';
 import { getTunnelStateLabel } from '#/tunnels/tunnel_state_label';
 import { getTunnelStateDetail } from '#/tunnels/tunnel_state_detail';
+import { getTunnelAccessibleEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 const MAXIMUM_DETAILED_CHANGES = 3;
 
 function describeChange(tunnel: Readonly<TunnelDto>): string {
+	const label = getTunnelAccessibleEndpointLabel(tunnel);
 	const stateLabel = getTunnelStateLabel(tunnel.state);
 	const detail = getTunnelStateDetail(tunnel.state);
-	if (detail === null) return `${tunnel.name} : ${stateLabel}`;
-	return `${tunnel.name} : ${stateLabel}, ${detail}`;
+	if (detail === null) return `${label} : ${stateLabel}`;
+	return `${label} : ${stateLabel}, ${detail}`;
 }
 
 /** One line for a single change; a count, plus the details when there are few, for several. */
