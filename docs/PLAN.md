@@ -193,6 +193,7 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 | `tunnel.create` / `update` / `delete` / `start` / `stop` / `restart` | |
 | `tag.start` / `tag.stop` | |
 | `tags.rename { from, to }` | renomme le tag dans tous les tunnels et dans `start_on_launch_tags` (une écriture, fusion si `to` existe) → `{ renamedCount }` |
+| `tags.delete { tag }` | retire le tag de tous les tunnels et de `start_on_launch_tags` (une écriture, les tunnels sont conservés, aucun redémarrage) → `{ removedCount }` ; `not_found` si aucun tunnel ne le porte |
 | `external.adopt` / `kill` / `ignore` | `import` passe par le formulaire de création prérempli (`tunnel.create`) |
 | `hosts.list` / `hosts.resolve` | alias de `ssh_config` + config résolue (équivalent `ssh -G`) |
 | `settings.update` | |

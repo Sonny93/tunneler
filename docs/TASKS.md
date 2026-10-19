@@ -420,3 +420,10 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
   - `daemon.paths` → `{ configFile }` ; commande Tauri `reveal_config` sans argument venant de la webview : sélectionne le fichier dans l'explorateur, ou ouvre son dossier s'il n'existe pas encore. Bouton dans les réglages + commande de palette.
 
 **Vérifications** : fmt, clippy (workspace, `tunneler-ui`, cross-clippy Windows) verts ; tests Rust 2100 (3 runs verts ; un échec isolé non identifié sur un 4ᵉ run, non reproduit), 42 tests du pont, 1111 tests front. Rien vu dans une vraie fenêtre (fenêtre cachée au démarrage, renommage, panneau replié).
+
+## Phase 16 — Retours d'usage (3)
+- [x] 16.1 Supprimer un tag (clic droit, vue filtrée, palette) avec confirmation — `tags.delete` côté daemon, une seule écriture (tunnels + `start_on_launch_tags`)
+  - Engine : suppression pure (`runtime/tag_delete.rs`) + une écriture atomique, les tunnels sont conservés et jamais redémarrés, `ConfigReloaded`. Erreur : `not_found` (tag porté par aucun tunnel) ; pas de `validation_failed`, le nom n'est pas validé (un nom invalide n'est porté par personne). Protocole additif (31 méthodes, `PROTOCOL_VERSION` inchangé), réponse `{ removedCount }`.
+  - UI : un seul hook `useDeleteTag` pour les trois entrées (menu contextuel du tag « Supprimer le tag… », bouton « Supprimer le tag » de la vue filtrée, commande de palette par tag) ; `ConfirmModal` (`alertdialog`) qui annonce le nombre de tunnels concernés et, seulement si c'est le cas, le retrait de « Tags démarrés au lancement » ; toast, filtre remis sur « Tous les tunnels » s'il portait ce tag, focus déplacé sur « Tous les tunnels » (`focusAllFilter` dans `ui_store`). Annuler ne change rien et rend le focus au déclencheur (assuré par la lib).
+
+**Vérifications** : fmt, clippy (workspace, `tunneler-ui`) verts ; tests Rust 2118, 1125 tests front (`pnpm check`, `pnpm build` verts). Rien vu dans une vraie fenêtre.
