@@ -48,22 +48,22 @@ export function Sidebar() {
 					onSelect={handleSelectAll}
 				/>
 			</div>
-			{tagSummaries.length > 0 && (
-				<section>
-					<h2 className={SECTION_HEADING_CLASS_NAME}>Tags</h2>
-					<ul role="list" className="flex flex-col gap-0.5">
-						{tagSummaries.map((summary) => (
-							<TagFilterRow key={summary.tag} summary={summary} />
-						))}
-					</ul>
-				</section>
-			)}
 			{hostSummaries.length > 0 && (
 				<section>
 					<h2 className={SECTION_HEADING_CLASS_NAME}>Hosts</h2>
 					<ul role="list" className="flex flex-col gap-0.5">
 						{hostSummaries.map((summary) => (
 							<HostFilterRow key={summary.host} summary={summary} />
+						))}
+					</ul>
+				</section>
+			)}
+			{tagSummaries.length > 0 && (
+				<section>
+					<h2 className={SECTION_HEADING_CLASS_NAME}>Tags</h2>
+					<ul role="list" className="flex flex-col gap-0.5">
+						{tagSummaries.map((summary) => (
+							<TagFilterRow key={summary.tag} summary={summary} />
 						))}
 					</ul>
 				</section>

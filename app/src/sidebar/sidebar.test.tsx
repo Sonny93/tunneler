@@ -54,6 +54,15 @@ describe('Sidebar', () => {
 		).toBeInTheDocument();
 	});
 
+	it('should list the hosts section before the tags section', () => {
+		seedTunnels();
+		renderWithGateway(<Sidebar />);
+
+		expect(
+			screen.getAllByRole('heading').map((heading) => heading.textContent)
+		).toEqual(['Hosts', 'Tags']);
+	});
+
 	it('should list tags sorted ignoring case with their counts', () => {
 		seedTunnels();
 		renderWithGateway(<Sidebar />);
