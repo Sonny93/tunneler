@@ -1,5 +1,6 @@
 import { parsePort } from '#/tunnel_form/parse_port';
 import { validateTags } from '#/tunnel_form/validate_tags';
+import { validateOpenPath } from '#/tunnel_form/validate_open_path';
 import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 
 /** Fields that can be invalid, in the order they appear in the form. */
@@ -8,6 +9,7 @@ export const TUNNEL_FORM_FIELD_ORDER = [
 	'listenPort',
 	'targetPort',
 	'tags',
+	'openPath',
 ] as const;
 
 export type TunnelFormField = (typeof TUNNEL_FORM_FIELD_ORDER)[number];
@@ -32,6 +34,9 @@ export function validateTunnelForm(
 	if (hasUnlinkedInvalidTargetPort(values)) errors.targetPort = PORT_MESSAGE;
 	const tagsProblem = validateTags(values.tags);
 	if (tagsProblem !== null) errors.tags = tagsProblem;
+	const openPathProblem =
+		values.kind === 'local' ? validateOpenPath(values.openPath) : null;
+	if (openPathProblem !== null) errors.openPath = openPathProblem;
 	return errors;
 }
 

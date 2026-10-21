@@ -19,10 +19,11 @@ use crate::protocol::{
     AdoptResult, CheckTargetResult, CredentialAnswer, CredentialResponseParams, DaemonPathsResult,
     DeleteTagResult, EventMessage, ForgetSecretsResult, Hello, HostKeyDecisionDto,
     HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto, ImportScriptParams,
-    LogEntryDto, LogsResult, ProcessParams, QuitParams, RememberDto, RenameTagResult, Request,
-    RequestEnvelope, ResolvedHostDto, SettingsDto, SnapshotDto, TagParams, TagRenameParams,
-    TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto, TunnelIdParams,
-    TunnelSpecDto, UiClaimResult, X11HostParams, X11LaunchParams, encode_line,
+    LogEntryDto, LogsResult, OpenTunnelResult, ProcessParams, QuitParams, RememberDto,
+    RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, SettingsDto, SnapshotDto,
+    TagParams, TagRenameParams, TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto,
+    TunnelDto, TunnelIdParams, TunnelSpecDto, UiClaimResult, X11HostParams, X11LaunchParams,
+    encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -163,6 +164,17 @@ impl IpcClient {
         let result: CheckTargetResult =
             self.call(Request::TunnelCheckTarget(tunnel_id(id))).await?;
         Ok(result.health)
+    }
+
+    /// Opens a tunnel in the browser, starting it first when it is stopped,
+    /// and returns what was opened.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn open_tunnel(&self, id: &str) -> Result<String, ClientError> {
+        let result: OpenTunnelResult = self.call(Request::TunnelOpen(tunnel_id(id))).await?;
+        Ok(result.target)
     }
 
     /// Replaces the definition of a tunnel.

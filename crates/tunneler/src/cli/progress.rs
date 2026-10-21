@@ -185,6 +185,7 @@ mod tests {
                     target_host: None,
                     target_port: None,
                     tags: Vec::new(),
+                    open: ipc::protocol::OpenOptionsDto::default(),
                 },
             },
             state,
@@ -221,6 +222,7 @@ mod tests {
                 launch_at_login: false,
                 use_os_keyring: false,
                 x11_display: None,
+                open_host: ipc::protocol::OpenHostDto::Localhost,
             },
         }
     }

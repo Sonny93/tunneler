@@ -1,7 +1,7 @@
 import type { SettingsFormValues } from '#/settings/settings_form_values';
 
 export type SettingsTextField = {
-	[TKey in keyof SettingsFormValues]: SettingsFormValues[TKey] extends string
+	[TKey in keyof SettingsFormValues]: string extends SettingsFormValues[TKey]
 		? TKey
 		: never;
 }[keyof SettingsFormValues];

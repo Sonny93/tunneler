@@ -81,4 +81,39 @@ describe('toTunnelSpec', () => {
 			RangeError
 		);
 	});
+
+	it('should omit the open options when none is set', () => {
+		expect(toTunnelSpec(valid).open).toBeUndefined();
+	});
+
+	it('should send only the open options that differ from the defaults', () => {
+		const spec = toTunnelSpec({
+			...valid,
+			openScheme: 'https',
+			openPath: ' /admin ',
+			openHost: 'ip',
+		});
+
+		expect(spec.open).toEqual({
+			scheme: 'https',
+			path: '/admin',
+			host: 'ip',
+		});
+	});
+
+	it('should not send the default http scheme', () => {
+		const spec = toTunnelSpec({ ...valid, openPath: '/x' });
+
+		expect(spec.open).toEqual({ path: '/x' });
+	});
+
+	it('should drop the open options of a remote tunnel', () => {
+		const spec = toTunnelSpec({
+			...valid,
+			kind: 'remote',
+			openPath: '/x',
+		});
+
+		expect(spec.open).toBeUndefined();
+	});
 });

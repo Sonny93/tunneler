@@ -25,6 +25,14 @@ pub struct CheckTargetResult {
     pub health: TargetHealthDto,
 }
 
+/// The result of `tunnel.open`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenTunnelResult {
+    /// What was opened: the URL for the browser.
+    pub target: String,
+}
+
 /// The result of `hosts.list`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -98,6 +106,8 @@ pub enum ResponsePayload {
     Logs(LogsResult),
     /// The answer to `tunnel.check_target`.
     CheckTarget(CheckTargetResult),
+    /// The answer to `tunnel.open`.
+    OpenTunnel(OpenTunnelResult),
     /// The answer to `hosts.list`.
     Hosts(HostsResult),
     /// The answer to `hosts.resolve`.

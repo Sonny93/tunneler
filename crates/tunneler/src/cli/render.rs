@@ -500,6 +500,7 @@ mod tests {
             launch_at_login: false,
             use_os_keyring: false,
             x11_display: None,
+            open_host: ipc::protocol::OpenHostDto::Localhost,
         }
     }
 
@@ -515,6 +516,7 @@ mod tests {
                     target_host: None,
                     target_port: None,
                     tags: vec!["dev".to_owned(), "adonis".to_owned()],
+                    open: ipc::protocol::OpenOptionsDto::default(),
                 },
             },
             state,

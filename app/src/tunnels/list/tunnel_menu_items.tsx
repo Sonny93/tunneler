@@ -2,9 +2,10 @@ import { MenuItem } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
+import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
+import { useOpenTunnel } from '#/tunnel_details/use_open_tunnel';
 import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
 import { ExternalMenuItems } from '#/tunnels/list/external_menu_items';
-import { useOpenInBrowser } from '#/tunnel_details/use_open_in_browser';
 
 type TunnelMenuItemsProps = {
 	tunnel: TunnelDto;
@@ -16,7 +17,8 @@ export function TunnelMenuItems({ tunnel }: Readonly<TunnelMenuItemsProps>) {
 	const openTunnelDetails = useUiStore((state) => state.openTunnelDetails);
 	const { restart, stopAndRemove, persist, confirmRemoval } =
 		useTunnelActions(tunnel);
-	const { target, isRunning, open } = useOpenInBrowser(tunnel);
+	const { isOpenable, open } = useOpenTunnel(tunnel);
+	const isRunning = isTunnelRunning(tunnel.state);
 
 	const handleDetails = () => openTunnelDetails(tunnel.id);
 	const handleEdit = () => openTunnelEditor(tunnel.id);
@@ -27,8 +29,8 @@ export function TunnelMenuItems({ tunnel }: Readonly<TunnelMenuItemsProps>) {
 			<MenuItem icon="i-mdi-information-outline" onClick={handleDetails}>
 				Détails
 			</MenuItem>
-			{target !== null && (
-				<MenuItem icon="i-mdi-open-in-new" disabled={!isRunning} onClick={open}>
+			{isOpenable && (
+				<MenuItem icon="i-mdi-open-in-new" onClick={open}>
 					Ouvrir dans le navigateur
 				</MenuItem>
 			)}

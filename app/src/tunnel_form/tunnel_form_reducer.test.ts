@@ -75,4 +75,32 @@ describe('tunnelFormReducer', () => {
 
 		expect([values.host, values.targetPort]).toEqual(['nova', '5432']);
 	});
+
+	it('should change the open scheme', () => {
+		const values = tunnelFormReducer(EMPTY_TUNNEL_FORM_VALUES, {
+			type: 'openSchemeChanged',
+			scheme: 'https',
+		});
+
+		expect(values.openScheme).toBe('https');
+	});
+
+	it('should change the open host', () => {
+		const values = tunnelFormReducer(EMPTY_TUNNEL_FORM_VALUES, {
+			type: 'openHostChanged',
+			host: 'ip',
+		});
+
+		expect(values.openHost).toBe('ip');
+	});
+
+	it('should change the open path as text', () => {
+		const values = tunnelFormReducer(EMPTY_TUNNEL_FORM_VALUES, {
+			type: 'textChanged',
+			field: 'openPath',
+			value: '/admin',
+		});
+
+		expect(values.openPath).toBe('/admin');
+	});
 });

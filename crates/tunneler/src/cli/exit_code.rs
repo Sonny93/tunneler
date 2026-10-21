@@ -16,6 +16,8 @@ pub const CONFIRMATION_REQUIRED: u8 = 5;
 pub const TIMED_OUT: u8 = 6;
 /// `check`: the target of the tunnel does not answer.
 pub const TARGET_UNREACHABLE: u8 = 7;
+/// `open`: the tunnel did not become ready or the browser could not be launched.
+pub const OPEN_FAILED: u8 = 8;
 
 /// The exit codes in the form `--help` shows them.
 pub fn describe_exit_codes() -> String {
@@ -31,6 +33,7 @@ pub fn describe_exit_codes() -> String {
         ),
         (TIMED_OUT, "timed out waiting"),
         (TARGET_UNREACHABLE, "the target of the tunnel does not answer (check)"),
+        (OPEN_FAILED, "the tunnel did not become ready or the browser could not be launched (open)"),
     ]
     .map(|(code, meaning)| format!("  {code}  {meaning}"))
     .join("\n")
@@ -53,7 +56,8 @@ mod tests {
                 TARGETS_FAILED,
                 CONFIRMATION_REQUIRED,
                 TIMED_OUT,
-                TARGET_UNREACHABLE
+                TARGET_UNREACHABLE,
+                OPEN_FAILED
             ]
             .iter()
             .all(|code| description.contains(&format!("  {code}  ")))

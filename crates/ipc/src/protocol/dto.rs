@@ -15,6 +15,49 @@ pub enum TunnelKindDto {
     Dynamic,
 }
 
+/// The URL scheme a tunnel is opened with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OpenSchemeDto {
+    /// `http://`.
+    Http,
+    /// `https://`.
+    Https,
+}
+
+/// Which loopback name a tunnel is opened at.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OpenHostDto {
+    /// The name `localhost`.
+    #[default]
+    Localhost,
+    /// The loopback IP address.
+    Ip,
+}
+
+/// How a tunnel is opened; every field is optional.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenOptionsDto {
+    /// The URL scheme; `http` when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scheme: Option<OpenSchemeDto>,
+    /// The URL path; `/` when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    /// Overrides the general `openHost` setting for this tunnel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host: Option<OpenHostDto>,
+}
+
+impl OpenOptionsDto {
+    /// Whether no option is set.
+    pub fn is_empty(&self) -> bool {
+        self.scheme.is_none() && self.path.is_none() && self.host.is_none()
+    }
+}
+
 /// The editable part of a tunnel definition.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +80,9 @@ pub struct TunnelSpecDto {
     /// Free-form labels.
     #[serde(default)]
     pub tags: Vec<String>,
+    /// How the tunnel is opened; absent when nothing is set.
+    #[serde(default, skip_serializing_if = "OpenOptionsDto::is_empty")]
+    pub open: OpenOptionsDto,
 }
 
 /// The definition of a temporary tunnel: a [`TunnelSpecDto`] without tags,
@@ -275,6 +321,9 @@ pub struct SettingsDto {
     /// The local X11 display; absent means `$DISPLAY`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub x11_display: Option<String>,
+    /// Which loopback name opened tunnels use unless they say otherwise.
+    #[serde(default)]
+    pub open_host: OpenHostDto,
 }
 
 /// Whether the daemon shows its notification-area (tray) icon.

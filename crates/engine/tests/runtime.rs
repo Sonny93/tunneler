@@ -9,9 +9,10 @@ use std::time::{Duration, SystemTime};
 
 use engine::{
     AppState, Clock, ConnectTimeouts, Engine, EngineDependencies, EngineError, EngineEvent,
-    EngineOptions, FailureReason, HostKeyDecision, LogLevel, NewTunnel, PortOwner, PortScanner,
-    Settings, Store, StoreError, SystemClock, SystemPortScanner, SystemScan, TagProblem,
-    TargetHealth, TunnelId, TunnelKind, TunnelState, UnmanagedProcess,
+    EngineOptions, FailureReason, HostKeyDecision, LogLevel, NewTunnel, OpenHost, OpenOptions,
+    OpenUrlError, PortOwner, PortScanner, Settings, Store, StoreError, SystemClock,
+    SystemPortScanner, SystemScan, TagProblem, TargetHealth, TunnelId, TunnelKind, TunnelState,
+    UnmanagedProcess,
 };
 use fast_socks5::client::{Config as SocksConfig, Socks5Stream};
 use fast_socks5::{ReplyError, SocksError};
@@ -258,6 +259,7 @@ impl HarnessBuilder {
                 metrics_event_interval: TICK_INTERVAL,
                 port_scan_interval: TICK_INTERVAL,
                 connect_timeouts: ConnectTimeouts::default(),
+                tunnel_ready_timeout: WAIT,
             },
         )
         .unwrap();
@@ -2019,6 +2021,7 @@ fn new_tunnel(listen_port: u16) -> NewTunnel {
         target_host: None,
         target_port: None,
         tags: vec!["fresh".to_owned()],
+        open: OpenOptions::default(),
     }
 }
 
@@ -3424,4 +3427,139 @@ async fn should_list_the_temporary_tunnels_last_when_a_tunnel_is_created_after_t
         .map(|tunnel| tunnel.definition.id)
         .collect();
     assert_eq!(order, vec![harness.id("alpha"), created_id, temporary_id]);
+}
+
+#[tokio::test]
+async fn should_start_a_stopped_tunnel_and_return_once_it_is_active() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    harness
+        .engine
+        .start_tunnel_and_wait(harness.id("alpha"))
+        .await
+        .unwrap();
+
+    assert_eq!(harness.state_of("alpha"), TunnelState::Active);
+    assert_eq!(echo_through(harness.port("alpha"), PAYLOAD).await, PAYLOAD);
+}
+
+#[tokio::test]
+async fn should_return_at_once_without_a_new_connection_when_the_tunnel_is_already_active() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.start_and_wait_active("alpha").await;
+
+    harness
+        .engine
+        .start_tunnel_and_wait(harness.id("alpha"))
+        .await
+        .unwrap();
+
+    assert_eq!(harness.server.connection_count(), 1);
+}
+
+#[tokio::test]
+async fn should_fail_with_the_reason_when_the_tunnel_cannot_start() {
+    let harness = HarnessBuilder::new(&["alpha"])
+        .with_unauthorized_client_key()
+        .start()
+        .await;
+
+    let error = harness
+        .engine
+        .start_tunnel_and_wait(harness.id("alpha"))
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(&error, EngineError::TunnelStartFailed(FailureReason::Connect { message }) if message.contains("authentication failed")),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn should_fail_when_another_program_holds_the_port_of_the_tunnel() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let _squatter = TcpListener::bind((LOOPBACK, harness.port("alpha")))
+        .await
+        .unwrap();
+
+    let error = harness
+        .engine
+        .start_tunnel_and_wait(harness.id("alpha"))
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(error, EngineError::TunnelPortConflict),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn should_return_at_once_when_an_external_process_provides_the_tunnel() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.set_scan(harness.scan_with_ssh_providing(SSH_PID, &["alpha"]));
+    harness.engine.set_port_scanning(true);
+    harness.wait_for("alpha", is_external).await;
+
+    harness
+        .engine
+        .start_tunnel_and_wait(harness.id("alpha"))
+        .await
+        .unwrap();
+
+    assert_eq!(harness.server.connection_count(), 0);
+}
+
+#[tokio::test]
+async fn should_fail_when_the_tunnel_to_wait_for_is_unknown() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let error = harness
+        .engine
+        .start_tunnel_and_wait(TunnelId::generate())
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, EngineError::UnknownTunnel(_)), "{error:?}");
+}
+
+#[tokio::test]
+async fn should_build_the_browser_url_of_a_local_tunnel() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let url = harness.engine.open_url(harness.id("alpha")).unwrap();
+
+    assert_eq!(url, format!("http://localhost:{}/", harness.port("alpha")));
+}
+
+#[tokio::test]
+async fn should_refuse_the_browser_url_of_a_remote_tunnel() {
+    let harness = HarnessBuilder::new(&["alpha"]).kind("remote").start().await;
+
+    let error = harness.engine.open_url(harness.id("alpha")).unwrap_err();
+
+    assert!(
+        matches!(
+            error,
+            EngineError::Open(OpenUrlError::NotOpenable {
+                kind: TunnelKind::Remote
+            })
+        ),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn should_follow_the_open_host_setting_when_building_the_browser_url() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let settings = Settings {
+        open_host: OpenHost::Ip,
+        ..harness.engine.snapshot().settings
+    };
+    harness.engine.update_settings(settings).await.unwrap();
+
+    let url = harness.engine.open_url(harness.id("alpha")).unwrap();
+
+    assert_eq!(url, format!("http://127.0.0.1:{}/", harness.port("alpha")));
 }

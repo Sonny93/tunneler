@@ -52,6 +52,23 @@ pub enum TagProblem {
     OnlyDigits,
 }
 
+/// What is wrong with the path of an open URL.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum OpenPathProblem {
+    /// The path does not start with a slash.
+    #[error("it must start with \"/\"")]
+    MissingLeadingSlash,
+    /// The path starts with two slashes, which a browser reads as a host.
+    #[error("it must not start with \"//\"")]
+    StartsWithDoubleSlash,
+    /// The path contains whitespace.
+    #[error("it contains whitespace")]
+    ContainsWhitespace,
+    /// The path contains a control character.
+    #[error("it contains a control character")]
+    ContainsControlCharacter,
+}
+
 /// A rule broken by the content of the store.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ValidationError {
@@ -141,6 +158,16 @@ pub enum ValidationError {
         tunnel: TunnelReference,
         /// The repeated tag.
         tag: String,
+    },
+    /// The path of the open URL breaks the path rules.
+    #[error("{tunnel}: open.path \"{path}\" is invalid: {problem}")]
+    InvalidOpenPath {
+        /// The offending tunnel.
+        tunnel: TunnelReference,
+        /// The path.
+        path: String,
+        /// What is wrong with it.
+        problem: OpenPathProblem,
     },
     /// The first reconnection delay exceeds the maximum delay.
     #[error(
@@ -288,7 +315,37 @@ fn validate_tunnel(tunnel: &TunnelDefinition) -> Vec<ValidationError> {
     }
     errors.extend(validate_dynamic_target(tunnel, &reference));
     errors.extend(validate_tags(tunnel, &reference));
+    errors.extend(validate_open_path(tunnel, &reference));
     errors
+}
+
+fn validate_open_path(
+    tunnel: &TunnelDefinition,
+    reference: &TunnelReference,
+) -> Option<ValidationError> {
+    let path = tunnel.open.path.as_ref()?;
+    let problem = find_open_path_problem(path)?;
+    Some(ValidationError::InvalidOpenPath {
+        tunnel: reference.clone(),
+        path: path.clone(),
+        problem,
+    })
+}
+
+pub(crate) fn find_open_path_problem(path: &str) -> Option<OpenPathProblem> {
+    if !path.starts_with('/') {
+        return Some(OpenPathProblem::MissingLeadingSlash);
+    }
+    if path.starts_with("//") {
+        return Some(OpenPathProblem::StartsWithDoubleSlash);
+    }
+    if path.contains(char::is_whitespace) {
+        return Some(OpenPathProblem::ContainsWhitespace);
+    }
+    if path.contains(char::is_control) {
+        return Some(OpenPathProblem::ContainsControlCharacter);
+    }
+    None
 }
 
 fn validate_dynamic_target(
@@ -707,6 +764,78 @@ mod tests {
         let remote = tunnel_on(TunnelKind::Remote, 8080);
 
         assert_eq!(validate(&document_with(vec![local, remote])), Ok(()));
+    }
+
+    fn open_path_problem_of(path: &str) -> Option<OpenPathProblem> {
+        let definition = TunnelDefinition {
+            open: crate::store::OpenOptions {
+                path: Some(path.to_owned()),
+                ..crate::store::OpenOptions::default()
+            },
+            ..tunnel(TunnelKind::Local)
+        };
+        match errors_of(&document_with(vec![definition])).as_slice() {
+            [ValidationError::InvalidOpenPath { problem, .. }] => Some(*problem),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn should_accept_an_open_path_that_starts_with_a_slash() {
+        assert_eq!(open_path_problem_of("/admin?tab=1#top"), None);
+    }
+
+    #[test]
+    fn should_accept_the_root_open_path() {
+        assert_eq!(open_path_problem_of("/"), None);
+    }
+
+    #[test]
+    fn should_reject_an_open_path_without_a_leading_slash() {
+        assert_eq!(
+            open_path_problem_of("admin"),
+            Some(OpenPathProblem::MissingLeadingSlash)
+        );
+    }
+
+    #[test]
+    fn should_reject_an_empty_open_path() {
+        assert_eq!(
+            open_path_problem_of(""),
+            Some(OpenPathProblem::MissingLeadingSlash)
+        );
+    }
+
+    #[test]
+    fn should_reject_an_open_path_starting_with_two_slashes() {
+        assert_eq!(
+            open_path_problem_of("//evil.example"),
+            Some(OpenPathProblem::StartsWithDoubleSlash)
+        );
+    }
+
+    #[test]
+    fn should_reject_an_open_path_with_whitespace() {
+        assert_eq!(
+            open_path_problem_of("/my page"),
+            Some(OpenPathProblem::ContainsWhitespace)
+        );
+    }
+
+    #[test]
+    fn should_reject_an_open_path_with_a_control_character() {
+        assert_eq!(
+            open_path_problem_of("/a\u{7}b"),
+            Some(OpenPathProblem::ContainsControlCharacter)
+        );
+    }
+
+    #[test]
+    fn should_not_check_the_open_path_when_it_is_absent() {
+        assert_eq!(
+            validate(&document_with(vec![tunnel(TunnelKind::Local)])),
+            Ok(())
+        );
     }
 
     fn tunnel_with_tags(tags: &[&str]) -> TunnelDefinition {

@@ -76,6 +76,7 @@ export function buildSettings(
 		startOnLaunchTags: [],
 		launchAtLogin: false,
 		useOsKeyring: false,
+		openHost: 'localhost',
 		...overrides,
 	};
 }

@@ -13,7 +13,8 @@ use super::document_update;
 use super::error::{SourceLocation, StoreError};
 use super::migration::{CURRENT_VERSION, migrate};
 use super::model::{
-    HostOverrides, Settings, StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
+    HostOverrides, OpenHost, OpenOptions, OpenScheme, Settings, StoreDocument, TunnelDefinition,
+    TunnelId, TunnelKind, X11Launcher,
 };
 use super::validation::validate;
 
@@ -69,6 +70,29 @@ struct StoredSettings {
     launch_at_login: Option<bool>,
     use_os_keyring: Option<bool>,
     x11_display: Option<String>,
+    open_host: Option<StoredOpenHost>,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum StoredOpenHost {
+    Localhost,
+    Ip,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum StoredOpenScheme {
+    Http,
+    Https,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredOpen {
+    scheme: Option<StoredOpenScheme>,
+    path: Option<String>,
+    host: Option<StoredOpenHost>,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -93,6 +117,8 @@ struct StoredTunnel {
     target_port: Option<u16>,
     #[serde(default)]
     tags: Vec<String>,
+    #[serde(default)]
+    open: StoredOpen,
 }
 
 #[derive(Deserialize)]
@@ -232,6 +258,35 @@ impl StoredSettings {
             launch_at_login: self.launch_at_login.unwrap_or(defaults.launch_at_login),
             use_os_keyring: self.use_os_keyring.unwrap_or(defaults.use_os_keyring),
             x11_display: self.x11_display.filter(|display| !display.is_empty()),
+            open_host: self.open_host.map_or(defaults.open_host, OpenHost::from),
+        }
+    }
+}
+
+impl From<StoredOpenHost> for OpenHost {
+    fn from(host: StoredOpenHost) -> Self {
+        match host {
+            StoredOpenHost::Localhost => Self::Localhost,
+            StoredOpenHost::Ip => Self::Ip,
+        }
+    }
+}
+
+impl From<StoredOpenScheme> for OpenScheme {
+    fn from(scheme: StoredOpenScheme) -> Self {
+        match scheme {
+            StoredOpenScheme::Http => Self::Http,
+            StoredOpenScheme::Https => Self::Https,
+        }
+    }
+}
+
+impl StoredOpen {
+    fn into_options(self) -> OpenOptions {
+        OpenOptions {
+            scheme: self.scheme.map(OpenScheme::from),
+            path: self.path,
+            host: self.host.map(OpenHost::from),
         }
     }
 }
@@ -247,6 +302,7 @@ impl StoredTunnel {
             target_host: self.target_host,
             target_port: self.target_port,
             tags: self.tags,
+            open: self.open.into_options(),
         }
     }
 }
@@ -653,6 +709,105 @@ mod tests {
                 x11_display: Some(":1".to_owned()),
             },
         );
+
+        let rendered = render(None, &document);
+
+        assert_eq!(parse(&rendered).unwrap().document, document);
+    }
+
+    const OPEN_TUNNEL: &str = "[[tunnels]]\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\n";
+
+    fn open_options_of(open_line: &str) -> Result<OpenOptions, StoreError> {
+        parse(&format!("{OPEN_TUNNEL}{open_line}\n"))
+            .map(|outcome| outcome.document.tunnels[0].open.clone())
+    }
+
+    #[test]
+    fn should_read_every_open_field_when_the_inline_table_is_complete() {
+        let options =
+            open_options_of("open = { scheme = \"https\", path = \"/admin\", host = \"ip\" }");
+
+        assert_eq!(
+            options.unwrap(),
+            OpenOptions {
+                scheme: Some(OpenScheme::Https),
+                path: Some("/admin".to_owned()),
+                host: Some(OpenHost::Ip),
+            }
+        );
+    }
+
+    #[test]
+    fn should_leave_open_options_empty_when_the_key_is_omitted() {
+        assert_eq!(open_options_of("").unwrap(), OpenOptions::default());
+    }
+
+    #[test]
+    fn should_read_open_options_written_as_a_sub_table() {
+        let options = open_options_of("[tunnels.open]\nscheme = \"https\"");
+
+        assert_eq!(options.unwrap().scheme, Some(OpenScheme::Https));
+    }
+
+    #[test]
+    fn should_reject_an_unknown_open_scheme() {
+        assert!(matches!(
+            open_options_of("open = { scheme = \"ftp\" }"),
+            Err(StoreError::Parse { .. })
+        ));
+    }
+
+    #[test]
+    fn should_reject_an_unknown_open_host() {
+        assert!(matches!(
+            open_options_of("open = { host = \"example.com\" }"),
+            Err(StoreError::Parse { .. })
+        ));
+    }
+
+    #[test]
+    fn should_reject_an_unknown_open_key() {
+        assert!(matches!(
+            open_options_of("open = { colour = \"red\" }"),
+            Err(StoreError::Parse { .. })
+        ));
+    }
+
+    #[test]
+    fn should_report_the_open_path_as_a_validation_error_when_it_is_invalid() {
+        let outcome = open_options_of("open = { path = \"admin\" }");
+
+        assert!(matches!(outcome, Err(StoreError::Validation(_))));
+    }
+
+    #[test]
+    fn should_read_the_open_host_setting_when_it_is_given() {
+        let outcome = parse("[settings]\nopen_host = \"ip\"\n").unwrap();
+
+        assert_eq!(outcome.document.settings.open_host, OpenHost::Ip);
+    }
+
+    #[test]
+    fn should_reject_an_unknown_open_host_setting() {
+        assert!(matches!(
+            parse("[settings]\nopen_host = \"lan\"\n"),
+            Err(StoreError::Parse { .. })
+        ));
+    }
+
+    #[test]
+    fn should_round_trip_open_options_through_a_fresh_render() {
+        let document = StoreDocument {
+            tunnels: vec![TunnelDefinition {
+                open: OpenOptions {
+                    scheme: Some(OpenScheme::Https),
+                    path: Some("/admin".to_owned()),
+                    host: None,
+                },
+                ..tunnel_on(TunnelKind::Local, 3333)
+            }],
+            ..StoreDocument::default()
+        };
 
         let rendered = render(None, &document);
 

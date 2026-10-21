@@ -8,10 +8,11 @@ use ipc::protocol::{
     HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, HostOptionDto, HostParams,
     HostsResult, ImportCandidateDto, ImportPreviewDto, ImportScriptParams, ImportWarningDto,
     IpcError, LogEntryDto, LogLevelDto, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES,
-    MetricsDto, PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent,
-    QuitParams, RememberDto, RenameTagResult, Request, RequestEnvelope, ResolvedHostDto,
-    ResponsePayload, Secret, ServerFrame, SettingsDto, SnapshotDto, TagParams, TagRenameParams,
-    TargetHealthDto, TemporaryTunnelSpecDto, TrayChangedEvent, TrayStatusDto, TunnelChangedEvent,
+    MetricsDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenTunnelResult, PROTOCOL_VERSION,
+    PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent, QuitParams, RememberDto,
+    RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload, Secret,
+    ServerFrame, SettingsDto, SnapshotDto, TagParams, TagRenameParams, TargetHealthDto,
+    TemporaryTunnelSpecDto, TrayChangedEvent, TrayStatusDto, TunnelChangedEvent,
     TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto, TunnelLogEvent,
     TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, UiClaimResult, X11AnchorDto,
     X11ChangedEvent, X11HostParams, X11LaunchParams, X11LauncherDto, X11StateDto, encode_event,
@@ -31,6 +32,7 @@ fn spec() -> TunnelSpecDto {
         target_host: Some("db.internal".to_owned()),
         target_port: Some(5432),
         tags: vec!["dev".to_owned()],
+        open: OpenOptionsDto::default(),
     }
 }
 
@@ -55,6 +57,7 @@ fn settings() -> SettingsDto {
         launch_at_login: false,
         use_os_keyring: false,
         x11_display: None,
+        open_host: OpenHostDto::Localhost,
     }
 }
 
@@ -171,7 +174,8 @@ fn every_request() -> Vec<Request> {
         Request::TunnelLogs(tunnel_id.clone()),
         Request::TunnelStartTemporary(temporary_spec()),
         Request::TunnelPersist(tunnel_id.clone()),
-        Request::TunnelCheckTarget(tunnel_id),
+        Request::TunnelCheckTarget(tunnel_id.clone()),
+        Request::TunnelOpen(tunnel_id),
         Request::HostsList {},
         Request::HostsResolve(HostParams {
             host: "nova".to_owned(),
@@ -360,6 +364,86 @@ fn should_serialize_tunnel_create_as_documented() {
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
         r#"{"id":2,"method":"tunnel.create","params":{"host":"nova","kind":"local","listenPort":3333,"targetHost":"db.internal","targetPort":5432,"tags":["dev"]}}"#
+    );
+}
+
+#[test]
+fn should_serialize_the_open_options_of_a_tunnel_when_they_are_set() {
+    let spec = TunnelSpecDto {
+        open: OpenOptionsDto {
+            scheme: Some(OpenSchemeDto::Https),
+            path: Some("/admin".to_owned()),
+            host: Some(OpenHostDto::Ip),
+        },
+        ..spec()
+    };
+
+    assert_eq!(
+        to_json(&spec)["open"],
+        json!({"scheme":"https","path":"/admin","host":"ip"})
+    );
+}
+
+#[test]
+fn should_omit_the_open_options_of_a_tunnel_when_none_is_set() {
+    assert_eq!(to_json(&spec()).get("open"), None);
+}
+
+#[test]
+fn should_deserialize_a_tunnel_without_open_options_as_having_none() {
+    let value = to_json(&spec());
+
+    let parsed: TunnelSpecDto = serde_json::from_value(value).unwrap();
+
+    assert!(parsed.open.is_empty());
+}
+
+#[test]
+fn should_deserialize_settings_without_open_host_as_localhost() {
+    let mut value = to_json(&settings());
+    value.as_object_mut().unwrap().remove("openHost");
+
+    let parsed: SettingsDto = serde_json::from_value(value).unwrap();
+
+    assert_eq!(parsed.open_host, OpenHostDto::Localhost);
+}
+
+#[test]
+fn should_serialize_tunnel_open_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 5,
+        request: Request::TunnelOpen(TunnelIdParams {
+            id: TUNNEL_ID.to_owned(),
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":5,"method":"tunnel.open","params":{"id":"01J9ZK3Q8M5N7R2T4V6X8Y0ABC"}}"#
+    );
+}
+
+#[test]
+fn should_serialize_an_open_tunnel_response_as_documented() {
+    let result = OpenTunnelResult {
+        target: "http://localhost:3333/".to_owned(),
+    };
+
+    let line = encode_response(Some(6), &Ok(ResponsePayload::OpenTunnel(result))).unwrap();
+
+    assert_eq!(
+        line,
+        "{\"id\":6,\"result\":{\"target\":\"http://localhost:3333/\"}}\n"
+    );
+}
+
+#[test]
+fn should_serialize_the_open_failed_error_code_as_documented() {
+    let line = encode_response(Some(7), &Err(IpcError::open_failed("no browser"))).unwrap();
+
+    assert_eq!(
+        line,
+        "{\"id\":7,\"error\":{\"code\":\"open_failed\",\"message\":\"no browser\"}}\n"
     );
 }
 
@@ -936,7 +1020,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isTemporary":false}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[]}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost"},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[]}}"#,
             "\n"
         )
     );
@@ -1301,8 +1385,8 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_thirty_four_methods() {
-    assert_eq!(METHOD_NAMES.len(), 34);
+fn should_list_thirty_five_methods() {
+    assert_eq!(METHOD_NAMES.len(), 35);
 }
 
 #[test]

@@ -110,21 +110,21 @@ pub enum CliError {
         /// What the daemon reported.
         message: String,
     },
-    /// The tunnel cannot be opened in a browser.
-    #[error("the tunnel {label} is a {kind} tunnel: there is nothing to open on this machine")]
+    /// The daemon refused to open the tunnel in a browser.
+    #[error("the tunnel {label} cannot be opened: {reason}")]
     NotOpenable {
         /// The tunnel route.
         label: String,
-        /// Its kind.
-        kind: &'static str,
+        /// Why, as the daemon said it.
+        reason: String,
     },
-    /// The browser could not be launched.
-    #[error("cannot open {url}: {source}")]
+    /// The tunnel did not become ready or the browser could not be launched.
+    #[error("cannot open {label}: {message}")]
     OpenFailed {
-        /// What was to be opened.
-        url: String,
-        /// Why it failed.
-        source: io::Error,
+        /// The tunnel route.
+        label: String,
+        /// What the daemon reported.
+        message: String,
     },
     /// Reading the answer of the user failed.
     #[error("cannot read the answer: {0}")]
@@ -147,6 +147,7 @@ impl CliError {
             Self::ForwardSpec(_) | Self::ForwardNeedsOneHost { .. } => exit_code::USAGE,
             Self::TargetsFailed { .. } => exit_code::TARGETS_FAILED,
             Self::TargetUnreachable { .. } => exit_code::TARGET_UNREACHABLE,
+            Self::OpenFailed { .. } => exit_code::OPEN_FAILED,
             Self::ConfirmationRequired { .. } => exit_code::CONFIRMATION_REQUIRED,
             Self::TimedOutWaiting { .. } | Self::DaemonStopTimedOut { .. } => exit_code::TIMED_OUT,
             Self::DaemonSpawn(_)
@@ -159,7 +160,6 @@ impl CliError {
             | Self::Store(_)
             | Self::ConnectionLost
             | Self::NotOpenable { .. }
-            | Self::OpenFailed { .. }
             | Self::TargetCheckInconclusive { .. }
             | Self::UiUnavailable { .. }
             | Self::Terminal(_)
@@ -204,7 +204,10 @@ impl CliError {
             Self::ConfirmationRequired { .. } => Some(
                 "run it in a terminal to be asked, or pass --yes to stop them and quit".to_owned(),
             ),
-            Self::OpenFailed { url, .. } => Some(format!("open {url} in your browser yourself")),
+            Self::OpenFailed { .. } => Some(
+                "see `tunneler status` for the tunnel state, or open its address in your browser yourself"
+                    .to_owned(),
+            ),
             Self::NotOpenable { .. } => Some("run `tunneler list` to see the kinds".to_owned()),
             Self::UiUnavailable { .. } => Some(UI_UNAVAILABLE_HINT.to_owned()),
             Self::TargetUnreachable { .. } => {
@@ -280,6 +283,18 @@ mod tests {
             }
             .exit_code(),
             exit_code::TARGET_UNREACHABLE
+        );
+    }
+
+    #[test]
+    fn should_exit_with_8_when_opening_failed() {
+        assert_eq!(
+            CliError::OpenFailed {
+                label: "3333".to_owned(),
+                message: "no browser".to_owned()
+            }
+            .exit_code(),
+            exit_code::OPEN_FAILED
         );
     }
 

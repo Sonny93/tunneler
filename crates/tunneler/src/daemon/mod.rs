@@ -21,6 +21,7 @@ mod testing;
 mod tray;
 mod ui;
 mod ui_presence;
+mod url_opener;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -47,6 +48,7 @@ use prompts::PromptBroker;
 use tray::{TrayService, TrayStatus, TrayStatusCell, spawn_tray_status_publisher};
 use ui::{ProcessUiLauncher, UiCoordinator};
 use ui_presence::spawn_ui_presence_follower;
+use url_opener::SystemUrlOpener;
 
 /// How many wire events may wait for the IPC server before the oldest are lost.
 const WIRE_EVENT_CAPACITY: usize = 1024;
@@ -124,6 +126,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         quit_requested.clone(),
         ui.clone(),
         tray_status.subscribe(),
+        Arc::new(SystemUrlOpener),
     ));
     let ui_presence = spawn_ui_presence_follower(engine.clone(), server.handle(), shutdown.clone());
     let ui_follower = ui.spawn_follower(shutdown.clone());

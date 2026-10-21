@@ -64,9 +64,12 @@ in camelCase.";
 
 const OPEN_EXAMPLES: &str = "\
 Examples:
-  tunneler open 3333            Open http://localhost:3333 in the browser
+  tunneler open 3333            Open the tunnel listening on port 3333 in the browser
   tunneler open nova:3333       The same, picking the tunnel by host and port
-  tunneler open adonis          The same, by a tag that only one tunnel carries";
+  tunneler open adonis          The same, by a tag that only one tunnel carries
+
+A stopped tunnel is started first. The address follows the tunnel's `open`
+options (scheme, path, host) and the `open_host` setting.";
 
 const CHECK_EXAMPLES: &str = "\
 Examples:
@@ -157,7 +160,7 @@ pub enum Command {
     /// Show the configured tunnels
     #[command(after_help = LIST_EXAMPLES)]
     List(OutputArguments),
-    /// Open a tunnel in the browser
+    /// Open a tunnel in the browser, starting it when stopped
     #[command(after_help = OPEN_EXAMPLES)]
     Open(OpenArguments),
     /// Try the target of a running tunnel once

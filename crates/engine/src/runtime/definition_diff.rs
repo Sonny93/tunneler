@@ -78,6 +78,7 @@ mod tests {
             target_host: None,
             target_port: None,
             tags: Vec::new(),
+            open: crate::store::OpenOptions::default(),
         }
     }
 

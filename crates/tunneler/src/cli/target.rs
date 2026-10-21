@@ -381,6 +381,7 @@ mod tests {
                 target_host: None,
                 target_port: None,
                 tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
+                open: ipc::protocol::OpenOptionsDto::default(),
             },
         }
     }
@@ -410,6 +411,7 @@ mod tests {
                 launch_at_login: false,
                 use_os_keyring: false,
                 x11_display: None,
+                open_host: ipc::protocol::OpenHostDto::Localhost,
             },
             tray: TrayStatusDto::default(),
             externals: Vec::new(),

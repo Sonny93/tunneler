@@ -10,6 +10,17 @@ export type EpochMillis = number;
 
 export type TunnelKindDto = 'local' | 'remote' | 'dynamic';
 
+export type OpenSchemeDto = 'http' | 'https';
+
+export type OpenHostDto = 'localhost' | 'ip';
+
+/** How a tunnel is opened; every field is optional and `open` is absent when none is set. */
+export type OpenOptionsDto = {
+	scheme?: OpenSchemeDto;
+	path?: string;
+	host?: OpenHostDto;
+};
+
 export type TunnelSpecDto = {
 	host: string;
 	kind: TunnelKindDto;
@@ -18,10 +29,14 @@ export type TunnelSpecDto = {
 	targetHost?: string;
 	targetPort?: number;
 	tags: string[];
+	open?: OpenOptionsDto;
 };
 
+/** What `tunnel.open` opened: the URL for the browser. */
+export type OpenTunnelResultDto = { target: string };
+
 /** A temporary tunnel is never selected by tag, so it has none. */
-export type TemporaryTunnelSpecDto = Omit<TunnelSpecDto, 'tags'>;
+export type TemporaryTunnelSpecDto = Omit<TunnelSpecDto, 'tags' | 'open'>;
 
 export type TunnelDefinitionDto = TunnelSpecDto & { id: string };
 
@@ -116,6 +131,7 @@ export type SettingsDto = {
 	launchAtLogin: boolean;
 	useOsKeyring: boolean;
 	x11Display?: string;
+	openHost: OpenHostDto;
 };
 
 export type TrayStatusDto =

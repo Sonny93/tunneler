@@ -16,10 +16,10 @@ mod secret;
 pub use dto::{
     CredentialRequestDto, EpochMillis, ExternalForwardDto, ExternalProcessDto, FailureReasonDto,
     HostKeyAlertReasonDto, HostKeyDecisionDto, HostOptionDto, ImportCandidateDto, ImportPreviewDto,
-    ImportWarningDto, LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, PromptDto, RememberDto,
-    ResolvedHostDto, SettingsDto, SnapshotDto, TargetHealthDto, TemporaryTunnelSpecDto,
-    TrayStatusDto, TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto,
-    X11AnchorDto, X11LauncherDto, X11StateDto,
+    ImportWarningDto, LogEntryDto, LogLevelDto, MetricsDto, OpenHostDto, OpenOptionsDto,
+    OpenSchemeDto, PortOwnerDto, PromptDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto,
+    TargetHealthDto, TemporaryTunnelSpecDto, TrayStatusDto, TunnelDefinitionDto, TunnelDto,
+    TunnelKindDto, TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11LauncherDto, X11StateDto,
 };
 pub use error::{ErrorCode, IpcError};
 pub use event::{
@@ -38,6 +38,7 @@ pub use request::{
 };
 pub use response::{
     AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, EmptyResult,
-    ForgetSecretsResult, HostsResult, LogsResult, RenameTagResult, ResponsePayload, UiClaimResult,
+    ForgetSecretsResult, HostsResult, LogsResult, OpenTunnelResult, RenameTagResult,
+    ResponsePayload, UiClaimResult,
 };
 pub use secret::Secret;

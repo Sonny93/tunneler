@@ -44,7 +44,7 @@ export function createTauriGateway(): DaemonGateway {
 		resolveHost: (host) => call('resolve_host', { host }),
 		importSshConfig: () => call('import_ssh_config'),
 		importScript: (text) => call('import_script', { text }),
-		openInBrowser: (host, port) => call('open_in_browser', { host, port }),
+		openTunnel: (id) => call('open_tunnel', { id }),
 		adoptExternal: (id) => call('adopt_external', { id }),
 		killExternal: (pid) => call('kill_external', { pid }),
 		ignoreExternal: (pid) => call('ignore_external', { pid }),

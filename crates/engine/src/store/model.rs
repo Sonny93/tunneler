@@ -63,6 +63,67 @@ pub enum TunnelKind {
     Dynamic,
 }
 
+/// The URL scheme used to open a tunnel in the browser.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum OpenScheme {
+    /// `http://`.
+    #[default]
+    Http,
+    /// `https://`.
+    Https,
+}
+
+impl OpenScheme {
+    /// The scheme as written in a URL and in the store file.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Http => "http",
+            Self::Https => "https",
+        }
+    }
+}
+
+/// Which loopback name the browser is pointed at when a tunnel listens on a
+/// loopback or wildcard address.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum OpenHost {
+    /// The name `localhost`.
+    #[default]
+    Localhost,
+    /// The loopback IP literal: `127.0.0.1`, or `[::1]` when the tunnel
+    /// listens on IPv6.
+    Ip,
+}
+
+impl OpenHost {
+    /// The preference as written in the store file.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Localhost => "localhost",
+            Self::Ip => "ip",
+        }
+    }
+}
+
+/// How a tunnel is opened; every field is optional and falls back to a
+/// default.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct OpenOptions {
+    /// The URL scheme; `http` when absent.
+    pub scheme: Option<OpenScheme>,
+    /// The URL path; `/` when absent.
+    pub path: Option<String>,
+    /// Overrides `Settings::open_host` for this tunnel.
+    pub host: Option<OpenHost>,
+}
+
+impl OpenOptions {
+    /// Whether no option is set.
+    pub fn is_empty(&self) -> bool {
+        self.scheme.is_none() && self.path.is_none() && self.host.is_none()
+    }
+}
+
 /// A configured port forward.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TunnelDefinition {
@@ -82,6 +143,8 @@ pub struct TunnelDefinition {
     pub target_port: Option<u16>,
     /// Free-form labels; a tunnel can carry several.
     pub tags: Vec<String>,
+    /// How the tunnel is opened in the browser.
+    pub open: OpenOptions,
 }
 
 impl TunnelDefinition {
@@ -166,6 +229,8 @@ pub struct Settings {
     pub use_os_keyring: bool,
     /// The local X11 display; `None` means `$DISPLAY`.
     pub x11_display: Option<String>,
+    /// Which loopback name opened tunnels use unless they say otherwise.
+    pub open_host: OpenHost,
 }
 
 impl Default for Settings {
@@ -183,6 +248,7 @@ impl Default for Settings {
             launch_at_login: false,
             use_os_keyring: false,
             x11_display: None,
+            open_host: OpenHost::default(),
         }
     }
 }

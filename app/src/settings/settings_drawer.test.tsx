@@ -54,10 +54,11 @@ describe('SettingsDrawer', () => {
 				'Connexion',
 				'Reconnexion',
 				'X11',
+				'Ouverture',
 				'Démarrage',
 				'Secrets',
 			].map((name) => screen.queryByRole('group', { name }) !== null)
-		).toEqual([true, true, true, true, true, true]);
+		).toEqual([true, true, true, true, true, true, true]);
 	});
 
 	it('should show durations in seconds', () => {
@@ -92,6 +93,28 @@ describe('SettingsDrawer', () => {
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
 			...settings,
 			sessionIdleGraceMs: 90_000,
+		});
+	});
+
+	it('should show the current open host', () => {
+		openSettings(buildSettings({ openHost: 'ip' }));
+		renderDrawer();
+
+		expect(screen.getByRole('radio', { name: /^Adresse IP/ })).toBeChecked();
+	});
+
+	it('should save the chosen open host', async () => {
+		const settings = buildSettings();
+		openSettings(settings);
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+
+		await user.click(screen.getByRole('radio', { name: /^Adresse IP/ }));
+		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith({
+			...settings,
+			openHost: 'ip',
 		});
 	});
 

@@ -17,6 +17,7 @@ mod log_buffer;
 mod metrics;
 mod options;
 mod port_watch;
+mod readiness;
 mod reload;
 mod remote_forward;
 mod retry;

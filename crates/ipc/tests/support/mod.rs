@@ -10,9 +10,9 @@ use interprocess::local_socket::{GenericFilePath, ToFsName};
 use ipc::protocol::{
     AdoptResult, CheckTargetResult, ClientKind, ConfigInvalidEvent, DaemonPathsResult,
     DeleteTagResult, EventMessage, ForgetSecretsResult, Hello, HostOptionDto, ImportCandidateDto,
-    ImportPreviewDto, IpcError, LogEntryDto, LogLevelDto, LogsResult, RenameTagResult, Request,
-    RequestEnvelope, ResolvedHostDto, ResponsePayload, TargetHealthDto, TunnelKindDto,
-    UiClaimResult,
+    ImportPreviewDto, IpcError, LogEntryDto, LogLevelDto, LogsResult, OpenTunnelResult,
+    RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload, TargetHealthDto,
+    TunnelKindDto, UiClaimResult,
 };
 use ipc::{
     ConnectionInfo, Endpoint, IpcClient, IpcServer, RequestHandler, ServerHandle, ServerOptions,
@@ -65,6 +65,12 @@ impl RequestHandler for FakeHandler {
             }
             Request::TunnelCheckTarget(_) => Ok(ResponsePayload::CheckTarget(CheckTargetResult {
                 health: TargetHealthDto::Reachable,
+            })),
+            Request::TunnelOpen(params) if params.id == MISSING_TUNNEL_ID => {
+                Err(IpcError::not_found("no such tunnel"))
+            }
+            Request::TunnelOpen(params) => Ok(ResponsePayload::OpenTunnel(OpenTunnelResult {
+                target: format!("http://localhost/{}", params.id),
             })),
             Request::TunnelDelete(params) if params.id == MISSING_TUNNEL_ID => {
                 Err(IpcError::not_found("no such tunnel"))

@@ -7,19 +7,20 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use engine::{
     EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision, ImportCandidate, ImportPreview,
-    ImportWarning, InvalidTunnelId, LogLevel, NewTunnel, PortOwner, RejectedHostKey,
-    RejectionReason, Retention, Settings, SshForward, TargetHealth, TunnelDefinition, TunnelId,
-    TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot, TunnelState, UnmanagedProcess,
-    X11AnchorSnapshot, X11AnchorState, X11Launcher,
+    ImportWarning, InvalidTunnelId, LogLevel, NewTunnel, OpenHost, OpenOptions, OpenScheme,
+    PortOwner, RejectedHostKey, RejectionReason, Retention, Settings, SshForward, TargetHealth,
+    TunnelDefinition, TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot,
+    TunnelState, UnmanagedProcess, X11AnchorSnapshot, X11AnchorState, X11Launcher,
 };
 use ipc::protocol::{
     ConfigInvalidEvent, EpochMillis, EventMessage, ExternalForwardDto, ExternalProcessDto,
     ExternalsChangedEvent, FailureReasonDto, HostKeyAlertReasonDto, HostKeyDecisionDto,
     HostKeyRequestEvent, HostOptionDto, ImportCandidateDto, ImportPreviewDto, ImportWarningDto,
-    LogEntryDto, LogLevelDto, MetricsDto, PortOwnerDto, RememberDto, ResolvedHostDto, SettingsDto,
-    SnapshotDto, TargetHealthDto, TemporaryTunnelSpecDto, TrayStatusDto, TunnelChangedEvent,
-    TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent,
-    TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11ChangedEvent, X11LauncherDto, X11StateDto,
+    LogEntryDto, LogLevelDto, MetricsDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, PortOwnerDto,
+    RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, TargetHealthDto,
+    TemporaryTunnelSpecDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
+    TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
+    X11ChangedEvent, X11LauncherDto, X11StateDto,
 };
 
 use ssh_config::Resolution;
@@ -66,7 +67,52 @@ pub(crate) fn definition_to_dto(definition: &TunnelDefinition) -> TunnelDefiniti
             target_host: definition.target_host.clone(),
             target_port: definition.target_port,
             tags: definition.tags.clone(),
+            open: open_options_to_dto(&definition.open),
         },
+    }
+}
+
+fn open_options_to_dto(options: &OpenOptions) -> OpenOptionsDto {
+    OpenOptionsDto {
+        scheme: options.scheme.map(open_scheme_to_dto),
+        path: options.path.clone(),
+        host: options.host.map(open_host_to_dto),
+    }
+}
+
+fn open_options_from_dto(dto: OpenOptionsDto) -> OpenOptions {
+    OpenOptions {
+        scheme: dto.scheme.map(open_scheme_from_dto),
+        path: dto.path,
+        host: dto.host.map(open_host_from_dto),
+    }
+}
+
+fn open_scheme_to_dto(scheme: OpenScheme) -> OpenSchemeDto {
+    match scheme {
+        OpenScheme::Http => OpenSchemeDto::Http,
+        OpenScheme::Https => OpenSchemeDto::Https,
+    }
+}
+
+fn open_scheme_from_dto(scheme: OpenSchemeDto) -> OpenScheme {
+    match scheme {
+        OpenSchemeDto::Http => OpenScheme::Http,
+        OpenSchemeDto::Https => OpenScheme::Https,
+    }
+}
+
+fn open_host_to_dto(host: OpenHost) -> OpenHostDto {
+    match host {
+        OpenHost::Localhost => OpenHostDto::Localhost,
+        OpenHost::Ip => OpenHostDto::Ip,
+    }
+}
+
+fn open_host_from_dto(host: OpenHostDto) -> OpenHost {
+    match host {
+        OpenHostDto::Localhost => OpenHost::Localhost,
+        OpenHostDto::Ip => OpenHost::Ip,
     }
 }
 
@@ -84,6 +130,7 @@ pub(crate) fn definition_from_dto(
         target_host: spec.target_host,
         target_port: spec.target_port,
         tags: spec.tags,
+        open: open_options_from_dto(spec.open),
     })
 }
 
@@ -96,6 +143,7 @@ pub(crate) fn new_tunnel_from_spec(spec: TunnelSpecDto) -> NewTunnel {
         target_host: spec.target_host,
         target_port: spec.target_port,
         tags: spec.tags,
+        open: open_options_from_dto(spec.open),
     }
 }
 
@@ -108,6 +156,7 @@ pub(crate) fn new_temporary_tunnel_from_spec(spec: TemporaryTunnelSpecDto) -> Ne
         target_host: spec.target_host,
         target_port: spec.target_port,
         tags: Vec::new(),
+        open: OpenOptions::default(),
     }
 }
 
@@ -227,6 +276,7 @@ pub(crate) fn settings_to_dto(settings: &Settings) -> SettingsDto {
         launch_at_login: settings.launch_at_login,
         use_os_keyring: settings.use_os_keyring,
         x11_display: settings.x11_display.clone(),
+        open_host: open_host_to_dto(settings.open_host),
     }
 }
 
@@ -244,6 +294,7 @@ pub(crate) fn settings_from_dto(dto: SettingsDto) -> Settings {
         launch_at_login: dto.launch_at_login,
         use_os_keyring: dto.use_os_keyring,
         x11_display: dto.x11_display,
+        open_host: open_host_from_dto(dto.open_host),
     }
 }
 
@@ -597,6 +648,11 @@ mod tests {
             target_host: Some("db.internal".to_owned()),
             target_port: Some(5432),
             tags: vec!["dev".to_owned(), "adonis".to_owned()],
+            open: OpenOptions {
+                scheme: Some(OpenScheme::Https),
+                path: Some("/admin".to_owned()),
+                host: Some(OpenHost::Ip),
+            },
         }
     }
 
@@ -637,10 +693,19 @@ mod tests {
     }
 
     #[test]
+    fn should_carry_the_open_options_when_converting_a_spec_to_a_new_tunnel() {
+        let definition = sample_definition();
+        let spec = definition_to_dto(&definition).spec;
+
+        assert_eq!(new_tunnel_from_spec(spec).open, definition.open);
+    }
+
+    #[test]
     fn should_round_trip_the_settings_through_their_dto() {
         let settings = Settings {
             start_on_launch_tags: vec!["dev".to_owned()],
             x11_display: Some("host:0.0".to_owned()),
+            open_host: OpenHost::Ip,
             ..Settings::default()
         };
 

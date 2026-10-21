@@ -30,6 +30,9 @@ pub enum ErrorCode {
     InvalidState,
     /// The process could not be terminated or is still running.
     KillFailed,
+    /// A tunnel could not be opened: it did not become ready or the program
+    /// that opens it could not be launched.
+    OpenFailed,
     /// The daemon failed unexpectedly.
     Internal,
 }
@@ -49,6 +52,7 @@ impl ErrorCode {
             Self::UiUnavailable => "ui_unavailable",
             Self::InvalidState => "invalid_state",
             Self::KillFailed => "kill_failed",
+            Self::OpenFailed => "open_failed",
             Self::Internal => "internal",
         }
     }
@@ -167,6 +171,11 @@ impl IpcError {
         Self::new(ErrorCode::KillFailed, message)
     }
 
+    /// The tunnel did not become ready or the launch failed.
+    pub fn open_failed(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::OpenFailed, message)
+    }
+
     /// The daemon failed unexpectedly.
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::Internal, message)
@@ -177,7 +186,7 @@ impl IpcError {
 mod tests {
     use super::*;
 
-    const ALL_CODES: [ErrorCode; 12] = [
+    const ALL_CODES: [ErrorCode; 13] = [
         ErrorCode::InvalidRequest,
         ErrorCode::UnknownMethod,
         ErrorCode::HandshakeRequired,
@@ -189,6 +198,7 @@ mod tests {
         ErrorCode::UiUnavailable,
         ErrorCode::InvalidState,
         ErrorCode::KillFailed,
+        ErrorCode::OpenFailed,
         ErrorCode::Internal,
     ];
 

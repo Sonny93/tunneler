@@ -3,7 +3,6 @@
 
 mod bridge;
 mod bridge_error;
-mod browser_url;
 mod commands;
 mod connection_slot;
 mod credential;
@@ -35,7 +34,7 @@ fn main() -> tauri::Result<()> {
             commands::import_ssh_config,
             commands::import_script,
             commands::tunnel_logs,
-            commands::open_in_browser,
+            commands::open_tunnel,
             commands::create_tunnel,
             commands::update_tunnel,
             commands::start_temporary_tunnel,

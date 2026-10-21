@@ -2,6 +2,7 @@ use std::collections::{BTreeSet, HashSet};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::time::Duration;
 
 use thiserror::Error;
 use tokio::sync::{broadcast, oneshot, watch};
@@ -13,15 +14,17 @@ use crate::connector::{Connector, ConnectorDependencies};
 use crate::error::SessionError;
 use crate::external::{PortScanner, ScanError, TerminateError, UnmanagedProcess};
 use crate::keyring::SecretKeyring;
+use crate::opening::{OpenUrlError, build_open_url};
 use crate::passphrase_vault::PassphraseVault;
 use crate::runtime::catalog::{Catalog, TunnelFactory, TunnelSnapshot};
 use crate::runtime::events::{EngineEvent, EventBus};
 use crate::runtime::log_buffer::TunnelLogEntry;
 use crate::runtime::options::EngineOptions;
 use crate::runtime::port_watch::{PortWatch, run_scan_loop};
+use crate::runtime::readiness::{Readiness, assess_start, wait_until_ready};
 use crate::runtime::reload::run_reload_loop;
 use crate::runtime::session_manager::SessionManager;
-use crate::runtime::state::TargetHealth;
+use crate::runtime::state::{FailureReason, TargetHealth};
 use crate::runtime::tag_delete::delete_tag;
 use crate::runtime::tag_rename::rename_tag;
 use crate::runtime::tunnel_actor::TunnelCommand;
@@ -30,8 +33,8 @@ use crate::runtime::x11_launcher::X11Launches;
 use crate::runtime::x11_state::X11AnchorSnapshot;
 use crate::state_tracker::StateTracker;
 use crate::store::{
-    Settings, StateStore, Store, StoreError, TagProblem, TunnelDefinition, TunnelId, TunnelKind,
-    X11Launcher, find_tag_problem, validate_tunnel_definition,
+    OpenOptions, Settings, StateStore, Store, StoreError, TagProblem, TunnelDefinition, TunnelId,
+    TunnelKind, X11Launcher, find_tag_problem, validate_tunnel_definition,
 };
 use crate::x11::{LocalX11Resolver, X11Environment, X11Error};
 
@@ -96,6 +99,24 @@ pub enum EngineError {
     /// The tunnel is a dynamic forward, which has no fixed target.
     #[error("the tunnel {0} has no target to check")]
     TunnelHasNoTarget(TunnelId),
+    /// The tunnel has no address to open in a browser.
+    #[error(transparent)]
+    Open(#[from] OpenUrlError),
+    /// The tunnel failed while it was being started.
+    #[error("the tunnel failed to start: {0}")]
+    TunnelStartFailed(FailureReason),
+    /// Another process holds the listening port of the tunnel.
+    #[error("another process holds the listening port of the tunnel")]
+    TunnelPortConflict,
+    /// The tunnel was stopped while it was being started.
+    #[error("the tunnel was stopped while it was starting")]
+    TunnelStoppedWhileStarting,
+    /// The tunnel could not open its SSH session and is retrying.
+    #[error("the tunnel could not connect and is retrying; see its log")]
+    TunnelCannotConnect,
+    /// The tunnel was not ready in time.
+    #[error("the tunnel was not ready after {0:?}")]
+    TunnelStartTimedOut(Duration),
     /// The check could not tell whether the target answers.
     #[error("cannot check the target: {0}")]
     TargetCheckFailed(#[source] SessionError),
@@ -141,6 +162,8 @@ pub struct NewTunnel {
     pub target_port: Option<u16>,
     /// Free-form labels.
     pub tags: Vec<String>,
+    /// How the tunnel is opened in the browser.
+    pub open: OpenOptions,
 }
 
 impl NewTunnel {
@@ -154,6 +177,7 @@ impl NewTunnel {
             target_host: self.target_host,
             target_port: self.target_port,
             tags: self.tags,
+            open: self.open,
         }
     }
 }
@@ -186,6 +210,7 @@ pub(crate) struct EngineInner {
     passphrases: Arc<PassphraseVault>,
     catalog: Mutex<Catalog>,
     pub(crate) mutation: tokio::sync::Mutex<()>,
+    tunnel_ready_timeout: Duration,
     reload_task: Mutex<Option<JoinHandle<()>>>,
     scan_task: Mutex<Option<JoinHandle<()>>>,
     pub(crate) is_shut_down: AtomicBool,
@@ -321,6 +346,7 @@ impl Engine {
             passphrases,
             catalog: Mutex::new(Catalog::new(factory, document.tunnels)),
             mutation: tokio::sync::Mutex::new(()),
+            tunnel_ready_timeout: options.tunnel_ready_timeout,
             reload_task: Mutex::new(None),
             scan_task: Mutex::new(None),
             is_shut_down: AtomicBool::new(false),
@@ -573,6 +599,46 @@ impl Engine {
         Ok(())
     }
 
+    /// The URL that opens the tunnel in a browser, built from its definition
+    /// and the settings. Only a local tunnel has one.
+    pub fn open_url(&self, id: TunnelId) -> Result<String, EngineError> {
+        self.ensure_running()?;
+        let definition = self
+            .tunnel_snapshot(id)
+            .ok_or(EngineError::UnknownTunnel(id))?
+            .definition;
+        let settings = self.inner.settings.borrow().clone();
+        Ok(build_open_url(&definition, &settings)?)
+    }
+
+    /// Starts the tunnel when it is not running and waits until it is ready:
+    /// `Active`, or provided by an external process. A tunnel that is already
+    /// ready, or reconnecting (its listener is bound), returns at once.
+    ///
+    /// Fails when the tunnel fails, is stopped or loses its port while
+    /// starting, or is not ready within `EngineOptions::tunnel_ready_timeout`
+    /// (a credential prompt may be pending, so it is long).
+    pub async fn start_tunnel_and_wait(&self, id: TunnelId) -> Result<(), EngineError> {
+        self.ensure_running()?;
+        let mut events = self.inner.bus.subscribe();
+        let state = self
+            .tunnel_snapshot(id)
+            .ok_or(EngineError::UnknownTunnel(id))?
+            .state;
+        match assess_start(&state) {
+            Readiness::Ready => return Ok(()),
+            Readiness::PortConflict => return Err(EngineError::TunnelPortConflict),
+            Readiness::NotReady => {}
+        }
+        if !state.is_running() {
+            self.start_tunnel(id)?;
+        }
+        wait_until_ready(id, &mut events, self.inner.tunnel_ready_timeout, || {
+            self.tunnel_snapshot(id).map(|snapshot| snapshot.state)
+        })
+        .await
+    }
+
     /// Stops the tunnel. Does nothing when it is already stopped. A temporary
     /// tunnel is removed instead, whatever its state, and clients are told as
     /// for a deletion.
@@ -762,6 +828,14 @@ impl Engine {
         }
         self.inner.sessions.shutdown().await;
         self.inner.state.flush().await;
+    }
+
+    fn tunnel_snapshot(&self, id: TunnelId) -> Option<TunnelSnapshot> {
+        self.inner
+            .catalog()
+            .snapshots()
+            .into_iter()
+            .find(|snapshot| snapshot.definition.id == id)
     }
 
     fn ensure_running(&self) -> Result<(), EngineError> {

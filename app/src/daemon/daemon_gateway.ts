@@ -5,6 +5,7 @@ import type {
 	DeleteTagResultDto,
 	ForgetSecretsResultDto,
 	LogEntryDto,
+	OpenTunnelResultDto,
 	RememberDto,
 	ResolvedHostDto,
 	SettingsDto,
@@ -51,8 +52,8 @@ export type DaemonGateway = {
 	resolveHost(host: string): Promise<ResolvedHostDto>;
 	importSshConfig(): Promise<ImportPreviewDto>;
 	importScript(text: string): Promise<ImportPreviewDto>;
-	/** The native side only opens loopback names and IP literals. */
-	openInBrowser(host: string, port: number): Promise<void>;
+	/** The daemon builds the URL, starts a stopped tunnel and waits until it is ready, then opens it. */
+	openTunnel(id: string): Promise<OpenTunnelResultDto>;
 	adoptExternal(id: string): Promise<readonly string[]>;
 	killExternal(pid: number): Promise<void>;
 	ignoreExternal(pid: number): Promise<void>;

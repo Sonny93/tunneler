@@ -66,6 +66,7 @@ mod host_config;
 mod host_key;
 mod import;
 mod keyring;
+mod opening;
 mod passphrase_vault;
 mod prompter;
 mod remote_forwards;
@@ -95,6 +96,7 @@ pub use import::{
     ImportCandidate, ImportPreview, ImportWarning, preview_script, preview_ssh_config,
 };
 pub use keyring::{KeyringError, SecretKeyring};
+pub use opening::OpenUrlError;
 pub use prompter::{
     CredentialPrompter, KeyboardInteractiveRequest, PassphraseAnswer, PassphraseRequest,
     PasswordRequest, Prompt, PromptError, Retention,
@@ -106,9 +108,9 @@ pub use runtime::{
 };
 pub use session::SshSession;
 pub use store::{
-    AppState, FileStateStore, HostOverrides, InvalidTunnelId, LoadOutcome, Settings,
-    SourceLocation, StateStore, Store, StoreDocument, StoreError, StoreEvent, StoreWatcher,
-    TagProblem, TunnelDefinition, TunnelId, TunnelKind, TunnelReference, ValidationError,
-    X11Launcher, default_state_path, default_store_path,
+    AppState, FileStateStore, HostOverrides, InvalidTunnelId, LoadOutcome, OpenHost, OpenOptions,
+    OpenPathProblem, OpenScheme, Settings, SourceLocation, StateStore, Store, StoreDocument,
+    StoreError, StoreEvent, StoreWatcher, TagProblem, TunnelDefinition, TunnelId, TunnelKind,
+    TunnelReference, ValidationError, X11Launcher, default_state_path, default_store_path,
 };
 pub use x11::{DisplayPlatform, SystemX11Environment, X11Environment, X11Error};

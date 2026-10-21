@@ -77,6 +77,7 @@ export function TunnelFormPanel({
 					errors={errors}
 					dispatch={dispatch}
 					hasTags={!isTemporary}
+					hasOpenOptions={!isTemporary}
 				/>
 			</form>
 		</Drawer>

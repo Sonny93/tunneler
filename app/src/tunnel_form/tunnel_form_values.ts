@@ -1,4 +1,14 @@
-import type { TunnelKindDto, TunnelSpecDto } from '#/daemon/protocol';
+import type {
+	OpenHostDto,
+	OpenSchemeDto,
+	TunnelKindDto,
+	TunnelSpecDto,
+} from '#/daemon/protocol';
+
+export const DEFAULT_OPEN_SCHEME: OpenSchemeDto = 'http';
+
+/** An empty host inherits the general `openHost` setting. */
+export type OpenHostChoice = OpenHostDto | '';
 
 export type TunnelFormValues = {
 	kind: TunnelKindDto;
@@ -9,6 +19,9 @@ export type TunnelFormValues = {
 	targetHost: string;
 	listenAddress: string;
 	tags: string;
+	openScheme: OpenSchemeDto;
+	openPath: string;
+	openHost: OpenHostChoice;
 };
 
 export const EMPTY_TUNNEL_FORM_VALUES: TunnelFormValues = {
@@ -20,6 +33,9 @@ export const EMPTY_TUNNEL_FORM_VALUES: TunnelFormValues = {
 	targetHost: '',
 	listenAddress: '',
 	tags: '',
+	openScheme: DEFAULT_OPEN_SCHEME,
+	openPath: '',
+	openHost: '',
 };
 
 const TAGS_SEPARATOR = ', ';
@@ -40,5 +56,8 @@ export function toTunnelFormValues(
 		targetHost: definition.targetHost ?? '',
 		listenAddress: definition.listenAddress ?? '',
 		tags: definition.tags.join(TAGS_SEPARATOR),
+		openScheme: definition.open?.scheme ?? DEFAULT_OPEN_SCHEME,
+		openPath: definition.open?.path ?? '',
+		openHost: definition.open?.host ?? '',
 	};
 }

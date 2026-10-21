@@ -1,5 +1,5 @@
-import type { SettingsDto } from '#/daemon/protocol';
 import { parseTags } from '#/tunnel_form/parse_tags';
+import type { OpenHostDto, SettingsDto } from '#/daemon/protocol';
 
 const MILLISECONDS_PER_SECOND = 1000;
 const TAGS_SEPARATOR = ', ';
@@ -17,6 +17,7 @@ export type SettingsFormValues = {
 	startOnLaunchTags: string;
 	useOsKeyring: boolean;
 	x11Display: string;
+	openHost: OpenHostDto;
 };
 
 export function millisecondsToSeconds(milliseconds: number): string {
@@ -51,6 +52,7 @@ export function toSettingsFormValues(
 		startOnLaunchTags: settings.startOnLaunchTags.join(TAGS_SEPARATOR),
 		useOsKeyring: settings.useOsKeyring,
 		x11Display: settings.x11Display ?? '',
+		openHost: settings.openHost,
 	};
 }
 
@@ -76,5 +78,6 @@ export function toSettings(
 		startOnLaunchTags: parseTags(values.startOnLaunchTags),
 		useOsKeyring: values.useOsKeyring,
 		x11Display: x11Display === '' ? undefined : x11Display,
+		openHost: values.openHost,
 	};
 }

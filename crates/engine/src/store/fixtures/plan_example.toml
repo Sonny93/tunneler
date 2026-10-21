@@ -13,6 +13,7 @@ start_on_launch_tags = []         # tags started when the daemon launches
 launch_at_login = false
 use_os_keyring = false            # keeps remembered passphrases in the OS keyring
 x11_display = ""                  # empty = $DISPLAY, or 127.0.0.1:0.0 on Windows
+open_host = "localhost"           # localhost | ip (127.0.0.1, or [::1] when the tunnel listens on IPv6)
 
 [[tunnels]]
 id = "01JA0000000000000000000000"  # ULID
@@ -23,6 +24,7 @@ listen_port = 3333
 # target_host = "127.0.0.1"
 # target_port = 3333              # default = listen_port
 tags = ["dev", "adonis"]
+# open = { scheme = "https", path = "/admin", host = "ip" }
 
 [hosts.nova]                      # app-specific overrides, per alias
 x11_display = "198.51.100.135:0.0"

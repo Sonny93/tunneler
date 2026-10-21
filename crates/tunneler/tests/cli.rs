@@ -777,3 +777,60 @@ async fn should_show_the_forward_examples_when_up_prints_its_help() {
         stdout(&output)
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_exit_with_1_and_say_why_when_open_targets_a_dynamic_tunnel() {
+    let fixture = Fixture::start().await;
+    let port = free_port().await.to_string();
+    fixture.run(&["up", ALIAS, "-D", &port]).await;
+
+    let output = fixture.run(&["open", &port]).await;
+
+    assert_eq!(code(&output), EXIT_ERROR);
+    assert!(
+        stderr(&output).contains("cannot be opened"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_start_the_tunnel_and_hand_its_url_to_the_system_opener_when_open_targets_a_stopped_tunnel()
+ {
+    use std::os::unix::fs::PermissionsExt;
+
+    let fixture = Fixture::start().await;
+    let bin_directory = fixture.workspace.file("bin");
+    std::fs::create_dir_all(&bin_directory).unwrap();
+    let marker = fixture.workspace.file("opened-url");
+    let script = bin_directory.join("xdg-open");
+    std::fs::write(
+        &script,
+        format!("#!/bin/sh\nprintf '%s' \"$1\" > '{}'\n", marker.display()),
+    )
+    .unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let path = format!(
+        "{}:{}",
+        bin_directory.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let port = fixture.listen_ports[2];
+
+    let output = fixture
+        .run_with_environment(&["open", &port.to_string()], &[("PATH", &path)])
+        .await;
+
+    let expected_url = format!("http://localhost:{port}/");
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains(&format!("Opening {expected_url}")),
+        "{}",
+        stdout(&output)
+    );
+    wait_until("the system opener received the url", || {
+        std::fs::read_to_string(&marker).is_ok_and(|content| content == expected_url)
+    })
+    .await;
+    assert_echoes(port).await;
+}

@@ -5,6 +5,7 @@ import type { TunnelKindDto } from '#/daemon/protocol';
 import { TargetPortField } from '#/tunnel_form/target_port_field';
 import { TunnelKindField } from '#/tunnel_form/tunnel_kind_field';
 import { TunnelTextField } from '#/tunnel_form/tunnel_text_field';
+import { OpenOptionsFields } from '#/tunnel_form/open_options_fields';
 import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 import { getTunnelKindFieldTexts } from '#/tunnel_form/tunnel_kind_texts';
 import type { TunnelFormErrors } from '#/tunnel_form/validate_tunnel_form';
@@ -19,6 +20,8 @@ type TunnelFormFieldsProps = {
 	dispatch: (action: TunnelFormAction) => void;
 	/** Temporary tunnels are never selected by tag, so they have no tags field. */
 	hasTags?: boolean;
+	/** Temporary tunnels are never opened with saved options. */
+	hasOpenOptions?: boolean;
 };
 
 export function TunnelFormFields({
@@ -26,6 +29,7 @@ export function TunnelFormFields({
 	errors,
 	dispatch,
 	hasTags = true,
+	hasOpenOptions = true,
 }: Readonly<TunnelFormFieldsProps>) {
 	const hosts = useDaemonStore((state) => state.hosts);
 	const defaultBindAddress = useDaemonStore((state) =>
@@ -108,6 +112,13 @@ export function TunnelFormFields({
 					value={values.tags}
 					onChange={changeText}
 					error={errors.tags}
+				/>
+			)}
+			{hasOpenOptions && values.kind === 'local' && (
+				<OpenOptionsFields
+					values={values}
+					errors={errors}
+					dispatch={dispatch}
 				/>
 			)}
 		</div>

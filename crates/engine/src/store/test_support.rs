@@ -1,4 +1,4 @@
-use super::model::{TunnelDefinition, TunnelId, TunnelKind};
+use super::model::{OpenOptions, TunnelDefinition, TunnelId, TunnelKind};
 
 pub(crate) fn tunnel(kind: TunnelKind) -> TunnelDefinition {
     TunnelDefinition {
@@ -10,6 +10,7 @@ pub(crate) fn tunnel(kind: TunnelKind) -> TunnelDefinition {
         target_host: None,
         target_port: None,
         tags: Vec::new(),
+        open: OpenOptions::default(),
     }
 }
 

@@ -2,7 +2,7 @@
 
 use ipc::protocol::{
     DeleteTagResult, ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto, LogEntryDto,
-    RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, TargetHealthDto,
+    OpenTunnelResult, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, TargetHealthDto,
     TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto, TunnelSpecDto,
 };
 use std::path::Path;
@@ -12,7 +12,6 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::bridge::BridgeState;
 use crate::bridge_error::BridgeError;
-use crate::browser_url::browser_url;
 use crate::credential::CredentialAnswerInput;
 use crate::reveal_target::{RevealTarget, reveal_target};
 
@@ -66,14 +65,15 @@ pub async fn tunnel_logs(
     Ok(state.client()?.tunnel_logs(&id).await?)
 }
 
-/// Opens `http://{host}:{port}/` in the default browser; refuses any host
-/// that is not `localhost` or an IP address.
+/// Asks the daemon to open the tunnel with its default action, starting it
+/// first when it is stopped; answers with what was opened.
 #[tauri::command]
-pub async fn open_in_browser(app: AppHandle, host: String, port: u16) -> CommandResult<()> {
-    let url = browser_url(&host, port)?;
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|error| BridgeError::internal(&error.to_string()))
+pub async fn open_tunnel(
+    state: State<'_, BridgeState>,
+    id: String,
+) -> CommandResult<OpenTunnelResult> {
+    let target = state.client()?.open_tunnel(&id).await?;
+    Ok(OpenTunnelResult { target })
 }
 
 #[tauri::command]

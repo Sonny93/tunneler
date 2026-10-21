@@ -62,9 +62,9 @@ export function useRunPaletteAction(): RunPaletteAction {
 					(gateway) => gateway.stopTag(action.tag),
 					'Arrêt impossible'
 				);
-			case 'openInBrowser':
+			case 'openTunnel':
 				return void runDaemonAction(
-					(gateway) => gateway.openInBrowser(action.host, action.port),
+					(gateway) => gateway.openTunnel(action.id),
 					'Ouverture impossible'
 				);
 		}

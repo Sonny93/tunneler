@@ -72,12 +72,7 @@ describe('createTauriGateway', () => {
 		['resolveHost', ['nova'], 'resolve_host', { host: 'nova' }],
 		['importSshConfig', [], 'import_ssh_config', undefined],
 		['importScript', ['3333'], 'import_script', { text: '3333' }],
-		[
-			'openInBrowser',
-			['localhost', 3333],
-			'open_in_browser',
-			{ host: 'localhost', port: 3333 },
-		],
+		['openTunnel', ['1'], 'open_tunnel', { id: '1' }],
 		['updateSettings', [{ a: 1 }], 'update_settings', { settings: { a: 1 } }],
 		[
 			'respondCredential',

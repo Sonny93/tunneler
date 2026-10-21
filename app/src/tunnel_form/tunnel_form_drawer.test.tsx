@@ -536,6 +536,94 @@ describe('TunnelFormDrawer kind selector', () => {
 	});
 });
 
+describe('TunnelFormDrawer opening options', () => {
+	it('should offer the opening fieldset for a local tunnel', () => {
+		openEditor();
+		renderDrawer();
+
+		expect(
+			screen.getByRole('group', { name: 'Ouverture' })
+		).toBeInTheDocument();
+	});
+
+	it('should hide the opening fieldset for a remote tunnel', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		renderDrawer();
+
+		await user.click(screen.getByRole('radio', { name: /Distant/ }));
+
+		expect(
+			screen.queryByRole('group', { name: 'Ouverture' })
+		).not.toBeInTheDocument();
+	});
+
+	it('should mention the current general host in the inherited choice', () => {
+		openEditor();
+		renderDrawer();
+
+		expect(
+			screen.getByRole('radio', { name: 'Réglage général (localhost)' })
+		).toBeChecked();
+	});
+
+	it('should preview the final url', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		renderDrawer();
+		await fillRequiredFields(user);
+
+		await user.click(screen.getByRole('radio', { name: /^https/ }));
+		await user.type(screen.getByRole('textbox', { name: /^Chemin/ }), '/admin');
+
+		expect(
+			screen.getByText('Ouvre https://localhost:3333/admin')
+		).toBeInTheDocument();
+	});
+
+	it('should send the open options when creating', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		await fillRequiredFields(user);
+		await user.click(screen.getByRole('radio', { name: /^https/ }));
+		await user.type(screen.getByRole('textbox', { name: /^Chemin/ }), '/admin');
+		await user.click(screen.getByRole('radio', { name: /^Adresse IP/ }));
+
+		await user.click(screen.getByRole('button', { name: 'Créer' }));
+
+		expect(gateway.createTunnel).toHaveBeenCalledWith(
+			expect.objectContaining({
+				open: { scheme: 'https', path: '/admin', host: 'ip' },
+			})
+		);
+	});
+
+	it('should flag an invalid path and not submit', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		await fillRequiredFields(user);
+		await user.type(screen.getByRole('textbox', { name: /^Chemin/ }), 'admin');
+
+		await user.click(screen.getByRole('button', { name: 'Créer' }));
+
+		const path = screen.getByRole('textbox', { name: /^Chemin/ });
+		expect(path).toBeInvalid();
+		expect(path).toHaveAccessibleDescription(
+			expect.stringContaining('Le chemin doit commencer par « / ».')
+		);
+		expect(gateway.createTunnel).not.toHaveBeenCalled();
+	});
+
+	it('should have no axe violations', async () => {
+		openEditor();
+		renderDrawer();
+
+		expect(await axe(document.body)).toHaveNoViolations();
+	});
+});
+
 describe('TunnelFormDrawer when editing', () => {
 	const storeTunnel = (overrides = {}) => {
 		const tunnel = buildTunnel({

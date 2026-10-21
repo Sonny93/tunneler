@@ -259,6 +259,7 @@ mod tests {
                 target_host: None,
                 target_port: None,
                 tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
+                open: engine::OpenOptions::default(),
             },
             state,
             health: TargetHealth::Unknown,

@@ -7,9 +7,9 @@ use engine::{
 };
 use ipc::protocol::{
     AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, ForgetSecretsResult,
-    HostsResult, IpcError, LogsResult, ProcessParams, QuitParams, RenameTagResult, Request,
-    ResponsePayload, SettingsDto, TagParams, TagRenameParams, TunnelIdParams, UiClaimResult,
-    X11HostParams, X11LaunchParams,
+    HostsResult, IpcError, LogsResult, OpenTunnelResult, ProcessParams, QuitParams,
+    RenameTagResult, Request, ResponsePayload, SettingsDto, TagParams, TagRenameParams,
+    TunnelIdParams, UiClaimResult, X11HostParams, X11LaunchParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
@@ -23,6 +23,7 @@ use super::mapping::{
 use super::prompts::PromptBroker;
 use super::tray::TrayStatus;
 use super::ui::UiCoordinator;
+use super::url_opener::UrlOpener;
 
 /// Maps each IPC request to calls on the engine, the store, the prompt broker
 /// and the UI coordinator.
@@ -33,6 +34,7 @@ pub(crate) struct DaemonHandler {
     quit_requested: CancellationToken,
     ui: Arc<UiCoordinator>,
     tray_status: watch::Receiver<TrayStatus>,
+    url_opener: Arc<dyn UrlOpener>,
 }
 
 impl DaemonHandler {
@@ -43,6 +45,7 @@ impl DaemonHandler {
         quit_requested: CancellationToken,
         ui: Arc<UiCoordinator>,
         tray_status: watch::Receiver<TrayStatus>,
+        url_opener: Arc<dyn UrlOpener>,
     ) -> Self {
         Self {
             engine,
@@ -51,6 +54,7 @@ impl DaemonHandler {
             quit_requested,
             ui,
             tray_status,
+            url_opener,
         }
     }
 
@@ -69,6 +73,7 @@ impl DaemonHandler {
             Request::TunnelStartTemporary(spec) => self.start_temporary_tunnel(spec).await,
             Request::TunnelPersist(params) => self.persist_tunnel(params).await,
             Request::TunnelCheckTarget(params) => self.check_target(&params).await,
+            Request::TunnelOpen(params) => self.open_tunnel(&params).await,
             Request::TunnelDelete(params) => self.delete_tunnel(params).await,
             Request::TunnelStart(params) => self.start_tunnel(&params),
             Request::TunnelStop(params) => self.stop_tunnel(&params),
@@ -296,6 +301,22 @@ impl DaemonHandler {
         }))
     }
 
+    async fn open_tunnel(&self, params: &TunnelIdParams) -> Result<ResponsePayload, IpcError> {
+        let id = parse_tunnel_id(params)?;
+        let url = self.engine.open_url(id).map_err(engine_error_to_ipc)?;
+        self.engine
+            .start_tunnel_and_wait(id)
+            .await
+            .map_err(engine_error_to_ipc)?;
+        self.url_opener
+            .open(&url)
+            .await
+            .map_err(|error| IpcError::open_failed(error.to_string()))?;
+        Ok(ResponsePayload::OpenTunnel(OpenTunnelResult {
+            target: url,
+        }))
+    }
+
     fn tunnel_logs(&self, params: &TunnelIdParams) -> Result<ResponsePayload, IpcError> {
         let entries = self
             .engine
@@ -427,7 +448,13 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         | EngineError::TunnelIsTemporary(_)
         | EngineError::TunnelIsNotTemporary(_)
         | EngineError::TunnelNotActive(_)
-        | EngineError::TunnelHasNoTarget(_) => IpcError::invalid_state(error.to_string()),
+        | EngineError::TunnelHasNoTarget(_)
+        | EngineError::Open(_) => IpcError::invalid_state(error.to_string()),
+        EngineError::TunnelStartFailed(_)
+        | EngineError::TunnelPortConflict
+        | EngineError::TunnelCannotConnect
+        | EngineError::TunnelStoppedWhileStarting
+        | EngineError::TunnelStartTimedOut(_) => IpcError::open_failed(error.to_string()),
         EngineError::UnknownProcess(_) | EngineError::UnknownLauncher { .. } => {
             IpcError::not_found(error.to_string())
         }
@@ -478,9 +505,16 @@ mod tests {
         SecretKeyring, SshConfigResolver, StateStore, Store, SystemAgentLocator, SystemClock,
         SystemX11Environment,
     };
-    use ipc::protocol::{ErrorCode, TunnelDto, TunnelKindDto, TunnelSpecDto};
+    use ipc::protocol::{
+        ErrorCode, OpenHostDto, OpenOptionsDto, OpenSchemeDto, TunnelDto, TunnelKindDto,
+        TunnelSpecDto,
+    };
+    use russh::keys::Algorithm;
     use ssh_config::{ConfigSources, SystemEnvironment};
     use tempfile::TempDir;
+    use test_support::{
+        EchoServer, REMOTE_USER, TestUser, Workspace, generate_key, write_private_key,
+    };
     use zeroize::Zeroizing;
 
     use super::*;
@@ -488,6 +522,7 @@ mod tests {
     use crate::daemon::testing::{EmptyPortScanner, TestServer};
     use crate::daemon::tray::TrayStatusCell;
     use crate::daemon::ui::testing::FakeLauncher;
+    use crate::daemon::url_opener::testing::RecordingUrlOpener;
 
     const WAIT: Duration = Duration::from_secs(10);
     const POLL_INTERVAL: Duration = Duration::from_millis(25);
@@ -513,8 +548,48 @@ mod tests {
         }
     }
 
+    struct SshBackend {
+        config_path: PathBuf,
+        echo_port: u16,
+        _workspace: Workspace,
+        _server: test_support::TestServer,
+        _echo: EchoServer,
+    }
+
+    async fn start_ssh_backend() -> SshBackend {
+        let echo = EchoServer::start().await;
+        let key = generate_key(Algorithm::Ed25519);
+        let server = test_support::TestServer::builder()
+            .host_key(generate_key(Algorithm::Ed25519))
+            .user(
+                REMOTE_USER,
+                TestUser {
+                    authorized_keys: vec![key.public_key().clone()],
+                    ..TestUser::default()
+                },
+            )
+            .start()
+            .await;
+        let workspace = Workspace::new();
+        let key_path = write_private_key(workspace.path(), "id_ed25519", &key, None);
+        let identity_line = format!("IdentityFile {}", key_path.display());
+        let config_path = workspace.write_config(
+            server.port,
+            &[&identity_line, "IdentityAgent none", "IdentitiesOnly yes"],
+        );
+        SshBackend {
+            config_path,
+            echo_port: echo.port,
+            _workspace: workspace,
+            _server: server,
+            _echo: echo,
+        }
+    }
+
     struct Fixture {
         handler: DaemonHandler,
+        url_opener: Arc<RecordingUrlOpener>,
+        ssh_backend: Option<SshBackend>,
         keyring: Arc<RecordingKeyring>,
         engine: Engine,
         quit_requested: CancellationToken,
@@ -534,15 +609,44 @@ mod tests {
     }
 
     fn fixture_with(launcher: Arc<FakeLauncher>, saved_state: &AppState) -> Fixture {
-        let directory = tempfile::tempdir().unwrap();
-        let ssh_config = directory.path().join("ssh_config");
-        std::fs::write(
-            &ssh_config,
-            format!(
-                "Host dead\n  HostName 127.0.0.1\n  Port {UNREACHABLE_SSH_PORT}\n  LocalForward 8080 localhost:80\nHost *.internal\n  User me\n"
-            ),
+        build_fixture(
+            launcher,
+            saved_state,
+            RecordingUrlOpener::succeeding(),
+            None,
         )
-        .unwrap();
+    }
+
+    async fn ssh_fixture(url_opener: Arc<RecordingUrlOpener>) -> Fixture {
+        let backend = start_ssh_backend().await;
+        build_fixture(
+            FakeLauncher::succeeding(),
+            &AppState::default(),
+            url_opener,
+            Some(backend),
+        )
+    }
+
+    fn build_fixture(
+        launcher: Arc<FakeLauncher>,
+        saved_state: &AppState,
+        url_opener: Arc<RecordingUrlOpener>,
+        ssh_backend: Option<SshBackend>,
+    ) -> Fixture {
+        let directory = tempfile::tempdir().unwrap();
+        let ssh_config = match &ssh_backend {
+            Some(backend) => backend.config_path.clone(),
+            None => directory.path().join("ssh_config"),
+        };
+        if ssh_backend.is_none() {
+            std::fs::write(
+                &ssh_config,
+                format!(
+                    "Host dead\n  HostName 127.0.0.1\n  Port {UNREACHABLE_SSH_PORT}\n  LocalForward 8080 localhost:80\nHost *.internal\n  User me\n"
+                ),
+            )
+            .unwrap();
+        }
         let store_path = directory.path().join("tunnels.toml");
         let (store, _) = Store::open(store_path.clone()).unwrap();
         let state_store = FileStateStore::new(directory.path().join("state.toml"));
@@ -583,9 +687,12 @@ mod tests {
             quit_requested.clone(),
             ui,
             tray_status.subscribe(),
+            url_opener.clone(),
         );
         Fixture {
             handler,
+            url_opener,
+            ssh_backend,
             keyring,
             engine,
             quit_requested,
@@ -606,6 +713,7 @@ mod tests {
             target_host: None,
             target_port: None,
             tags: vec!["dev".to_owned()],
+            open: OpenOptionsDto::default(),
         }
     }
 
@@ -1320,6 +1428,240 @@ mod tests {
             std::fs::read_to_string(&fixture.store_path)
                 .unwrap()
                 .contains("keepalive_max = 9")
+        );
+    }
+
+    fn open_request(id: &str) -> Request {
+        Request::TunnelOpen(TunnelIdParams { id: id.to_owned() })
+    }
+
+    async fn created_local_tunnel_through_ssh(fixture: &Fixture) -> (TunnelDto, u16) {
+        let listen_port = free_port().await;
+        let echo_port = fixture.ssh_backend.as_ref().unwrap().echo_port;
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::TunnelCreate(TunnelSpecDto {
+                    host: test_support::ALIAS.to_owned(),
+                    target_port: Some(echo_port),
+                    ..spec(listen_port)
+                }),
+            )
+            .await
+            .unwrap();
+        match response {
+            ResponsePayload::Tunnel(tunnel) => (tunnel, listen_port),
+            other => panic!("expected a tunnel, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_opening_an_unknown_tunnel() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(None, open_request(&TunnelId::generate().to_string()))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    async fn should_answer_invalid_state_and_not_launch_when_opening_a_remote_tunnel() {
+        let fixture = fixture();
+        let created = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::TunnelCreate(TunnelSpecDto {
+                    kind: TunnelKindDto::Remote,
+                    ..spec(free_port().await)
+                }),
+            )
+            .await
+            .unwrap();
+        let ResponsePayload::Tunnel(tunnel) = created else {
+            panic!("expected a tunnel, got {created:?}");
+        };
+
+        let error = fixture
+            .handler
+            .dispatch(None, open_request(&tunnel.definition.id))
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            (error.code, fixture.url_opener.opened()),
+            (ErrorCode::InvalidState, Vec::<String>::new())
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_open_failed_and_not_launch_when_the_tunnel_cannot_start() {
+        let fixture = fixture();
+        let tunnel = created_tunnel(&fixture, free_port().await).await;
+
+        let error = fixture
+            .handler
+            .dispatch(None, open_request(&tunnel.definition.id))
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            (error.code, fixture.url_opener.opened()),
+            (ErrorCode::OpenFailed, Vec::<String>::new())
+        );
+    }
+
+    #[tokio::test]
+    async fn should_start_the_stopped_tunnel_and_open_its_url_when_opening() {
+        let fixture = ssh_fixture(RecordingUrlOpener::succeeding()).await;
+        let (tunnel, listen_port) = created_local_tunnel_through_ssh(&fixture).await;
+
+        let response = fixture
+            .handler
+            .dispatch(None, open_request(&tunnel.definition.id))
+            .await
+            .unwrap();
+
+        let expected_url = format!("http://localhost:{listen_port}/");
+        assert_eq!(
+            (response, fixture.url_opener.opened()),
+            (
+                ResponsePayload::OpenTunnel(OpenTunnelResult {
+                    target: expected_url.clone()
+                }),
+                vec![expected_url]
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn should_open_the_url_built_from_the_open_options_and_settings() {
+        let fixture = ssh_fixture(RecordingUrlOpener::succeeding()).await;
+        let listen_port = free_port().await;
+        let echo_port = fixture.ssh_backend.as_ref().unwrap().echo_port;
+        let created = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::TunnelCreate(TunnelSpecDto {
+                    host: test_support::ALIAS.to_owned(),
+                    target_port: Some(echo_port),
+                    open: OpenOptionsDto {
+                        scheme: Some(OpenSchemeDto::Https),
+                        path: Some("/admin".to_owned()),
+                        host: None,
+                    },
+                    ..spec(listen_port)
+                }),
+            )
+            .await
+            .unwrap();
+        let ResponsePayload::Tunnel(tunnel) = created else {
+            panic!("expected a tunnel, got {created:?}");
+        };
+        let mut settings = settings_to_dto_of(&fixture);
+        settings.open_host = OpenHostDto::Ip;
+        fixture
+            .handler
+            .dispatch(None, Request::SettingsUpdate(settings))
+            .await
+            .unwrap();
+
+        fixture
+            .handler
+            .dispatch(None, open_request(&tunnel.definition.id))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            fixture.url_opener.opened(),
+            vec![format!("https://127.0.0.1:{listen_port}/admin")]
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_open_failed_when_the_launch_fails_after_the_tunnel_started() {
+        let fixture = ssh_fixture(RecordingUrlOpener::failing()).await;
+        let (tunnel, _) = created_local_tunnel_through_ssh(&fixture).await;
+
+        let error = fixture
+            .handler
+            .dispatch(None, open_request(&tunnel.definition.id))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::OpenFailed);
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_open_options_when_a_tunnel_is_created() {
+        let fixture = fixture();
+        let open = OpenOptionsDto {
+            scheme: Some(OpenSchemeDto::Https),
+            path: Some("/admin".to_owned()),
+            host: Some(OpenHostDto::Ip),
+        };
+
+        let created = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::TunnelCreate(TunnelSpecDto {
+                    open: open.clone(),
+                    ..spec(free_port().await)
+                }),
+            )
+            .await
+            .unwrap();
+
+        let ResponsePayload::Tunnel(tunnel) = created else {
+            panic!("expected a tunnel, got {created:?}");
+        };
+        assert_eq!(tunnel.definition.spec.open, open);
+    }
+
+    #[tokio::test]
+    async fn should_reject_an_invalid_open_path_when_a_tunnel_is_created() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::TunnelCreate(TunnelSpecDto {
+                    open: OpenOptionsDto {
+                        path: Some("//evil".to_owned()),
+                        ..OpenOptionsDto::default()
+                    },
+                    ..spec(free_port().await)
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::ValidationFailed);
+    }
+
+    #[tokio::test]
+    async fn should_apply_the_open_host_setting_when_settings_are_updated() {
+        let fixture = fixture();
+        let mut settings = settings_to_dto_of(&fixture);
+        settings.open_host = OpenHostDto::Ip;
+
+        fixture
+            .handler
+            .dispatch(None, Request::SettingsUpdate(settings))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            fixture.engine.snapshot().settings.open_host,
+            engine::OpenHost::Ip
         );
     }
 

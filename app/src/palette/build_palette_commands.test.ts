@@ -58,21 +58,19 @@ describe('buildPaletteCommands', () => {
 		expect(labels).toContain('Modifier 3333 → nova:3333');
 	});
 
-	it('should offer the browser for a running local tunnel only', () => {
-		const running = { state: { kind: 'active' } } as const;
-
-		expect(build([buildTunnel(running)])).toContainEqual(
+	it('should offer to open a local tunnel whether it runs or not', () => {
+		expect(build([buildTunnel()])).toContainEqual(
 			expect.objectContaining({
 				label: 'Ouvrir 3333 → nova:3333 dans le navigateur',
-				action: { kind: 'openInBrowser', host: '127.0.0.1', port: 3333 },
+				action: { kind: 'openTunnel', id: 'tunnel-1' },
 			})
 		);
-		expect(labelsOf(build([buildTunnel()]))).not.toContain(
+	});
+
+	it('should not offer to open a remote tunnel', () => {
+		expect(labelsOf(build([buildTunnel({ kind: 'remote' })]))).not.toContain(
 			'Ouvrir 3333 → nova:3333 dans le navigateur'
 		);
-		expect(
-			labelsOf(build([buildTunnel({ ...running, kind: 'remote' })]))
-		).not.toContain('Ouvrir 3333 → nova:3333 dans le navigateur');
 	});
 
 	it('should offer to rename every tag', () => {

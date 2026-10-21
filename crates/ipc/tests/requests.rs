@@ -304,6 +304,32 @@ async fn should_fail_with_not_found_when_checking_the_target_of_an_unknown_tunne
 }
 
 #[tokio::test]
+async fn should_return_the_opened_target_when_opening_a_tunnel() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Cli, false).await;
+
+    let target = client.open_tunnel("alpha").await.unwrap();
+
+    assert_eq!(target, "http://localhost/alpha");
+}
+
+#[tokio::test]
+async fn should_fail_with_not_found_when_opening_an_unknown_tunnel() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Cli, false).await;
+
+    let error = client.open_tunnel(MISSING_TUNNEL_ID).await.unwrap_err();
+
+    assert!(matches!(
+        error,
+        ClientError::Remote {
+            code: ErrorCode::NotFound,
+            ..
+        }
+    ));
+}
+
+#[tokio::test]
 async fn should_fail_with_not_found_when_persisting_an_unknown_tunnel() {
     let daemon = TestDaemon::start();
     let client = daemon.connect(ClientKind::Ui, false).await;

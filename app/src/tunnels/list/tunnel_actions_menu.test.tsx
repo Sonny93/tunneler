@@ -56,17 +56,17 @@ describe('TunnelActionsMenu', () => {
 		).not.toBeInTheDocument();
 	});
 
-	it('should disable the browser item when the tunnel is stopped', async () => {
+	it('should keep the browser item enabled when the tunnel is stopped', async () => {
 		renderMenu();
 
 		await openMenu();
 
 		expect(
 			screen.getByRole('menuitem', { name: 'Ouvrir dans le navigateur' })
-		).toBeDisabled();
+		).toBeEnabled();
 	});
 
-	it('should open the local forward in the browser', async () => {
+	it('should ask the daemon to open the local forward', async () => {
 		useDaemonStore.setState({ settings: buildSettings() });
 		const { gateway } = renderMenu({ state: { kind: 'active' } });
 		await openMenu();
@@ -75,7 +75,7 @@ describe('TunnelActionsMenu', () => {
 			screen.getByRole('menuitem', { name: 'Ouvrir dans le navigateur' })
 		);
 
-		expect(gateway.openInBrowser).toHaveBeenCalledWith('127.0.0.1', 3333);
+		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1');
 	});
 
 	it('should open the details of the tunnel', async () => {

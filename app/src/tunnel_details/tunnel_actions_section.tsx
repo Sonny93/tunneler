@@ -4,10 +4,11 @@ import { Button } from '@minimalstuff/ui';
 import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
 import { copyTextWithToast } from '#/shared/copy_text';
+import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
+import { useOpenTunnel } from '#/tunnel_details/use_open_tunnel';
 import { useCheckTarget } from '#/tunnel_details/use_check_target';
 import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
 import { buildSshCommand } from '#/tunnel_details/build_ssh_command';
-import { useOpenInBrowser } from '#/tunnel_details/use_open_in_browser';
 
 type TunnelActionsSectionProps = {
 	tunnel: TunnelDto;
@@ -22,7 +23,8 @@ export function TunnelActionsSection({
 	const restartReasonId = useId();
 	const openTunnelEditor = useUiStore((state) => state.openTunnelEditor);
 	const { restart, stopAndRemove, persist } = useTunnelActions(tunnel);
-	const { target, isRunning, open } = useOpenInBrowser(tunnel);
+	const { isOpenable, open } = useOpenTunnel(tunnel);
+	const isRunning = isTunnelRunning(tunnel.state);
 	const { isChecking, check } = useCheckTarget(tunnel);
 	const hasTarget = tunnel.kind !== 'dynamic';
 	const command = buildSshCommand(tunnel);
@@ -38,13 +40,11 @@ export function TunnelActionsSection({
 			{hasTarget && (
 				<div className="flex flex-col gap-1">
 					<div className="flex flex-wrap gap-2">
-						{target !== null && (
+						{isOpenable && (
 							<Button
 								startIcon="i-mdi-open-in-new"
 								variant="outline"
 								color="neutral"
-								disabled={!isRunning}
-								aria-describedby={isRunning ? undefined : runningReasonId}
 								onClick={open}
 							>
 								Ouvrir dans le navigateur

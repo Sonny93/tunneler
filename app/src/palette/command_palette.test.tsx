@@ -130,7 +130,7 @@ describe('CommandPalette', () => {
 
 		await user.type(getInput(), '3333');
 
-		expect(screen.getByRole('status')).toHaveTextContent('3 commandes');
+		expect(screen.getByRole('status')).toHaveTextContent('4 commandes');
 	});
 
 	it('should filter ignoring case and accents', async () => {

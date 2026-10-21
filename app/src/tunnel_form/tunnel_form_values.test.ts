@@ -48,4 +48,28 @@ describe('toTunnelFormValues', () => {
 
 		expect([values.targetHost, values.listenAddress]).toEqual(['', '']);
 	});
+
+	it('should show the open options of the tunnel', () => {
+		const values = toTunnelFormValues(
+			buildTunnel({
+				open: { scheme: 'https', path: '/admin', host: 'ip' },
+			})
+		);
+
+		expect([values.openScheme, values.openPath, values.openHost]).toEqual([
+			'https',
+			'/admin',
+			'ip',
+		]);
+	});
+
+	it('should default the open options when the tunnel has none', () => {
+		const values = toTunnelFormValues(buildTunnel());
+
+		expect([values.openScheme, values.openPath, values.openHost]).toEqual([
+			'http',
+			'',
+			'',
+		]);
+	});
 });

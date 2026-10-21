@@ -412,6 +412,7 @@ mod tests {
             target_host: target_host.map(str::to_owned),
             target_port,
             tags: Vec::new(),
+            open: ipc::protocol::OpenOptionsDto::default(),
         }
     }
 
@@ -431,6 +432,7 @@ mod tests {
                 launch_at_login: false,
                 use_os_keyring: false,
                 x11_display: None,
+                open_host: ipc::protocol::OpenHostDto::Localhost,
             },
             tray: TrayStatusDto::default(),
             externals: Vec::new(),

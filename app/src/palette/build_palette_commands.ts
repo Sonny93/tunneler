@@ -2,7 +2,6 @@ import { summarizeTags } from '#/sidebar/summarize_tags';
 import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import type { SettingsDto, TunnelDto } from '#/daemon/protocol';
 import type { PaletteCommand } from '#/palette/palette_command';
-import { getBrowserTarget } from '#/tunnel_details/browser_target';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import { compareTextCaseInsensitively } from '#/tunnels/compare_text_case_insensitively';
 
@@ -74,25 +73,21 @@ function buildToggleCommand(tunnel: Readonly<TunnelDto>): PaletteCommand {
 			};
 }
 
-function buildBrowserCommands(
-	tunnel: Readonly<TunnelDto>,
-	settings: Readonly<SettingsDto> | null
-): PaletteCommand[] {
-	const target = getBrowserTarget(tunnel, settings?.defaultBindAddress);
-	if (target === null || !isTunnelRunning(tunnel.state)) return [];
+function buildBrowserCommands(tunnel: Readonly<TunnelDto>): PaletteCommand[] {
+	if (tunnel.kind !== 'local') return [];
 	return [
 		{
 			id: `tunnel:${tunnel.id}:browser`,
 			label: `Ouvrir ${getTunnelEndpointLabel(tunnel)} dans le navigateur`,
 			category: 'Tunnel',
-			action: { kind: 'openInBrowser', ...target },
+			action: { kind: 'openTunnel', id: tunnel.id },
 		},
 	];
 }
 
 function buildTunnelCommands(
 	tunnel: Readonly<TunnelDto>,
-	settings: Readonly<SettingsDto> | null
+	_settings: Readonly<SettingsDto> | null
 ): PaletteCommand[] {
 	const tunnelId = tunnel.id;
 	return [
@@ -109,7 +104,7 @@ function buildTunnelCommands(
 			category: 'Tunnel',
 			action: { kind: 'editTunnel', tunnelId },
 		},
-		...buildBrowserCommands(tunnel, settings),
+		...buildBrowserCommands(tunnel),
 	];
 }
 

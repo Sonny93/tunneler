@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 
 import { useUiStore } from '#/state/ui_store';
-import type { SettingsDto } from '#/daemon/protocol';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
+import type { OpenHostDto, SettingsDto } from '#/daemon/protocol';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import type {
 	SettingsTextField,
@@ -27,6 +27,7 @@ type UseSettingsFormReturn = {
 	summary: ReturnType<typeof useFormErrorSummary>;
 	changeText: (field: SettingsTextField, value: string) => void;
 	changeToggle: (field: SettingsToggleField, isEnabled: boolean) => void;
+	changeOpenHost: (host: OpenHostDto) => void;
 	submit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
@@ -48,6 +49,9 @@ export function useSettingsForm(
 		setValues((current) => ({ ...current, [field]: value }));
 	const changeToggle = (field: SettingsToggleField, isEnabled: boolean) =>
 		setValues((current) => ({ ...current, [field]: isEnabled }));
+
+	const changeOpenHost = (openHost: OpenHostDto) =>
+		setValues((current) => ({ ...current, openHost }));
 
 	const save = async () => {
 		setIsSaving(true);
@@ -85,6 +89,7 @@ export function useSettingsForm(
 		summary,
 		changeText,
 		changeToggle,
+		changeOpenHost,
 		submit,
 	};
 }

@@ -116,7 +116,7 @@ describe('TunnelDetailsDrawer', () => {
 		).toEqual(['Commande copiée']);
 	});
 
-	it('should open a running local forward in the browser', async () => {
+	it('should ask the daemon to open a local forward', async () => {
 		setUp({ state: { kind: 'active' } });
 		const { gateway } = renderDrawer();
 
@@ -124,16 +124,41 @@ describe('TunnelDetailsDrawer', () => {
 			screen.getByRole('button', { name: 'Ouvrir dans le navigateur' })
 		);
 
-		expect(gateway.openInBrowser).toHaveBeenCalledWith('127.0.0.1', 3333);
+		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1');
 	});
 
-	it('should disable the browser and restart with a visible reason when stopped', () => {
+	it('should open a stopped local forward too, since the daemon starts it', async () => {
+		setUp();
+		const { gateway } = renderDrawer();
+
+		await userEvent.click(
+			screen.getByRole('button', { name: 'Ouvrir dans le navigateur' })
+		);
+
+		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1');
+	});
+
+	it('should report an error toast when opening fails', async () => {
+		setUp();
+		const { gateway } = renderDrawer();
+		gateway.openTunnel.mockRejectedValue(new Error('pas de navigateur'));
+
+		await userEvent.click(
+			screen.getByRole('button', { name: 'Ouvrir dans le navigateur' })
+		);
+
+		expect(
+			useToastStore.getState().toasts.map((toast) => toast.message)
+		).toEqual(['Ouverture impossible : pas de navigateur']);
+	});
+
+	it('should disable restart with a visible reason when stopped', () => {
 		setUp();
 		renderDrawer();
 
 		expect(
 			screen.getByRole('button', { name: /Ouvrir dans le navigateur/ })
-		).toBeDisabled();
+		).toBeEnabled();
 		expect(screen.getByRole('button', { name: /Redémarrer/ })).toBeDisabled();
 		expect(
 			screen.getByText('Disponible quand le tunnel est démarré.')

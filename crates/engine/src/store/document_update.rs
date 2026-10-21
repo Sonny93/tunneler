@@ -1,8 +1,9 @@
-use toml_edit::{Array, ArrayOfTables, DocumentMut, Item, Table, TableLike, Value};
+use toml_edit::{Array, ArrayOfTables, DocumentMut, InlineTable, Item, Table, TableLike, Value};
 
 use super::migration::CURRENT_VERSION;
 use super::model::{
-    HostOverrides, Settings, StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
+    HostOverrides, OpenOptions, Settings, StoreDocument, TunnelDefinition, TunnelId, TunnelKind,
+    X11Launcher,
 };
 
 const VERSION_KEY: &str = "version";
@@ -12,6 +13,10 @@ const LEGACY_NAME_KEY: &str = "name";
 const HOSTS_KEY: &str = "hosts";
 const LAUNCHERS_KEY: &str = "x11_launchers";
 const X11_DISPLAY_KEY: &str = "x11_display";
+const OPEN_KEY: &str = "open";
+const OPEN_SCHEME_KEY: &str = "scheme";
+const OPEN_PATH_KEY: &str = "path";
+const OPEN_HOST_KEY: &str = "host";
 const REMOVED_SETTINGS_KEYS: [&str; 1] = ["health_probe"];
 const SECTION_SEPARATOR: &str = "\n";
 const FIRST_SECTION_POSITION: isize = -1;
@@ -82,6 +87,7 @@ fn settings_entries(settings: &Settings) -> Vec<(&'static str, Value)> {
             X11_DISPLAY_KEY,
             Value::from(settings.x11_display.as_deref().unwrap_or_default()),
         ),
+        ("open_host", Value::from(settings.open_host.as_str())),
     ]
 }
 
@@ -174,6 +180,35 @@ fn apply_tunnel(table: &mut Table, tunnel: &TunnelDefinition) {
         tunnel.target_port.map(|port| Value::from(i64::from(port))),
     );
     set_value(table, "tags", string_array(&tunnel.tags));
+    apply_open(table, &tunnel.open);
+}
+
+fn apply_open(table: &mut Table, open: &OpenOptions) {
+    if open.is_empty() {
+        table.remove(OPEN_KEY);
+        return;
+    }
+    if let Some(existing) = table.get_mut(OPEN_KEY).and_then(Item::as_table_like_mut) {
+        set_open_fields(existing, open);
+        return;
+    }
+    let mut inline = InlineTable::new();
+    set_open_fields(&mut inline, open);
+    table.insert(OPEN_KEY, Item::Value(Value::InlineTable(inline)));
+}
+
+fn set_open_fields(table: &mut dyn TableLike, open: &OpenOptions) {
+    set_optional(
+        table,
+        OPEN_SCHEME_KEY,
+        open.scheme.map(|scheme| Value::from(scheme.as_str())),
+    );
+    set_optional(table, OPEN_PATH_KEY, open.path.as_deref().map(Value::from));
+    set_optional(
+        table,
+        OPEN_HOST_KEY,
+        open.host.map(|host| Value::from(host.as_str())),
+    );
 }
 
 fn kind_name(kind: TunnelKind) -> &'static str {
@@ -359,6 +394,7 @@ fn has_same_content(existing: &Value, replacement: &Value) -> bool {
 mod tests {
     use super::*;
     use crate::store::format::{parse_document, render_document};
+    use crate::store::model::{OpenHost, OpenScheme};
     use crate::store::test_support::tunnel_on;
     use pretty_assertions::assert_eq;
     use std::path::Path;
@@ -617,6 +653,73 @@ tags = []
             updated.find("[settings]") < updated.find("[[tunnels]]"),
             "{updated}"
         );
+    }
+
+    #[test]
+    fn should_write_the_open_options_as_an_inline_table_when_they_are_set() {
+        let mut document = load(COMMENTED_FILE);
+        document.tunnels[0].open = OpenOptions {
+            scheme: Some(OpenScheme::Https),
+            path: Some("/admin".to_owned()),
+            host: Some(OpenHost::Ip),
+        };
+
+        let updated = update(COMMENTED_FILE, &document);
+
+        assert!(
+            updated.contains("open = { scheme = \"https\", path = \"/admin\", host = \"ip\" }"),
+            "{updated}"
+        );
+    }
+
+    #[test]
+    fn should_omit_the_open_key_when_no_option_is_set() {
+        let document = load(COMMENTED_FILE);
+
+        let updated = update(COMMENTED_FILE, &document);
+
+        assert!(!updated.contains("open ="), "{updated}");
+    }
+
+    #[test]
+    fn should_remove_the_open_key_when_every_option_is_cleared() {
+        let text = "[[tunnels]]\nid = \"01JA0000000000000000000000\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\ntags = []\nopen = { path = \"/x\" }\n";
+        let mut document = load(text);
+        document.tunnels[0].open = OpenOptions::default();
+
+        let updated = update(text, &document);
+
+        assert!(!updated.contains("open ="), "{updated}");
+    }
+
+    #[test]
+    fn should_keep_the_open_text_untouched_when_nothing_changed() {
+        let text = "[[tunnels]]\nid = \"01JA0000000000000000000000\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\ntags = []\nopen = {   path = \"/x\"  }\n";
+
+        let updated = update(text, &load(text));
+
+        assert!(updated.contains("open = {   path = \"/x\"  }"), "{updated}");
+    }
+
+    #[test]
+    fn should_update_a_single_open_field_when_the_others_are_unchanged() {
+        let text = "[[tunnels]]\nid = \"01JA0000000000000000000000\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\ntags = []\nopen = { scheme = \"https\", path = \"/x\" }\n";
+        let mut document = load(text);
+        document.tunnels[0].open.path = Some("/y".to_owned());
+
+        let updated = update(text, &document);
+
+        assert_eq!(load(&updated), document);
+    }
+
+    #[test]
+    fn should_write_the_open_host_setting_when_settings_are_written() {
+        let mut document = StoreDocument::default();
+        document.settings.open_host = OpenHost::Ip;
+
+        let updated = update("", &document);
+
+        assert!(updated.contains("open_host = \"ip\""), "{updated}");
     }
 
     #[test]

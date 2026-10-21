@@ -83,4 +83,17 @@ describe('getFirstInvalidField', () => {
 	it('should return null without errors', () => {
 		expect(getFirstInvalidField({})).toBeNull();
 	});
+
+	it('should reject an invalid open path of a local tunnel', () => {
+		expect(validateTunnelForm({ ...valid, openPath: 'admin' }).openPath).toBe(
+			'Le chemin doit commencer par « / ».'
+		);
+	});
+
+	it('should ignore the open path of a remote tunnel', () => {
+		expect(
+			validateTunnelForm({ ...valid, kind: 'remote', openPath: 'admin' })
+				.openPath
+		).toBeUndefined();
+	});
 });
