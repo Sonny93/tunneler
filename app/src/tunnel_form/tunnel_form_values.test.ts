@@ -43,10 +43,15 @@ describe('toTunnelFormValues', () => {
 		expect(values.tags).toBe('db, prod');
 	});
 
-	it('should show absent optional texts as blank', () => {
+	it('should show absent optional texts as blank and default the open options when the tunnel has none', () => {
 		const values = toTunnelFormValues(buildTunnel());
 
 		expect([values.targetHost, values.listenAddress]).toEqual(['', '']);
+		expect([values.openScheme, values.openPath, values.openHost]).toEqual([
+			'http',
+			'',
+			'',
+		]);
 	});
 
 	it('should show the open options of the tunnel', () => {
@@ -60,16 +65,6 @@ describe('toTunnelFormValues', () => {
 			'https',
 			'/admin',
 			'ip',
-		]);
-	});
-
-	it('should default the open options when the tunnel has none', () => {
-		const values = toTunnelFormValues(buildTunnel());
-
-		expect([values.openScheme, values.openPath, values.openHost]).toEqual([
-			'http',
-			'',
-			'',
 		]);
 	});
 

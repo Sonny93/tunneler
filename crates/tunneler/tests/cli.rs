@@ -584,7 +584,7 @@ async fn should_refuse_to_start_when_a_daemon_already_runs() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn should_exit_with_1_and_a_hint_when_the_ui_program_cannot_be_launched() {
+async fn should_exit_with_1_and_a_hint_naming_the_missing_ui_program_when_it_cannot_be_launched() {
     let fixture = Fixture::start().await;
     fixture.run(&["up", "gamma"]).await;
 
@@ -596,15 +596,6 @@ async fn should_exit_with_1_and_a_hint_when_the_ui_program_cannot_be_launched() 
         "{}",
         stderr(&output)
     );
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn should_name_the_missing_ui_program_when_it_cannot_be_launched() {
-    let fixture = Fixture::start().await;
-    fixture.run(&["up", "gamma"]).await;
-
-    let output = fixture.run(&[]).await;
-
     assert!(
         stderr(&output).contains(MISSING_UI_BINARY_NAME),
         "{}",

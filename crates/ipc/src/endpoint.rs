@@ -202,7 +202,7 @@ mod tests {
     const USER_ID: u32 = 1000;
 
     #[test]
-    fn should_use_the_runtime_directory_when_it_is_set() {
+    fn should_use_the_runtime_directory_without_requiring_a_private_one_when_it_is_set() {
         let endpoint = unix_endpoint(
             Some(PathBuf::from("/run/user/1000")),
             Path::new("/tmp"),
@@ -213,33 +213,17 @@ mod tests {
             endpoint.socket_path(),
             Some(Path::new("/run/user/1000/tunneler.sock"))
         );
-    }
-
-    #[test]
-    fn should_not_require_a_private_directory_when_the_runtime_directory_is_set() {
-        let endpoint = unix_endpoint(
-            Some(PathBuf::from("/run/user/1000")),
-            Path::new("/tmp"),
-            USER_ID,
-        );
-
         assert!(!endpoint.requires_private_directory());
     }
 
     #[test]
-    fn should_fall_back_to_a_per_user_directory_when_the_runtime_directory_is_unset() {
+    fn should_fall_back_to_a_private_per_user_directory_when_the_runtime_directory_is_unset() {
         let endpoint = unix_endpoint(None, Path::new("/tmp"), USER_ID);
 
         assert_eq!(
             endpoint.socket_path(),
             Some(Path::new("/tmp/tunneler-1000/tunneler.sock"))
         );
-    }
-
-    #[test]
-    fn should_require_a_private_directory_when_falling_back() {
-        let endpoint = unix_endpoint(None, Path::new("/tmp"), USER_ID);
-
         assert!(endpoint.requires_private_directory());
     }
 

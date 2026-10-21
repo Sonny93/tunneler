@@ -71,7 +71,7 @@ function renderHost(gateway = createFakeGateway()) {
 }
 
 describe('PromptHost credential prompts', () => {
-	it('should ask for the passphrase with the key and alias', async () => {
+	it('should ask for the passphrase with a focused hidden input and the default retention choices', async () => {
 		const { receive } = renderHost();
 
 		receive(credentialEvent('p1', passphraseRequest));
@@ -81,22 +81,16 @@ describe('PromptHost credential prompts', () => {
 		).toHaveTextContent(
 			'La clé ~/.ssh/id_ed25519 est chiffrée (connexion à nova).'
 		);
-	});
-
-	it('should focus the secret input', async () => {
-		const { receive } = renderHost();
-
-		receive(credentialEvent('p1', passphraseRequest));
-
-		expect(await findSecretInput()).toHaveFocus();
-	});
-
-	it('should hide the typed secret', async () => {
-		const { receive } = renderHost();
-
-		receive(credentialEvent('p1', passphraseRequest));
-
-		expect(await findSecretInput()).toHaveAttribute('type', 'password');
+		const secretInput = await findSecretInput();
+		expect(secretInput).toHaveFocus();
+		expect(secretInput).toHaveAttribute('type', 'password');
+		expect(
+			screen.getByRole('radio', { name: "Jusqu'à la fermeture de Tunneler" })
+		).toBeChecked();
+		expect(
+			screen.queryByRole('radio', { name: 'Dans le trousseau du système' })
+		).not.toBeInTheDocument();
+		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
 	it('should send the passphrase and dismiss the prompt', async () => {
@@ -171,29 +165,6 @@ describe('PromptHost credential prompts', () => {
 		expect(gateway.respondCredential).toHaveBeenCalledOnce();
 	});
 
-	it('should offer to remember a passphrase until Tunneler closes by default', async () => {
-		const { receive } = renderHost();
-
-		receive(credentialEvent('p1', passphraseRequest));
-
-		expect(
-			await screen.findByRole('radio', {
-				name: "Jusqu'à la fermeture de Tunneler",
-			})
-		).toBeChecked();
-	});
-
-	it('should hide the keyring option when the keyring is disabled', async () => {
-		const { receive } = renderHost();
-
-		receive(credentialEvent('p1', passphraseRequest));
-		await findSecretInput();
-
-		expect(
-			screen.queryByRole('radio', { name: 'Dans le trousseau du système' })
-		).not.toBeInTheDocument();
-	});
-
 	it('should show the keyring option when the keyring is enabled', async () => {
 		useDaemonStore.setState({
 			settings: buildSettings({ useOsKeyring: true }),
@@ -248,22 +219,6 @@ describe('PromptHost credential prompts', () => {
 		);
 	});
 
-	it('should not offer retention for a password request', async () => {
-		const { receive } = renderHost();
-
-		receive(
-			credentialEvent('p1', {
-				kind: 'password',
-				alias: 'nova',
-				user: 'jules',
-				host: 'nova.example.com',
-			})
-		);
-		await screen.findByRole('dialog', { name: 'Mot de passe' });
-
-		expect(screen.queryByRole('radio')).not.toBeInTheDocument();
-	});
-
 	it('should have no axe violations on a passphrase prompt', async () => {
 		useDaemonStore.setState({
 			settings: buildSettings({ useOsKeyring: true }),
@@ -275,7 +230,7 @@ describe('PromptHost credential prompts', () => {
 		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
-	it('should describe a password request', async () => {
+	it('should describe a password request and not offer retention', async () => {
 		const { receive } = renderHost();
 
 		receive(
@@ -290,6 +245,7 @@ describe('PromptHost credential prompts', () => {
 		expect(
 			await screen.findByRole('dialog', { name: 'Mot de passe' })
 		).toHaveTextContent('Mot de passe de jules@nova.example.com (nova).');
+		expect(screen.queryByRole('radio')).not.toBeInTheDocument();
 	});
 
 	it('should send keyboard-interactive answers in prompt order', async () => {
@@ -439,18 +395,10 @@ describe('PromptHost credential prompts', () => {
 
 		expect(await screen.findAllByRole('dialog')).toHaveLength(1);
 	});
-
-	it('should have no axe violations', async () => {
-		const { receive } = renderHost();
-		receive(credentialEvent('p1', passphraseRequest));
-		await screen.findByRole('dialog');
-
-		expect(await axe(document.body)).toHaveNoViolations();
-	});
 });
 
 describe('PromptHost host key prompts', () => {
-	it('should show the key details and the verification advice', async () => {
+	it('should show the key details, offer to copy the fingerprint and focus the refusal button', async () => {
 		const { receive } = renderHost();
 
 		receive(hostKeyEvent('p1'));
@@ -465,6 +413,13 @@ describe('PromptHost host key prompts', () => {
 		]) {
 			expect(dialog).toHaveTextContent(text, { normalizeWhitespace: true });
 		}
+		expect(
+			screen.getByRole('button', { name: "Copier l'empreinte" })
+		).toBeInTheDocument();
+		await waitFor(() =>
+			expect(screen.getByRole('button', { name: 'Refuser' })).toHaveFocus()
+		);
+		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
 	it.each([
@@ -496,38 +451,10 @@ describe('PromptHost host key prompts', () => {
 			expect(gateway.respondHostKey).toHaveBeenCalledWith('p1', 'reject')
 		);
 	});
-
-	it('should offer to copy the fingerprint', async () => {
-		const { receive } = renderHost();
-
-		receive(hostKeyEvent('p1'));
-
-		expect(
-			await screen.findByRole('button', { name: "Copier l'empreinte" })
-		).toBeInTheDocument();
-	});
-
-	it('should focus the refusal button when the prompt opens', async () => {
-		const { receive } = renderHost();
-
-		receive(hostKeyEvent('p1'));
-
-		await waitFor(() =>
-			expect(screen.getByRole('button', { name: 'Refuser' })).toHaveFocus()
-		);
-	});
-
-	it('should have no axe violations', async () => {
-		const { receive } = renderHost();
-		receive(hostKeyEvent('p1'));
-		await screen.findByRole('dialog');
-
-		expect(await axe(document.body)).toHaveNoViolations();
-	});
 });
 
 describe('PromptHost host key alerts', () => {
-	it('should explain the changed key and how to fix it', async () => {
+	it('should explain the changed key in an alert dialog that only offers to acknowledge it', async () => {
 		const { receive } = renderHost();
 
 		receive(alertEvent);
@@ -544,27 +471,10 @@ describe('PromptHost host key alerts', () => {
 		]) {
 			expect(dialog).toHaveTextContent(text, { normalizeWhitespace: true });
 		}
-	});
-
-	it('should be an alert dialog', async () => {
-		const { receive } = renderHost();
-
-		receive(alertEvent);
-
-		expect(
-			await screen.findByRole('alertdialog', { name: "Clé d'hôte modifiée" })
-		).toBeInTheDocument();
-	});
-
-	it('should not offer to accept the key', async () => {
-		const { receive } = renderHost();
-
-		receive(alertEvent);
-		await screen.findByRole('alertdialog');
-
 		expect(
 			screen.getAllByRole('button').map((button) => button.textContent)
 		).toEqual(["J'ai compris"]);
+		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
 	it('should not close on Escape', async () => {
@@ -593,13 +503,5 @@ describe('PromptHost host key alerts', () => {
 		);
 		expect(useDaemonStore.getState().prompts).toEqual([]);
 		expect(gateway.respondHostKey).not.toHaveBeenCalled();
-	});
-
-	it('should have no axe violations', async () => {
-		const { receive } = renderHost();
-		receive(alertEvent);
-		await screen.findByRole('alertdialog');
-
-		expect(await axe(document.body)).toHaveNoViolations();
 	});
 });

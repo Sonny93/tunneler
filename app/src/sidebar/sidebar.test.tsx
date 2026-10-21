@@ -25,64 +25,35 @@ function seedTunnels() {
 }
 
 describe('Sidebar', () => {
-	it('should expose a labelled navigation', () => {
+	it('should list the hosts then the tags with their active counts in a labelled navigation', async () => {
 		seedTunnels();
-		renderWithGateway(<Sidebar />);
+		const { container } = renderWithGateway(<Sidebar />);
 
 		expect(
 			screen.getByRole('navigation', { name: 'Filtres des tunnels' })
 		).toBeInTheDocument();
-	});
-
-	it('should show the number of running tunnels on the all filter', () => {
-		seedTunnels();
-		renderWithGateway(<Sidebar />);
-
-		expect(
-			screen.getByRole('button', { name: /Tous les tunnels/ })
-		).toHaveTextContent('2/3 actifs');
-	});
-
-	it('should read the active count in words in the button name', () => {
-		seedTunnels();
-		renderWithGateway(<Sidebar />);
-
-		expect(
-			screen.getByRole('button', {
-				name: /^Tous les tunnels\s?2 sur 3 actifs$/,
-			})
-		).toBeInTheDocument();
-	});
-
-	it('should list the hosts section before the tags section', () => {
-		seedTunnels();
-		renderWithGateway(<Sidebar />);
-
+		const allFilter = screen.getByRole('button', { name: /Tous les tunnels/ });
+		expect(allFilter).toHaveTextContent('2/3 actifs');
+		expect(allFilter).toHaveAccessibleName(
+			/^Tous les tunnels\s?2 sur 3 actifs$/
+		);
+		expect(allFilter).toHaveAttribute('aria-current', 'true');
 		expect(
 			screen.getAllByRole('heading').map((heading) => heading.textContent)
 		).toEqual(['Hosts', 'Tags']);
-	});
-
-	it('should list tags sorted ignoring case with their counts', () => {
-		seedTunnels();
-		renderWithGateway(<Sidebar />);
-
-		const tagList = within(
-			screen.getByRole('heading', { name: 'Tags' }).parentElement as HTMLElement
-		);
-
-		expect(
-			tagList.getAllByRole('button').map((button) => button.textContent)
-		).toEqual(['Db0/1 actifs0 sur 1 actifs', 'dev1/2 actifs1 sur 2 actifs']);
-	});
-
-	it('should list the hosts used by tunnels', () => {
-		seedTunnels();
-		renderWithGateway(<Sidebar />);
-
 		expect(screen.getByRole('button', { name: /^nova/ })).toHaveTextContent(
 			'1/2 actifs'
 		);
+		const tagList = within(
+			screen.getByRole('heading', { name: 'Tags' }).parentElement as HTMLElement
+		);
+		expect(
+			tagList.getAllByRole('button').map((button) => button.textContent)
+		).toEqual(['Db0/1 actifs0 sur 1 actifs', 'dev1/2 actifs1 sur 2 actifs']);
+		expect(
+			screen.getByRole('switch', { name: 'Tous les tunnels du tag dev' })
+		).toHaveAccessibleDescription('1 sur 2 actifs');
+		expect(await axe(container)).toHaveNoViolations();
 	});
 
 	it('should hide the tags section when no tunnel has a tag', () => {
@@ -92,15 +63,6 @@ describe('Sidebar', () => {
 		expect(
 			screen.queryByRole('heading', { name: 'Tags' })
 		).not.toBeInTheDocument();
-	});
-
-	it('should mark the all filter as current by default', () => {
-		seedTunnels();
-		renderWithGateway(<Sidebar />);
-
-		expect(
-			screen.getByRole('button', { name: /Tous les tunnels/ })
-		).toHaveAttribute('aria-current', 'true');
 	});
 
 	it('should filter by tag when its button is clicked', async () => {
@@ -150,15 +112,6 @@ describe('Sidebar', () => {
 		).toHaveAttribute('aria-current', 'true');
 	});
 
-	it('should name the tag switch and describe its count', () => {
-		seedTunnels();
-		renderWithGateway(<Sidebar />);
-
-		expect(
-			screen.getByRole('switch', { name: 'Tous les tunnels du tag dev' })
-		).toHaveAccessibleDescription('1 sur 2 actifs');
-	});
-
 	it('should start the whole tag when not every tunnel runs', async () => {
 		seedTunnels();
 		const { gateway } = renderWithGateway(<Sidebar />);
@@ -198,13 +151,6 @@ describe('Sidebar', () => {
 		expect(useToastStore.getState().toasts[0]?.message).toContain(
 			'Démarrage impossible'
 		);
-	});
-
-	it('should have no accessibility violation', async () => {
-		seedTunnels();
-		const { container } = renderWithGateway(<Sidebar />);
-
-		expect(await axe(container)).toHaveNoViolations();
 	});
 
 	describe('tag context menu', () => {

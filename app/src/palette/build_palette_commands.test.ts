@@ -104,7 +104,7 @@ describe('buildPaletteCommands', () => {
 		);
 	});
 
-	it('should offer to rename every tag', () => {
+	it('should offer to rename and delete every tag', () => {
 		const commands = build([
 			buildTunnel({ tags: ['dev'] }),
 			buildTunnel({ id: 'tunnel-2', tags: ['dev', 'db'] }),
@@ -116,14 +116,6 @@ describe('buildPaletteCommands', () => {
 			expect.objectContaining({ label: 'Renommer le tag db…' }),
 			expect.objectContaining({ label: 'Renommer le tag dev…' }),
 		]);
-	});
-
-	it('should offer to delete every tag', () => {
-		const commands = build([
-			buildTunnel({ tags: ['dev'] }),
-			buildTunnel({ id: 'tunnel-2', tags: ['dev', 'db'] }),
-		]);
-
 		expect(
 			commands.filter(({ action }) => action.kind === 'deleteTag')
 		).toEqual([

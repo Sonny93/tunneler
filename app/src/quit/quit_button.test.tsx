@@ -48,7 +48,7 @@ describe('QuitButton', () => {
 		expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
 	});
 
-	it('should ask for confirmation when tunnels run', async () => {
+	it('should ask for confirmation with the running count and no axe violations when tunnels run', async () => {
 		const user = userEvent.setup();
 		const gateway = createFakeGateway();
 		gateway.quit.mockRejectedValueOnce(tunnelsRunning(2));
@@ -62,16 +62,6 @@ describe('QuitButton', () => {
 		expect(dialog).toHaveTextContent(
 			'2 tunnels ou sessions X11 en cours seront arrêtés.'
 		);
-	});
-
-	it('should have no axe violations in the confirmation', async () => {
-		const user = userEvent.setup();
-		const gateway = createFakeGateway();
-		gateway.quit.mockRejectedValueOnce(tunnelsRunning(2));
-		renderQuit(gateway);
-		await user.click(screen.getByRole('button', { name: 'Quitter Tunneler' }));
-		await screen.findByRole('alertdialog');
-
 		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
@@ -152,7 +142,7 @@ describe('useQuitRequestListener', () => {
 		buildTunnel({ id: 'c', state: { kind: 'stopped' } }),
 	];
 
-	it('should confirm with the running tunnels count when a quit is requested', async () => {
+	it('should confirm with the running tunnels count and clear the request when a quit is requested', async () => {
 		useDaemonStore.setState({ tunnels: runningTunnels });
 		renderQuit();
 
@@ -161,15 +151,6 @@ describe('useQuitRequestListener', () => {
 		expect(await screen.findByRole('alertdialog')).toHaveTextContent(
 			'2 tunnels ou sessions X11 en cours seront arrêtés.'
 		);
-	});
-
-	it('should clear the request', async () => {
-		useDaemonStore.setState({ tunnels: runningTunnels });
-		renderQuit();
-
-		act(() => useDaemonStore.setState({ isQuitRequested: true }));
-
-		await screen.findByRole('alertdialog');
 		expect(useDaemonStore.getState().isQuitRequested).toBe(false);
 	});
 

@@ -99,7 +99,7 @@ describe('ImportDrawer', () => {
 		expect(gateway.importScript).not.toHaveBeenCalled();
 	});
 
-	it('should analyze the script and announce the detected tunnels', async () => {
+	it('should analyze the script, announce the detected tunnels and focus the preview heading', async () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
@@ -110,14 +110,6 @@ describe('ImportDrawer', () => {
 		expect(useAnnouncerStore.getState().polite.message).toBe(
 			'8 tunnels détectés'
 		);
-	});
-
-	it('should move the focus to the preview heading', async () => {
-		const user = userEvent.setup();
-		renderDrawer();
-
-		await analyzeScript(user);
-
 		expect(
 			screen.getByRole('heading', { name: "Résultat de l'analyse" })
 		).toHaveFocus();
@@ -154,7 +146,7 @@ describe('ImportDrawer', () => {
 		expect(alert).toHaveFocus();
 	});
 
-	it('should check every candidate and label them with their endpoint', async () => {
+	it('should check every candidate, label them with their endpoint and not ask for a host when every candidate has one', async () => {
 		const user = userEvent.setup();
 		renderDrawer();
 
@@ -167,6 +159,9 @@ describe('ImportDrawer', () => {
 		expect(
 			screen.getByRole('button', { name: 'Importer 8 tunnels' })
 		).toBeEnabled();
+		expect(
+			screen.queryByRole('combobox', { name: /Hôte des tunnels/ })
+		).not.toBeInTheDocument();
 	});
 
 	it('should describe every warning in French with the raw text apart', async () => {
@@ -325,17 +320,6 @@ describe('ImportDrawer', () => {
 				})
 			);
 		});
-	});
-
-	it('should not ask for a host when every candidate has one', async () => {
-		const user = userEvent.setup();
-		renderDrawer();
-
-		await analyzeScript(user);
-
-		expect(
-			screen.queryByRole('combobox', { name: /Hôte des tunnels/ })
-		).not.toBeInTheDocument();
 	});
 
 	describe('creation', () => {

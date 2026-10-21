@@ -347,12 +347,13 @@ mod tests {
     }
 
     #[test]
-    fn should_exit_with_1_when_a_target_is_unknown() {
+    fn should_exit_with_1_and_suggest_listing_the_tunnels_when_a_target_is_unknown() {
         let error = CliError::Resolve(ResolveError::UnknownTag {
             tag: "ghost".to_owned(),
         });
 
         assert_eq!(error.exit_code(), exit_code::ERROR);
+        assert!(error.hint().unwrap().contains("tunneler list"));
     }
 
     #[test]
@@ -376,15 +377,6 @@ mod tests {
             hint,
             "start it with `tunneler daemon` or run `tunneler up <tag>`"
         );
-    }
-
-    #[test]
-    fn should_suggest_listing_the_tunnels_when_a_target_is_unknown() {
-        let error = CliError::Resolve(ResolveError::UnknownTag {
-            tag: "ghost".to_owned(),
-        });
-
-        assert!(error.hint().unwrap().contains("tunneler list"));
     }
 
     #[test]

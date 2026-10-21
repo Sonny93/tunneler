@@ -458,7 +458,7 @@ describe('TunnelFormDrawer kind selector', () => {
 		).toHaveAccessibleDescription(/0\.0\.0\.0/);
 	});
 
-	it('should hide the target fields for a dynamic tunnel', async () => {
+	it('should hide the target fields, keep focus on the radio and have no axe violations when the kind becomes dynamic', async () => {
 		openEditor();
 		const user = userEvent.setup();
 		renderDrawer();
@@ -471,16 +471,8 @@ describe('TunnelFormDrawer kind selector', () => {
 		expect(
 			screen.queryByRole('textbox', { name: /^Hôte cible/ })
 		).not.toBeInTheDocument();
-	});
-
-	it('should keep focus on the radio when the kind changes', async () => {
-		openEditor();
-		const user = userEvent.setup();
-		renderDrawer();
-
-		await user.click(kindRadio(/Dynamique/));
-
 		expect(kindRadio(/Dynamique/)).toHaveFocus();
+		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
 	it('should create a dynamic tunnel without target', async () => {
@@ -534,15 +526,6 @@ describe('TunnelFormDrawer kind selector', () => {
 			)
 		);
 	});
-
-	it('should have no axe violations for a dynamic tunnel', async () => {
-		openEditor();
-		const user = userEvent.setup();
-		renderDrawer();
-		await user.click(kindRadio(/Dynamique/));
-
-		expect(await axe(document.body)).toHaveNoViolations();
-	});
 });
 
 describe('TunnelFormDrawer opening options', () => {
@@ -555,7 +538,7 @@ describe('TunnelFormDrawer opening options', () => {
 		).toBeInTheDocument();
 	});
 
-	it('should hide the opening fieldset for a remote tunnel', async () => {
+	it('should hide the opening fieldset and the standby choice for a remote tunnel', async () => {
 		openEditor();
 		const user = userEvent.setup();
 		renderDrawer();
@@ -564,6 +547,9 @@ describe('TunnelFormDrawer opening options', () => {
 
 		expect(
 			screen.queryByRole('group', { name: 'Ouverture' })
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole('group', { name: 'Veille' })
 		).not.toBeInTheDocument();
 	});
 
@@ -592,18 +578,6 @@ describe('TunnelFormDrawer opening options', () => {
 		expect(
 			screen.getByRole('group', { name: 'Veille' })
 		).toHaveAccessibleDescription(/Prend effet au prochain démarrage/);
-	});
-
-	it('should hide the standby choice for a remote tunnel', async () => {
-		openEditor();
-		const user = userEvent.setup();
-		renderDrawer();
-
-		await user.click(screen.getByRole('radio', { name: /Distant/ }));
-
-		expect(
-			screen.queryByRole('group', { name: 'Veille' })
-		).not.toBeInTheDocument();
 	});
 
 	it('should keep the standby choice for a dynamic tunnel', async () => {
@@ -718,7 +692,7 @@ describe('TunnelFormDrawer application choice', () => {
 		).toBeInTheDocument();
 	});
 
-	it('should list the browser and every available application', () => {
+	it('should list the browser and every available application without axe violations', async () => {
 		openEditor();
 		useDaemonStore.setState({ openers: [vnc] });
 		renderDrawer();
@@ -728,6 +702,7 @@ describe('TunnelFormDrawer application choice', () => {
 				.getAllByRole('option')
 				.map((option) => option.textContent)
 		).toEqual(['Automatique (Navigateur)', 'Navigateur', 'Remmina (VNC)']);
+		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
 	it('should send the chosen application', async () => {
@@ -771,14 +746,6 @@ describe('TunnelFormDrawer application choice', () => {
 				name: 'gone (indisponible)',
 			})
 		).toBeInTheDocument();
-	});
-
-	it('should have no axe violations', async () => {
-		openEditor();
-		useDaemonStore.setState({ openers: [vnc] });
-		renderDrawer();
-
-		expect(await axe(document.body)).toHaveNoViolations();
 	});
 });
 

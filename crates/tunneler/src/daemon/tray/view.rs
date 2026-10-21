@@ -328,10 +328,12 @@ mod tests {
     }
 
     #[test]
-    fn should_be_degraded_when_a_running_tunnel_cannot_reach_its_target() {
-        let tunnels = vec![tunnel(TunnelState::Active, unreachable(), &[])];
+    fn should_be_degraded_and_mention_the_unreachable_target_in_the_singular_when_a_running_tunnel_cannot_reach_it()
+     {
+        let view = view_of(vec![tunnel(TunnelState::Active, unreachable(), &[])]);
 
-        assert_eq!(view_of(tunnels).status, GlobalStatus::Degraded);
+        assert_eq!(view.status, GlobalStatus::Degraded);
+        assert_eq!(view.summary_line, "1 tunnel actif, 1 cible injoignable");
     }
 
     #[test]
@@ -386,16 +388,6 @@ mod tests {
     }
 
     #[test]
-    fn should_mention_a_single_unreachable_target_in_the_singular() {
-        let tunnels = vec![tunnel(TunnelState::Active, unreachable(), &[])];
-
-        assert_eq!(
-            view_of(tunnels).summary_line,
-            "1 tunnel actif, 1 cible injoignable"
-        );
-    }
-
-    #[test]
     fn should_prefix_the_tooltip_with_the_program_name_and_keep_the_summary_lowercase() {
         let tunnels = vec![
             active(&[]),
@@ -444,10 +436,11 @@ mod tests {
     }
 
     #[test]
-    fn should_not_check_a_tag_when_one_of_its_tunnels_is_stopped() {
-        let tunnels = vec![active(&["dev"]), stopped(&["dev"])];
+    fn should_not_check_the_tag_and_spell_its_active_count_when_one_of_its_tunnels_is_stopped() {
+        let view = view_of(vec![active(&["dev"]), stopped(&["dev"])]);
 
-        assert!(!view_of(tunnels).tags[0].is_checked);
+        assert!(!view.tags[0].is_checked);
+        assert_eq!(view.tags[0].label(), "dev — 1 sur 2 actifs");
     }
 
     #[test]
@@ -455,13 +448,6 @@ mod tests {
         let tunnels = vec![tunnel(reconnecting(), TargetHealth::Unknown, &["dev"])];
 
         assert!(view_of(tunnels).tags[0].is_checked);
-    }
-
-    #[test]
-    fn should_spell_the_active_count_in_the_label_of_a_tag() {
-        let tunnels = vec![active(&["dev"]), stopped(&["dev"])];
-
-        assert_eq!(view_of(tunnels).tags[0].label(), "dev — 1 sur 2 actifs");
     }
 
     #[test]

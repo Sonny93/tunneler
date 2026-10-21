@@ -36,7 +36,7 @@ describe('ExternalSection', () => {
 		expect(container).toBeEmptyDOMElement();
 	});
 
-	it('should be a region named with the number of processes', () => {
+	it('should be a region named with the number of processes and name each process with its destination and pid', () => {
 		renderSection([
 			buildExternalProcess(),
 			buildExternalProcess({ pid: 5, destination: undefined }),
@@ -45,14 +45,6 @@ describe('ExternalSection', () => {
 		expect(
 			screen.getByRole('region', { name: 'Externes non gérés (2)' })
 		).toBeInTheDocument();
-	});
-
-	it('should name each process with its destination and pid', () => {
-		renderSection([
-			buildExternalProcess(),
-			buildExternalProcess({ pid: 5, destination: undefined }),
-		]);
-
 		expect(
 			screen
 				.getAllByRole('heading', { level: 3 })

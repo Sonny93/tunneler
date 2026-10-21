@@ -248,12 +248,13 @@ fn failure_message(state: X11AnchorState) -> String {
 }
 
 #[tokio::test]
-async fn should_report_the_remote_display_when_the_anchor_is_active() {
+async fn should_report_the_remote_display_and_count_the_anchor_when_the_anchor_is_active() {
     let mut harness = HarnessBuilder::new().start().await;
 
     let display = harness.start_anchor_and_wait_active().await;
 
     assert_eq!(display, REMOTE_DISPLAY);
+    assert_eq!(harness.engine.active_x11_count(), 1);
 }
 
 #[tokio::test]
@@ -373,14 +374,6 @@ async fn should_list_only_running_anchors_in_the_snapshot() {
         (running.len(), harness.engine.snapshot().x11_anchors.len()),
         (1, 0)
     );
-}
-
-#[tokio::test]
-async fn should_count_the_running_anchors_when_one_is_active() {
-    let mut harness = HarnessBuilder::new().start().await;
-    harness.start_anchor_and_wait_active().await;
-
-    assert_eq!(harness.engine.active_x11_count(), 1);
 }
 
 #[tokio::test]
@@ -583,7 +576,7 @@ async fn should_list_the_saved_launchers_in_the_snapshot() {
 }
 
 #[tokio::test]
-async fn should_run_the_command_on_the_server_when_a_launcher_is_launched() {
+async fn should_run_the_command_with_x11_forwarding_on_the_server_when_a_launcher_is_launched() {
     let harness = HarnessBuilder::new().start().await;
 
     harness
@@ -593,18 +586,6 @@ async fn should_run_the_command_on_the_server_when_a_launcher_is_launched() {
         .unwrap();
 
     assert_eq!(harness.server.executed_commands(), [LAUNCHER_COMMAND]);
-}
-
-#[tokio::test]
-async fn should_request_x11_forwarding_when_a_launcher_is_launched() {
-    let harness = HarnessBuilder::new().start().await;
-
-    harness
-        .engine
-        .launch_x11(support::ALIAS, LAUNCHER_NAME)
-        .await
-        .unwrap();
-
     assert_eq!(harness.server.x11_requests().len(), 1);
 }
 

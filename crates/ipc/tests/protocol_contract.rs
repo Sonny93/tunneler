@@ -416,12 +416,14 @@ fn should_omit_the_open_options_of_a_tunnel_when_none_is_set() {
 }
 
 #[test]
-fn should_deserialize_a_tunnel_without_open_options_as_having_none() {
+fn should_deserialize_a_tunnel_spec_without_open_options_as_having_none_and_without_standby_as_inheriting()
+ {
     let value = to_json(&spec());
 
     let parsed: TunnelSpecDto = serde_json::from_value(value).unwrap();
 
     assert!(parsed.open.is_empty());
+    assert_eq!(parsed.standby, None);
 }
 
 #[test]
@@ -1378,15 +1380,6 @@ fn should_serialize_the_standby_override_of_a_tunnel_only_when_it_is_set() {
     };
 
     assert_eq!(to_json(&spec)["standby"], json!(true));
-}
-
-#[test]
-fn should_deserialize_a_tunnel_spec_without_standby_as_inheriting() {
-    let value = to_json(&spec());
-
-    let parsed: TunnelSpecDto = serde_json::from_value(value).unwrap();
-
-    assert_eq!(parsed.standby, None);
 }
 
 #[test]

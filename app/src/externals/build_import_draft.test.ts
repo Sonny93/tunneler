@@ -4,11 +4,14 @@ import { buildExternalProcess } from '#/testing/factories';
 import { buildImportDraft } from '#/externals/build_import_draft';
 
 describe('buildImportDraft', () => {
-	it('should take the host from the destination', () => {
+	it('should take the host from the destination and link the target port when it equals the listen port', () => {
 		const process = buildExternalProcess();
 		const [forward] = process.forwards;
 
-		expect(buildImportDraft(process, forward).host).toBe('nova');
+		const draft = buildImportDraft(process, forward);
+
+		expect(draft.host).toBe('nova');
+		expect(draft.targetPort).toBeUndefined();
 	});
 
 	it('should leave the host empty without destination', () => {
@@ -16,13 +19,6 @@ describe('buildImportDraft', () => {
 		const [forward] = process.forwards;
 
 		expect(buildImportDraft(process, forward).host).toBe('');
-	});
-
-	it('should link the target port when it equals the listen port', () => {
-		const process = buildExternalProcess();
-		const [forward] = process.forwards;
-
-		expect(buildImportDraft(process, forward).targetPort).toBeUndefined();
 	});
 
 	it('should keep a target port that differs from the listen port', () => {

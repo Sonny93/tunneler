@@ -59,13 +59,19 @@ describe('TunnelList', () => {
 		});
 	});
 
-	it('should title the list with the filter and the count', () => {
+	it('should title the list with the filter and the count and not offer to rename or delete a tag without a tag filter', () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
 
 		expect(
 			screen.getByRole('heading', { level: 2, name: 'Tous les tunnels (3)' })
 		).toBeInTheDocument();
+		expect(
+			screen.queryByRole('button', { name: 'Renommer le tag' })
+		).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole('button', { name: 'Supprimer le tag' })
+		).not.toBeInTheDocument();
 	});
 
 	it('should apply the tag filter', () => {
@@ -137,15 +143,6 @@ describe('TunnelList', () => {
 		});
 	});
 
-	it('should not offer to rename a tag without a tag filter', () => {
-		seedTunnels();
-		renderWithGateway(<TunnelList />);
-
-		expect(
-			screen.queryByRole('button', { name: 'Renommer le tag' })
-		).not.toBeInTheDocument();
-	});
-
 	it('should ask for confirmation before deleting the tag the list is filtered by', async () => {
 		seedTunnels();
 		useUiStore.getState().setFilter({ kind: 'tag', tag: 'dev' });
@@ -164,14 +161,5 @@ describe('TunnelList', () => {
 			await screen.findByRole('alertdialog', { name: 'Supprimer le tag dev ?' })
 		).toBeInTheDocument();
 		expect(gateway.deleteTag).not.toHaveBeenCalled();
-	});
-
-	it('should not offer to delete a tag without a tag filter', () => {
-		seedTunnels();
-		renderWithGateway(<TunnelList />);
-
-		expect(
-			screen.queryByRole('button', { name: 'Supprimer le tag' })
-		).not.toBeInTheDocument();
 	});
 });

@@ -391,7 +391,7 @@ describe('TunnelActionsMenu', () => {
 			defaultOpener: { id: 'remmina-vnc', name: 'Remmina (VNC)' },
 		};
 
-		it('should word the primary item after the default application', async () => {
+		it('should word the primary item after the default application, list the browser in a labelled group and have no axe violations', async () => {
 			useDaemonStore.setState({ openers: [vnc] });
 			renderMenu(appTunnel);
 
@@ -400,18 +400,11 @@ describe('TunnelActionsMenu', () => {
 			expect(
 				screen.getByRole('menuitem', { name: 'Ouvrir avec Remmina (VNC)' })
 			).toBeInTheDocument();
-		});
-
-		it('should list the browser in a labelled group when an application is the default', async () => {
-			useDaemonStore.setState({ openers: [vnc] });
-			renderMenu(appTunnel);
-
-			await openMenu();
-
 			const group = screen.getByRole('group', { name: 'Ouvrir avec' });
 			expect(
 				within(group).getByRole('menuitem', { name: 'Navigateur' })
 			).toBeInTheDocument();
+			expect(await axe(screen.getByRole('menu'))).toHaveNoViolations();
 		});
 
 		it('should open with the chosen alternative', async () => {
@@ -448,14 +441,6 @@ describe('TunnelActionsMenu', () => {
 			expect(
 				screen.queryByRole('group', { name: 'Ouvrir avec' })
 			).not.toBeInTheDocument();
-		});
-
-		it('should have no axe violations with the group open', async () => {
-			useDaemonStore.setState({ openers: [vnc] });
-			renderMenu(appTunnel);
-			await openMenu();
-
-			expect(await axe(screen.getByRole('menu'))).toHaveNoViolations();
 		});
 	});
 });

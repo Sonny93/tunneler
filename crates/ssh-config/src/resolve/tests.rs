@@ -139,7 +139,8 @@ mod defaults {
     }
 
     #[test]
-    fn should_default_known_hosts_files_under_home_when_nothing_sets_them() {
+    fn should_default_known_hosts_files_under_home_and_the_system_directory_when_nothing_sets_them()
+    {
         let fixture = Fixture::new();
         let config = fixture.resolved("", "web");
         assert_eq!(
@@ -149,12 +150,6 @@ mod defaults {
                 fixture_home(&fixture, ".ssh/known_hosts2")
             ]
         );
-    }
-
-    #[test]
-    fn should_default_global_known_hosts_files_to_the_system_directory() {
-        let fixture = Fixture::new();
-        let config = fixture.resolved("", "web");
         assert_eq!(
             config.global_known_hosts_files,
             vec![

@@ -128,7 +128,7 @@ describe('TunnelList roving focus', () => {
 		expect(rowCheckbox(ALPHA)).toHaveFocus();
 	});
 
-	it('should move to the next row switch with ArrowDown', async () => {
+	it('should move to the next row switch with ArrowDown and make that row the only tabbable one', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
 		await tabIntoFirstRow();
@@ -136,6 +136,12 @@ describe('TunnelList roving focus', () => {
 		await userEvent.keyboard('{ArrowDown}');
 
 		expect(rowSwitch(BETA)).toHaveFocus();
+		expect(
+			screen.getAllByRole('switch').map((item) => item.getAttribute('tabindex'))
+		).toEqual(['-1', '0', '-1']);
+		expect(rowCheckbox(BETA)).toHaveAttribute('tabindex', '0');
+		expect(actionsButton(BETA)).toHaveAttribute('tabindex', '0');
+		expect(actionsButton(ALPHA)).toHaveAttribute('tabindex', '-1');
 	});
 
 	it('should cross host groups with ArrowDown', async () => {
@@ -180,7 +186,7 @@ describe('TunnelList roving focus', () => {
 		expect(rowSwitch(ALPHA)).toHaveFocus();
 	});
 
-	it('should move from actions button to actions button', async () => {
+	it('should move from actions button to actions button without opening the actions menu', async () => {
 		seedTunnels();
 		renderWithGateway(<TunnelList />);
 		actionsButton(ALPHA).focus();
@@ -188,15 +194,6 @@ describe('TunnelList roving focus', () => {
 		await userEvent.keyboard('{ArrowDown}');
 
 		expect(actionsButton(BETA)).toHaveFocus();
-	});
-
-	it('should not open the actions menu with the arrow keys', async () => {
-		seedTunnels();
-		renderWithGateway(<TunnelList />);
-		actionsButton(ALPHA).focus();
-
-		await userEvent.keyboard('{ArrowDown}');
-
 		expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 	});
 
@@ -218,21 +215,6 @@ describe('TunnelList roving focus', () => {
 		await userEvent.keyboard(' ');
 
 		expect(gateway.startTunnel).toHaveBeenCalledWith('a');
-	});
-
-	it('should make the focused row the only tabbable one', async () => {
-		seedTunnels();
-		renderWithGateway(<TunnelList />);
-		await tabIntoFirstRow();
-
-		await userEvent.keyboard('{ArrowDown}');
-
-		expect(
-			screen.getAllByRole('switch').map((item) => item.getAttribute('tabindex'))
-		).toEqual(['-1', '0', '-1']);
-		expect(rowCheckbox(BETA)).toHaveAttribute('tabindex', '0');
-		expect(actionsButton(BETA)).toHaveAttribute('tabindex', '0');
-		expect(actionsButton(ALPHA)).toHaveAttribute('tabindex', '-1');
 	});
 
 	it('should make a clicked row active', async () => {

@@ -243,7 +243,7 @@ async fn should_authenticate_with_password_when_the_user_types_it() {
 }
 
 #[tokio::test]
-async fn should_list_tried_methods_when_every_password_is_wrong() {
+async fn should_list_tried_methods_and_stop_asking_the_password_when_every_password_is_wrong() {
     let scenario = ScenarioBuilder::new(password_only_server().await, Workspace::new())
         .config("NumberOfPasswordPrompts 2")
         .prompter(ScriptedPrompter::default().with_passwords(&[Some("a"), Some("b"), Some("c")]))
@@ -252,17 +252,6 @@ async fn should_list_tried_methods_when_every_password_is_wrong() {
     let error = scenario.connect_failing().await;
 
     assert_eq!(tried_methods(&error), vec![AuthenticationMethod::Password]);
-}
-
-#[tokio::test]
-async fn should_stop_asking_the_password_when_number_of_password_prompts_is_reached() {
-    let scenario = ScenarioBuilder::new(password_only_server().await, Workspace::new())
-        .config("NumberOfPasswordPrompts 2")
-        .prompter(ScriptedPrompter::default().with_passwords(&[Some("a"), Some("b"), Some("c")]))
-        .build();
-
-    scenario.connect_failing().await;
-
     assert_eq!(scenario.prompter.password_requests().len(), 2);
 }
 

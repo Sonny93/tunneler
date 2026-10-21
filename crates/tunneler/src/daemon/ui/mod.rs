@@ -356,13 +356,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_send_show_requested_when_a_ui_is_connected() {
+    async fn should_send_show_requested_and_not_launch_when_a_ui_is_connected() {
         let fixture = Fixture::start();
         let mut ui = connect(&fixture.server, ClientKind::Ui).await;
 
         fixture.coordinator.show().unwrap();
 
         assert_eq!(next_event(&mut ui).await, EventMessage::ShowRequested {});
+        assert_eq!(fixture.launcher.launch_count(), 0);
     }
 
     fn ui_ids(server: &TestServer) -> Vec<ConnectionId> {
@@ -427,16 +428,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_not_launch_when_a_ui_is_connected() {
-        let fixture = Fixture::start();
-        let _ui = connect(&fixture.server, ClientKind::Ui).await;
-
-        fixture.coordinator.show().unwrap();
-
-        assert_eq!(fixture.launcher.launch_count(), 0);
-    }
-
-    #[tokio::test]
     async fn should_launch_once_when_no_ui_is_connected() {
         let fixture = Fixture::start();
 
@@ -485,22 +476,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_not_take_a_cli_for_a_ui() {
-        let fixture = Fixture::start();
-        let _cli = connect(&fixture.server, ClientKind::Cli).await;
-
-        fixture.coordinator.show().unwrap();
-
-        assert_eq!(fixture.launcher.launch_count(), 1);
-    }
-
-    #[tokio::test]
-    async fn should_not_send_show_requested_to_a_cli() {
+    async fn should_launch_and_not_send_show_requested_to_a_cli_when_only_a_cli_is_connected() {
         let fixture = Fixture::start();
         let mut cli = connect(&fixture.server, ClientKind::Cli).await;
 
         fixture.coordinator.show().unwrap();
 
+        assert_eq!(fixture.launcher.launch_count(), 1);
         assert_silent(&mut cli).await;
     }
 
@@ -596,22 +578,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_report_a_responder_when_one_is_already_connected() {
+    async fn should_report_a_responder_and_not_launch_when_one_is_already_connected() {
         let fixture = Fixture::start();
         let _ui = connect(&fixture.server, ClientKind::Ui).await;
 
         let summoned = fixture.coordinator.summon_responder(SHORT_PATIENCE).await;
 
         assert!(summoned);
-    }
-
-    #[tokio::test]
-    async fn should_not_launch_when_a_prompt_responder_is_already_connected() {
-        let fixture = Fixture::start();
-        let _ui = connect(&fixture.server, ClientKind::Ui).await;
-
-        fixture.coordinator.summon_responder(SHORT_PATIENCE).await;
-
         assert_eq!(fixture.launcher.launch_count(), 0);
     }
 

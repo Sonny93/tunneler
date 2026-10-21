@@ -542,7 +542,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_stop_the_tag_when_toggling_a_tag_whose_tunnels_all_run() {
+    async fn should_stop_the_tag_and_show_the_view_again_when_toggling_a_tag_whose_tunnels_all_run()
+    {
         let fixture = Fixture::start(vec![tunnel(TunnelState::Active, &["dev"])]);
 
         fixture
@@ -556,6 +557,9 @@ mod tests {
             })
             .await;
         assert_eq!(*fixture.engine.stopped_tags.lock().unwrap(), vec!["dev"]);
+        fixture
+            .wait_until("the redraw", || !fixture.display.shown().is_empty())
+            .await;
     }
 
     #[tokio::test]
@@ -576,20 +580,6 @@ mod tests {
             })
             .await;
         assert_eq!(*fixture.engine.started_tags.lock().unwrap(), vec!["dev"]);
-    }
-
-    #[tokio::test]
-    async fn should_show_the_view_again_when_toggling_a_tag_even_if_nothing_changed() {
-        let fixture = Fixture::start(vec![tunnel(TunnelState::Active, &["dev"])]);
-
-        fixture
-            .actions
-            .send(TrayAction::ToggleTag("dev".to_owned()))
-            .unwrap();
-
-        fixture
-            .wait_until("the redraw", || !fixture.display.shown().is_empty())
-            .await;
     }
 
     #[tokio::test]

@@ -296,12 +296,14 @@ mod tests {
     }
 
     #[test]
-    fn should_default_the_timeout_to_thirty_seconds() {
+    fn should_default_the_timeout_to_thirty_seconds_and_have_no_forward_when_up_is_given_only_targets()
+     {
         let Some(Command::Up(arguments)) = parse(&["up", "dev"]).unwrap().command else {
             panic!("expected up");
         };
 
         assert_eq!(arguments.timeout, 30);
+        assert_eq!(arguments.forward(), None);
     }
 
     #[test]
@@ -353,15 +355,6 @@ mod tests {
         };
 
         assert_eq!(arguments.forward(), Some((ForwardOption::Dynamic, "1080")));
-    }
-
-    #[test]
-    fn should_have_no_forward_when_up_is_given_only_targets() {
-        let Some(Command::Up(arguments)) = parse(&["up", "dev"]).unwrap().command else {
-            panic!("expected up");
-        };
-
-        assert_eq!(arguments.forward(), None);
     }
 
     #[test]

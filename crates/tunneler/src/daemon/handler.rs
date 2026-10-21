@@ -1950,20 +1950,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_answer_a_temporary_tunnel_when_one_is_started() {
+    async fn should_answer_a_temporary_tunnel_and_not_save_it_when_one_is_started() {
         let fixture = fixture();
 
         let tunnel = started_temporary_tunnel(&fixture, free_port().await).await;
 
         assert!(tunnel.is_temporary);
-    }
-
-    #[tokio::test]
-    async fn should_not_save_the_tunnel_when_a_temporary_tunnel_is_started() {
-        let fixture = fixture();
-
-        started_temporary_tunnel(&fixture, free_port().await).await;
-
         assert!(
             !std::fs::read_to_string(&fixture.store_path)
                 .unwrap_or_default()

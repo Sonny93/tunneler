@@ -528,7 +528,7 @@ describe('TunnelList context menu', () => {
 			target: screen.getByText(label),
 		});
 
-	it('should open the tunnel menu on right-click', async () => {
+	it('should open the tunnel menu on right-click without axe violations', async () => {
 		renderList();
 
 		await rightClick(ALPHA_ARROW);
@@ -541,6 +541,9 @@ describe('TunnelList context menu', () => {
 				.getAllByRole('menuitem')
 				.map((item) => item.textContent)
 		).toContain('Détails');
+		expect(
+			await axe(document.body, { rules: { region: { enabled: false } } })
+		).toHaveNoViolations();
 	});
 
 	it('should open the selection menu on a row of a multi-selection', async () => {
@@ -595,15 +598,5 @@ describe('TunnelList context menu', () => {
 		expect(
 			await screen.findByRole('menuitem', { name: 'Détails' })
 		).toBeInTheDocument();
-	});
-
-	it('should have no axe violations with the context menu open', async () => {
-		renderList();
-		await rightClick(ALPHA_ARROW);
-		await screen.findByRole('menu');
-
-		expect(
-			await axe(document.body, { rules: { region: { enabled: false } } })
-		).toHaveNoViolations();
 	});
 });

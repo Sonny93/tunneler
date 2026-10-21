@@ -756,27 +756,16 @@ async fn should_reconnect_and_forward_again_when_the_connection_is_cut() {
 }
 
 #[tokio::test]
-async fn should_keep_the_port_bound_when_the_server_is_down() {
+async fn should_keep_the_port_bound_and_close_connections_immediately_and_log_them_when_the_server_is_down()
+ {
     let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
     harness.start_and_wait_active("alpha").await;
-
     harness.server.stop().await;
     harness
         .wait_for("alpha", |state| reconnecting_attempt(state).is_some())
         .await;
 
     assert!(!can_bind(harness.port("alpha")).await);
-}
-
-#[tokio::test]
-async fn should_close_connections_immediately_and_log_them_when_there_is_no_session() {
-    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
-    harness.start_and_wait_active("alpha").await;
-    harness.server.stop().await;
-    harness
-        .wait_for("alpha", |state| reconnecting_attempt(state).is_some())
-        .await;
-
     assert!(is_closed_by_the_tunnel(harness.port("alpha")).await);
 
     let logs = harness.engine.logs(harness.id("alpha")).unwrap();
@@ -923,7 +912,8 @@ async fn should_reach_the_target_when_a_socks_client_connects_by_ip_address() {
 }
 
 #[tokio::test]
-async fn should_reach_the_target_when_a_socks_client_connects_by_domain_name() {
+async fn should_reach_the_target_with_the_domain_name_unresolved_when_a_socks_client_connects_by_domain_name()
+ {
     let mut harness = HarnessBuilder::new(&["socks"])
         .kind("dynamic")
         .start()
@@ -939,24 +929,6 @@ async fn should_reach_the_target_when_a_socks_client_connects_by_domain_name() {
     .await;
 
     assert_eq!(echoed, PAYLOAD);
-}
-
-#[tokio::test]
-async fn should_pass_the_domain_name_unresolved_when_a_socks_client_connects_by_domain_name() {
-    let mut harness = HarnessBuilder::new(&["socks"])
-        .kind("dynamic")
-        .start()
-        .await;
-    harness.start_and_wait_active("socks").await;
-
-    echo_through_socks(
-        harness.port("socks"),
-        "localhost",
-        harness.echo.port,
-        PAYLOAD,
-    )
-    .await;
-
     assert_eq!(
         harness.server.direct_tcpip_targets(),
         vec![("localhost".to_owned(), harness.echo.port)]
@@ -1059,7 +1031,8 @@ async fn should_keep_the_target_health_unknown_when_a_socks_target_is_refused() 
 }
 
 #[tokio::test]
-async fn should_reply_command_not_supported_when_a_socks_client_asks_for_bind() {
+async fn should_reply_command_not_supported_and_open_no_channel_when_a_socks_client_asks_for_bind()
+{
     let mut harness = HarnessBuilder::new(&["socks"])
         .kind("dynamic")
         .start()
@@ -1069,18 +1042,6 @@ async fn should_reply_command_not_supported_when_a_socks_client_asks_for_bind() 
     let code = socks_reply_code_to(harness.port("socks"), &SOCKS_BIND_REQUEST).await;
 
     assert_eq!(code, SOCKS_REPLY_COMMAND_NOT_SUPPORTED);
-}
-
-#[tokio::test]
-async fn should_not_open_a_channel_when_a_socks_client_asks_for_bind() {
-    let mut harness = HarnessBuilder::new(&["socks"])
-        .kind("dynamic")
-        .start()
-        .await;
-    harness.start_and_wait_active("socks").await;
-
-    socks_reply_code_to(harness.port("socks"), &SOCKS_BIND_REQUEST).await;
-
     assert_eq!(harness.server.direct_tcpip_targets().len(), 0);
 }
 
@@ -1183,18 +1144,12 @@ async fn should_count_the_bytes_when_data_goes_through_a_dynamic_tunnel() {
 }
 
 #[tokio::test]
-async fn should_reach_the_local_target_when_a_client_connects_to_the_remote_port() {
+async fn should_reach_the_local_target_and_ask_for_the_default_bind_address_when_a_client_connects_to_the_remote_port()
+ {
     let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
     harness.start_and_wait_active("rev").await;
 
     assert_eq!(echo_through(harness.port("rev"), PAYLOAD).await, PAYLOAD);
-}
-
-#[tokio::test]
-async fn should_ask_for_the_default_remote_bind_address_when_no_listen_address_is_set() {
-    let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
-    harness.start_and_wait_active("rev").await;
-
     assert_eq!(
         harness.server.remote_forward_requests(),
         vec![("localhost".to_owned(), harness.port("rev"))]
@@ -2291,7 +2246,7 @@ async fn should_stamp_logs_with_the_injected_clock_when_a_tunnel_starts() {
 }
 
 #[tokio::test]
-async fn should_not_log_anything_secret_when_authentication_fails() {
+async fn should_keep_the_tunnel_wanted_and_log_nothing_secret_when_authentication_fails() {
     let mut harness = HarnessBuilder::new(&["alpha"])
         .with_unauthorized_client_key()
         .start()
@@ -2305,6 +2260,7 @@ async fn should_not_log_anything_secret_when_authentication_fails() {
     assert_eq!(harness.prompter.request_count(), 0);
     let logs = harness.engine.logs(harness.id("alpha")).unwrap();
     assert!(logs.iter().all(|entry| !entry.message.contains("BEGIN")));
+    assert!(wanted_ids(&harness).contains(&harness.id("alpha")));
 }
 
 #[tokio::test]
@@ -3010,21 +2966,6 @@ async fn should_keep_the_tunnel_wanted_when_it_is_restarted() {
     harness.engine.restart_tunnel(harness.id("alpha")).unwrap();
     harness
         .wait_for("alpha", |state| matches!(state, TunnelState::Active))
-        .await;
-
-    assert!(wanted_ids(&harness).contains(&harness.id("alpha")));
-}
-
-#[tokio::test]
-async fn should_keep_the_tunnel_wanted_when_it_fails() {
-    let mut harness = HarnessBuilder::new(&["alpha"])
-        .with_unauthorized_client_key()
-        .start()
-        .await;
-
-    harness.start_tunnel("alpha");
-    harness
-        .wait_for("alpha", |state| matches!(state, TunnelState::Failed { .. }))
         .await;
 
     assert!(wanted_ids(&harness).contains(&harness.id("alpha")));
@@ -3805,23 +3746,8 @@ async fn should_start_active_when_the_tunnel_refuses_the_standby_of_the_settings
 }
 
 #[tokio::test]
-async fn should_wake_up_and_forward_when_a_client_connects_to_a_standby_tunnel() {
-    let mut harness = HarnessBuilder::new(&["alpha"])
-        .standby_by_default()
-        .start()
-        .await;
-    harness.start_tunnel("alpha");
-    harness.wait_standby("alpha").await;
-
-    let echoed = echo_through(harness.port("alpha"), PAYLOAD).await;
-
-    assert_eq!(echoed, PAYLOAD);
-    assert_eq!(harness.state_of("alpha"), TunnelState::Active);
-    assert_eq!(harness.server.connection_count(), 1);
-}
-
-#[tokio::test]
-async fn should_publish_a_woke_event_when_a_client_wakes_a_standby_tunnel() {
+async fn should_wake_up_forward_and_publish_a_woke_event_when_a_client_connects_to_a_standby_tunnel()
+ {
     let mut harness = HarnessBuilder::new(&["alpha"])
         .standby_by_default()
         .start()
@@ -3830,8 +3756,11 @@ async fn should_publish_a_woke_event_when_a_client_wakes_a_standby_tunnel() {
     harness.wait_standby("alpha").await;
     let id = harness.id("alpha");
 
-    echo_through(harness.port("alpha"), PAYLOAD).await;
+    let echoed = echo_through(harness.port("alpha"), PAYLOAD).await;
 
+    assert_eq!(echoed, PAYLOAD);
+    assert_eq!(harness.state_of("alpha"), TunnelState::Active);
+    assert_eq!(harness.server.connection_count(), 1);
     wait_for_event(&mut harness.events, WAIT, |event| {
         matches!(event, EngineEvent::TunnelWoke { id: woke } if *woke == id).then_some(())
     })

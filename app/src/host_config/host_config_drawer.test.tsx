@@ -127,7 +127,7 @@ describe('HostConfigDrawer', () => {
 		).toEqual(['Configuration copiée']);
 	});
 
-	it('should list the warnings in English', async () => {
+	it('should list the warnings in English without axe violations', async () => {
 		renderDrawer({ ...RESOLVED_HOST, warnings: ['Include not found'] });
 
 		const section = await screen.findByRole('region', {
@@ -135,6 +135,8 @@ describe('HostConfigDrawer', () => {
 		});
 		expect(within(section).getByText('Include not found')).toBeInTheDocument();
 		expect(within(section).getByRole('list')).toHaveAttribute('lang', 'en');
+		await screen.findByRole('table');
+		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
 	it('should show the error and retry', async () => {
@@ -154,12 +156,5 @@ describe('HostConfigDrawer', () => {
 
 		expect(await screen.findByRole('table')).toBeInTheDocument();
 		expect(gateway.resolveHost).toHaveBeenCalledTimes(2);
-	});
-
-	it('should have no axe violations', async () => {
-		renderDrawer({ ...RESOLVED_HOST, warnings: ['Include not found'] });
-		await screen.findByRole('table');
-
-		expect(await axe(document.body)).toHaveNoViolations();
 	});
 });

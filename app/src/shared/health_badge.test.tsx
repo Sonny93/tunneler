@@ -19,7 +19,7 @@ describe('TargetHealthBadge', () => {
 		expect(screen.getByText('Cible joignable')).toBeInTheDocument();
 	});
 
-	it('should show that the target is unreachable', () => {
+	it('should show that the target is unreachable with its error text', () => {
 		render(
 			<TargetHealthBadge
 				health={{ kind: 'unreachable', since: 0, error: 'connection refused' }}
@@ -27,15 +27,6 @@ describe('TargetHealthBadge', () => {
 		);
 
 		expect(screen.getByText('Cible injoignable')).toBeInTheDocument();
-	});
-
-	it('should include the error text of an unreachable target', () => {
-		render(
-			<TargetHealthBadge
-				health={{ kind: 'unreachable', since: 0, error: 'connection refused' }}
-			/>
-		);
-
 		expect(screen.getByText('connection refused')).toBeInTheDocument();
 	});
 

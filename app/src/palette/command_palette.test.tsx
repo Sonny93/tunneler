@@ -42,13 +42,14 @@ describe('CommandPalette', () => {
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 	});
 
-	it('should open with Ctrl+K and focus the search field', async () => {
+	it('should open with Ctrl+K, focus the search field and have no axe violations', async () => {
 		const user = userEvent.setup();
 		renderPalette();
 
 		await openPalette(user);
 
 		expect(getInput()).toHaveFocus();
+		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
 	it('should open with Meta+K', async () => {
@@ -270,13 +271,5 @@ describe('CommandPalette', () => {
 		);
 		expect(useUiStore.getState().isPaletteOpen).toBe(false);
 		expect(screen.getByRole('button', { name: 'Déclencheur' })).toHaveFocus();
-	});
-
-	it('should have no axe violations', async () => {
-		const user = userEvent.setup();
-		renderPalette();
-		await openPalette(user);
-
-		expect(await axe(document.body)).toHaveNoViolations();
 	});
 });

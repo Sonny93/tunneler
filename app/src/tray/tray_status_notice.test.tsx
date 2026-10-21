@@ -48,19 +48,12 @@ describe('TrayStatusNotice', () => {
 		).toHaveTextContent('L’icône n’a pas pu être créée : pas de dbus.');
 	});
 
-	it('should hide the notice on Masquer', async () => {
+	it('should hide the notice and move the focus to the main region on Masquer', async () => {
 		renderNotice(MISSING_HOST);
 
 		await userEvent.click(screen.getByRole('button', { name: 'Masquer' }));
 
 		expect(screen.queryByRole('region')).not.toBeInTheDocument();
-	});
-
-	it('should move the focus to the main region on Masquer', async () => {
-		renderNotice(MISSING_HOST);
-
-		await userEvent.click(screen.getByRole('button', { name: 'Masquer' }));
-
 		expect(screen.getByRole('main')).toHaveFocus();
 	});
 

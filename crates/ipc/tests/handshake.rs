@@ -71,7 +71,8 @@ async fn should_close_the_connection_when_the_versions_differ() {
 }
 
 #[tokio::test]
-async fn should_answer_handshake_required_when_a_request_comes_before_hello() {
+async fn should_answer_handshake_required_and_close_the_connection_when_a_request_comes_before_hello()
+ {
     let daemon = TestDaemon::start();
     let mut client = daemon.connect_raw().await;
 
@@ -84,18 +85,6 @@ async fn should_answer_handshake_required_when_a_request_comes_before_hello() {
         (answer["id"].clone(), answer["error"]["code"].clone()),
         (json!(8), json!("handshake_required"))
     );
-}
-
-#[tokio::test]
-async fn should_close_the_connection_when_a_request_comes_before_hello() {
-    let daemon = TestDaemon::start();
-    let mut client = daemon.connect_raw().await;
-
-    client
-        .send_line(r#"{"id":8,"method":"state.snapshot"}"#)
-        .await;
-    client.read_value().await.unwrap();
-
     assert_eq!(client.read_value().await, None);
 }
 

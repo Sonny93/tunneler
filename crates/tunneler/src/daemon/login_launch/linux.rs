@@ -154,7 +154,7 @@ mod tests {
     }
 
     #[test]
-    fn should_write_the_desktop_entry_when_enabling() {
+    fn should_write_the_desktop_entry_and_create_the_autostart_directory_when_enabling() {
         let directory = tempfile::tempdir().unwrap();
         let entry = entry_in(&directory);
 
@@ -164,15 +164,6 @@ mod tests {
             content_of(&entry),
             "[Desktop Entry]\nType=Application\nName=Tunneler\nExec=/usr/bin/tunneler daemon\nX-GNOME-Autostart-enabled=true\nNoDisplay=false\nTerminal=false\nX-Tunneler-Autostart=true\n"
         );
-    }
-
-    #[test]
-    fn should_create_the_autostart_directory_when_it_is_missing() {
-        let directory = tempfile::tempdir().unwrap();
-        let entry = entry_in(&directory);
-
-        entry.enable(Path::new(EXECUTABLE)).unwrap();
-
         assert!(entry.path.is_file());
     }
 

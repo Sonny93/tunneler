@@ -82,12 +82,16 @@ describe('Drawer', () => {
 		).toBeInTheDocument();
 	});
 
-	it('should close on Escape', async () => {
+	it('should close on Escape, return the focus to the opener and restore the global hotkeys', async () => {
 		const user = await openDrawer();
+		const whileOpen = useGlobalHotkeysStore.getState().globalHotkeysEnabled;
 
 		await user.keyboard('{Escape}');
 
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Ouvrir' })).toHaveFocus();
+		expect(whileOpen).toBe(false);
+		expect(useGlobalHotkeysStore.getState().globalHotkeysEnabled).toBe(true);
 	});
 
 	it('should close with the close button', async () => {
@@ -106,14 +110,6 @@ describe('Drawer', () => {
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 	});
 
-	it('should return the focus to the opener on close', async () => {
-		const user = await openDrawer();
-
-		await user.keyboard('{Escape}');
-
-		expect(screen.getByRole('button', { name: 'Ouvrir' })).toHaveFocus();
-	});
-
 	it('should wrap Tab from the last focusable element to the first', async () => {
 		const user = await openDrawer();
 		screen.getByRole('button', { name: 'Enregistrer' }).focus();
@@ -130,18 +126,6 @@ describe('Drawer', () => {
 		await user.tab({ shift: true });
 
 		expect(screen.getByRole('button', { name: 'Enregistrer' })).toHaveFocus();
-	});
-
-	it('should disable global hotkeys while open and restore them on close', async () => {
-		const user = await openDrawer();
-		const whileOpen = useGlobalHotkeysStore.getState().globalHotkeysEnabled;
-
-		await user.keyboard('{Escape}');
-
-		expect([
-			whileOpen,
-			useGlobalHotkeysStore.getState().globalHotkeysEnabled,
-		]).toEqual([false, true]);
 	});
 
 	it('should have no axe violations when open', async () => {

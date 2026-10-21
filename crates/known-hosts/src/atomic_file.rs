@@ -139,13 +139,14 @@ mod tests {
     }
 
     #[test]
-    fn should_create_file_when_target_is_missing() {
+    fn should_create_file_and_leave_no_temporary_file_when_target_is_missing() {
         let directory = tempfile::tempdir().unwrap();
         let target = directory.path().join("known_hosts");
 
         replace_contents(&target, b"content").unwrap();
 
         assert_eq!(fs::read(&target).unwrap(), b"content");
+        assert_eq!(directory_entries(directory.path()), vec!["known_hosts"]);
     }
 
     #[test]
@@ -157,16 +158,6 @@ mod tests {
         replace_contents(&target, b"new").unwrap();
 
         assert_eq!(fs::read(&target).unwrap(), b"new");
-    }
-
-    #[test]
-    fn should_leave_no_temporary_file_when_replacement_succeeds() {
-        let directory = tempfile::tempdir().unwrap();
-        let target = directory.path().join("known_hosts");
-
-        replace_contents(&target, b"content").unwrap();
-
-        assert_eq!(directory_entries(directory.path()), vec!["known_hosts"]);
     }
 
     #[test]
@@ -234,7 +225,7 @@ mod tests {
         }
 
         #[test]
-        fn should_write_through_symlink_when_target_is_a_symlink() {
+        fn should_write_through_and_keep_the_symlink_when_target_is_a_symlink() {
             let directory = tempfile::tempdir().unwrap();
             let real = directory.path().join("real");
             let link = directory.path().join("link");
@@ -244,18 +235,6 @@ mod tests {
             replace_contents(&link, b"new").unwrap();
 
             assert_eq!(fs::read(&real).unwrap(), b"new");
-        }
-
-        #[test]
-        fn should_keep_symlink_when_target_is_a_symlink() {
-            let directory = tempfile::tempdir().unwrap();
-            let real = directory.path().join("real");
-            let link = directory.path().join("link");
-            fs::write(&real, "old").unwrap();
-            symlink(&real, &link).unwrap();
-
-            replace_contents(&link, b"new").unwrap();
-
             assert!(
                 fs::symlink_metadata(&link)
                     .unwrap()

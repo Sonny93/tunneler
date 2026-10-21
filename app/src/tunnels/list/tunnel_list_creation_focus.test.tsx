@@ -50,7 +50,7 @@ async function createTunnelOn(host: string) {
 }
 
 describe('TunnelList focus after creation', () => {
-	it('should focus the switch of the new tunnel when the drawer closes', async () => {
+	it('should focus the switch of the new tunnel and make its row the active roving row when the drawer closes', async () => {
 		renderCreation();
 
 		await createTunnelOn('nova');
@@ -60,18 +60,9 @@ describe('TunnelList focus after creation', () => {
 				screen.getByRole('switch', { name: /^Tunnel 4444 vers nova:4444,/ })
 			).toHaveFocus()
 		);
-	});
-
-	it('should make the new row the active roving row', async () => {
-		renderCreation();
-
-		await createTunnelOn('nova');
-
-		await waitFor(() =>
-			expect(
-				screen.getByRole('switch', { name: /^Tunnel 4444 vers nova:4444,/ })
-			).toHaveAttribute('tabindex', '0')
-		);
+		expect(
+			screen.getByRole('switch', { name: /^Tunnel 4444 vers nova:4444,/ })
+		).toHaveAttribute('tabindex', '0');
 	});
 
 	it('should drop the focus request when the new tunnel is hidden by the filter', async () => {
