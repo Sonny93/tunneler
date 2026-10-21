@@ -84,10 +84,25 @@ cargo clippy -p tunneler-ui --all-targets --locked -- -D warnings
 
 ### Releasing
 
-1. Bump the version in the root `Cargo.toml` (`[workspace.package]`), `app/src-tauri/tauri.conf.json` and `app/package.json`, then refresh `Cargo.lock` with `cargo update -w`.
-2. Tag the commit `vX.Y.Z` and push the tag.
+Releases are cut with [release-it](https://github.com/release-it/release-it) from `app/`:
 
-The `release` workflow checks that the three versions and the tag agree, builds the Windows zip, the Linux tar.gz and the AppImage, and creates a draft GitHub release with these files and a `SHA256SUMS`. A manual run (`workflow_dispatch`) builds the same packages as run artifacts without releasing.
+```sh
+cd app
+GITHUB_TOKEN=$(gh auth token) pnpm release              # interactive, recommended bump
+GITHUB_TOKEN=$(gh auth token) pnpm release --dry-run    # preview only
+GITHUB_TOKEN=$(gh auth token) pnpm release minor        # or `patch`, or an explicit version
+```
+
+The bump comes from the Conventional Commits since the last tag and stays in 0.x: a breaking change bumps the minor version, everything else bumps the patch version. release-it then:
+
+1. bumps the version in the root `Cargo.toml` (`[workspace.package]`), `app/src-tauri/tauri.conf.json` and `app/package.json`, and refreshes `Cargo.lock`;
+2. writes `CHANGELOG.md`;
+3. commits `chore(release): vX.Y.Z`, tags it and pushes;
+4. creates a draft GitHub release with the changelog as notes.
+
+The tag triggers the `release` workflow, which checks that the three versions and the tag agree, builds the Windows zip, the Linux tar.gz and the AppImage, attaches them with a `SHA256SUMS` to the draft release and publishes it. A manual run (`workflow_dispatch`) builds the same packages as run artifacts without releasing.
+
+For the first release, tag the existing 0.1.0 as is: `GITHUB_TOKEN=$(gh auth token) pnpm release --no-increment`.
 
 ## Usage
 
