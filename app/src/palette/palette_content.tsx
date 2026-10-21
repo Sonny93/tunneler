@@ -33,10 +33,10 @@ export function PaletteContent({ onRun }: Readonly<PaletteContentProps>) {
 	const listboxId = useId();
 	const tunnels = useDaemonStore((state) => state.tunnels);
 	const hosts = useDaemonStore((state) => state.hosts);
-	const settings = useDaemonStore((state) => state.settings);
+	const openers = useDaemonStore((state) => state.openers);
 	const [query, setQuery] = useState('');
 	const [activeIndex, setActiveIndex] = useState(0);
-	const commands = buildPaletteCommands({ tunnels, hosts, settings });
+	const commands = buildPaletteCommands({ tunnels, hosts, openers });
 	const results = filterPaletteCommands(commands, query);
 	const activeCommand = results[activeIndex];
 

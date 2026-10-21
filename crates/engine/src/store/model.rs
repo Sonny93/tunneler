@@ -115,13 +115,35 @@ pub struct OpenOptions {
     pub path: Option<String>,
     /// Overrides `Settings::open_host` for this tunnel.
     pub host: Option<OpenHost>,
+    /// What opens the tunnel: [`BROWSER_OPENER_ID`] or the id of an opener.
+    /// Absent means the suggestion for the target port, else the browser.
+    pub with: Option<String>,
 }
 
 impl OpenOptions {
     /// Whether no option is set.
     pub fn is_empty(&self) -> bool {
-        self.scheme.is_none() && self.path.is_none() && self.host.is_none()
+        self.scheme.is_none() && self.path.is_none() && self.host.is_none() && self.with.is_none()
     }
+}
+
+/// The reserved id that selects the browser instead of an opener.
+pub const BROWSER_OPENER_ID: &str = "browser";
+
+/// A program that opens a tunnel, started with explicit arguments and never
+/// through a shell. `{host}`, `{port}` and `{url}` in `args` are replaced.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Opener {
+    /// Stable identifier: lowercase letters, digits and dashes.
+    pub id: String,
+    /// The label shown to the user.
+    pub name: String,
+    /// The program to run.
+    pub command: String,
+    /// The arguments, one per entry.
+    pub args: Vec<String>,
+    /// The target ports this program is suggested for.
+    pub ports: Vec<u16>,
 }
 
 /// A configured port forward.
@@ -282,6 +304,8 @@ pub struct StoreDocument {
     pub hosts: BTreeMap<String, HostOverrides>,
     /// The saved X11 launchers.
     pub x11_launchers: Vec<X11Launcher>,
+    /// The openers the user added.
+    pub openers: Vec<Opener>,
 }
 
 #[cfg(test)]

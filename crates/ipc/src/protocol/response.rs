@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::protocol::dto::{
-    ImportPreviewDto, LogEntryDto, ResolvedHostDto, SnapshotDto, TargetHealthDto, TunnelDto,
+    AvailableOpenerDto, ImportPreviewDto, LogEntryDto, ResolvedHostDto, SnapshotDto,
+    TargetHealthDto, TunnelDto,
 };
 use crate::protocol::hello::HelloResult;
 
@@ -31,6 +32,14 @@ pub struct CheckTargetResult {
 pub struct OpenTunnelResult {
     /// What was opened: the URL for the browser.
     pub target: String,
+}
+
+/// The result of `openers.update`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenersResult {
+    /// The openers that can be used after the update.
+    pub openers: Vec<AvailableOpenerDto>,
 }
 
 /// The result of `hosts.list`.
@@ -108,6 +117,8 @@ pub enum ResponsePayload {
     CheckTarget(CheckTargetResult),
     /// The answer to `tunnel.open`.
     OpenTunnel(OpenTunnelResult),
+    /// The answer to `openers.update`.
+    Openers(OpenersResult),
     /// The answer to `hosts.list`.
     Hosts(HostsResult),
     /// The answer to `hosts.resolve`.

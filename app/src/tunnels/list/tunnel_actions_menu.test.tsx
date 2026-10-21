@@ -2,15 +2,15 @@ import { axe } from 'vitest-axe';
 import { describe, expect, it } from 'vitest';
 import { ModalProvider } from '@minimalstuff/ui';
 import userEvent from '@testing-library/user-event';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 
 import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { useToastStore } from '#/shared/toasts/toast_store';
-import { buildSettings, buildTunnel } from '#/testing/factories';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { TunnelActionsMenu } from '#/tunnels/list/tunnel_actions_menu';
+import { buildOpener, buildSettings, buildTunnel } from '#/testing/factories';
 
 function renderMenu(
 	overrides: Parameters<typeof buildTunnel>[0] = {},
@@ -75,7 +75,7 @@ describe('TunnelActionsMenu', () => {
 			screen.getByRole('menuitem', { name: 'Ouvrir dans le navigateur' })
 		);
 
-		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1');
+		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1', undefined);
 	});
 
 	it('should open the details of the tunnel', async () => {
@@ -382,6 +382,80 @@ describe('TunnelActionsMenu', () => {
 				'Redémarrer',
 				'Supprimer',
 			]);
+		});
+	});
+
+	describe('with applications', () => {
+		const vnc = buildOpener();
+		const appTunnel = {
+			defaultOpener: { id: 'remmina-vnc', name: 'Remmina (VNC)' },
+		};
+
+		it('should word the primary item after the default application', async () => {
+			useDaemonStore.setState({ openers: [vnc] });
+			renderMenu(appTunnel);
+
+			await openMenu();
+
+			expect(
+				screen.getByRole('menuitem', { name: 'Ouvrir avec Remmina (VNC)' })
+			).toBeInTheDocument();
+		});
+
+		it('should list the browser in a labelled group when an application is the default', async () => {
+			useDaemonStore.setState({ openers: [vnc] });
+			renderMenu(appTunnel);
+
+			await openMenu();
+
+			const group = screen.getByRole('group', { name: 'Ouvrir avec' });
+			expect(
+				within(group).getByRole('menuitem', { name: 'Navigateur' })
+			).toBeInTheDocument();
+		});
+
+		it('should open with the chosen alternative', async () => {
+			useDaemonStore.setState({ openers: [vnc] });
+			const { gateway } = renderMenu(appTunnel);
+			await openMenu();
+
+			await userEvent.click(
+				screen.getByRole('menuitem', { name: 'Navigateur' })
+			);
+
+			expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1', 'browser');
+		});
+
+		it('should offer the applications as alternatives to the browser', async () => {
+			useDaemonStore.setState({ openers: [vnc] });
+			renderMenu();
+
+			await openMenu();
+
+			expect(
+				within(screen.getByRole('group', { name: 'Ouvrir avec' })).getByRole(
+					'menuitem',
+					{ name: 'Remmina (VNC)' }
+				)
+			).toBeInTheDocument();
+		});
+
+		it('should show no group when there is no alternative', async () => {
+			renderMenu({ defaultOpener: { id: 'browser', name: 'Browser' } });
+
+			await openMenu();
+
+			expect(
+				screen.queryByRole('group', { name: 'Ouvrir avec' })
+			).not.toBeInTheDocument();
+		});
+
+		it('should have no axe violations with the group open', async () => {
+			useDaemonStore.setState({ openers: [vnc] });
+			renderMenu(appTunnel);
+			await openMenu();
+
+			expect(await axe(screen.getByRole('menu'))).toHaveNoViolations();
 		});
 	});
 });

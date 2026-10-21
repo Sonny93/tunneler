@@ -173,13 +173,14 @@ listen_port = 3333
 # target_port = 3333              # défaut = listen_port
 tags = ["dev", "adonis"]
 # standby = true                  # surcharge settings.standby
-# open = { scheme = "https", path = "/admin", host = "ip", with = "remmina" }
+# open = { scheme = "https", path = "/admin", host = "ip", with = "remmina-vnc" }
 
 [[openers]]                       # applications ajoutées à la main (les préréglages détectés n'y sont pas)
 id = "dbeaver"
 name = "DBeaver"
 command = "dbeaver"
 args = ["-con", "driver=postgresql|host={host}|port={port}"]
+ports = [5432]                    # ports cibles pour lesquels l'application est proposée par défaut (optionnel)
 
 [hosts.nova]                      # surcharges propres à l'app, par alias
 x11_display = "198.51.100.135:0.0"
@@ -196,7 +197,7 @@ command = "code --wait"
 - `host` : `localhost` ou `ip`, surcharge `settings.open_host`. Ne s'applique qu'à une écoute loopback ou joker (`127.0.0.1`, `::1`, `0.0.0.0`, `::`) ; une écoute sur une IP précise ouvre cette IP. Jamais de nom d'hôte distant : il contournerait le tunnel.
 - `with` : `browser` ou l'`id` d'une application. Absent → suggestion d'après le port cible parmi les applications disponibles (5900-5999 → VNC, 3389 → RDP, 5432/3306 → client SQL), sinon navigateur.
 
-Applications : préréglages intégrés détectés au lancement du daemon (`PATH` sous Linux, chemins d'installation connus sous Windows ; `mstsc` toujours présent sous Windows), plus les `[[openers]]` de l'utilisateur. Arguments en liste (pas de shell), substitution de `{host}`, `{port}`, `{url}`. Un `id` d'utilisateur qui reprend celui d'un préréglage le remplace. `browser` est réservé.
+Applications : préréglages intégrés détectés au lancement du daemon (`PATH` sous Linux, chemins d'installation connus sous Windows ; `mstsc` toujours présent sous Windows), plus les `[[openers]]` de l'utilisateur. Arguments en liste (pas de shell), substitution de `{host}`, `{port}`, `{url}`. Un `id` d'utilisateur qui reprend celui d'un préréglage le remplace. `browser` est réservé. `id` : minuscules, chiffres et tirets ; seuls `{host}`, `{port}` et `{url}` sont admis dans `args`. `ports` (optionnel) alimente la suggestion : le premier outil disponible (ceux de l'utilisateur avant les préréglages) dont `ports` contient le port **cible** est l'action par défaut. Un `with` inconnu n'est pas une erreur de chargement (une application peut être désinstallée) : l'ouverture échoue avec `unknown_opener`. Préréglages : Linux `remmina-vnc`, `remmina-rdp`, `tigervnc`, `freerdp` (`xfreerdp3` sinon `xfreerdp`) ; Windows `mstsc` (toujours présent), `tigervnc`, `realvnc`. Pas de préréglage SQL (arguments propres à chaque pilote) : à ajouter dans `[[openers]]` avec `ports`.
 
 L'état courant est stocké à part dans `state.toml` (dossier state/data) pour ne pas polluer le fichier édité à la main : `running` (tunnels démarrés par l'utilisateur, pas vidé par « Tout arrêter et quitter », relancés si `restore_on_launch`) et `keyring_entries` (passphrases déposées dans le trousseau, pour pouvoir les oublier).
 
@@ -230,8 +231,8 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 | `tunnel.start_temporary { host, kind, listenPort, … }` | démarre un tunnel temporaire (sans `id` ni tags) → `TunnelDto` avec `isTemporary: true` ; `validation_failed` si la définition est invalide |
 | `tunnel.persist { id }` | enregistre un tunnel temporaire dans `tunnels.toml`, sans le redémarrer ; `not_found` si l'id est inconnu, `invalid_state` s'il n'est pas temporaire |
 | `tunnel.check_target { id }` | essaie la cible une seule fois, à la demande (jamais sur minuterie) → `{ health }` ; `not_found` si l'id est inconnu, `invalid_state` si le tunnel ne tourne pas ou est dynamique (sans cible) ; la santé du tunnel est mise à jour (événement `tunnel.changed`) |
-| `tunnel.open { id, with? }` | ouvre le tunnel avec son action par défaut ou l'application `with` (D15). Tunnel arrêté → démarré puis ouvert une fois `Active` ou `Standby` (délai borné) ; `not_found`, `invalid_state` pour un `remote`/`dynamic` ou une écoute sur un nom d'hôte, `open_failed` (le tunnel ne devient pas prêt, ou le lancement échoue), `unknown_opener` si `with` est inconnu ou indisponible |
-| `openers.update { openers }` | remplace la liste `[[openers]]` (une écriture) ; la liste disponible (préréglages détectés + utilisateur, avec la source) est dans `state.snapshot` |
+| `tunnel.open { id, with? }` → `{ target }` (l'URL, ou la ligne de commande lancée) | ouvre le tunnel avec son action par défaut ou l'application `with` (D15). Tunnel arrêté → démarré puis ouvert une fois `Active` ou `Standby` (délai borné) ; `not_found`, `invalid_state` pour un `remote`/`dynamic` ou une écoute sur un nom d'hôte, `open_failed` (le tunnel ne devient pas prêt, ou le lancement échoue), `unknown_opener` si `with` est inconnu ou indisponible |
+| `openers.update { openers }` | remplace la liste `[[openers]]` (une écriture, `validation_failed` si une règle est enfreinte) → la liste disponible ; elle (préréglages détectés + utilisateur, avec la source `detected`/`user`) est aussi dans `state.snapshot` (`openers`), et chaque `TunnelDto` porte son action par défaut résolue `defaultOpener { id, name }` (`browser` ou l'`id` d'une application), pour que l'UI ne refasse pas la suggestion |
 | `tag.start` / `tag.stop` | |
 | `tags.rename { from, to }` | renomme le tag dans tous les tunnels et dans `start_on_launch_tags` (une écriture, fusion si `to` existe) → `{ renamedCount }` |
 | `tags.delete { tag }` | retire le tag de tous les tunnels et de `start_on_launch_tags` (une écriture, les tunnels sont conservés, aucun redémarrage) → `{ removedCount }` ; `not_found` si aucun tunnel ne le porte |
@@ -296,7 +297,7 @@ Cible : **WCAG 2.2 niveau AA** pour l'UI ; CLI conforme aux conventions `NO_COLO
 - `--help` complet avec exemples, aide par sous-commande.
 - **Tunnels temporaires** : `tunneler up <hôte> -L [bind:]port[:hôte:port] | -R [bind:]port[:hôte:port] | -D [bind:]port` (syntaxe OpenSSH, un seul forward par appel ; un port seul vaut le même port sur le loopback de l'hôte, comme les défauts du formulaire). Si un tunnel enregistré fait déjà ce forward (genre, hôte, port d'écoute, cible), il est démarré à la place ; sinon un tunnel temporaire est démarré et la commande d'arrêt est affichée (`tunneler down hôte:port`). `list`/`status` ajoutent `(temporaire)` et leur `--json` porte `isTemporary`.
 - **Vérification de la cible** : `tunneler check <port | hôte:port | tag>` essaie la cible d'un tunnel local ou distant démarré, une seule fois (`tunnel.check_target`), et affiche `<libellé> : target reachable` (code 0) ou l'erreur sur stderr (code 7, `TARGET_UNREACHABLE`). Un tunnel arrêté ou dynamique donne `invalid_state` (code 1).
-- **Ouverture** : `tunneler open <sélecteur> [--with <app>]` passe par `tunnel.open` ; une application inconnue donne la liste des disponibles. `list`/`status` affichent `veille` comme état.
+- **Ouverture** : `tunneler open <sélecteur> [--with <app>]` passe par `tunnel.open` ; une application inconnue donne la liste des disponibles (code de sortie 9). `list`/`status` affichent `veille` comme état.
 - **Sélecteurs de tunnel** (`up`, `down`, `open`, `check`) : un nombre (`3333`) désigne le tunnel qui écoute sur ce port (erreur listant les `hôte:port` candidats s'il y en a plusieurs), `hôte:port` (`nova:3333`) celui de cet hôte, tout le reste est un tag (casse ignorée). `--tag` force la lecture en tag. `open` exige un seul tunnel. `list` et `status` affichent le libellé de la route, pas un nom.
 
 ---

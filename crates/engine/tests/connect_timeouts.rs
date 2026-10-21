@@ -205,6 +205,7 @@ impl StuckTunnel {
                 x11_environment: Arc::new(FakeX11Environment::default()),
                 state_store: Arc::new(support::MemoryStateStore::default()),
                 keyring: None,
+                detected_openers: Vec::new(),
             },
             EngineOptions {
                 connect_timeouts: timeouts,

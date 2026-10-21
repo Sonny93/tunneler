@@ -16,14 +16,14 @@ use tokio::task::JoinHandle;
 use crate::endpoint::Endpoint;
 use crate::error::ClientError;
 use crate::protocol::{
-    AdoptResult, CheckTargetResult, CredentialAnswer, CredentialResponseParams, DaemonPathsResult,
-    DeleteTagResult, EventMessage, ForgetSecretsResult, Hello, HostKeyDecisionDto,
-    HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto, ImportScriptParams,
-    LogEntryDto, LogsResult, OpenTunnelResult, ProcessParams, QuitParams, RememberDto,
-    RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, SettingsDto, SnapshotDto,
-    TagParams, TagRenameParams, TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto,
-    TunnelDto, TunnelIdParams, TunnelSpecDto, UiClaimResult, X11HostParams, X11LaunchParams,
-    encode_line,
+    AdoptResult, AvailableOpenerDto, CheckTargetResult, CredentialAnswer, CredentialResponseParams,
+    DaemonPathsResult, DeleteTagResult, EventMessage, ForgetSecretsResult, Hello,
+    HostKeyDecisionDto, HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto,
+    ImportScriptParams, LogEntryDto, LogsResult, OpenTunnelParams, OpenTunnelResult, OpenerSpecDto,
+    OpenersResult, OpenersUpdateParams, ProcessParams, QuitParams, RememberDto, RenameTagResult,
+    Request, RequestEnvelope, ResolvedHostDto, SettingsDto, SnapshotDto, TagParams,
+    TagRenameParams, TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto,
+    TunnelIdParams, TunnelSpecDto, UiClaimResult, X11HostParams, X11LaunchParams, encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -172,9 +172,29 @@ impl IpcClient {
     /// # Errors
     ///
     /// Fails when the call fails; see [`ClientError`].
-    pub async fn open_tunnel(&self, id: &str) -> Result<String, ClientError> {
-        let result: OpenTunnelResult = self.call(Request::TunnelOpen(tunnel_id(id))).await?;
+    pub async fn open_tunnel(&self, id: &str, with: Option<&str>) -> Result<String, ClientError> {
+        let params = OpenTunnelParams {
+            id: id.to_owned(),
+            with: with.map(str::to_owned),
+        };
+        let result: OpenTunnelResult = self.call(Request::TunnelOpen(params)).await?;
         Ok(result.target)
+    }
+
+    /// Replaces the openers of the user and returns the openers that can be
+    /// used afterwards.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn update_openers(
+        &self,
+        openers: Vec<OpenerSpecDto>,
+    ) -> Result<Vec<AvailableOpenerDto>, ClientError> {
+        let result: OpenersResult = self
+            .call(Request::OpenersUpdate(OpenersUpdateParams { openers }))
+            .await?;
+        Ok(result.openers)
     }
 
     /// Replaces the definition of a tunnel.

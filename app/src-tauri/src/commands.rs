@@ -1,9 +1,10 @@
 //! The commands the front end invokes; each one forwards to the daemon.
 
 use ipc::protocol::{
-    DeleteTagResult, ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto, LogEntryDto,
-    OpenTunnelResult, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, TargetHealthDto,
-    TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto, TunnelSpecDto,
+    AvailableOpenerDto, DeleteTagResult, ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto,
+    LogEntryDto, OpenTunnelResult, OpenerSpecDto, RememberDto, ResolvedHostDto, SettingsDto,
+    SnapshotDto, TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto,
+    TunnelSpecDto,
 };
 use std::path::Path;
 
@@ -71,9 +72,20 @@ pub async fn tunnel_logs(
 pub async fn open_tunnel(
     state: State<'_, BridgeState>,
     id: String,
+    with: Option<String>,
 ) -> CommandResult<OpenTunnelResult> {
-    let target = state.client()?.open_tunnel(&id).await?;
+    let target = state.client()?.open_tunnel(&id, with.as_deref()).await?;
     Ok(OpenTunnelResult { target })
+}
+
+/// Replaces the openers of the user; answers with the openers that can be
+/// used afterwards.
+#[tauri::command]
+pub async fn update_openers(
+    state: State<'_, BridgeState>,
+    openers: Vec<OpenerSpecDto>,
+) -> CommandResult<Vec<AvailableOpenerDto>> {
+    Ok(state.client()?.update_openers(openers).await?)
 }
 
 #[tauri::command]

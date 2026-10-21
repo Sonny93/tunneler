@@ -64,7 +64,7 @@ export function useRunPaletteAction(): RunPaletteAction {
 				);
 			case 'openTunnel':
 				return void runDaemonAction(
-					(gateway) => gateway.openTunnel(action.id),
+					(gateway) => gateway.openTunnel(action.id, action.opener),
 					'Ouverture impossible'
 				);
 		}

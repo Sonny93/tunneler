@@ -45,15 +45,27 @@ pub enum OpenUrlError {
     },
 }
 
-/// The URL that opens `definition` in a browser: `{scheme}://{host}:{port}{path}`.
+/// Where a tunnel is reached from this machine.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct OpenAddress {
+    /// The host as written in a URL: an IPv6 literal is bracketed.
+    pub(crate) host: String,
+    /// The listen port.
+    pub(crate) port: u16,
+    /// `{scheme}://{host}:{port}{path}`.
+    pub(crate) url: String,
+}
+
+/// The address that opens `definition`: the host and port, and the URL
+/// `{scheme}://{host}:{port}{path}` for a browser.
 ///
 /// The host follows the tunnel's listen address: an IP literal is used as is,
 /// a loopback or wildcard address is replaced by the preferred loopback name
 /// (the tunnel's `open.host`, else `Settings::open_host`).
-pub(crate) fn build_open_url(
+pub(crate) fn build_open_address(
     definition: &TunnelDefinition,
     settings: &Settings,
-) -> Result<String, OpenUrlError> {
+) -> Result<OpenAddress, OpenUrlError> {
     if definition.kind != TunnelKind::Local {
         return Err(OpenUrlError::NotOpenable {
             kind: definition.kind,
@@ -69,11 +81,9 @@ pub(crate) fn build_open_url(
     let preference = definition.open.host.unwrap_or(settings.open_host);
     let host = host_to_open(definition.effective_listen_address(settings), preference)?;
     let scheme = definition.open.scheme.unwrap_or(OpenScheme::Http);
-    Ok(format!(
-        "{}://{host}:{}{path}",
-        scheme.as_str(),
-        definition.listen_port
-    ))
+    let port = definition.listen_port;
+    let url = format!("{}://{host}:{port}{path}", scheme.as_str());
+    Ok(OpenAddress { host, port, url })
 }
 
 fn host_to_open(listen_address: &str, preference: OpenHost) -> Result<String, OpenUrlError> {
@@ -129,6 +139,13 @@ mod tests {
             tags: Vec::new(),
             open: OpenOptions::default(),
         }
+    }
+
+    fn build_open_url(
+        definition: &TunnelDefinition,
+        settings: &Settings,
+    ) -> Result<String, OpenUrlError> {
+        build_open_address(definition, settings).map(|address| address.url)
     }
 
     fn url_of(definition: &TunnelDefinition) -> Result<String, OpenUrlError> {
@@ -191,6 +208,7 @@ mod tests {
                 scheme: Some(OpenScheme::Https),
                 path: Some("/admin?tab=1".to_owned()),
                 host: None,
+                with: None,
             },
             ..local_tunnel(None)
         };

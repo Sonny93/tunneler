@@ -4,7 +4,10 @@ use std::time::Duration;
 
 use thiserror::Error;
 
-use super::model::{Settings, StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher};
+use super::model::{
+    BROWSER_OPENER_ID, Opener, Settings, StoreDocument, TunnelDefinition, TunnelId, TunnelKind,
+    X11Launcher,
+};
 
 const MIN_PORT: u16 = 1;
 
@@ -67,6 +70,20 @@ pub enum OpenPathProblem {
     /// The path contains a control character.
     #[error("it contains a control character")]
     ContainsControlCharacter,
+}
+
+/// What is wrong with the id of an opener.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum OpenerIdProblem {
+    /// The id is empty.
+    #[error("it is empty")]
+    Empty,
+    /// The id holds something other than lowercase letters, digits and dashes.
+    #[error("it may only hold lowercase letters, digits and dashes")]
+    InvalidCharacter,
+    /// The id is the one that selects the browser.
+    #[error("\"browser\" is reserved for the browser")]
+    Reserved,
 }
 
 /// A rule broken by the content of the store.
@@ -169,6 +186,42 @@ pub enum ValidationError {
         /// What is wrong with it.
         problem: OpenPathProblem,
     },
+    /// The id of an opener is not acceptable.
+    #[error("openers entry {position}: the id \"{id}\" is invalid: {problem}")]
+    InvalidOpenerId {
+        /// The 1-based position of the opener.
+        position: usize,
+        /// The id.
+        id: String,
+        /// What is wrong with it.
+        problem: OpenerIdProblem,
+    },
+    /// Two openers share an id.
+    #[error("openers: the id \"{id}\" is defined more than once")]
+    DuplicateOpenerId {
+        /// The repeated id.
+        id: String,
+    },
+    /// An opener field is empty.
+    #[error("openers entry {position}: {field} must not be empty")]
+    EmptyOpenerField {
+        /// The 1-based position of the opener.
+        position: usize,
+        /// The field name as written in the file.
+        field: &'static str,
+    },
+    /// An argument of an opener holds a placeholder that does not exist.
+    #[error(
+        "openers entry {position}: the argument \"{argument}\" holds the unknown placeholder {placeholder}; only {{host}}, {{port}} and {{url}} exist"
+    )]
+    UnknownOpenerPlaceholder {
+        /// The 1-based position of the opener.
+        position: usize,
+        /// The argument.
+        argument: String,
+        /// The placeholder, braces included.
+        placeholder: String,
+    },
     /// The first reconnection delay exceeds the maximum delay.
     #[error(
         "settings: reconnect_initial_delay_ms ({}) must not exceed reconnect_max_delay_ms ({})",
@@ -227,6 +280,7 @@ pub(crate) fn validate(document: &StoreDocument) -> Result<(), Vec<ValidationErr
         .into_iter()
         .chain(validate_tunnels(document))
         .chain(validate_launchers(&document.x11_launchers))
+        .chain(validate_openers(&document.openers))
         .collect();
     if errors.is_empty() {
         return Ok(());
@@ -530,6 +584,72 @@ fn validate_launchers(launchers: &[X11Launcher]) -> Vec<ValidationError> {
         }
     }
     errors
+}
+
+const OPENER_PLACEHOLDERS: [&str; 3] = ["{host}", "{port}", "{url}"];
+
+/// Checks the rules of a list of openers.
+pub(crate) fn validate_openers(openers: &[Opener]) -> Vec<ValidationError> {
+    let mut errors = Vec::new();
+    for (index, opener) in openers.iter().enumerate() {
+        let position = index + 1;
+        if let Some(problem) = find_opener_id_problem(&opener.id) {
+            errors.push(ValidationError::InvalidOpenerId {
+                position,
+                id: opener.id.clone(),
+                problem,
+            });
+        } else if openers[..index]
+            .iter()
+            .any(|earlier| earlier.id == opener.id)
+        {
+            errors.push(ValidationError::DuplicateOpenerId {
+                id: opener.id.clone(),
+            });
+        }
+        for (field, value) in [("name", &opener.name), ("command", &opener.command)] {
+            if value.trim().is_empty() {
+                errors.push(ValidationError::EmptyOpenerField { position, field });
+            }
+        }
+        errors.extend(opener.args.iter().filter_map(|argument| {
+            find_unknown_placeholder(argument).map(|placeholder| {
+                ValidationError::UnknownOpenerPlaceholder {
+                    position,
+                    argument: argument.clone(),
+                    placeholder,
+                }
+            })
+        }));
+    }
+    errors
+}
+
+fn find_opener_id_problem(id: &str) -> Option<OpenerIdProblem> {
+    if id.is_empty() {
+        return Some(OpenerIdProblem::Empty);
+    }
+    let is_slug = id.chars().all(|character| {
+        character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
+    });
+    if !is_slug {
+        return Some(OpenerIdProblem::InvalidCharacter);
+    }
+    (id == BROWSER_OPENER_ID).then_some(OpenerIdProblem::Reserved)
+}
+
+fn find_unknown_placeholder(argument: &str) -> Option<String> {
+    let mut rest = argument;
+    while let Some(start) = rest.find('{') {
+        let after_start = &rest[start..];
+        let end = after_start.find('}')?;
+        let placeholder = &after_start[..=end];
+        if !OPENER_PLACEHOLDERS.contains(&placeholder) {
+            return Some(placeholder.to_owned());
+        }
+        rest = &after_start[end + 1..];
+    }
+    None
 }
 
 #[cfg(test)]
@@ -836,6 +956,121 @@ mod tests {
             validate(&document_with(vec![tunnel(TunnelKind::Local)])),
             Ok(())
         );
+    }
+
+    fn opener(id: &str) -> Opener {
+        Opener {
+            id: id.to_owned(),
+            name: "Viewer".to_owned(),
+            command: "viewer".to_owned(),
+            args: vec!["{host}:{port}".to_owned(), "{url}".to_owned()],
+            ports: vec![5900],
+        }
+    }
+
+    fn opener_errors(openers: &[Opener]) -> Vec<ValidationError> {
+        validate_openers(openers)
+    }
+
+    #[test]
+    fn should_accept_a_valid_opener() {
+        assert_eq!(opener_errors(&[opener("my-viewer2")]), vec![]);
+    }
+
+    #[test]
+    fn should_reject_an_empty_opener_id() {
+        assert!(matches!(
+            opener_errors(&[opener("")]).as_slice(),
+            [ValidationError::InvalidOpenerId {
+                problem: OpenerIdProblem::Empty,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_an_opener_id_with_uppercase_letters() {
+        assert!(matches!(
+            opener_errors(&[opener("Viewer")]).as_slice(),
+            [ValidationError::InvalidOpenerId {
+                problem: OpenerIdProblem::InvalidCharacter,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_the_reserved_browser_id() {
+        assert!(matches!(
+            opener_errors(&[opener("browser")]).as_slice(),
+            [ValidationError::InvalidOpenerId {
+                problem: OpenerIdProblem::Reserved,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_a_repeated_opener_id() {
+        assert_eq!(
+            opener_errors(&[opener("a"), opener("a")]),
+            vec![ValidationError::DuplicateOpenerId { id: "a".to_owned() }]
+        );
+    }
+
+    #[test]
+    fn should_reject_an_opener_without_a_command() {
+        let blank = Opener {
+            command: " ".to_owned(),
+            ..opener("a")
+        };
+
+        assert_eq!(
+            opener_errors(&[blank]),
+            vec![ValidationError::EmptyOpenerField {
+                position: 1,
+                field: "command"
+            }]
+        );
+    }
+
+    #[test]
+    fn should_reject_an_opener_without_a_name() {
+        let blank = Opener {
+            name: String::new(),
+            ..opener("a")
+        };
+
+        assert_eq!(
+            opener_errors(&[blank]),
+            vec![ValidationError::EmptyOpenerField {
+                position: 1,
+                field: "name"
+            }]
+        );
+    }
+
+    #[test]
+    fn should_reject_an_unknown_placeholder_in_an_argument() {
+        let unknown = Opener {
+            args: vec!["--db={database}".to_owned()],
+            ..opener("a")
+        };
+
+        assert!(matches!(
+            opener_errors(&[unknown]).as_slice(),
+            [ValidationError::UnknownOpenerPlaceholder { placeholder, .. }] if placeholder == "{database}"
+        ));
+    }
+
+    #[test]
+    fn should_accept_a_lone_brace_in_an_argument() {
+        let literal = Opener {
+            args: vec!["a{b".to_owned()],
+            ..opener("a")
+        };
+
+        assert_eq!(opener_errors(&[literal]), vec![]);
     }
 
     fn tunnel_with_tags(tags: &[&str]) -> TunnelDefinition {

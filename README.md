@@ -113,7 +113,8 @@ tunneler up 3333         # start the tunnel listening on port 3333
 tunneler up nova:3333    # same, picking the host when several tunnels share the port
 tunneler up nova -L 5000 # temporary tunnel: never saved, removed by `tunneler down` or when the daemon quits
 tunneler status          # runtime state, one tunnel per line (--json for scripts)
-tunneler open 3333       # open a local tunnel in the browser, starting it when stopped (exit code 8 when it cannot be opened)
+tunneler open 3333       # open a local tunnel in the browser, starting it when stopped (exit code 8 when it cannot be opened, 9 for an unknown --with)
+tunneler open 5999 --with browser  # force the browser; by default a tunnel opens with its saved application or the one suggested for its target port (VNC, RDP...); exit code 9 for an unknown id
 tunneler check 3333      # try the target of a running tunnel once (exit code 7 when it does not answer)
 tunneler down --all
 tunneler quit            # asks for confirmation when tunnels are active (--yes to skip)

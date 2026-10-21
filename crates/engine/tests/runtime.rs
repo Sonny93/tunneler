@@ -9,10 +9,10 @@ use std::time::{Duration, SystemTime};
 
 use engine::{
     AppState, Clock, ConnectTimeouts, Engine, EngineDependencies, EngineError, EngineEvent,
-    EngineOptions, FailureReason, HostKeyDecision, LogLevel, NewTunnel, OpenHost, OpenOptions,
-    OpenUrlError, PortOwner, PortScanner, Settings, Store, StoreError, SystemClock,
-    SystemPortScanner, SystemScan, TagProblem, TargetHealth, TunnelId, TunnelKind, TunnelState,
-    UnmanagedProcess,
+    EngineOptions, FailureReason, HostKeyDecision, LaunchCommand, LogLevel, NewTunnel, OpenHost,
+    OpenOptions, OpenPlan, OpenUrlError, Opener, PortOwner, PortScanner, Settings, Store,
+    StoreError, SystemClock, SystemPortScanner, SystemScan, TagProblem, TargetHealth, TunnelId,
+    TunnelKind, TunnelState, UnmanagedProcess,
 };
 use fast_socks5::client::{Config as SocksConfig, Socks5Stream};
 use fast_socks5::{ReplyError, SocksError};
@@ -254,6 +254,7 @@ impl HarnessBuilder {
                 x11_environment: Arc::new(FakeX11Environment::default()),
                 state_store: state_store.clone(),
                 keyring: None,
+                detected_openers: Vec::new(),
             },
             EngineOptions {
                 metrics_event_interval: TICK_INTERVAL,
@@ -2331,6 +2332,7 @@ async fn should_save_the_generated_ids_when_the_engine_starts_on_a_file_without_
         x11_environment: Arc::new(FakeX11Environment::default()),
         state_store: Arc::new(MemoryStateStore::default()),
         keyring: None,
+        detected_openers: Vec::new(),
     })
     .unwrap();
 
@@ -3524,11 +3526,144 @@ async fn should_fail_when_the_tunnel_to_wait_for_is_unknown() {
     assert!(matches!(error, EngineError::UnknownTunnel(_)), "{error:?}");
 }
 
+fn browser_url_of(harness: &Harness) -> String {
+    match harness.engine.open_plan(harness.id("alpha"), None).unwrap() {
+        OpenPlan::Browser { url } => url,
+        other @ OpenPlan::Program { .. } => panic!("expected the browser, got {other:?}"),
+    }
+}
+
+fn viewer(ports: &[u16]) -> Opener {
+    Opener {
+        id: "viewer".to_owned(),
+        name: "Viewer".to_owned(),
+        command: "viewer".to_owned(),
+        args: vec!["{host}:{port}".to_owned()],
+        ports: ports.to_vec(),
+    }
+}
+
+#[tokio::test]
+async fn should_plan_the_opener_of_the_user_when_it_matches_the_target_port() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let target_port = harness.echo.port;
+    harness
+        .engine
+        .update_openers(vec![viewer(&[target_port])])
+        .await
+        .unwrap();
+
+    let plan = harness.engine.open_plan(harness.id("alpha"), None).unwrap();
+
+    assert_eq!(
+        plan,
+        OpenPlan::Program {
+            name: "Viewer".to_owned(),
+            command: LaunchCommand {
+                program: "viewer".to_owned(),
+                args: vec![format!("localhost:{}", harness.port("alpha"))],
+            },
+        }
+    );
+}
+
+#[tokio::test]
+async fn should_plan_the_browser_when_it_is_asked_for_explicitly() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let target_port = harness.echo.port;
+    harness
+        .engine
+        .update_openers(vec![viewer(&[target_port])])
+        .await
+        .unwrap();
+
+    let plan = harness
+        .engine
+        .open_plan(harness.id("alpha"), Some("browser"))
+        .unwrap();
+
+    assert!(matches!(plan, OpenPlan::Browser { .. }), "{plan:?}");
+}
+
+#[tokio::test]
+async fn should_list_the_available_ids_when_the_opener_is_unknown() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness
+        .engine
+        .update_openers(vec![viewer(&[])])
+        .await
+        .unwrap();
+
+    let error = harness
+        .engine
+        .open_plan(harness.id("alpha"), Some("ghost"))
+        .unwrap_err();
+
+    assert!(
+        matches!(&error, EngineError::UnknownOpener { available, .. } if available == &["browser", "viewer"]),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn should_save_the_openers_to_the_store_file() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    harness
+        .engine
+        .update_openers(vec![viewer(&[5900])])
+        .await
+        .unwrap();
+
+    let text = std::fs::read_to_string(harness.store_path()).unwrap();
+    assert!(text.contains("[[openers]]"), "{text}");
+}
+
+#[tokio::test]
+async fn should_refuse_openers_that_break_a_rule_and_keep_the_previous_ones() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let invalid = Opener {
+        id: "browser".to_owned(),
+        ..viewer(&[])
+    };
+
+    let error = harness
+        .engine
+        .update_openers(vec![invalid])
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(error, EngineError::Store(StoreError::Validation(_))),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn should_list_detected_presets_after_the_openers_of_the_user_in_the_snapshot() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness
+        .engine
+        .update_openers(vec![viewer(&[])])
+        .await
+        .unwrap();
+
+    let ids: Vec<String> = harness
+        .engine
+        .snapshot()
+        .openers
+        .into_iter()
+        .map(|available| available.opener.id)
+        .collect();
+
+    assert_eq!(ids, ["viewer"]);
+}
+
 #[tokio::test]
 async fn should_build_the_browser_url_of_a_local_tunnel() {
     let harness = HarnessBuilder::new(&["alpha"]).start().await;
 
-    let url = harness.engine.open_url(harness.id("alpha")).unwrap();
+    let url = browser_url_of(&harness);
 
     assert_eq!(url, format!("http://localhost:{}/", harness.port("alpha")));
 }
@@ -3537,7 +3672,10 @@ async fn should_build_the_browser_url_of_a_local_tunnel() {
 async fn should_refuse_the_browser_url_of_a_remote_tunnel() {
     let harness = HarnessBuilder::new(&["alpha"]).kind("remote").start().await;
 
-    let error = harness.engine.open_url(harness.id("alpha")).unwrap_err();
+    let error = harness
+        .engine
+        .open_plan(harness.id("alpha"), None)
+        .unwrap_err();
 
     assert!(
         matches!(
@@ -3559,7 +3697,7 @@ async fn should_follow_the_open_host_setting_when_building_the_browser_url() {
     };
     harness.engine.update_settings(settings).await.unwrap();
 
-    let url = harness.engine.open_url(harness.id("alpha")).unwrap();
+    let url = browser_url_of(&harness);
 
     assert_eq!(url, format!("http://127.0.0.1:{}/", harness.port("alpha")));
 }

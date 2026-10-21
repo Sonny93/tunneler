@@ -8,7 +8,8 @@ use std::time::Instant;
 
 use ipc::ClientError;
 use ipc::protocol::{
-    ClientKind, ErrorCode, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, TargetHealthDto,
+    AvailableOpenerDto, ClientKind, ErrorCode, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES,
+    OpenerSourceDto, OpenerSpecDto, TargetHealthDto,
 };
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -308,9 +309,42 @@ async fn should_return_the_opened_target_when_opening_a_tunnel() {
     let daemon = TestDaemon::start();
     let client = daemon.connect(ClientKind::Cli, false).await;
 
-    let target = client.open_tunnel("alpha").await.unwrap();
+    let target = client.open_tunnel("alpha", None).await.unwrap();
 
     assert_eq!(target, "http://localhost/alpha");
+}
+
+#[tokio::test]
+async fn should_send_the_requested_opener_when_opening_a_tunnel() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Cli, false).await;
+
+    let target = client.open_tunnel("alpha", Some("viewer")).await.unwrap();
+
+    assert_eq!(target, "viewer/alpha");
+}
+
+#[tokio::test]
+async fn should_return_the_openers_when_updating_them() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+    let spec = OpenerSpecDto {
+        id: "viewer".to_owned(),
+        name: "Viewer".to_owned(),
+        command: "viewer".to_owned(),
+        args: vec!["{host}".to_owned()],
+        ports: vec![5900],
+    };
+
+    let openers = client.update_openers(vec![spec.clone()]).await.unwrap();
+
+    assert_eq!(
+        openers,
+        vec![AvailableOpenerDto {
+            spec,
+            source: OpenerSourceDto::User
+        }]
+    );
 }
 
 #[tokio::test]
@@ -318,7 +352,10 @@ async fn should_fail_with_not_found_when_opening_an_unknown_tunnel() {
     let daemon = TestDaemon::start();
     let client = daemon.connect(ClientKind::Cli, false).await;
 
-    let error = client.open_tunnel(MISSING_TUNNEL_ID).await.unwrap_err();
+    let error = client
+        .open_tunnel(MISSING_TUNNEL_ID, None)
+        .await
+        .unwrap_err();
 
     assert!(matches!(
         error,

@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildSettings, buildTunnel } from '#/testing/factories';
+import { buildOpener, buildTunnel } from '#/testing/factories';
 import { buildPaletteCommands } from '#/palette/build_palette_commands';
-
-const SETTINGS = buildSettings();
 
 const labelsOf = (commands: ReturnType<typeof buildPaletteCommands>) =>
 	commands.map((command) => command.label);
 
 const build = (
 	tunnels: Parameters<typeof buildPaletteCommands>[0]['tunnels'] = [],
-	hosts: readonly string[] = []
-) => buildPaletteCommands({ tunnels, hosts, settings: SETTINGS });
+	hosts: readonly string[] = [],
+	openers: Parameters<typeof buildPaletteCommands>[0]['openers'] = []
+) => buildPaletteCommands({ tunnels, hosts, openers });
 
 describe('buildPaletteCommands', () => {
 	it('should always offer the general commands first', () => {
@@ -65,6 +64,38 @@ describe('buildPaletteCommands', () => {
 				action: { kind: 'openTunnel', id: 'tunnel-1' },
 			})
 		);
+	});
+
+	it('should offer the applications as other ways to open a local tunnel', () => {
+		const commands = build([buildTunnel()], [], [buildOpener()]);
+
+		expect(commands).toContainEqual(
+			expect.objectContaining({
+				label: 'Ouvrir 3333 → nova:3333 avec Remmina (VNC)',
+				action: { kind: 'openTunnel', id: 'tunnel-1', opener: 'remmina-vnc' },
+			})
+		);
+	});
+
+	it('should open with the default application and offer the browser as an alternative', () => {
+		const commands = build(
+			[
+				buildTunnel({
+					defaultOpener: { id: 'remmina-vnc', name: 'Remmina (VNC)' },
+				}),
+			],
+			[],
+			[buildOpener()]
+		);
+
+		expect(
+			commands
+				.filter(({ action }) => action.kind === 'openTunnel')
+				.map(({ label }) => label)
+		).toEqual([
+			'Ouvrir 3333 → nova:3333 avec Remmina (VNC)',
+			'Ouvrir 3333 → nova:3333 dans le navigateur',
+		]);
 	});
 
 	it('should not offer to open a remote tunnel', () => {

@@ -13,6 +13,7 @@ function getEditedErrorFields(
 				: [action.field];
 		case 'openSchemeChanged':
 		case 'openHostChanged':
+		case 'openWithChanged':
 			return [];
 		case 'kindChanged':
 		case 'targetPortChanged':

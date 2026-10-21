@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildSettings } from '#/testing/factories';
+import { buildOpener, buildSettings } from '#/testing/factories';
 import { buildOpenPreview } from '#/tunnel_form/build_open_preview';
 import { EMPTY_TUNNEL_FORM_VALUES } from '#/tunnel_form/tunnel_form_values';
 
@@ -75,5 +75,41 @@ describe('buildOpenPreview', () => {
 		).toBe(
 			"L'adresse d'écoute est un nom d'hôte : le tunnel ne peut pas être ouvert."
 		);
+	});
+
+	it('should preview the command line of the application chosen', () => {
+		expect(
+			buildOpenPreview({ ...values, openWith: 'remmina-vnc' }, settings, [
+				buildOpener(),
+			])
+		).toBe('Lance remmina -c vnc://localhost:3333');
+	});
+
+	it('should preview the suggested application when the choice is automatic', () => {
+		expect(
+			buildOpenPreview(values, settings, [buildOpener({ ports: [3333] })])
+		).toBe('Lance remmina -c vnc://localhost:3333');
+	});
+
+	it('should preview the url when the browser is chosen although an application matches', () => {
+		expect(
+			buildOpenPreview({ ...values, openWith: 'browser' }, settings, [
+				buildOpener({ ports: [3333] }),
+			])
+		).toBe('Ouvre http://localhost:3333/');
+	});
+
+	it('should preview the url when the chosen application is not available', () => {
+		expect(
+			buildOpenPreview({ ...values, openWith: 'gone' }, settings, [])
+		).toBe('Ouvre http://localhost:3333/');
+	});
+
+	it('should quote an argument that holds spaces', () => {
+		expect(
+			buildOpenPreview({ ...values, openWith: 'x' }, settings, [
+				buildOpener({ id: 'x', args: ['--title', 'my {host}'] }),
+			])
+		).toBe('Lance remmina --title "my localhost"');
 	});
 });

@@ -3,6 +3,8 @@ import type {
 	HostKeyDecisionDto,
 	ImportPreviewDto,
 	DeleteTagResultDto,
+	AvailableOpenerDto,
+	OpenerSpecDto,
 	ForgetSecretsResultDto,
 	LogEntryDto,
 	OpenTunnelResultDto,
@@ -52,8 +54,12 @@ export type DaemonGateway = {
 	resolveHost(host: string): Promise<ResolvedHostDto>;
 	importSshConfig(): Promise<ImportPreviewDto>;
 	importScript(text: string): Promise<ImportPreviewDto>;
-	/** The daemon builds the URL, starts a stopped tunnel and waits until it is ready, then opens it. */
-	openTunnel(id: string): Promise<OpenTunnelResultDto>;
+	/** The daemon builds the URL, starts a stopped tunnel and waits until it is ready, then opens it with `opener` (`browser` or an id) or the default action. */
+	openTunnel(id: string, opener?: string): Promise<OpenTunnelResultDto>;
+	/** Replaces the openers added by the user; resolves to every available opener. */
+	updateOpeners(
+		openers: readonly OpenerSpecDto[]
+	): Promise<readonly AvailableOpenerDto[]>;
 	adoptExternal(id: string): Promise<readonly string[]>;
 	killExternal(pid: number): Promise<void>;
 	ignoreExternal(pid: number): Promise<void>;

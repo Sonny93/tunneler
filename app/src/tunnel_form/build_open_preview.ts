@@ -1,6 +1,12 @@
 import { parsePort } from '#/tunnel_form/parse_port';
-import type { OpenHostDto, SettingsDto } from '#/daemon/protocol';
+import { BROWSER_OPENER_ID } from '#/openers/open_choices';
+import { suggestOpener } from '#/tunnel_form/suggest_opener';
 import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
+import type {
+	AvailableOpenerDto,
+	OpenHostDto,
+	SettingsDto,
+} from '#/daemon/protocol';
 
 const LOCALHOST = 'localhost';
 const IPV4_LOOPBACK = '127.0.0.1';
@@ -20,6 +26,8 @@ const IPV6_PATTERN = /^[0-9a-f:.]+$/iu;
 const MAX_IPV4_OCTET = 255;
 const HOSTNAME_MESSAGE =
 	"L'adresse d'écoute est un nom d'hôte : le tunnel ne peut pas être ouvert.";
+
+type OpenAddress = { host: string; port: number; url: string };
 
 function isIpv4(address: string): boolean {
 	return (
@@ -46,14 +54,10 @@ function pickHost(address: string, preference: OpenHostDto): string | null {
 	return null;
 }
 
-/**
- * The sentence previewing where the tunnel opens, or `null` while the listen
- * port is invalid. Display only: the daemon builds the real URL.
- */
-export function buildOpenPreview(
+function buildAddress(
 	values: Readonly<TunnelFormValues>,
 	settings: Readonly<SettingsDto> | null
-): string | null {
+): OpenAddress | null | 'hostname' {
 	const port = parsePort(values.listenPort);
 	if (port === null) return null;
 	const address = (
@@ -65,7 +69,51 @@ export function buildOpenPreview(
 			? (settings?.openHost ?? 'localhost')
 			: values.openHost;
 	const host = pickHost(address, preference);
-	if (host === null) return HOSTNAME_MESSAGE;
+	if (host === null) return 'hostname';
 	const path = values.openPath.trim() || DEFAULT_PATH;
-	return `Ouvre ${values.openScheme}://${host}:${port}${path}`;
+	return { host, port, url: `${values.openScheme}://${host}:${port}${path}` };
+}
+
+function quoteForDisplay(text: string): string {
+	return /\s/u.test(text) ? `"${text}"` : text;
+}
+
+function describeCommand(
+	opener: Readonly<AvailableOpenerDto>,
+	address: Readonly<OpenAddress>
+): string {
+	const args = opener.args.map((argument) =>
+		argument
+			.replaceAll('{host}', address.host)
+			.replaceAll('{port}', String(address.port))
+			.replaceAll('{url}', address.url)
+	);
+	return [opener.command, ...args].map(quoteForDisplay).join(' ');
+}
+
+function findChosenOpener(
+	values: Readonly<TunnelFormValues>,
+	openers: readonly Readonly<AvailableOpenerDto>[]
+): Readonly<AvailableOpenerDto> | null {
+	if (values.openWith === BROWSER_OPENER_ID) return null;
+	if (values.openWith === '') return suggestOpener(values, openers);
+	return openers.find(({ id }) => id === values.openWith) ?? null;
+}
+
+/**
+ * The sentence previewing what "Ouvrir" does: the URL for the browser, the
+ * command line for an application. `null` while the listen port is invalid.
+ * Display only: the daemon builds the real URL and command.
+ */
+export function buildOpenPreview(
+	values: Readonly<TunnelFormValues>,
+	settings: Readonly<SettingsDto> | null,
+	openers: readonly Readonly<AvailableOpenerDto>[] = []
+): string | null {
+	const address = buildAddress(values, settings);
+	if (address === null) return null;
+	if (address === 'hostname') return HOSTNAME_MESSAGE;
+	const opener = findChosenOpener(values, openers);
+	if (opener === null) return `Ouvre ${address.url}`;
+	return `Lance ${describeCommand(opener, address)}`;
 }

@@ -33,6 +33,9 @@ pub enum ErrorCode {
     /// A tunnel could not be opened: it did not become ready or the program
     /// that opens it could not be launched.
     OpenFailed,
+    /// The opener does not exist or is not available on this machine; `data`
+    /// lists the ids that can be used.
+    UnknownOpener,
     /// The daemon failed unexpectedly.
     Internal,
 }
@@ -53,6 +56,7 @@ impl ErrorCode {
             Self::InvalidState => "invalid_state",
             Self::KillFailed => "kill_failed",
             Self::OpenFailed => "open_failed",
+            Self::UnknownOpener => "unknown_opener",
             Self::Internal => "internal",
         }
     }
@@ -176,6 +180,11 @@ impl IpcError {
         Self::new(ErrorCode::OpenFailed, message)
     }
 
+    /// The opener is unknown or unavailable; `data` lists the usable ids.
+    pub fn unknown_opener(message: impl Into<String>, available: &[String]) -> Self {
+        Self::new(ErrorCode::UnknownOpener, message).with_data(json!(available))
+    }
+
     /// The daemon failed unexpectedly.
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::Internal, message)
@@ -186,7 +195,7 @@ impl IpcError {
 mod tests {
     use super::*;
 
-    const ALL_CODES: [ErrorCode; 13] = [
+    const ALL_CODES: [ErrorCode; 14] = [
         ErrorCode::InvalidRequest,
         ErrorCode::UnknownMethod,
         ErrorCode::HandshakeRequired,
@@ -199,6 +208,7 @@ mod tests {
         ErrorCode::InvalidState,
         ErrorCode::KillFailed,
         ErrorCode::OpenFailed,
+        ErrorCode::UnknownOpener,
         ErrorCode::Internal,
     ];
 

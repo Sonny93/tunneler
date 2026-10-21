@@ -114,6 +114,7 @@ impl HarnessBuilder {
             x11_environment: Arc::new(FakeX11Environment::default()),
             state_store: state_store.clone(),
             keyring: Some(keyring.clone()),
+            detected_openers: Vec::new(),
         })
         .unwrap();
         let events = engine.subscribe();

@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { Button } from '@minimalstuff/ui';
+import { Button, Menu, MenuItem } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
@@ -23,7 +23,8 @@ export function TunnelActionsSection({
 	const restartReasonId = useId();
 	const openTunnelEditor = useUiStore((state) => state.openTunnelEditor);
 	const { restart, stopAndRemove, persist } = useTunnelActions(tunnel);
-	const { isOpenable, open } = useOpenTunnel(tunnel);
+	const { isOpenable, label, alternatives, open, openWith } =
+		useOpenTunnel(tunnel);
 	const isRunning = isTunnelRunning(tunnel.state);
 	const { isChecking, check } = useCheckTarget(tunnel);
 	const hasTarget = tunnel.kind !== 'dynamic';
@@ -47,8 +48,27 @@ export function TunnelActionsSection({
 								color="neutral"
 								onClick={open}
 							>
-								Ouvrir dans le navigateur
+								{label}
 							</Button>
+						)}
+						{isOpenable && alternatives.length > 0 && (
+							<Menu
+								trigger={
+									<Button
+										startIcon="i-mdi-open-in-app"
+										variant="outline"
+										color="neutral"
+									>
+										Ouvrir avec…
+									</Button>
+								}
+							>
+								{alternatives.map((choice) => (
+									<MenuItem key={choice.id} onClick={() => openWith(choice.id)}>
+										{choice.name}
+									</MenuItem>
+								))}
+							</Menu>
 						)}
 						<Button
 							startIcon="i-mdi-stethoscope"

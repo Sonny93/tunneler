@@ -17,6 +17,7 @@ export type TunnelFormAction =
 	| { type: 'kindChanged'; kind: TunnelKindDto }
 	| { type: 'openSchemeChanged'; scheme: OpenSchemeDto }
 	| { type: 'openHostChanged'; host: OpenHostChoice }
+	| { type: 'openWithChanged'; opener: string }
 	| { type: 'targetPortChanged'; value: string }
 	| { type: 'targetPortRelinked' };
 
@@ -39,6 +40,8 @@ export function tunnelFormReducer(
 			return { ...values, openScheme: action.scheme };
 		case 'openHostChanged':
 			return { ...values, openHost: action.host };
+		case 'openWithChanged':
+			return { ...values, openWith: action.opener };
 		case 'targetPortChanged':
 			return {
 				...values,

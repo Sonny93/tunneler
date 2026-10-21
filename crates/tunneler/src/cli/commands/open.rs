@@ -19,7 +19,7 @@ pub async fn open(context: &Context, arguments: &OpenArguments) -> Result<(), Cl
     let definition = find_tunnel(&arguments.target, &snapshot)?;
     let label = describe_route(definition, &snapshot.settings, context.style);
     let target = client
-        .open_tunnel(&definition.id)
+        .open_tunnel(&definition.id, arguments.with.as_deref())
         .await
         .map_err(|error| open_error(error, label))?;
     println!("Opening {target}");
@@ -41,6 +41,11 @@ fn open_error(error: ClientError, label: String) -> CliError {
             message,
             ..
         } => CliError::OpenFailed { label, message },
+        ClientError::Remote {
+            code: ErrorCode::UnknownOpener,
+            message,
+            ..
+        } => CliError::UnknownOpener { message },
         other => CliError::Client(other),
     }
 }
@@ -69,6 +74,13 @@ mod tests {
         let error = open_error(remote(ErrorCode::OpenFailed), "route".to_owned());
 
         assert!(matches!(error, CliError::OpenFailed { message, .. } if message == "boom"));
+    }
+
+    #[test]
+    fn should_report_an_unknown_opener_with_the_daemon_message() {
+        let error = open_error(remote(ErrorCode::UnknownOpener), "route".to_owned());
+
+        assert!(matches!(error, CliError::UnknownOpener { message } if message == "boom"));
     }
 
     #[test]

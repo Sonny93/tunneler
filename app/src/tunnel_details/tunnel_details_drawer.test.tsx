@@ -10,7 +10,12 @@ import { useToastStore } from '#/shared/toasts/toast_store';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { TunnelDetailsDrawer } from '#/tunnel_details/tunnel_details_drawer';
-import { buildMetrics, buildSettings, buildTunnel } from '#/testing/factories';
+import {
+	buildMetrics,
+	buildOpener,
+	buildSettings,
+	buildTunnel,
+} from '#/testing/factories';
 
 const LOG_NAME = 'Journal du tunnel 3333 vers nova:3333';
 
@@ -124,7 +129,7 @@ describe('TunnelDetailsDrawer', () => {
 			screen.getByRole('button', { name: 'Ouvrir dans le navigateur' })
 		);
 
-		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1');
+		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1', undefined);
 	});
 
 	it('should open a stopped local forward too, since the daemon starts it', async () => {
@@ -135,7 +140,7 @@ describe('TunnelDetailsDrawer', () => {
 			screen.getByRole('button', { name: 'Ouvrir dans le navigateur' })
 		);
 
-		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1');
+		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1', undefined);
 	});
 
 	it('should report an error toast when opening fails', async () => {
@@ -440,5 +445,57 @@ describe('TunnelDetailsDrawer for a temporary tunnel', () => {
 		renderDrawer();
 
 		expect(await axe(document.body)).toHaveNoViolations();
+	});
+
+	describe('with applications', () => {
+		const vnc = buildOpener();
+
+		it('should word the primary button after the default application', () => {
+			useDaemonStore.setState({ openers: [vnc] });
+			setUp({ defaultOpener: { id: 'remmina-vnc', name: 'Remmina (VNC)' } });
+			renderDrawer();
+
+			expect(
+				screen.getByRole('button', { name: 'Ouvrir avec Remmina (VNC)' })
+			).toBeInTheDocument();
+		});
+
+		it('should offer the other choices in an "Ouvrir avec…" menu', async () => {
+			useDaemonStore.setState({ openers: [vnc] });
+			setUp();
+			const { gateway } = renderDrawer();
+
+			await userEvent.click(
+				screen.getByRole('button', { name: /Ouvrir avec…/ })
+			);
+			await userEvent.click(
+				screen.getByRole('menuitem', { name: 'Remmina (VNC)' })
+			);
+
+			expect(gateway.openTunnel).toHaveBeenCalledWith(
+				'tunnel-1',
+				'remmina-vnc'
+			);
+		});
+
+		it('should hide the menu when there is no application', () => {
+			setUp();
+			renderDrawer();
+
+			expect(
+				screen.queryByRole('button', { name: /Ouvrir avec…/ })
+			).not.toBeInTheDocument();
+		});
+
+		it('should have no axe violations with the menu open', async () => {
+			useDaemonStore.setState({ openers: [vnc] });
+			setUp();
+			renderDrawer();
+			await userEvent.click(
+				screen.getByRole('button', { name: /Ouvrir avec…/ })
+			);
+
+			expect(await axe(screen.getByRole('menu'))).toHaveNoViolations();
+		});
 	});
 });

@@ -10,7 +10,7 @@ export type PaletteAction =
 	| { kind: 'stopTunnel'; tunnelId: string }
 	| { kind: 'showTunnelDetails'; tunnelId: string }
 	| { kind: 'editTunnel'; tunnelId: string }
-	| { kind: 'openTunnel'; id: string }
+	| { kind: 'openTunnel'; id: string; opener?: string }
 	| { kind: 'startTag'; tag: string }
 	| { kind: 'stopTag'; tag: string }
 	| { kind: 'renameTag'; tag: string }

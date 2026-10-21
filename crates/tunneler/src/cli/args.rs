@@ -67,7 +67,11 @@ Examples:
   tunneler open 3333            Open the tunnel listening on port 3333 in the browser
   tunneler open nova:3333       The same, picking the tunnel by host and port
   tunneler open adonis          The same, by a tag that only one tunnel carries
+  tunneler open 5999 --with browser   Open a VNC tunnel in the browser instead of a viewer
 
+A tunnel opens with its saved application (`open.with`), else the application
+suggested for its target port (Remmina, a VNC or RDP viewer...), else the
+browser. `--with` overrides it; an unknown id lists the available ones.
 A stopped tunnel is started first. The address follows the tunnel's `open`
 options (scheme, path, host) and the `open_host` setting.";
 
@@ -250,6 +254,9 @@ pub struct OpenArguments {
     /// The port, host:port pair or tag of the tunnel to open
     #[arg(value_name = "TARGET")]
     pub target: String,
+    /// Open with `browser` or the id of an application instead of the default
+    #[arg(long, value_name = "APP")]
+    pub with: Option<String>,
 }
 
 /// The arguments of `check`.

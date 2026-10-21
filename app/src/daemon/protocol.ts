@@ -19,6 +19,8 @@ export type OpenOptionsDto = {
 	scheme?: OpenSchemeDto;
 	path?: string;
 	host?: OpenHostDto;
+	/** `browser` or the id of an opener; absent means the suggestion for the target port. */
+	with?: string;
 };
 
 export type TunnelSpecDto = {
@@ -71,12 +73,28 @@ export type MetricsDto = {
 	lastActivity?: EpochMillis;
 };
 
+export type OpenerSpecDto = {
+	id: string;
+	name: string;
+	command: string;
+	args: string[];
+	ports: number[];
+};
+
+export type OpenerSourceDto = 'detected' | 'user';
+
+export type AvailableOpenerDto = OpenerSpecDto & { source: OpenerSourceDto };
+
+/** What a tunnel opens with when nothing is asked: `browser` or an opener id. */
+export type DefaultOpenerDto = { id: string; name: string };
+
 export type TunnelDto = TunnelDefinitionDto & {
 	state: TunnelStateDto;
 	health: TargetHealthDto;
 	metrics: MetricsDto;
 	/** Lives only in the daemon: never saved, and stopping it removes it. */
 	isTemporary: boolean;
+	defaultOpener: DefaultOpenerDto;
 };
 
 export type LogLevelDto = 'info' | 'warn' | 'error';
@@ -172,6 +190,7 @@ export type SnapshotDto = {
 	externals: ExternalProcessDto[];
 	x11Anchors: X11AnchorDto[];
 	x11Launchers: X11LauncherDto[];
+	openers: AvailableOpenerDto[];
 	settings: SettingsDto;
 	tray: TrayStatusDto;
 };

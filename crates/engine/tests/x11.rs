@@ -127,6 +127,7 @@ impl HarnessBuilder {
                 x11_environment: Arc::new(environment),
                 state_store: Arc::new(support::MemoryStateStore::default()),
                 keyring: None,
+                detected_openers: Vec::new(),
             },
             EngineOptions::default(),
         )

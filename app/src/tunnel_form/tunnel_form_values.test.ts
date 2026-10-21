@@ -72,4 +72,11 @@ describe('toTunnelFormValues', () => {
 			'',
 		]);
 	});
+
+	it('should show the saved application, or automatic when none', () => {
+		expect([
+			toTunnelFormValues(buildTunnel({ open: { with: 'freerdp' } })).openWith,
+			toTunnelFormValues(buildTunnel()).openWith,
+		]).toEqual(['freerdp', '']);
+	});
 });

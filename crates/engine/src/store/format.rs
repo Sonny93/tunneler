@@ -13,8 +13,8 @@ use super::document_update;
 use super::error::{SourceLocation, StoreError};
 use super::migration::{CURRENT_VERSION, migrate};
 use super::model::{
-    HostOverrides, OpenHost, OpenOptions, OpenScheme, Settings, StoreDocument, TunnelDefinition,
-    TunnelId, TunnelKind, X11Launcher,
+    HostOverrides, OpenHost, OpenOptions, OpenScheme, Opener, Settings, StoreDocument,
+    TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
 };
 use super::validation::validate;
 
@@ -49,6 +49,20 @@ struct StoredDocument {
     hosts: BTreeMap<String, StoredHostOverrides>,
     #[serde(default)]
     x11_launchers: Vec<StoredLauncher>,
+    #[serde(default)]
+    openers: Vec<StoredOpener>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredOpener {
+    id: String,
+    name: String,
+    command: String,
+    #[serde(default)]
+    args: Vec<String>,
+    #[serde(default)]
+    ports: Vec<u16>,
 }
 
 #[derive(Default, Deserialize)]
@@ -93,6 +107,7 @@ struct StoredOpen {
     scheme: Option<StoredOpenScheme>,
     path: Option<String>,
     host: Option<StoredOpenHost>,
+    with: Option<String>,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -220,6 +235,11 @@ impl StoredDocument {
                 .into_iter()
                 .map(StoredLauncher::into_launcher)
                 .collect(),
+            openers: self
+                .openers
+                .into_iter()
+                .map(StoredOpener::into_opener)
+                .collect(),
         };
         LoadOutcome {
             document,
@@ -287,6 +307,7 @@ impl StoredOpen {
             scheme: self.scheme.map(OpenScheme::from),
             path: self.path,
             host: self.host.map(OpenHost::from),
+            with: self.with,
         }
     }
 }
@@ -321,6 +342,18 @@ impl StoredHostOverrides {
     fn into_overrides(self) -> HostOverrides {
         HostOverrides {
             x11_display: self.x11_display.filter(|display| !display.is_empty()),
+        }
+    }
+}
+
+impl StoredOpener {
+    fn into_opener(self) -> Opener {
+        Opener {
+            id: self.id,
+            name: self.name,
+            command: self.command,
+            args: self.args,
+            ports: self.ports,
         }
     }
 }
@@ -724,8 +757,9 @@ mod tests {
 
     #[test]
     fn should_read_every_open_field_when_the_inline_table_is_complete() {
-        let options =
-            open_options_of("open = { scheme = \"https\", path = \"/admin\", host = \"ip\" }");
+        let options = open_options_of(
+            "open = { scheme = \"https\", path = \"/admin\", host = \"ip\", with = \"remmina-vnc\" }",
+        );
 
         assert_eq!(
             options.unwrap(),
@@ -733,6 +767,7 @@ mod tests {
                 scheme: Some(OpenScheme::Https),
                 path: Some("/admin".to_owned()),
                 host: Some(OpenHost::Ip),
+                with: Some("remmina-vnc".to_owned()),
             }
         );
     }
@@ -803,6 +838,7 @@ mod tests {
                     scheme: Some(OpenScheme::Https),
                     path: Some("/admin".to_owned()),
                     host: None,
+                    with: Some("browser".to_owned()),
                 },
                 ..tunnel_on(TunnelKind::Local, 3333)
             }],
@@ -812,6 +848,95 @@ mod tests {
         let rendered = render(None, &document);
 
         assert_eq!(parse(&rendered).unwrap().document, document);
+    }
+
+    #[test]
+    fn should_read_the_openers_of_the_user() {
+        let outcome = parse(concat!(
+            "[[openers]]\nid = \"dbeaver\"\nname = \"DBeaver\"\ncommand = \"dbeaver\"\n",
+            "args = [\"-con\", \"host={host}\"]\nports = [5432, 3306]\n",
+            "[[openers]]\nid = \"bare\"\nname = \"Bare\"\ncommand = \"bare\"\n",
+        ))
+        .unwrap();
+
+        assert_eq!(
+            outcome.document.openers,
+            vec![
+                Opener {
+                    id: "dbeaver".to_owned(),
+                    name: "DBeaver".to_owned(),
+                    command: "dbeaver".to_owned(),
+                    args: vec!["-con".to_owned(), "host={host}".to_owned()],
+                    ports: vec![5432, 3306],
+                },
+                Opener {
+                    id: "bare".to_owned(),
+                    name: "Bare".to_owned(),
+                    command: "bare".to_owned(),
+                    args: Vec::new(),
+                    ports: Vec::new(),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn should_reject_an_opener_with_an_unknown_placeholder_when_loading() {
+        let outcome =
+            parse("[[openers]]\nid = \"a\"\nname = \"A\"\ncommand = \"a\"\nargs = [\"{nope}\"]\n");
+
+        assert!(matches!(outcome, Err(StoreError::Validation(_))));
+    }
+
+    #[test]
+    fn should_reject_an_unknown_opener_key() {
+        assert!(matches!(
+            parse("[[openers]]\nid = \"a\"\nname = \"A\"\ncommand = \"a\"\nshell = true\n"),
+            Err(StoreError::Parse { .. })
+        ));
+    }
+
+    #[test]
+    fn should_round_trip_the_openers_through_a_fresh_render() {
+        let document = StoreDocument {
+            openers: vec![Opener {
+                id: "dbeaver".to_owned(),
+                name: "DBeaver".to_owned(),
+                command: "dbeaver".to_owned(),
+                args: vec!["{host}".to_owned()],
+                ports: vec![5432],
+            }],
+            ..StoreDocument::default()
+        };
+
+        let rendered = render(None, &document);
+
+        assert_eq!(parse(&rendered).unwrap().document, document);
+    }
+
+    #[test]
+    fn should_omit_the_ports_key_when_an_opener_has_none() {
+        let document = StoreDocument {
+            openers: vec![Opener {
+                id: "a".to_owned(),
+                name: "A".to_owned(),
+                command: "a".to_owned(),
+                args: Vec::new(),
+                ports: Vec::new(),
+            }],
+            ..StoreDocument::default()
+        };
+
+        assert!(!render(None, &document).contains("ports"));
+    }
+
+    #[test]
+    fn should_remove_the_openers_section_when_the_last_opener_is_deleted() {
+        let text = "[[openers]]\nid = \"a\"\nname = \"A\"\ncommand = \"a\"\n";
+        let mut document = parse(text).unwrap().document;
+        document.openers.clear();
+
+        assert!(!render(Some(text), &document).contains("openers"));
     }
 
     #[test]

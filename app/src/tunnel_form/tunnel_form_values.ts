@@ -22,6 +22,8 @@ export type TunnelFormValues = {
 	openScheme: OpenSchemeDto;
 	openPath: string;
 	openHost: OpenHostChoice;
+	/** Empty means automatic: the suggestion for the target port, else the browser. */
+	openWith: string;
 };
 
 export const EMPTY_TUNNEL_FORM_VALUES: TunnelFormValues = {
@@ -36,6 +38,7 @@ export const EMPTY_TUNNEL_FORM_VALUES: TunnelFormValues = {
 	openScheme: DEFAULT_OPEN_SCHEME,
 	openPath: '',
 	openHost: '',
+	openWith: '',
 };
 
 const TAGS_SEPARATOR = ', ';
@@ -59,5 +62,6 @@ export function toTunnelFormValues(
 		openScheme: definition.open?.scheme ?? DEFAULT_OPEN_SCHEME,
 		openPath: definition.open?.path ?? '',
 		openHost: definition.open?.host ?? '',
+		openWith: definition.open?.with ?? '',
 	};
 }

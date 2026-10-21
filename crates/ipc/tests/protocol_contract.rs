@@ -1,20 +1,21 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use ipc::protocol::{
-    AdoptResult, CheckTargetResult, ClientKind, ConfigInvalidEvent, CredentialAnswer,
-    CredentialRequestDto, CredentialRequestEvent, CredentialResponseParams, DaemonPathsResult,
-    DeleteTagResult, ErrorCode, EventMessage, ExternalForwardDto, ExternalProcessDto,
-    ExternalsChangedEvent, FailureReasonDto, ForgetSecretsResult, Hello, HostKeyAlertReasonDto,
-    HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, HostOptionDto, HostParams,
-    HostsResult, ImportCandidateDto, ImportPreviewDto, ImportScriptParams, ImportWarningDto,
-    IpcError, LogEntryDto, LogLevelDto, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES,
-    MetricsDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenTunnelResult, PROTOCOL_VERSION,
-    PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent, QuitParams, RememberDto,
-    RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload, Secret,
-    ServerFrame, SettingsDto, SnapshotDto, TagParams, TagRenameParams, TargetHealthDto,
-    TemporaryTunnelSpecDto, TrayChangedEvent, TrayStatusDto, TunnelChangedEvent,
-    TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto, TunnelLogEvent,
-    TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, UiClaimResult, X11AnchorDto,
+    AdoptResult, AvailableOpenerDto, CheckTargetResult, ClientKind, ConfigInvalidEvent,
+    CredentialAnswer, CredentialRequestDto, CredentialRequestEvent, CredentialResponseParams,
+    DaemonPathsResult, DefaultOpenerDto, DeleteTagResult, ErrorCode, EventMessage,
+    ExternalForwardDto, ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto,
+    ForgetSecretsResult, Hello, HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent,
+    HostKeyResponseParams, HostOptionDto, HostParams, HostsResult, ImportCandidateDto,
+    ImportPreviewDto, ImportScriptParams, ImportWarningDto, IpcError, LogEntryDto, LogLevelDto,
+    MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, OpenHostDto, OpenOptionsDto,
+    OpenSchemeDto, OpenTunnelParams, OpenTunnelResult, OpenerSourceDto, OpenerSpecDto,
+    OpenersResult, OpenersUpdateParams, PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto,
+    PromptResolvedEvent, QuitParams, RememberDto, RenameTagResult, Request, RequestEnvelope,
+    ResolvedHostDto, ResponsePayload, Secret, ServerFrame, SettingsDto, SnapshotDto, TagParams,
+    TagRenameParams, TargetHealthDto, TemporaryTunnelSpecDto, TrayChangedEvent, TrayStatusDto,
+    TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto,
+    TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, UiClaimResult, X11AnchorDto,
     X11ChangedEvent, X11HostParams, X11LaunchParams, X11LauncherDto, X11StateDto, encode_event,
     encode_response,
 };
@@ -61,6 +62,16 @@ fn settings() -> SettingsDto {
     }
 }
 
+fn opener_spec() -> OpenerSpecDto {
+    OpenerSpecDto {
+        id: "dbeaver".to_owned(),
+        name: "DBeaver".to_owned(),
+        command: "dbeaver".to_owned(),
+        args: vec!["-con".to_owned(), "host={host}".to_owned()],
+        ports: vec![5432],
+    }
+}
+
 fn tunnel() -> TunnelDto {
     TunnelDto {
         definition: definition(),
@@ -80,6 +91,10 @@ fn tunnel() -> TunnelDto {
             last_activity: Some(1_700_000_001_000),
         },
         is_temporary: false,
+        default_opener: DefaultOpenerDto {
+            id: "browser".to_owned(),
+            name: "Browser".to_owned(),
+        },
     }
 }
 
@@ -175,7 +190,13 @@ fn every_request() -> Vec<Request> {
         Request::TunnelStartTemporary(temporary_spec()),
         Request::TunnelPersist(tunnel_id.clone()),
         Request::TunnelCheckTarget(tunnel_id.clone()),
-        Request::TunnelOpen(tunnel_id),
+        Request::TunnelOpen(OpenTunnelParams {
+            id: TUNNEL_ID.to_owned(),
+            with: Some("remmina-vnc".to_owned()),
+        }),
+        Request::OpenersUpdate(OpenersUpdateParams {
+            openers: vec![opener_spec()],
+        }),
         Request::HostsList {},
         Request::HostsResolve(HostParams {
             host: "nova".to_owned(),
@@ -374,13 +395,14 @@ fn should_serialize_the_open_options_of_a_tunnel_when_they_are_set() {
             scheme: Some(OpenSchemeDto::Https),
             path: Some("/admin".to_owned()),
             host: Some(OpenHostDto::Ip),
+            with: Some("remmina-vnc".to_owned()),
         },
         ..spec()
     };
 
     assert_eq!(
         to_json(&spec)["open"],
-        json!({"scheme":"https","path":"/admin","host":"ip"})
+        json!({"scheme":"https","path":"/admin","host":"ip","with":"remmina-vnc"})
     );
 }
 
@@ -412,8 +434,9 @@ fn should_deserialize_settings_without_open_host_as_localhost() {
 fn should_serialize_tunnel_open_as_documented() {
     let envelope = RequestEnvelope {
         id: 5,
-        request: Request::TunnelOpen(TunnelIdParams {
+        request: Request::TunnelOpen(OpenTunnelParams {
             id: TUNNEL_ID.to_owned(),
+            with: None,
         }),
     };
 
@@ -434,6 +457,74 @@ fn should_serialize_an_open_tunnel_response_as_documented() {
     assert_eq!(
         line,
         "{\"id\":6,\"result\":{\"target\":\"http://localhost:3333/\"}}\n"
+    );
+}
+
+#[test]
+fn should_serialize_tunnel_open_with_an_opener_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 5,
+        request: Request::TunnelOpen(OpenTunnelParams {
+            id: TUNNEL_ID.to_owned(),
+            with: Some("remmina-vnc".to_owned()),
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":5,"method":"tunnel.open","params":{"id":"01J9ZK3Q8M5N7R2T4V6X8Y0ABC","with":"remmina-vnc"}}"#
+    );
+}
+
+#[test]
+fn should_serialize_openers_update_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 8,
+        request: Request::OpenersUpdate(OpenersUpdateParams {
+            openers: vec![opener_spec()],
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":8,"method":"openers.update","params":{"openers":[{"id":"dbeaver","name":"DBeaver","command":"dbeaver","args":["-con","host={host}"],"ports":[5432]}]}}"#
+    );
+}
+
+#[test]
+fn should_serialize_an_openers_response_with_the_source_of_each_opener() {
+    let result = OpenersResult {
+        openers: vec![AvailableOpenerDto {
+            spec: opener_spec(),
+            source: OpenerSourceDto::Detected,
+        }],
+    };
+
+    let line = encode_response(Some(9), &Ok(ResponsePayload::Openers(result))).unwrap();
+
+    assert_eq!(
+        line,
+        "{\"id\":9,\"result\":{\"openers\":[{\"id\":\"dbeaver\",\"name\":\"DBeaver\",\"command\":\"dbeaver\",\"args\":[\"-con\",\"host={host}\"],\"ports\":[5432],\"source\":\"detected\"}]}}\n"
+    );
+}
+
+#[test]
+fn should_deserialize_an_opener_without_arguments_or_ports() {
+    let parsed: OpenerSpecDto =
+        serde_json::from_value(json!({"id":"a","name":"A","command":"a"})).unwrap();
+
+    assert_eq!((parsed.args, parsed.ports), (Vec::new(), Vec::new()));
+}
+
+#[test]
+fn should_serialize_the_unknown_opener_error_with_the_available_ids() {
+    let error = IpcError::unknown_opener("no opener", &["browser".to_owned(), "a".to_owned()]);
+
+    let line = encode_response(Some(7), &Err(error)).unwrap();
+
+    assert_eq!(
+        line,
+        "{\"id\":7,\"error\":{\"code\":\"unknown_opener\",\"message\":\"no opener\",\"data\":[\"browser\",\"a\"]}}\n"
     );
 }
 
@@ -1009,6 +1100,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
         externals: Vec::new(),
         x11_anchors: Vec::new(),
         x11_launchers: Vec::new(),
+        openers: Vec::new(),
     };
 
     let line = encode_response(Some(4), &Ok(ResponsePayload::Snapshot(snapshot))).unwrap();
@@ -1019,8 +1111,8 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#"{"id":4,"result":{"tunnels":[{"id":"01J9ZK3Q8M5N7R2T4V6X8Y0ABC","host":"nova","kind":"local","listenPort":3333,"targetHost":"db.internal","targetPort":5432,"tags":["dev"],"#,
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
-            r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isTemporary":false}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost"},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[]}}"#,
+            r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isTemporary":false,"defaultOpener":{"id":"browser","name":"Browser"}}],"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost"},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
             "\n"
         )
     );
@@ -1055,6 +1147,7 @@ fn should_deserialize_a_snapshot_without_tray_as_disabled() {
         externals: Vec::new(),
         x11_anchors: Vec::new(),
         x11_launchers: Vec::new(),
+        openers: Vec::new(),
     });
     snapshot.as_object_mut().unwrap().remove("tray");
 
@@ -1277,6 +1370,7 @@ fn should_serialize_a_snapshot_with_its_externals() {
         externals: vec![external_process()],
         x11_anchors: Vec::new(),
         x11_launchers: Vec::new(),
+        openers: Vec::new(),
     };
 
     assert_eq!(
@@ -1302,6 +1396,7 @@ fn should_deserialize_a_snapshot_without_externals_as_empty() {
         externals: vec![external_process()],
         x11_anchors: Vec::new(),
         x11_launchers: Vec::new(),
+        openers: Vec::new(),
     });
     snapshot.as_object_mut().unwrap().remove("externals");
 
@@ -1385,8 +1480,8 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_thirty_five_methods() {
-    assert_eq!(METHOD_NAMES.len(), 35);
+fn should_list_thirty_six_methods() {
+    assert_eq!(METHOD_NAMES.len(), 36);
 }
 
 #[test]
@@ -1441,6 +1536,7 @@ fn should_serialize_a_snapshot_with_its_x11_anchors_and_launchers() {
         externals: Vec::new(),
         x11_anchors: vec![x11_anchor()],
         x11_launchers: vec![x11_launcher()],
+        openers: Vec::new(),
     };
 
     let value = to_json(&snapshot);
@@ -1463,6 +1559,7 @@ fn should_deserialize_a_snapshot_without_x11_keys_as_empty() {
         externals: Vec::new(),
         x11_anchors: vec![x11_anchor()],
         x11_launchers: vec![x11_launcher()],
+        openers: Vec::new(),
     });
     let fields = snapshot.as_object_mut().unwrap();
     fields.remove("x11Anchors");

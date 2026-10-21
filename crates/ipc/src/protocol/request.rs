@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::protocol::dto::{
-    HostKeyDecisionDto, RememberDto, SettingsDto, TemporaryTunnelSpecDto, TunnelDefinitionDto,
-    TunnelSpecDto,
+    HostKeyDecisionDto, OpenerSpecDto, RememberDto, SettingsDto, TemporaryTunnelSpecDto,
+    TunnelDefinitionDto, TunnelSpecDto,
 };
 use crate::protocol::error::IpcError;
 use crate::protocol::hello::Hello;
@@ -17,7 +17,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 35] = [
+pub const METHOD_NAMES: [&str; 36] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -31,6 +31,7 @@ pub const METHOD_NAMES: [&str; 35] = [
     "tunnel.persist",
     "tunnel.check_target",
     "tunnel.open",
+    "openers.update",
     "hosts.list",
     "hosts.resolve",
     "import.ssh_config",
@@ -61,6 +62,26 @@ pub const METHOD_NAMES: [&str; 35] = [
 pub struct TunnelIdParams {
     /// The tunnel.
     pub id: String,
+}
+
+/// The parameters of `tunnel.open`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenTunnelParams {
+    /// The tunnel.
+    pub id: String,
+    /// `browser` or the id of an opener; absent means the default action of
+    /// the tunnel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub with: Option<String>,
+}
+
+/// The parameters of `openers.update`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenersUpdateParams {
+    /// The new list of openers of the user.
+    pub openers: Vec<OpenerSpecDto>,
 }
 
 /// The parameters of the methods that address one process.
@@ -222,7 +243,12 @@ pub enum Request {
     /// listening on a host name) and `open_failed` when it did not become
     /// ready or the launch failed.
     #[serde(rename = "tunnel.open")]
-    TunnelOpen(TunnelIdParams),
+    TunnelOpen(OpenTunnelParams),
+    /// Replaces the openers of the user with one write of the store, and
+    /// answers with the openers that can be used afterwards; answers
+    /// `validation_failed` when one breaks a rule.
+    #[serde(rename = "openers.update")]
+    OpenersUpdate(OpenersUpdateParams),
     /// Lists the concrete `Host` aliases of the user's `ssh_config`.
     #[serde(rename = "hosts.list")]
     HostsList {},

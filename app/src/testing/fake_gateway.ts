@@ -67,6 +67,7 @@ export function createFakeGateway(
 		importScript: vi.fn(() =>
 			Promise.resolve({ candidates: [], warnings: [] })
 		),
+		updateOpeners: vi.fn(() => Promise.resolve([])),
 		openTunnel: vi.fn(() =>
 			Promise.resolve({ target: 'http://localhost:3333/' })
 		),

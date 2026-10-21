@@ -126,6 +126,12 @@ pub enum CliError {
         /// What the daemon reported.
         message: String,
     },
+    /// The application asked for with `--with` does not exist here.
+    #[error("{message}")]
+    UnknownOpener {
+        /// What the daemon reported: the available ids included.
+        message: String,
+    },
     /// Reading the answer of the user failed.
     #[error("cannot read the answer: {0}")]
     Terminal(#[source] io::Error),
@@ -148,6 +154,7 @@ impl CliError {
             Self::TargetsFailed { .. } => exit_code::TARGETS_FAILED,
             Self::TargetUnreachable { .. } => exit_code::TARGET_UNREACHABLE,
             Self::OpenFailed { .. } => exit_code::OPEN_FAILED,
+            Self::UnknownOpener { .. } => exit_code::UNKNOWN_OPENER,
             Self::ConfirmationRequired { .. } => exit_code::CONFIRMATION_REQUIRED,
             Self::TimedOutWaiting { .. } | Self::DaemonStopTimedOut { .. } => exit_code::TIMED_OUT,
             Self::DaemonSpawn(_)
@@ -209,6 +216,10 @@ impl CliError {
                     .to_owned(),
             ),
             Self::NotOpenable { .. } => Some("run `tunneler list` to see the kinds".to_owned()),
+            Self::UnknownOpener { .. } => Some(
+                "use `browser` or one of the ids above, or add an application under [[openers]] in tunnels.toml"
+                    .to_owned(),
+            ),
             Self::UiUnavailable { .. } => Some(UI_UNAVAILABLE_HINT.to_owned()),
             Self::TargetUnreachable { .. } => {
                 Some("see `tunneler status` for the tunnel state".to_owned())
@@ -295,6 +306,17 @@ mod tests {
             }
             .exit_code(),
             exit_code::OPEN_FAILED
+        );
+    }
+
+    #[test]
+    fn should_exit_with_9_when_the_opener_is_unknown() {
+        assert_eq!(
+            CliError::UnknownOpener {
+                message: "no opener".to_owned()
+            }
+            .exit_code(),
+            exit_code::UNKNOWN_OPENER
         );
     }
 

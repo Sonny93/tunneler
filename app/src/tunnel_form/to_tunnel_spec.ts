@@ -31,6 +31,7 @@ function toOpenOptions(
 			values.openScheme === DEFAULT_OPEN_SCHEME ? undefined : values.openScheme,
 		path: toOptionalText(values.openPath),
 		host: values.openHost === '' ? undefined : values.openHost,
+		with: values.openWith === '' ? undefined : values.openWith,
 	};
 	const isEmpty = Object.values(options).every((value) => value === undefined);
 	return isEmpty ? undefined : options;

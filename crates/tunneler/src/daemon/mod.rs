@@ -10,6 +10,7 @@ mod error;
 mod events;
 mod handler;
 mod instance;
+mod launch;
 mod login_launch;
 mod mapping;
 mod os_keyring;
@@ -21,7 +22,6 @@ mod testing;
 mod tray;
 mod ui;
 mod ui_presence;
-mod url_opener;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -29,8 +29,8 @@ use std::time::Duration;
 
 use engine::{
     ConnectorDependencies, Engine, EngineDependencies, FileStateStore, HostConfigResolver,
-    SshConfigResolver, Store, SystemAgentLocator, SystemClock, SystemPortScanner,
-    SystemX11Environment,
+    PresetPlatform, SshConfigResolver, Store, SystemAgentLocator, SystemClock, SystemPortScanner,
+    SystemProgramLocator, SystemX11Environment, detect_presets,
 };
 use ipc::Endpoint;
 use ssh_config::{ConfigSources, SystemEnvironment};
@@ -42,13 +42,13 @@ pub use error::DaemonError;
 use events::spawn_event_bridge;
 use handler::DaemonHandler;
 use instance::bind_single_instance;
+use launch::SystemLauncher;
 use login_launch::{spawn_login_launch_follower, system_login_launch};
 use os_keyring::OsKeyring;
 use prompts::PromptBroker;
 use tray::{TrayService, TrayStatus, TrayStatusCell, spawn_tray_status_publisher};
 use ui::{ProcessUiLauncher, UiCoordinator};
 use ui_presence::spawn_ui_presence_follower;
-use url_opener::SystemUrlOpener;
 
 /// How many wire events may wait for the IPC server before the oldest are lost.
 const WIRE_EVENT_CAPACITY: usize = 1024;
@@ -105,6 +105,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         x11_environment: Arc::new(SystemX11Environment),
         state_store: Arc::new(FileStateStore::new(options.state_path.clone())),
         keyring: Some(Arc::new(OsKeyring)),
+        detected_openers: detect_presets(&SystemProgramLocator, PresetPlatform::current()),
     })?;
     let bridge = spawn_event_bridge(engine.subscribe(), wire_events.clone());
     let shutdown = CancellationToken::new();
@@ -126,7 +127,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         quit_requested.clone(),
         ui.clone(),
         tray_status.subscribe(),
-        Arc::new(SystemUrlOpener),
+        Arc::new(SystemLauncher),
     ));
     let ui_presence = spawn_ui_presence_follower(engine.clone(), server.handle(), shutdown.clone());
     let ui_follower = ui.spawn_follower(shutdown.clone());

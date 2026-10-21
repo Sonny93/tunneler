@@ -8,11 +8,12 @@ use interprocess::local_socket::tokio::Stream;
 use interprocess::local_socket::traits::tokio::Stream as _;
 use interprocess::local_socket::{GenericFilePath, ToFsName};
 use ipc::protocol::{
-    AdoptResult, CheckTargetResult, ClientKind, ConfigInvalidEvent, DaemonPathsResult,
-    DeleteTagResult, EventMessage, ForgetSecretsResult, Hello, HostOptionDto, ImportCandidateDto,
-    ImportPreviewDto, IpcError, LogEntryDto, LogLevelDto, LogsResult, OpenTunnelResult,
-    RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload, TargetHealthDto,
-    TunnelKindDto, UiClaimResult,
+    AdoptResult, AvailableOpenerDto, CheckTargetResult, ClientKind, ConfigInvalidEvent,
+    DaemonPathsResult, DeleteTagResult, EventMessage, ForgetSecretsResult, Hello, HostOptionDto,
+    ImportCandidateDto, ImportPreviewDto, IpcError, LogEntryDto, LogLevelDto, LogsResult,
+    OpenTunnelResult, OpenerSourceDto, OpenerSpecDto, OpenersResult, RenameTagResult, Request,
+    RequestEnvelope, ResolvedHostDto, ResponsePayload, TargetHealthDto, TunnelKindDto,
+    UiClaimResult,
 };
 use ipc::{
     ConnectionInfo, Endpoint, IpcClient, IpcServer, RequestHandler, ServerHandle, ServerOptions,
@@ -39,6 +40,18 @@ pub const SLOW_DELAY: Duration = Duration::from_millis(300);
 const EVENT_BUS_CAPACITY: usize = 16;
 
 pub struct FakeHandler;
+
+fn user_openers_response(openers: Vec<OpenerSpecDto>) -> ResponsePayload {
+    ResponsePayload::Openers(OpenersResult {
+        openers: openers
+            .into_iter()
+            .map(|spec| AvailableOpenerDto {
+                spec,
+                source: OpenerSourceDto::User,
+            })
+            .collect(),
+    })
+}
 
 #[async_trait]
 impl RequestHandler for FakeHandler {
@@ -70,8 +83,13 @@ impl RequestHandler for FakeHandler {
                 Err(IpcError::not_found("no such tunnel"))
             }
             Request::TunnelOpen(params) => Ok(ResponsePayload::OpenTunnel(OpenTunnelResult {
-                target: format!("http://localhost/{}", params.id),
+                target: format!(
+                    "{}/{}",
+                    params.with.as_deref().unwrap_or("http://localhost"),
+                    params.id
+                ),
             })),
+            Request::OpenersUpdate(params) => Ok(user_openers_response(params.openers)),
             Request::TunnelDelete(params) if params.id == MISSING_TUNNEL_ID => {
                 Err(IpcError::not_found("no such tunnel"))
             }

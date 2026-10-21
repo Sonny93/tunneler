@@ -7,10 +7,10 @@ import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { useToastStore } from '#/shared/toasts/toast_store';
-import { buildSettings, buildTunnel } from '#/testing/factories';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { TunnelFormDrawer } from '#/tunnel_form/tunnel_form_drawer';
+import { buildOpener, buildSettings, buildTunnel } from '#/testing/factories';
 import {
 	COLON_TAG_MESSAGE,
 	DIGITS_TAG_MESSAGE,
@@ -618,6 +618,101 @@ describe('TunnelFormDrawer opening options', () => {
 
 	it('should have no axe violations', async () => {
 		openEditor();
+		renderDrawer();
+
+		expect(await axe(document.body)).toHaveNoViolations();
+	});
+});
+
+describe('TunnelFormDrawer application choice', () => {
+	const vnc = buildOpener({ ports: [3333] });
+	const applicationSelect = () =>
+		screen.getByRole('combobox', { name: 'Application' });
+
+	it('should name the suggested application in the automatic choice', async () => {
+		openEditor();
+		useDaemonStore.setState({ openers: [vnc] });
+		const user = userEvent.setup();
+		renderDrawer();
+
+		await fillRequiredFields(user);
+
+		expect(
+			within(applicationSelect()).getByRole('option', {
+				name: 'Automatique (Remmina (VNC))',
+			})
+		).toBeInTheDocument();
+	});
+
+	it('should name the browser in the automatic choice when nothing is suggested', () => {
+		openEditor();
+		renderDrawer();
+
+		expect(
+			within(applicationSelect()).getByRole('option', {
+				name: 'Automatique (Navigateur)',
+			})
+		).toBeInTheDocument();
+	});
+
+	it('should list the browser and every available application', () => {
+		openEditor();
+		useDaemonStore.setState({ openers: [vnc] });
+		renderDrawer();
+
+		expect(
+			within(applicationSelect())
+				.getAllByRole('option')
+				.map((option) => option.textContent)
+		).toEqual(['Automatique (Navigateur)', 'Navigateur', 'Remmina (VNC)']);
+	});
+
+	it('should send the chosen application', async () => {
+		openEditor();
+		useDaemonStore.setState({ openers: [vnc] });
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		await fillRequiredFields(user);
+		await user.selectOptions(applicationSelect(), 'remmina-vnc');
+
+		await user.click(screen.getByRole('button', { name: 'Créer' }));
+
+		expect(gateway.createTunnel).toHaveBeenCalledWith(
+			expect.objectContaining({ open: { with: 'remmina-vnc' } })
+		);
+	});
+
+	it('should preview the command line of the chosen application', async () => {
+		openEditor();
+		useDaemonStore.setState({ openers: [vnc] });
+		const user = userEvent.setup();
+		renderDrawer();
+		await fillRequiredFields(user);
+
+		await user.selectOptions(applicationSelect(), 'remmina-vnc');
+
+		expect(
+			screen.getByText('Lance remmina -c vnc://localhost:3333')
+		).toBeInTheDocument();
+	});
+
+	it('should keep an application that is not available anymore, flagged', () => {
+		useDaemonStore.setState({
+			tunnels: [buildTunnel({ open: { with: 'gone' } })],
+		});
+		openEditor('tunnel-1');
+		renderDrawer();
+
+		expect(
+			within(applicationSelect()).getByRole('option', {
+				name: 'gone (indisponible)',
+			})
+		).toBeInTheDocument();
+	});
+
+	it('should have no axe violations', async () => {
+		openEditor();
+		useDaemonStore.setState({ openers: [vnc] });
 		renderDrawer();
 
 		expect(await axe(document.body)).toHaveNoViolations();

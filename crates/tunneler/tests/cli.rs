@@ -27,6 +27,7 @@ const EXIT_USAGE: i32 = 2;
 const EXIT_DAEMON_NOT_RUNNING: i32 = 3;
 const EXIT_TARGETS_FAILED: i32 = 4;
 const EXIT_CONFIRMATION_REQUIRED: i32 = 5;
+const EXIT_UNKNOWN_OPENER: i32 = 9;
 const ESCAPE: char = '\x1b';
 const MISSING_UI_BINARY_NAME: &str = "no-such-tunneler-ui";
 const FAKE_UI_SCRIPT_NAME: &str = "fake-tunneler-ui";
@@ -830,6 +831,52 @@ async fn should_start_the_tunnel_and_hand_its_url_to_the_system_opener_when_open
     );
     wait_until("the system opener received the url", || {
         std::fs::read_to_string(&marker).is_ok_and(|content| content == expected_url)
+    })
+    .await;
+    assert_echoes(port).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_exit_with_9_and_list_the_available_ids_when_open_targets_an_unknown_opener() {
+    let fixture = Fixture::start().await;
+    let port = fixture.listen_ports[2].to_string();
+
+    let output = fixture.run(&["open", &port, "--with", "ghost"]).await;
+
+    assert_eq!(code(&output), EXIT_UNKNOWN_OPENER);
+    assert!(stderr(&output).contains("browser"), "{}", stderr(&output));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_run_the_opener_of_the_user_with_the_substituted_arguments_when_open_uses_with() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let fixture = Fixture::start().await;
+    let marker = fixture.workspace.file("opener-arguments");
+    let script = fixture.workspace.file("fake-viewer");
+    std::fs::write(
+        &script,
+        format!("#!/bin/sh\nprintf '%s' \"$*\" > '{}'\n", marker.display()),
+    )
+    .unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let tunnels_path = fixture.workspace.file("tunnels.toml");
+    let opener = format!(
+        "\n[[openers]]\nid = \"viewer\"\nname = \"Viewer\"\ncommand = \"{}\"\nargs = [\"--host={{host}}\", \"--port={{port}}\"]\n",
+        script.display()
+    );
+    let text = std::fs::read_to_string(&tunnels_path).unwrap() + &opener;
+    std::fs::write(&tunnels_path, text).unwrap();
+    let port = fixture.listen_ports[2];
+
+    let output = fixture
+        .run(&["open", &port.to_string(), "--with", "viewer"])
+        .await;
+
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    wait_until("the opener received its arguments", || {
+        std::fs::read_to_string(&marker)
+            .is_ok_and(|content| content == format!("--host=localhost --port={port}"))
     })
     .await;
     assert_echoes(port).await;

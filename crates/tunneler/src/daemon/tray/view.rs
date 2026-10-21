@@ -235,6 +235,7 @@ mod tests {
             externals: Vec::new(),
             x11_anchors: Vec::new(),
             x11_launchers: Vec::new(),
+            openers: Vec::new(),
         })
     }
 

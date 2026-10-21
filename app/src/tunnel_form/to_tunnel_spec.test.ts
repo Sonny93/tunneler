@@ -116,4 +116,16 @@ describe('toTunnelSpec', () => {
 
 		expect(spec.open).toBeUndefined();
 	});
+
+	it('should send the chosen application', () => {
+		expect(toTunnelSpec({ ...valid, openWith: 'remmina-vnc' }).open).toEqual({
+			with: 'remmina-vnc',
+		});
+	});
+
+	it('should send the browser choice explicitly', () => {
+		expect(toTunnelSpec({ ...valid, openWith: 'browser' }).open).toEqual({
+			with: 'browser',
+		});
+	});
 });

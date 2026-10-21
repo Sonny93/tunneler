@@ -2,28 +2,29 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use engine::{
-    Engine, EngineError, HostConfigResolver, StoreError, TunnelId, X11Error, preview_script,
-    preview_ssh_config,
+    Engine, EngineError, HostConfigResolver, OpenPlan, StoreError, TunnelId, X11Error,
+    preview_script, preview_ssh_config,
 };
 use ipc::protocol::{
     AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, ForgetSecretsResult,
-    HostsResult, IpcError, LogsResult, OpenTunnelResult, ProcessParams, QuitParams,
-    RenameTagResult, Request, ResponsePayload, SettingsDto, TagParams, TagRenameParams,
-    TunnelIdParams, UiClaimResult, X11HostParams, X11LaunchParams,
+    HostsResult, IpcError, LogsResult, OpenTunnelParams, OpenTunnelResult, OpenersResult,
+    OpenersUpdateParams, ProcessParams, QuitParams, RenameTagResult, Request, ResponsePayload,
+    SettingsDto, TagParams, TagRenameParams, TunnelIdParams, UiClaimResult, X11HostParams,
+    X11LaunchParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
+use super::launch::Launcher;
 use super::mapping::{
-    definition_from_dto, health_to_dto, import_preview_to_dto, log_entry_to_dto,
-    new_temporary_tunnel_from_spec, new_tunnel_from_spec, resolved_host_to_dto, settings_from_dto,
-    snapshot_to_dto, tunnel_to_dto,
+    available_opener_to_dto, definition_from_dto, health_to_dto, import_preview_to_dto,
+    log_entry_to_dto, new_temporary_tunnel_from_spec, new_tunnel_from_spec, opener_from_spec_dto,
+    resolved_host_to_dto, settings_from_dto, snapshot_to_dto, tunnel_to_dto,
 };
 use super::prompts::PromptBroker;
 use super::tray::TrayStatus;
 use super::ui::UiCoordinator;
-use super::url_opener::UrlOpener;
 
 /// Maps each IPC request to calls on the engine, the store, the prompt broker
 /// and the UI coordinator.
@@ -34,7 +35,7 @@ pub(crate) struct DaemonHandler {
     quit_requested: CancellationToken,
     ui: Arc<UiCoordinator>,
     tray_status: watch::Receiver<TrayStatus>,
-    url_opener: Arc<dyn UrlOpener>,
+    program_launcher: Arc<dyn Launcher>,
 }
 
 impl DaemonHandler {
@@ -45,7 +46,7 @@ impl DaemonHandler {
         quit_requested: CancellationToken,
         ui: Arc<UiCoordinator>,
         tray_status: watch::Receiver<TrayStatus>,
-        url_opener: Arc<dyn UrlOpener>,
+        program_launcher: Arc<dyn Launcher>,
     ) -> Self {
         Self {
             engine,
@@ -54,7 +55,7 @@ impl DaemonHandler {
             quit_requested,
             ui,
             tray_status,
-            url_opener,
+            program_launcher,
         }
     }
 
@@ -74,6 +75,7 @@ impl DaemonHandler {
             Request::TunnelPersist(params) => self.persist_tunnel(params).await,
             Request::TunnelCheckTarget(params) => self.check_target(&params).await,
             Request::TunnelOpen(params) => self.open_tunnel(&params).await,
+            Request::OpenersUpdate(params) => self.update_openers(params).await,
             Request::TunnelDelete(params) => self.delete_tunnel(params).await,
             Request::TunnelStart(params) => self.start_tunnel(&params),
             Request::TunnelStop(params) => self.stop_tunnel(&params),
@@ -301,19 +303,57 @@ impl DaemonHandler {
         }))
     }
 
-    async fn open_tunnel(&self, params: &TunnelIdParams) -> Result<ResponsePayload, IpcError> {
-        let id = parse_tunnel_id(params)?;
-        let url = self.engine.open_url(id).map_err(engine_error_to_ipc)?;
+    async fn open_tunnel(&self, params: &OpenTunnelParams) -> Result<ResponsePayload, IpcError> {
+        let id = parse_tunnel_id_text(&params.id)?;
+        let plan = self
+            .engine
+            .open_plan(id, params.with.as_deref())
+            .map_err(engine_error_to_ipc)?;
         self.engine
             .start_tunnel_and_wait(id)
             .await
             .map_err(engine_error_to_ipc)?;
-        self.url_opener
-            .open(&url)
+        let target = self.launch(&plan).await?;
+        Ok(ResponsePayload::OpenTunnel(OpenTunnelResult { target }))
+    }
+
+    async fn launch(&self, plan: &OpenPlan) -> Result<String, IpcError> {
+        let outcome = match plan {
+            OpenPlan::Browser { url } => self
+                .program_launcher
+                .open_url(url)
+                .await
+                .map(|()| url.clone()),
+            OpenPlan::Program { command, .. } => self
+                .program_launcher
+                .spawn_program(&command.program, &command.args)
+                .await
+                .map(|()| command.display()),
+        };
+        outcome.map_err(|error| IpcError::open_failed(error.to_string()))
+    }
+
+    async fn update_openers(
+        &self,
+        params: OpenersUpdateParams,
+    ) -> Result<ResponsePayload, IpcError> {
+        let openers = params
+            .openers
+            .into_iter()
+            .map(opener_from_spec_dto)
+            .collect();
+        self.engine
+            .update_openers(openers)
             .await
-            .map_err(|error| IpcError::open_failed(error.to_string()))?;
-        Ok(ResponsePayload::OpenTunnel(OpenTunnelResult {
-            target: url,
+            .map_err(engine_error_to_ipc)?;
+        Ok(ResponsePayload::Openers(OpenersResult {
+            openers: self
+                .engine
+                .snapshot()
+                .openers
+                .iter()
+                .map(available_opener_to_dto)
+                .collect(),
         }))
     }
 
@@ -395,12 +435,13 @@ impl DaemonHandler {
     }
 
     fn tunnel_response(&self, id: TunnelId) -> Result<ResponsePayload, IpcError> {
-        self.engine
-            .snapshot()
+        let snapshot = self.engine.snapshot();
+        let openers = snapshot.openers;
+        snapshot
             .tunnels
             .iter()
             .find(|snapshot| snapshot.definition.id == id)
-            .map(|snapshot| ResponsePayload::Tunnel(tunnel_to_dto(snapshot)))
+            .map(|snapshot| ResponsePayload::Tunnel(tunnel_to_dto(snapshot, &openers)))
             .ok_or_else(|| {
                 IpcError::internal(format!("the tunnel {id} vanished after being saved"))
             })
@@ -419,9 +460,11 @@ impl RequestHandler for DaemonHandler {
 }
 
 fn parse_tunnel_id(params: &TunnelIdParams) -> Result<TunnelId, IpcError> {
-    params
-        .id
-        .parse()
+    parse_tunnel_id_text(&params.id)
+}
+
+fn parse_tunnel_id_text(text: &str) -> Result<TunnelId, IpcError> {
+    text.parse()
         .map_err(|error: engine::InvalidTunnelId| IpcError::invalid_request(error.to_string()))
 }
 
@@ -455,6 +498,9 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         | EngineError::TunnelCannotConnect
         | EngineError::TunnelStoppedWhileStarting
         | EngineError::TunnelStartTimedOut(_) => IpcError::open_failed(error.to_string()),
+        EngineError::UnknownOpener { ref available, .. } => {
+            IpcError::unknown_opener(error.to_string(), available)
+        }
         EngineError::UnknownProcess(_) | EngineError::UnknownLauncher { .. } => {
             IpcError::not_found(error.to_string())
         }
@@ -506,8 +552,8 @@ mod tests {
         SystemX11Environment,
     };
     use ipc::protocol::{
-        ErrorCode, OpenHostDto, OpenOptionsDto, OpenSchemeDto, TunnelDto, TunnelKindDto,
-        TunnelSpecDto,
+        AvailableOpenerDto, ErrorCode, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto,
+        OpenerSpecDto, TunnelDto, TunnelKindDto, TunnelSpecDto,
     };
     use russh::keys::Algorithm;
     use ssh_config::{ConfigSources, SystemEnvironment};
@@ -518,11 +564,11 @@ mod tests {
     use zeroize::Zeroizing;
 
     use super::*;
+    use crate::daemon::launch::testing::RecordingLauncher;
     use crate::daemon::prompts::NoResponderSource;
     use crate::daemon::testing::{EmptyPortScanner, TestServer};
     use crate::daemon::tray::TrayStatusCell;
     use crate::daemon::ui::testing::FakeLauncher;
-    use crate::daemon::url_opener::testing::RecordingUrlOpener;
 
     const WAIT: Duration = Duration::from_secs(10);
     const POLL_INTERVAL: Duration = Duration::from_millis(25);
@@ -588,7 +634,7 @@ mod tests {
 
     struct Fixture {
         handler: DaemonHandler,
-        url_opener: Arc<RecordingUrlOpener>,
+        program_launcher: Arc<RecordingLauncher>,
         ssh_backend: Option<SshBackend>,
         keyring: Arc<RecordingKeyring>,
         engine: Engine,
@@ -609,20 +655,15 @@ mod tests {
     }
 
     fn fixture_with(launcher: Arc<FakeLauncher>, saved_state: &AppState) -> Fixture {
-        build_fixture(
-            launcher,
-            saved_state,
-            RecordingUrlOpener::succeeding(),
-            None,
-        )
+        build_fixture(launcher, saved_state, RecordingLauncher::succeeding(), None)
     }
 
-    async fn ssh_fixture(url_opener: Arc<RecordingUrlOpener>) -> Fixture {
+    async fn ssh_fixture(program_launcher: Arc<RecordingLauncher>) -> Fixture {
         let backend = start_ssh_backend().await;
         build_fixture(
             FakeLauncher::succeeding(),
             &AppState::default(),
-            url_opener,
+            program_launcher,
             Some(backend),
         )
     }
@@ -630,7 +671,7 @@ mod tests {
     fn build_fixture(
         launcher: Arc<FakeLauncher>,
         saved_state: &AppState,
-        url_opener: Arc<RecordingUrlOpener>,
+        program_launcher: Arc<RecordingLauncher>,
         ssh_backend: Option<SshBackend>,
     ) -> Fixture {
         let directory = tempfile::tempdir().unwrap();
@@ -675,6 +716,7 @@ mod tests {
             x11_environment: Arc::new(SystemX11Environment),
             state_store: Arc::new(state_store),
             keyring: Some(keyring.clone()),
+            detected_openers: Vec::new(),
         })
         .unwrap();
         let quit_requested = CancellationToken::new();
@@ -687,11 +729,11 @@ mod tests {
             quit_requested.clone(),
             ui,
             tray_status.subscribe(),
-            url_opener.clone(),
+            program_launcher.clone(),
         );
         Fixture {
             handler,
-            url_opener,
+            program_launcher,
             ssh_backend,
             keyring,
             engine,
@@ -1432,7 +1474,37 @@ mod tests {
     }
 
     fn open_request(id: &str) -> Request {
-        Request::TunnelOpen(TunnelIdParams { id: id.to_owned() })
+        Request::TunnelOpen(OpenTunnelParams {
+            id: id.to_owned(),
+            with: None,
+        })
+    }
+
+    fn open_with_request(id: &str, with: &str) -> Request {
+        Request::TunnelOpen(OpenTunnelParams {
+            id: id.to_owned(),
+            with: Some(with.to_owned()),
+        })
+    }
+
+    fn viewer_spec(ports: &[u16]) -> OpenerSpecDto {
+        OpenerSpecDto {
+            id: "viewer".to_owned(),
+            name: "Viewer".to_owned(),
+            command: "viewer".to_owned(),
+            args: vec!["--host={host}".to_owned(), "--port={port}".to_owned()],
+            ports: ports.to_vec(),
+        }
+    }
+
+    async fn update_openers(fixture: &Fixture, openers: Vec<OpenerSpecDto>) -> Request {
+        let request = Request::OpenersUpdate(OpenersUpdateParams { openers });
+        fixture
+            .handler
+            .dispatch(None, request.clone())
+            .await
+            .unwrap();
+        request
     }
 
     async fn created_local_tunnel_through_ssh(fixture: &Fixture) -> (TunnelDto, u16) {
@@ -1494,7 +1566,7 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(
-            (error.code, fixture.url_opener.opened()),
+            (error.code, fixture.program_launcher.opened_urls()),
             (ErrorCode::InvalidState, Vec::<String>::new())
         );
     }
@@ -1511,14 +1583,14 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(
-            (error.code, fixture.url_opener.opened()),
+            (error.code, fixture.program_launcher.opened_urls()),
             (ErrorCode::OpenFailed, Vec::<String>::new())
         );
     }
 
     #[tokio::test]
     async fn should_start_the_stopped_tunnel_and_open_its_url_when_opening() {
-        let fixture = ssh_fixture(RecordingUrlOpener::succeeding()).await;
+        let fixture = ssh_fixture(RecordingLauncher::succeeding()).await;
         let (tunnel, listen_port) = created_local_tunnel_through_ssh(&fixture).await;
 
         let response = fixture
@@ -1529,7 +1601,7 @@ mod tests {
 
         let expected_url = format!("http://localhost:{listen_port}/");
         assert_eq!(
-            (response, fixture.url_opener.opened()),
+            (response, fixture.program_launcher.opened_urls()),
             (
                 ResponsePayload::OpenTunnel(OpenTunnelResult {
                     target: expected_url.clone()
@@ -1541,7 +1613,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_open_the_url_built_from_the_open_options_and_settings() {
-        let fixture = ssh_fixture(RecordingUrlOpener::succeeding()).await;
+        let fixture = ssh_fixture(RecordingLauncher::succeeding()).await;
         let listen_port = free_port().await;
         let echo_port = fixture.ssh_backend.as_ref().unwrap().echo_port;
         let created = fixture
@@ -1555,6 +1627,7 @@ mod tests {
                         scheme: Some(OpenSchemeDto::Https),
                         path: Some("/admin".to_owned()),
                         host: None,
+                        with: None,
                     },
                     ..spec(listen_port)
                 }),
@@ -1579,14 +1652,14 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            fixture.url_opener.opened(),
+            fixture.program_launcher.opened_urls(),
             vec![format!("https://127.0.0.1:{listen_port}/admin")]
         );
     }
 
     #[tokio::test]
     async fn should_answer_open_failed_when_the_launch_fails_after_the_tunnel_started() {
-        let fixture = ssh_fixture(RecordingUrlOpener::failing()).await;
+        let fixture = ssh_fixture(RecordingLauncher::failing()).await;
         let (tunnel, _) = created_local_tunnel_through_ssh(&fixture).await;
 
         let error = fixture
@@ -1605,6 +1678,7 @@ mod tests {
             scheme: Some(OpenSchemeDto::Https),
             path: Some("/admin".to_owned()),
             host: Some(OpenHostDto::Ip),
+            with: None,
         };
 
         let created = fixture
@@ -1662,6 +1736,182 @@ mod tests {
         assert_eq!(
             fixture.engine.snapshot().settings.open_host,
             engine::OpenHost::Ip
+        );
+    }
+
+    #[tokio::test]
+    async fn should_spawn_the_program_with_the_substituted_arguments_when_opening_with_an_opener() {
+        let fixture = ssh_fixture(RecordingLauncher::succeeding()).await;
+        let (tunnel, listen_port) = created_local_tunnel_through_ssh(&fixture).await;
+        update_openers(&fixture, vec![viewer_spec(&[])]).await;
+
+        let response = fixture
+            .handler
+            .dispatch(None, open_with_request(&tunnel.definition.id, "viewer"))
+            .await
+            .unwrap();
+
+        let arguments = vec![
+            "--host=localhost".to_owned(),
+            format!("--port={listen_port}"),
+        ];
+        assert_eq!(
+            (response, fixture.program_launcher.spawned_programs()),
+            (
+                ResponsePayload::OpenTunnel(OpenTunnelResult {
+                    target: format!("viewer --host=localhost --port={listen_port}")
+                }),
+                vec![("viewer".to_owned(), arguments)]
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn should_use_the_suggested_opener_when_it_matches_the_target_port() {
+        let fixture = ssh_fixture(RecordingLauncher::succeeding()).await;
+        let echo_port = fixture.ssh_backend.as_ref().unwrap().echo_port;
+        let (tunnel, _) = created_local_tunnel_through_ssh(&fixture).await;
+        update_openers(&fixture, vec![viewer_spec(&[echo_port])]).await;
+
+        fixture
+            .handler
+            .dispatch(None, open_request(&tunnel.definition.id))
+            .await
+            .unwrap();
+
+        assert_eq!(fixture.program_launcher.spawned_programs().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn should_open_the_browser_when_it_is_asked_for_although_an_opener_matches() {
+        let fixture = ssh_fixture(RecordingLauncher::succeeding()).await;
+        let echo_port = fixture.ssh_backend.as_ref().unwrap().echo_port;
+        let (tunnel, _) = created_local_tunnel_through_ssh(&fixture).await;
+        update_openers(&fixture, vec![viewer_spec(&[echo_port])]).await;
+
+        fixture
+            .handler
+            .dispatch(None, open_with_request(&tunnel.definition.id, "browser"))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            (
+                fixture.program_launcher.opened_urls().len(),
+                fixture.program_launcher.spawned_programs().len()
+            ),
+            (1, 0)
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_unknown_opener_with_the_available_ids_and_not_start_the_tunnel() {
+        let fixture = fixture();
+        let tunnel = created_tunnel(&fixture, free_port().await).await;
+        update_openers(&fixture, vec![viewer_spec(&[])]).await;
+
+        let error = fixture
+            .handler
+            .dispatch(None, open_with_request(&tunnel.definition.id, "ghost"))
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            (error.code, error.data),
+            (
+                ErrorCode::UnknownOpener,
+                Some(serde_json::json!(["browser", "viewer"]))
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_open_failed_naming_the_program_when_it_cannot_be_started() {
+        let fixture = ssh_fixture(RecordingLauncher::failing()).await;
+        let (tunnel, _) = created_local_tunnel_through_ssh(&fixture).await;
+        update_openers(&fixture, vec![viewer_spec(&[])]).await;
+
+        let error = fixture
+            .handler
+            .dispatch(None, open_with_request(&tunnel.definition.id, "viewer"))
+            .await
+            .unwrap_err();
+
+        assert!(
+            error.code == ErrorCode::OpenFailed && error.message.contains("viewer"),
+            "{error:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_the_available_openers_when_updating_them() {
+        let fixture = fixture();
+
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::OpenersUpdate(OpenersUpdateParams {
+                    openers: vec![viewer_spec(&[5900])],
+                }),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            response,
+            ResponsePayload::Openers(OpenersResult {
+                openers: vec![AvailableOpenerDto {
+                    spec: viewer_spec(&[5900]),
+                    source: OpenerSourceDto::User
+                }]
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_validation_failed_when_an_opener_uses_the_reserved_id() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::OpenersUpdate(OpenersUpdateParams {
+                    openers: vec![OpenerSpecDto {
+                        id: "browser".to_owned(),
+                        ..viewer_spec(&[])
+                    }],
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::ValidationFailed);
+    }
+
+    #[tokio::test]
+    async fn should_answer_the_default_opener_and_the_openers_in_the_snapshot() {
+        let fixture = fixture();
+        let tunnel = created_tunnel(&fixture, free_port().await).await;
+        let target_port = tunnel.definition.spec.listen_port;
+        update_openers(&fixture, vec![viewer_spec(&[target_port])]).await;
+
+        let response = fixture
+            .handler
+            .dispatch(None, Request::StateSnapshot {})
+            .await
+            .unwrap();
+
+        let ResponsePayload::Snapshot(snapshot) = response else {
+            panic!("expected a snapshot, got {response:?}");
+        };
+        assert_eq!(
+            (
+                snapshot.openers.len(),
+                snapshot.tunnels[0].default_opener.id.clone()
+            ),
+            (1, "viewer".to_owned())
         );
     }
 

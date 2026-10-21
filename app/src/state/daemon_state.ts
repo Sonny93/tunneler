@@ -1,4 +1,5 @@
 import type {
+	AvailableOpenerDto,
 	CredentialRequestDto,
 	ExternalProcessDto,
 	HostKeyAlertReasonDto,
@@ -42,6 +43,7 @@ export type DaemonState = {
 	externals: readonly ExternalProcessDto[];
 	x11Anchors: readonly X11AnchorDto[];
 	x11Launchers: readonly X11LauncherDto[];
+	openers: readonly AvailableOpenerDto[];
 	settings: SettingsDto | null;
 	hosts: readonly string[];
 	/** First-in first-out: the first prompt is the one shown. */
@@ -58,6 +60,7 @@ export const INITIAL_DAEMON_STATE: DaemonState = {
 	externals: [],
 	x11Anchors: [],
 	x11Launchers: [],
+	openers: [],
 	settings: null,
 	hosts: [],
 	prompts: [],

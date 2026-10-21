@@ -1,11 +1,13 @@
 import { useId, type ChangeEvent } from 'react';
-import { Input, RadioOptions } from '@minimalstuff/ui';
+import { Input, RadioOptions, Select } from '@minimalstuff/ui';
 
 import { useDaemonStore } from '#/state/daemon_store';
-import type { OpenSchemeDto } from '#/daemon/protocol';
+import { suggestOpener } from '#/tunnel_form/suggest_opener';
 import { buildOpenPreview } from '#/tunnel_form/build_open_preview';
 import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 import type { TunnelFormAction } from '#/tunnel_form/tunnel_form_reducer';
+import type { AvailableOpenerDto, OpenSchemeDto } from '#/daemon/protocol';
+import { BROWSER_CHOICE, BROWSER_OPENER_ID } from '#/openers/open_choices';
 import type { TunnelFormErrors } from '#/tunnel_form/validate_tunnel_form';
 import {
 	OPEN_HOST_OPTIONS,
@@ -17,6 +19,27 @@ const SCHEME_OPTIONS = [
 	{ value: 'https', label: 'https' },
 ];
 const INHERITED_HOST_VALUE = '';
+
+const AUTOMATIC_VALUE = '';
+
+function buildApplicationOptions(
+	selected: string,
+	suggestedName: string,
+	openers: readonly Readonly<AvailableOpenerDto>[]
+): { value: string; label: string }[] {
+	const isMissing =
+		selected !== AUTOMATIC_VALUE &&
+		selected !== BROWSER_OPENER_ID &&
+		openers.every(({ id }) => id !== selected);
+	return [
+		{ value: AUTOMATIC_VALUE, label: `Automatique (${suggestedName})` },
+		{ value: BROWSER_OPENER_ID, label: BROWSER_CHOICE.name },
+		...openers.map(({ id, name }) => ({ value: id, label: name })),
+		...(isMissing
+			? [{ value: selected, label: `${selected} (indisponible)` }]
+			: []),
+	];
+}
 
 type OpenOptionsFieldsProps = {
 	values: TunnelFormValues;
@@ -31,8 +54,15 @@ export function OpenOptionsFields({
 	dispatch,
 }: Readonly<OpenOptionsFieldsProps>) {
 	const settings = useDaemonStore((state) => state.settings);
+	const openers = useDaemonStore((state) => state.openers);
 	const previewId = useId();
-	const preview = buildOpenPreview(values, settings);
+	const preview = buildOpenPreview(values, settings, openers);
+	const suggested = suggestOpener(values, openers);
+	const applicationOptions = buildApplicationOptions(
+		values.openWith,
+		suggested?.name ?? BROWSER_CHOICE.name,
+		openers
+	);
 	const inheritedHost = describeOpenHost(settings?.openHost ?? 'localhost');
 	const hostOptions = [
 		{
@@ -49,6 +79,8 @@ export function OpenOptionsFields({
 			type: 'openHostChanged',
 			host: host as TunnelFormValues['openHost'],
 		});
+	const changeApplication = (event: ChangeEvent<HTMLSelectElement>) =>
+		dispatch({ type: 'openWithChanged', opener: event.target.value });
 	const changePath = (event: ChangeEvent<HTMLInputElement>) =>
 		dispatch({
 			type: 'textChanged',
@@ -66,6 +98,13 @@ export function OpenOptionsFields({
 				options={SCHEME_OPTIONS}
 				value={values.openScheme}
 				onChange={changeScheme}
+			/>
+			<Select
+				name="openWith"
+				label="Application"
+				options={applicationOptions}
+				value={values.openWith}
+				onChange={changeApplication}
 			/>
 			<Input
 				name="openPath"

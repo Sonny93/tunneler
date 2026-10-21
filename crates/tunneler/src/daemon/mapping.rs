@@ -6,17 +6,19 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use engine::{
-    EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision, ImportCandidate, ImportPreview,
-    ImportWarning, InvalidTunnelId, LogLevel, NewTunnel, OpenHost, OpenOptions, OpenScheme,
-    PortOwner, RejectedHostKey, RejectionReason, Retention, Settings, SshForward, TargetHealth,
-    TunnelDefinition, TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot,
-    TunnelState, UnmanagedProcess, X11AnchorSnapshot, X11AnchorState, X11Launcher,
+    AvailableOpener, DefaultOpener, EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision,
+    ImportCandidate, ImportPreview, ImportWarning, InvalidTunnelId, LogLevel, NewTunnel, OpenHost,
+    OpenOptions, OpenScheme, Opener, OpenerSource, PortOwner, RejectedHostKey, RejectionReason,
+    Retention, Settings, SshForward, TargetHealth, TunnelDefinition, TunnelId, TunnelKind,
+    TunnelLogEntry, TunnelMetrics, TunnelSnapshot, TunnelState, UnmanagedProcess,
+    X11AnchorSnapshot, X11AnchorState, X11Launcher, default_opener,
 };
 use ipc::protocol::{
-    ConfigInvalidEvent, EpochMillis, EventMessage, ExternalForwardDto, ExternalProcessDto,
-    ExternalsChangedEvent, FailureReasonDto, HostKeyAlertReasonDto, HostKeyDecisionDto,
-    HostKeyRequestEvent, HostOptionDto, ImportCandidateDto, ImportPreviewDto, ImportWarningDto,
-    LogEntryDto, LogLevelDto, MetricsDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, PortOwnerDto,
+    AvailableOpenerDto, ConfigInvalidEvent, DefaultOpenerDto, EpochMillis, EventMessage,
+    ExternalForwardDto, ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto,
+    HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent, HostOptionDto,
+    ImportCandidateDto, ImportPreviewDto, ImportWarningDto, LogEntryDto, LogLevelDto, MetricsDto,
+    OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto, OpenerSpecDto, PortOwnerDto,
     RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, TargetHealthDto,
     TemporaryTunnelSpecDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
     TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
@@ -77,6 +79,7 @@ fn open_options_to_dto(options: &OpenOptions) -> OpenOptionsDto {
         scheme: options.scheme.map(open_scheme_to_dto),
         path: options.path.clone(),
         host: options.host.map(open_host_to_dto),
+        with: options.with.clone(),
     }
 }
 
@@ -85,6 +88,7 @@ fn open_options_from_dto(dto: OpenOptionsDto) -> OpenOptions {
         scheme: dto.scheme.map(open_scheme_from_dto),
         path: dto.path,
         host: dto.host.map(open_host_from_dto),
+        with: dto.with,
     }
 }
 
@@ -252,13 +256,51 @@ pub(crate) fn metrics_to_dto(metrics: &TunnelMetrics) -> MetricsDto {
     }
 }
 
-pub(crate) fn tunnel_to_dto(snapshot: &TunnelSnapshot) -> TunnelDto {
+pub(crate) fn opener_to_spec_dto(opener: &Opener) -> OpenerSpecDto {
+    OpenerSpecDto {
+        id: opener.id.clone(),
+        name: opener.name.clone(),
+        command: opener.command.clone(),
+        args: opener.args.clone(),
+        ports: opener.ports.clone(),
+    }
+}
+
+pub(crate) fn opener_from_spec_dto(dto: OpenerSpecDto) -> Opener {
+    Opener {
+        id: dto.id,
+        name: dto.name,
+        command: dto.command,
+        args: dto.args,
+        ports: dto.ports,
+    }
+}
+
+pub(crate) fn available_opener_to_dto(available: &AvailableOpener) -> AvailableOpenerDto {
+    AvailableOpenerDto {
+        spec: opener_to_spec_dto(&available.opener),
+        source: match available.source {
+            OpenerSource::Detected => OpenerSourceDto::Detected,
+            OpenerSource::User => OpenerSourceDto::User,
+        },
+    }
+}
+
+fn default_opener_to_dto(default: DefaultOpener) -> DefaultOpenerDto {
+    DefaultOpenerDto {
+        id: default.id,
+        name: default.name,
+    }
+}
+
+pub(crate) fn tunnel_to_dto(snapshot: &TunnelSnapshot, openers: &[AvailableOpener]) -> TunnelDto {
     TunnelDto {
         definition: definition_to_dto(&snapshot.definition),
         state: state_to_dto(&snapshot.state),
         health: health_to_dto(&snapshot.health),
         metrics: metrics_to_dto(&snapshot.metrics),
         is_temporary: snapshot.is_temporary,
+        default_opener: default_opener_to_dto(default_opener(&snapshot.definition, openers)),
     }
 }
 
@@ -311,7 +353,11 @@ pub(crate) fn tray_status_to_dto(status: &TrayStatus) -> TrayStatusDto {
 
 pub(crate) fn snapshot_to_dto(snapshot: &EngineSnapshot, tray: &TrayStatus) -> SnapshotDto {
     SnapshotDto {
-        tunnels: snapshot.tunnels.iter().map(tunnel_to_dto).collect(),
+        tunnels: snapshot
+            .tunnels
+            .iter()
+            .map(|tunnel| tunnel_to_dto(tunnel, &snapshot.openers))
+            .collect(),
         settings: settings_to_dto(&snapshot.settings),
         tray: tray_status_to_dto(tray),
         externals: snapshot.externals.iter().map(external_to_dto).collect(),
@@ -320,6 +366,11 @@ pub(crate) fn snapshot_to_dto(snapshot: &EngineSnapshot, tray: &TrayStatus) -> S
             .x11_launchers
             .iter()
             .map(x11_launcher_to_dto)
+            .collect(),
+        openers: snapshot
+            .openers
+            .iter()
+            .map(available_opener_to_dto)
             .collect(),
     }
 }
@@ -652,6 +703,7 @@ mod tests {
                 scheme: Some(OpenScheme::Https),
                 path: Some("/admin".to_owned()),
                 host: Some(OpenHost::Ip),
+                with: Some("remmina-vnc".to_owned()),
             },
         }
     }
@@ -671,6 +723,64 @@ mod tests {
         dto.id = "not-an-id".to_owned();
 
         assert!(definition_from_dto(dto).is_err());
+    }
+
+    fn sample_opener() -> Opener {
+        Opener {
+            id: "viewer".to_owned(),
+            name: "Viewer".to_owned(),
+            command: "viewer".to_owned(),
+            args: vec!["{host}".to_owned()],
+            ports: vec![5900],
+        }
+    }
+
+    #[test]
+    fn should_round_trip_an_opener_through_its_dto() {
+        let opener = sample_opener();
+
+        assert_eq!(opener_from_spec_dto(opener_to_spec_dto(&opener)), opener);
+    }
+
+    #[test]
+    fn should_mark_the_source_of_an_available_opener() {
+        let detected = AvailableOpener {
+            opener: sample_opener(),
+            source: OpenerSource::Detected,
+        };
+
+        assert_eq!(
+            available_opener_to_dto(&detected).source,
+            OpenerSourceDto::Detected
+        );
+    }
+
+    #[test]
+    fn should_carry_the_default_opener_when_converting_a_tunnel() {
+        let openers = vec![AvailableOpener {
+            opener: sample_opener(),
+            source: OpenerSource::User,
+        }];
+        let definition = TunnelDefinition {
+            target_port: Some(5900),
+            open: OpenOptions::default(),
+            ..sample_definition()
+        };
+        let snapshot = TunnelSnapshot {
+            definition,
+            state: TunnelState::Stopped,
+            health: TargetHealth::Unknown,
+            metrics: TunnelMetrics::default(),
+            is_temporary: false,
+        };
+
+        assert_eq!(
+            tunnel_to_dto(&snapshot, &openers).default_opener,
+            DefaultOpenerDto {
+                id: "viewer".to_owned(),
+                name: "Viewer".to_owned()
+            }
+        );
     }
 
     #[test]
@@ -857,6 +967,7 @@ mod tests {
             externals: vec![unmanaged()],
             x11_anchors: Vec::new(),
             x11_launchers: Vec::new(),
+            openers: Vec::new(),
         };
 
         assert_eq!(
@@ -879,6 +990,7 @@ mod tests {
                 name: "Editor".to_owned(),
                 command: "code --wait".to_owned(),
             }],
+            openers: Vec::new(),
         }
     }
 

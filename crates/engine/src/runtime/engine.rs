@@ -14,7 +14,10 @@ use crate::connector::{Connector, ConnectorDependencies};
 use crate::error::SessionError;
 use crate::external::{PortScanner, ScanError, TerminateError, UnmanagedProcess};
 use crate::keyring::SecretKeyring;
-use crate::opening::{OpenUrlError, build_open_url};
+use crate::openers::{
+    AvailableOpener, OpenAction, OpenPlan, available_openers, choose_action, plan_open,
+};
+use crate::opening::{OpenUrlError, build_open_address};
 use crate::passphrase_vault::PassphraseVault;
 use crate::runtime::catalog::{Catalog, TunnelFactory, TunnelSnapshot};
 use crate::runtime::events::{EngineEvent, EventBus};
@@ -33,8 +36,8 @@ use crate::runtime::x11_launcher::X11Launches;
 use crate::runtime::x11_state::X11AnchorSnapshot;
 use crate::state_tracker::StateTracker;
 use crate::store::{
-    OpenOptions, Settings, StateStore, Store, StoreError, TagProblem, TunnelDefinition, TunnelId,
-    TunnelKind, X11Launcher, find_tag_problem, validate_tunnel_definition,
+    OpenOptions, Opener, Settings, StateStore, Store, StoreError, TagProblem, TunnelDefinition,
+    TunnelId, TunnelKind, X11Launcher, find_tag_problem, validate_tunnel_definition,
 };
 use crate::x11::{LocalX11Resolver, X11Environment, X11Error};
 
@@ -99,6 +102,14 @@ pub enum EngineError {
     /// The tunnel is a dynamic forward, which has no fixed target.
     #[error("the tunnel {0} has no target to check")]
     TunnelHasNoTarget(TunnelId),
+    /// No opener has this id, or it is not available on this machine.
+    #[error("no opener \"{id}\" is available; the available ones are: {}", .available.join(", "))]
+    UnknownOpener {
+        /// The id that was asked for.
+        id: String,
+        /// The ids that can be used, the browser first.
+        available: Vec<String>,
+    },
     /// The tunnel has no address to open in a browser.
     #[error(transparent)]
     Open(#[from] OpenUrlError),
@@ -143,6 +154,9 @@ pub struct EngineDependencies {
     /// The OS keyring that holds remembered passphrases while
     /// `Settings::use_os_keyring` is on; `None` when there is none.
     pub keyring: Option<Arc<dyn SecretKeyring>>,
+    /// The built-in openers whose program was found on this machine; see
+    /// [`detect_presets`](crate::detect_presets).
+    pub detected_openers: Vec<Opener>,
 }
 
 /// A tunnel to create; the engine generates its id.
@@ -195,6 +209,9 @@ pub struct EngineSnapshot {
     pub x11_anchors: Vec<X11AnchorSnapshot>,
     /// The saved X11 launchers.
     pub x11_launchers: Vec<X11Launcher>,
+    /// The openers that can be used: the ones of the user, then the detected
+    /// presets they do not replace.
+    pub openers: Vec<AvailableOpener>,
 }
 
 pub(crate) struct EngineInner {
@@ -211,6 +228,7 @@ pub(crate) struct EngineInner {
     catalog: Mutex<Catalog>,
     pub(crate) mutation: tokio::sync::Mutex<()>,
     tunnel_ready_timeout: Duration,
+    detected_openers: Vec<Opener>,
     reload_task: Mutex<Option<JoinHandle<()>>>,
     scan_task: Mutex<Option<JoinHandle<()>>>,
     pub(crate) is_shut_down: AtomicBool,
@@ -288,6 +306,7 @@ impl Engine {
             x11_environment,
             state_store,
             keyring,
+            detected_openers,
         } = dependencies;
         let store = Arc::new(store);
         if store.has_pending_normalization() {
@@ -347,6 +366,7 @@ impl Engine {
             catalog: Mutex::new(Catalog::new(factory, document.tunnels)),
             mutation: tokio::sync::Mutex::new(()),
             tunnel_ready_timeout: options.tunnel_ready_timeout,
+            detected_openers,
             reload_task: Mutex::new(None),
             scan_task: Mutex::new(None),
             is_shut_down: AtomicBool::new(false),
@@ -375,12 +395,14 @@ impl Engine {
 
     /// The tunnels with their state, health and metrics, and the settings.
     pub fn snapshot(&self) -> EngineSnapshot {
+        let document = self.inner.store.document();
         EngineSnapshot {
             tunnels: self.inner.catalog().snapshots(),
             settings: self.inner.settings.borrow().clone(),
             externals: self.inner.port_watch.externals(),
             x11_anchors: self.inner.x11_anchors.snapshots(),
-            x11_launchers: self.inner.store.document().x11_launchers,
+            x11_launchers: document.x11_launchers,
+            openers: available_openers(&self.inner.detected_openers, &document.openers),
         }
     }
 
@@ -599,16 +621,37 @@ impl Engine {
         Ok(())
     }
 
-    /// The URL that opens the tunnel in a browser, built from its definition
-    /// and the settings. Only a local tunnel has one.
-    pub fn open_url(&self, id: TunnelId) -> Result<String, EngineError> {
+    /// How to open the tunnel: the URL for the browser, or the command line
+    /// of an opener. `with` picks the opener (`browser` or an id) and wins
+    /// over the choice saved in the tunnel; without either, the suggestion for
+    /// the target port applies, else the browser. Only a local tunnel can be
+    /// opened.
+    pub fn open_plan(&self, id: TunnelId, with: Option<&str>) -> Result<OpenPlan, EngineError> {
         self.ensure_running()?;
         let definition = self
             .tunnel_snapshot(id)
             .ok_or(EngineError::UnknownTunnel(id))?
             .definition;
         let settings = self.inner.settings.borrow().clone();
-        Ok(build_open_url(&definition, &settings)?)
+        let address = build_open_address(&definition, &settings)?;
+        let openers = self.snapshot().openers;
+        let opener = match choose_action(&definition, with, &openers)? {
+            OpenAction::Browser => None,
+            OpenAction::Program(available) => Some(&available.opener),
+        };
+        Ok(plan_open(opener, &address))
+    }
+
+    /// Replaces the openers of the user with one write of the store.
+    pub async fn update_openers(&self, openers: Vec<Opener>) -> Result<(), EngineError> {
+        let _serialized = self.inner.mutation.lock().await;
+        self.ensure_running()?;
+        let mut document = self.inner.store.document();
+        document.openers = openers;
+        let store = Arc::clone(&self.inner.store);
+        run_blocking(move || store.save(document)).await?;
+        self.inner.bus.publish(EngineEvent::ConfigReloaded);
+        Ok(())
     }
 
     /// Starts the tunnel when it is not running and waits until it is ready:

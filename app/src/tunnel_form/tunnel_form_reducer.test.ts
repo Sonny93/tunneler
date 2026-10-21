@@ -103,4 +103,13 @@ describe('tunnelFormReducer', () => {
 
 		expect(values.openPath).toBe('/admin');
 	});
+
+	it('should change the application', () => {
+		const values = tunnelFormReducer(EMPTY_TUNNEL_FORM_VALUES, {
+			type: 'openWithChanged',
+			opener: 'freerdp',
+		});
+
+		expect(values.openWith).toBe('freerdp');
+	});
 });

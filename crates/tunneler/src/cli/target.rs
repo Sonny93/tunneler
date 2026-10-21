@@ -396,6 +396,10 @@ mod tests {
                     health: ipc::protocol::TargetHealthDto::Unknown,
                     metrics: ipc::protocol::MetricsDto::default(),
                     is_temporary: false,
+                    default_opener: ipc::protocol::DefaultOpenerDto {
+                        id: "browser".to_owned(),
+                        name: "Browser".to_owned(),
+                    },
                 })
                 .collect(),
             settings: SettingsDto {
@@ -417,6 +421,7 @@ mod tests {
             externals: Vec::new(),
             x11_anchors: Vec::new(),
             x11_launchers: Vec::new(),
+            openers: Vec::new(),
         }
     }
 

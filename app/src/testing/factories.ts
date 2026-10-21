@@ -1,4 +1,5 @@
 import type {
+	AvailableOpenerDto,
 	ImportCandidateDto,
 	ImportPreviewDto,
 	X11AnchorDto,
@@ -38,6 +39,21 @@ export function buildTunnel(
 		health: { kind: 'unknown' },
 		metrics: buildMetrics(),
 		isTemporary: false,
+		defaultOpener: { id: 'browser', name: 'Browser' },
+		...overrides,
+	};
+}
+
+export function buildOpener(
+	overrides: Readonly<Partial<AvailableOpenerDto>> = {}
+): AvailableOpenerDto {
+	return {
+		id: 'remmina-vnc',
+		name: 'Remmina (VNC)',
+		command: 'remmina',
+		args: ['-c', 'vnc://{host}:{port}'],
+		ports: [5900],
+		source: 'detected',
 		...overrides,
 	};
 }
@@ -89,6 +105,7 @@ export function buildSnapshot(
 		externals: [],
 		x11Anchors: [],
 		x11Launchers: [],
+		openers: [],
 		settings: buildSettings(),
 		tray: { kind: 'active' },
 		...overrides,

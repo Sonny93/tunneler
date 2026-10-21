@@ -96,6 +96,15 @@ describe('SettingsDrawer', () => {
 		});
 	});
 
+	it('should offer the applications section', () => {
+		openSettings();
+		renderDrawer();
+
+		expect(
+			screen.getByRole('region', { name: 'Applications' })
+		).toBeInTheDocument();
+	});
+
 	it('should show the current open host', () => {
 		openSettings(buildSettings({ openHost: 'ip' }));
 		renderDrawer();

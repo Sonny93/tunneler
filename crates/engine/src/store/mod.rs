@@ -26,10 +26,12 @@ pub use error::{SourceLocation, StoreError};
 pub use file::{Store, default_store_path};
 pub use format::LoadOutcome;
 pub use model::{
-    HostOverrides, InvalidTunnelId, OpenHost, OpenOptions, OpenScheme, Settings, StoreDocument,
-    TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
+    BROWSER_OPENER_ID, HostOverrides, InvalidTunnelId, OpenHost, OpenOptions, OpenScheme, Opener,
+    Settings, StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
 };
 pub use state::{AppState, FileStateStore, StateStore, default_state_path};
-pub use validation::{OpenPathProblem, TagProblem, TunnelReference, ValidationError};
+pub use validation::{
+    OpenPathProblem, OpenerIdProblem, TagProblem, TunnelReference, ValidationError,
+};
 pub(crate) use validation::{find_open_path_problem, find_tag_problem, validate_tunnel_definition};
 pub use watch::{StoreEvent, StoreWatcher};

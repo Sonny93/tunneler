@@ -49,13 +49,67 @@ pub struct OpenOptionsDto {
     /// Overrides the general `openHost` setting for this tunnel.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub host: Option<OpenHostDto>,
+    /// What opens the tunnel: `browser` or the id of an opener; absent means
+    /// the suggestion for the target port, else the browser.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub with: Option<String>,
 }
 
 impl OpenOptionsDto {
     /// Whether no option is set.
     pub fn is_empty(&self) -> bool {
-        self.scheme.is_none() && self.path.is_none() && self.host.is_none()
+        self.scheme.is_none() && self.path.is_none() && self.host.is_none() && self.with.is_none()
     }
+}
+
+/// A program that opens a tunnel. It is run without a shell, one argument per
+/// entry, with `{host}`, `{port}` and `{url}` replaced.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenerSpecDto {
+    /// Lowercase letters, digits and dashes; `browser` is reserved.
+    pub id: String,
+    /// The label shown to the user.
+    pub name: String,
+    /// The program to run.
+    pub command: String,
+    /// The arguments.
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// The target ports the program is suggested for.
+    #[serde(default)]
+    pub ports: Vec<u16>,
+}
+
+/// Where an available opener comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OpenerSourceDto {
+    /// A built-in preset whose program was found on this machine.
+    Detected,
+    /// An opener the user added.
+    User,
+}
+
+/// An opener that can be used now.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AvailableOpenerDto {
+    /// The opener, flattened into the same JSON object.
+    #[serde(flatten)]
+    pub spec: OpenerSpecDto,
+    /// Where it comes from.
+    pub source: OpenerSourceDto,
+}
+
+/// What a tunnel opens with when nothing is asked.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DefaultOpenerDto {
+    /// `browser` or the id of an opener.
+    pub id: String,
+    /// The name of the opener; its id when it is not available anymore.
+    pub name: String,
 }
 
 /// The editable part of a tunnel definition.
@@ -262,6 +316,10 @@ pub struct TunnelDto {
     /// stopping it removes it.
     #[serde(default)]
     pub is_temporary: bool,
+    /// What the tunnel opens with when nothing is asked: the choice saved in
+    /// its `open.with`, else the opener suggested for its target port, else
+    /// the browser.
+    pub default_opener: DefaultOpenerDto,
 }
 
 /// How serious a log entry is.
@@ -458,6 +516,10 @@ pub struct SnapshotDto {
     /// The saved X11 launchers.
     #[serde(default)]
     pub x11_launchers: Vec<X11LauncherDto>,
+    /// The openers that can be used: the ones of the user, then the detected
+    /// presets they do not replace.
+    #[serde(default)]
+    pub openers: Vec<AvailableOpenerDto>,
 }
 
 /// One question of a keyboard-interactive exchange.

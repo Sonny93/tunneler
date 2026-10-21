@@ -2,8 +2,8 @@ use toml_edit::{Array, ArrayOfTables, DocumentMut, InlineTable, Item, Table, Tab
 
 use super::migration::CURRENT_VERSION;
 use super::model::{
-    HostOverrides, OpenOptions, Settings, StoreDocument, TunnelDefinition, TunnelId, TunnelKind,
-    X11Launcher,
+    HostOverrides, OpenOptions, Opener, Settings, StoreDocument, TunnelDefinition, TunnelId,
+    TunnelKind, X11Launcher,
 };
 
 const VERSION_KEY: &str = "version";
@@ -17,6 +17,8 @@ const OPEN_KEY: &str = "open";
 const OPEN_SCHEME_KEY: &str = "scheme";
 const OPEN_PATH_KEY: &str = "path";
 const OPEN_HOST_KEY: &str = "host";
+const OPEN_WITH_KEY: &str = "with";
+const OPENERS_KEY: &str = "openers";
 const REMOVED_SETTINGS_KEYS: [&str; 1] = ["health_probe"];
 const SECTION_SEPARATOR: &str = "\n";
 const FIRST_SECTION_POSITION: isize = -1;
@@ -30,6 +32,7 @@ pub(crate) fn apply(toml: &mut DocumentMut, document: &StoreDocument) {
     update_tunnels(root, &document.tunnels);
     update_hosts(root, document);
     update_launchers(root, &document.x11_launchers);
+    update_openers(root, &document.openers);
 }
 
 fn update_settings(root: &mut Table, settings: &Settings) {
@@ -209,6 +212,45 @@ fn set_open_fields(table: &mut dyn TableLike, open: &OpenOptions) {
         OPEN_HOST_KEY,
         open.host.map(|host| Value::from(host.as_str())),
     );
+    set_optional(table, OPEN_WITH_KEY, open.with.as_deref().map(Value::from));
+}
+
+fn update_openers(root: &mut Table, openers: &[Opener]) {
+    if openers.is_empty() && !root.contains_key(OPENERS_KEY) {
+        return;
+    }
+    update_array_of_tables(root, OPENERS_KEY, openers, assign_openers, apply_opener);
+    let is_empty = root
+        .get(OPENERS_KEY)
+        .and_then(Item::as_array_of_tables)
+        .is_some_and(ArrayOfTables::is_empty);
+    if is_empty {
+        root.remove(OPENERS_KEY);
+    }
+}
+
+fn assign_openers(array: &ArrayOfTables, openers: &[Opener]) -> Vec<Option<usize>> {
+    let mut claimed = vec![false; openers.len()];
+    array
+        .iter()
+        .map(|table| {
+            let id = table.get("id")?.as_str()?;
+            claim(openers, &mut claimed, |opener| opener.id == id)
+        })
+        .collect()
+}
+
+fn apply_opener(table: &mut Table, opener: &Opener) {
+    set_value(table, "id", Value::from(opener.id.as_str()));
+    set_value(table, "name", Value::from(opener.name.as_str()));
+    set_value(table, "command", Value::from(opener.command.as_str()));
+    set_value(table, "args", string_array(&opener.args));
+    if opener.ports.is_empty() {
+        table.remove("ports");
+        return;
+    }
+    let ports: Array = opener.ports.iter().map(|port| i64::from(*port)).collect();
+    set_value(table, "ports", Value::Array(ports));
 }
 
 fn kind_name(kind: TunnelKind) -> &'static str {
@@ -662,12 +704,13 @@ tags = []
             scheme: Some(OpenScheme::Https),
             path: Some("/admin".to_owned()),
             host: Some(OpenHost::Ip),
+            with: Some("remmina-vnc".to_owned()),
         };
 
         let updated = update(COMMENTED_FILE, &document);
 
         assert!(
-            updated.contains("open = { scheme = \"https\", path = \"/admin\", host = \"ip\" }"),
+            updated.contains("open = { scheme = \"https\", path = \"/admin\", host = \"ip\", with = \"remmina-vnc\" }"),
             "{updated}"
         );
     }

@@ -6,6 +6,7 @@ import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { useOpenTunnel } from '#/tunnel_details/use_open_tunnel';
 import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
 import { ExternalMenuItems } from '#/tunnels/list/external_menu_items';
+import { OpenWithMenuItems } from '#/tunnels/list/open_with_menu_items';
 
 type TunnelMenuItemsProps = {
 	tunnel: TunnelDto;
@@ -17,7 +18,8 @@ export function TunnelMenuItems({ tunnel }: Readonly<TunnelMenuItemsProps>) {
 	const openTunnelDetails = useUiStore((state) => state.openTunnelDetails);
 	const { restart, stopAndRemove, persist, confirmRemoval } =
 		useTunnelActions(tunnel);
-	const { isOpenable, open } = useOpenTunnel(tunnel);
+	const { isOpenable, label, alternatives, open, openWith } =
+		useOpenTunnel(tunnel);
 	const isRunning = isTunnelRunning(tunnel.state);
 
 	const handleDetails = () => openTunnelDetails(tunnel.id);
@@ -31,8 +33,11 @@ export function TunnelMenuItems({ tunnel }: Readonly<TunnelMenuItemsProps>) {
 			</MenuItem>
 			{isOpenable && (
 				<MenuItem icon="i-mdi-open-in-new" onClick={open}>
-					Ouvrir dans le navigateur
+					{label}
 				</MenuItem>
+			)}
+			{isOpenable && (
+				<OpenWithMenuItems choices={alternatives} onChoose={openWith} />
 			)}
 			<ExternalMenuItems tunnel={tunnel} />
 			{tunnel.isTemporary ? (

@@ -1,14 +1,19 @@
 import { summarizeTags } from '#/sidebar/summarize_tags';
 import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
-import type { SettingsDto, TunnelDto } from '#/daemon/protocol';
 import type { PaletteCommand } from '#/palette/palette_command';
+import type { AvailableOpenerDto, TunnelDto } from '#/daemon/protocol';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import { compareTextCaseInsensitively } from '#/tunnels/compare_text_case_insensitively';
+import {
+	describeTunnelOpenCommand,
+	listAlternativeChoices,
+	toDefaultChoice,
+} from '#/openers/open_choices';
 
 type PaletteSources = {
 	tunnels: readonly Readonly<TunnelDto>[];
 	hosts: readonly string[];
-	settings: Readonly<SettingsDto> | null;
+	openers: readonly Readonly<AvailableOpenerDto>[];
 };
 
 const GENERAL_COMMANDS: readonly PaletteCommand[] = [
@@ -73,21 +78,33 @@ function buildToggleCommand(tunnel: Readonly<TunnelDto>): PaletteCommand {
 			};
 }
 
-function buildBrowserCommands(tunnel: Readonly<TunnelDto>): PaletteCommand[] {
+function buildOpenCommands(
+	tunnel: Readonly<TunnelDto>,
+	openers: readonly Readonly<AvailableOpenerDto>[]
+): PaletteCommand[] {
 	if (tunnel.kind !== 'local') return [];
+	const endpointLabel = getTunnelEndpointLabel(tunnel);
+	const defaultChoice = toDefaultChoice(tunnel.defaultOpener);
+	const alternatives = listAlternativeChoices(tunnel.defaultOpener, openers);
 	return [
 		{
-			id: `tunnel:${tunnel.id}:browser`,
-			label: `Ouvrir ${getTunnelEndpointLabel(tunnel)} dans le navigateur`,
+			id: `tunnel:${tunnel.id}:open`,
+			label: describeTunnelOpenCommand(endpointLabel, defaultChoice),
 			category: 'Tunnel',
 			action: { kind: 'openTunnel', id: tunnel.id },
 		},
+		...alternatives.map((choice) => ({
+			id: `tunnel:${tunnel.id}:open:${choice.id}`,
+			label: describeTunnelOpenCommand(endpointLabel, choice),
+			category: 'Tunnel' as const,
+			action: { kind: 'openTunnel' as const, id: tunnel.id, opener: choice.id },
+		})),
 	];
 }
 
 function buildTunnelCommands(
 	tunnel: Readonly<TunnelDto>,
-	_settings: Readonly<SettingsDto> | null
+	openers: readonly Readonly<AvailableOpenerDto>[]
 ): PaletteCommand[] {
 	const tunnelId = tunnel.id;
 	return [
@@ -104,7 +121,7 @@ function buildTunnelCommands(
 			category: 'Tunnel',
 			action: { kind: 'editTunnel', tunnelId },
 		},
-		...buildBrowserCommands(tunnel),
+		...buildOpenCommands(tunnel, openers),
 	];
 }
 
@@ -177,7 +194,7 @@ export function buildPaletteCommands(
 	return [
 		...GENERAL_COMMANDS,
 		...sources.tunnels.flatMap((tunnel) =>
-			buildTunnelCommands(tunnel, sources.settings)
+			buildTunnelCommands(tunnel, sources.openers)
 		),
 		...buildTagCommands(sources.tunnels),
 		...listHosts(sources).flatMap(buildHostCommands),

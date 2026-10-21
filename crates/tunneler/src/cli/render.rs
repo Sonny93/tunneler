@@ -523,6 +523,10 @@ mod tests {
             health: TargetHealthDto::Unknown,
             metrics: MetricsDto::default(),
             is_temporary: false,
+            default_opener: ipc::protocol::DefaultOpenerDto {
+                id: "browser".to_owned(),
+                name: "Browser".to_owned(),
+            },
         }
     }
 
@@ -534,6 +538,7 @@ mod tests {
             externals: Vec::new(),
             x11_anchors: Vec::new(),
             x11_launchers: Vec::new(),
+            openers: Vec::new(),
         }
     }
 
