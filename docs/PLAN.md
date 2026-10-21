@@ -19,13 +19,14 @@ La liste des tâches à cocher vit dans [`TASKS.md`](./TASKS.md). Ce fichier dé
 | D12 | **Outillage front : oxlint + oxfmt via `@minimalstuff/tooling`** (+ plugin `jsx-a11y` d'oxlint, absent du preset React) | Presets partagés, rapide, cohérent avec les autres projets. Rust : `rustfmt` + `clippy` |
 | D6 | **Tray : `tray-icon` avec feature `ksni` sur Linux** | Win32 natif sous Windows (boucle `winit`), StatusNotifierItem D-Bus pur Rust sous Linux (pas de GTK dans le daemon). Pas de tray sous macOS (la boucle exigerait le thread principal) |
 | D7 | **IPC : `interprocess` (local socket / named pipe), JSON lines** | Cross-platform, restreint à l'utilisateur courant. Même protocole pour l'UI et la CLI |
-| D8 | **Persistance TOML lisible à la main** dans le dossier de config utilisateur | Éditable, diffable, rechargé à chaud |
+| D8 | **Persistance TOML lisible à la main** dans le dossier de config utilisateur, ou à côté de l'exécutable en mode portable (§9) | Éditable, diffable, rechargé à chaud. Modifiée le 2026-10-22 (phase 18) : une version portable garde tout dans son dossier ; une version installée ne met jamais de données dans son dossier d'installation (remplacé à chaque mise à jour, supprimé à la désinstallation, non inscriptible sous `Program Files`) |
 | D9 | **Tags (n-n) plutôt que groupes (1-n)** | Un tunnel peut appartenir à plusieurs ensembles (`dev`, `adonis`, `mail`...) ; toggle d'un tag = toggle de ses tunnels |
 | D10 | **Single instance portée par le daemon** (bind du socket IPC = verrou) | Pas besoin de `tauri-plugin-single-instance` : une 2ᵉ invocation devient un client qui demande au daemon d'afficher l'UI |
 | D13 | **Pas de nom de tunnel : les tags sont le seul mécanisme de nommage et de regroupement** | Le nom était une saisie redondante avec l'adresse (`3333 → nova:3333` suffit à identifier un tunnel) et un champ de plus à garder unique. Un tunnel est désigné par son libellé (voir §7), la CLI le sélectionne par port (`3333`), par `hôte:port` ou par tag. Un tag ne peut donc ni être composé uniquement de chiffres ni contenir `:`, pour ne jamais se confondre avec un port ou un `hôte:port`. Projet non publié : pas de migration, un `name` resté dans un `tunnels.toml` existant est ignoré à la lecture et disparaît à la prochaine écriture |
 | D11 | **Accessibilité = exigence, pas une finition** : UI conforme WCAG 2.2 AA, CLI utilisable sans couleur ni TTY (voir §8) | Une fonctionnalité n'est pas « faite » tant qu'elle n'est pas utilisable au clavier seul, au lecteur d'écran et sans dépendre de la couleur |
 | D14 | **Veille = écoute locale sans session SSH**, opt-in (réglage général + surcharge par tunnel), tunnels `local` et `dynamic` seulement | Le daemon tient le port, retient les connexions entrantes, ouvre la session à la première puis les branche sur leurs canaux : aucune session SSH ne tourne tant que personne ne se connecte. Pas de process séparé, le daemon possède déjà l'écoute (`TcpListener` → `direct-tcpip` par connexion). Pas de veille pour `remote` : son écoute est côté serveur et exige une session |
 | D15 | **Ouverture d'un tunnel portée par le daemon** (`tunnel.open`) : navigateur ou application externe | Une seule implémentation pour l'UI, la CLI et la palette (l'UI et la CLI construisaient chacune leur URL). Les commandes viennent de la config de l'utilisateur, jamais des paramètres IPC, et sont lancées sans shell |
+| D16 | **Distribution : portable (zip, tar.gz), installeur NSIS (Windows), paquet `.deb` (Linux) ; nettoyage par `tunneler purge` ; mises à jour signées via les GitHub Releases** (`tauri-plugin-updater`) | Le bundler Tauri produit NSIS et `.deb` sans autre outil. NSIS plutôt que MSI : installation par utilisateur sans droits admin, choix utilisateur/machine natif, hooks d'installation. Le nettoyage vit dans le binaire (une seule implémentation testée, qui connaît les chemins et le trousseau) et sert au désinstalleur, au portable et à Linux. Mise à jour automatique pour l'installeur Windows seulement ; les autres formes sont prévenues d'une nouvelle version |
 
 ### Conséquence de D1/D2 sur la fermeture
 Les tunnels vivent *dans* le daemon : ils ne peuvent pas survivre à sa fermeture. L'option « quitter en laissant tourner » proposée initialement disparaît.
@@ -59,7 +60,7 @@ Les tunnels vivent *dans* le daemon : ils ne peuvent pas survivre à sa fermetur
 | `crates/known-hosts` | lib | Lecture/écriture `known_hosts` (hashé `\|1\|`, wildcards, négation, `[host]:port`, `@cert-authority`, `@revoked`, `UserKnownHostsFile`/`GlobalKnownHostsFile`, `HashKnownHosts`) |
 | `crates/engine` | lib | Cœur métier : sessions, auth, forwards, états, métriques, santé, scan de ports, store. Dépend d'abstractions (`CredentialPrompter`, `HostKeyVerifier`, `Clock`...) |
 | `crates/ipc` | lib | Types du protocole (serde, versionnés) + client + serveur |
-| `crates/tunneler` | bin `tunneler` | Daemon (`tunneler daemon`, défaut) + CLI (`up`, `down`, `status`, `list`, `open`, `quit`) + tray |
+| `crates/tunneler` | bin `tunneler` | Daemon (`tunneler daemon`, défaut) + CLI (`up`, `down`, `status`, `list`, `open`, `check`, `quit`, `purge`) + tray |
 | `app/` | bin `tunneler-ui` | Tauri 2 : `src-tauri` = pont IPC minimal, `src` = React |
 
 `app/src-tauri` est membre du workspace mais hors `default-members` : les crates du daemon se construisent sans les dépendances système du webview ; le crate UI se construit explicitement (`-p tunneler-ui`).
@@ -120,7 +121,7 @@ Règles par défaut : `target_port` absent = `listen_port` ; `listen_address` ab
 - Changer la veille (surcharge du tunnel ou réglage général) ne relance pas un tunnel qui tourne : elle prend effet au prochain démarrage. Le formulaire et les réglages le disent.
 - Un `tunnel.check_target` sur un tunnel en `Standby` répond `invalid_state` : il n'y a pas de session à traverser, une connexion le réveille d'abord.
 - `Standby` compte comme prêt pour `tunnel.open` et `start_tunnel_and_wait` : le port est tenu, une connexion réveille le tunnel. L'UI ne le compte pas dans « x/y actifs » (aucune session) mais le montre comme en marche (interrupteur activé).
-- Le moteur publie `TunnelWoke { id }` et `TunnelWakeFailed { id, reason }` (pour le signal de 17.7) ; ils ne sont pas exposés par IPC.
+- Le moteur publie `TunnelWoke { id }` et `TunnelWakeFailed { id, reason }` (pour le signal ci-dessous) ; ils ne sont pas exposés par IPC.
 - Arrêter un tunnel en veille libère le port (`Stopped`). `restore_on_launch` et `start_on_launch_tags` remettent en veille, sans session.
 - Signal au réveil depuis la veille et en cas d'échec, au choix (`settings.standby_notify`) : `none`, `visual`, `sound` ou `both` (défaut `visual`). Le son est joué par le daemon lui-même, indépendamment des notifications système : il reste audible quand celles-ci sont coupées (mode « ne pas déranger », notifications désactivées). La notification visuelle est donc toujours envoyée silencieuse.
   - Visuel : `org.freedesktop.Notifications` via `zbus` (déjà présent, pas de GTK) sous Linux, toast WinRT sous Windows.
@@ -147,7 +148,7 @@ Métriques par tunnel : connexions actives, octets in/out, dernière activité. 
 
 ## 4. Persistance
 
-Fichier `tunnels.toml` dans le dossier de config (`directories` : `~/.config/tunneler/`, `%APPDATA%\tunneler\`). Écriture atomique (tmp + rename), rechargement à chaud (`notify`), schéma versionné avec migrations.
+Fichier `tunnels.toml` dans le dossier de config (`directories` : `~/.config/tunneler/`, `%APPDATA%\tunneler\`), ou à côté de l'exécutable en mode portable (§9). Écriture atomique (tmp + rename), rechargement à chaud (`notify`), schéma versionné avec migrations.
 
 ```toml
 version = 1
@@ -169,6 +170,7 @@ standby = false                   # veille par défaut des tunnels local/dynamic
 standby_idle_s = 300              # retour en veille après ce délai sans connexion
 standby_notify = "visual"         # none | visual | sound | both, au réveil et à l'échec
 open_host = "localhost"           # localhost | ip (127.0.0.1, ou [::1] si l'écoute est IPv6)
+check_for_updates = true          # vérifie les GitHub Releases à l'ouverture de l'UI (§9)
 
 [[tunnels]]
 id = "01JA..."                    # ULID
@@ -309,7 +311,62 @@ Cible : **WCAG 2.2 niveau AA** pour l'UI ; CLI conforme aux conventions `NO_COLO
 
 ---
 
-## 9. Phases
+## 9. Distribution (D16)
+
+### Formes livrées
+
+| Forme | Contenu | Données | Mise à jour |
+|---|---|---|---|
+| Zip Windows `tunneler-<v>-windows-x86_64.zip` | `tunneler.exe`, `tunneler-ui.exe`, marqueur `portable` | dossier de l'exécutable | notification |
+| Installeur Windows `tunneler-<v>-windows-x86_64-setup.exe` (NSIS) | les deux exe, raccourcis, désinstalleur | dossiers utilisateur | automatique |
+| tar.gz Linux `tunneler-<v>-linux-x86_64.tar.gz` | `tunneler`, `tunneler-ui`, marqueur `portable` | dossier de l'exécutable | notification |
+| `.deb` `tunneler_<v>_amd64.deb` | `/usr/bin/tunneler`, `/usr/bin/tunneler-ui`, entrée de menu | dossiers utilisateur | notification |
+| AppImage `tunneler-ui-<v>-x86_64.AppImage` | UI seule (quand WebKitGTK 4.1 n'est pas installable) | celles du daemon | notification |
+
+### Mode portable
+- Actif quand un fichier `portable` se trouve à côté de l'exécutable. Le zip et le tar.gz le livrent ; le supprimer revient aux dossiers utilisateur.
+- `tunnels.toml` à côté de l'exécutable ; `state.toml`, journaux et cache du webview (WebView2, WebKitGTK) dans `data/` à côté de l'exécutable.
+- Détection identique dans le daemon et dans l'UI (les deux exe sont côte à côte). `--config` / `--state` et leurs variables d'environnement restent prioritaires.
+- Restent hors du dossier, par nature : l'entrée de lancement au login et les passphrases du trousseau (si l'utilisateur les active). `tunneler purge` les retire.
+
+### Traces laissées sur la machine
+
+| Trace | Version installée | Portable |
+|---|---|---|
+| `tunnels.toml` | `%APPDATA%\tunneler\`, `~/.config/tunneler/` | à côté de l'exe |
+| `state.toml`, journaux | `%LOCALAPPDATA%\tunneler\`, `~/.local/state/tunneler/`, `~/.local/share/tunneler/logs/` | `data/` |
+| Cache du webview | `%LOCALAPPDATA%\com.minimalstuff.tunneler\`, `~/.local/share/com.minimalstuff.tunneler/` | `data/` |
+| Lancement au login | valeur `Tunneler` de `HKCU\…\CurrentVersion\Run`, `~/.config/autostart/tunneler.desktop` | idem |
+| Passphrases | trousseau OS, service `tunneler` | idem |
+| Identité des notifications Windows (AUMID) | `HKCU\Software\Classes\AppUserModelId\com.minimalstuff.tunneler` | idem |
+| `~/.ssh/config`, `known_hosts` | fichiers de l'utilisateur, partagés avec OpenSSH : **jamais** supprimés | |
+
+### `tunneler purge [--keep-config] [--dry-run] [--yes]`
+- Arrête le daemon (comme `quit --yes`), puis retire le lancement au login, l'AUMID, les journaux et le cache du webview.
+- Sans `--keep-config` : aussi `tunnels.toml`, `state.toml` et les passphrases du trousseau listées dans `state.toml`. Avec : ces trois-là restent, pour tout retrouver après une réinstallation.
+- Ne touche jamais aux exécutables, au dossier d'installation ni à `~/.ssh`. Supprime les dossiers `tunneler` devenus vides.
+- Liste ce qui va être supprimé et demande confirmation sur un TTY ; hors TTY sans `--yes` → code 5. `--dry-run` liste seulement.
+
+### Installeur Windows (NSIS)
+- `installMode: "both"` : l'utilisateur choisit « pour moi » (`%LOCALAPPDATA%\Programs\Tunneler`) ou « pour tous » (`Program Files`). L'installeur demande l'élévation à un compte administrateur même pour le choix « pour moi » ; un compte standard installe pour lui sans invite. Une installation « pour tous » ne nettoie à la désinstallation que les données de l'utilisateur qui désinstalle (les données sont par utilisateur) et chaque mise à jour demande l'élévation.
+- `tunneler.exe` embarqué en `externalBin`, déclaré dans `tauri.windows.conf.json` seulement (sinon il entrerait dans l'AppImage, où son chemin de montage casserait le lancement au login).
+- Raccourcis : page « Menu Démarrer » avec la case native « Ne pas créer de raccourcis » (`startMenuFolder`), case « Créer un raccourci sur le bureau » sur la page de fin (native).
+- Hooks : avant installation et avant désinstallation, `tunneler.exe quit --yes` (exe verrouillé tant que le daemon tourne ; les tunnels voulus repartent au lancement suivant si `restore_on_launch`). Avant désinstallation, hors mise à jour (`$UpdateMode`), `tunneler.exe purge --yes`, avec `--keep-config` si la case du désinstalleur n'est pas cochée. Libellé de la case (fichier de langue personnalisé) : « Supprimer aussi mes tunnels, réglages et passphrases mémorisées ».
+- Le désinstalleur Tauri retire déjà la valeur `Run\Tunneler` (même nom que la nôtre) et ses propres clés.
+
+### Paquet `.deb`
+- Bundler Tauri, dépendances WebKitGTK déduites. Le daemon est ajouté par `bundle.linux.deb.files` (`/usr/bin/tunneler`), pas en `externalBin` (même raison que l'AppImage).
+- `apt remove` / `purge` ne touchent jamais au dossier personnel (politique Debian) : `tunneler purge` avant de désinstaller pour tout retirer (README).
+
+### Mises à jour
+- `tauri-plugin-updater`, point d'entrée statique `https://github.com/Sonny93/tunneler/releases/latest/download/latest.json`, artefacts signés (`createUpdaterArtifacts`, clé dans les secrets de la CI), `latest.json` produit par le job `release`. Inopérant tant que le dépôt est privé : la vérification échoue, journalisée, sans message à l'utilisateur.
+- Vérification à l'ouverture de l'UI si `settings.check_for_updates` (défaut `true`). Nouvelle version → bandeau (version, notes, lien vers la release).
+- Installeur Windows : *Installer et redémarrer* → la même confirmation que « Tout arrêter et quitter » si des tunnels tournent, téléchargement avec progression textuelle, vérification de la signature, installeur en mode `passive`, relance.
+- Portable, `.deb`, tar.gz, AppImage : bandeau et lien seulement. L'updater Tauri ne sait mettre à jour que l'AppImage sous Linux, qui ne contient pas le daemon (UI et daemon désaccordés).
+
+---
+
+## 10. Phases
 
 Le détail coché est dans [`TASKS.md`](./TASKS.md). Les phases UI/CLI ne sont closes qu'avec leurs critères d'accessibilité (§8) validés.
 
@@ -330,10 +387,14 @@ Le détail coché est dans [`TASKS.md`](./TASKS.md). Les phases UI/CLI ne sont c
 | 12 | Autostart, tags au lancement, restore, trousseau OS | Redémarrage de session → tunnels restaurés |
 | 13 | Packaging, mesure RAM, release | Zip portable Windows, AppImage/tar.gz Linux, mesures RSS documentées |
 | 14 | Retours d'usage : infobulles, clic droit, sélection multiple, refonte visuelle | Actions groupées sur une sélection, au clavier comme à la souris |
+| 15 | Retours d'usage : panneau repliable, une seule UI, renommage de tag, dossier de config | Une 2ᵉ UI met la première au premier plan |
+| 16 | Retours d'usage : suppression de tag, plus de nom de tunnel (D13), tunnels temporaires | `tunneler up nova -L 3333` puis `tunneler down nova:3333` |
+| 17 | Ouverture (D15) et veille (D14) | Tunnel en veille réveillé par une connexion, ouvert avec l'application suggérée |
+| 18 | Distribution (D16) : portable, installeur NSIS, `.deb`, `tunneler purge`, mises à jour | Installation, mise à jour et désinstallation sans trace sous Windows ; `.deb` installé puis retiré sous Debian |
 
 ---
 
-## 10. Qualité
+## 11. Qualité
 
 - Rust : tests unitaires co-localisés (`#[cfg(test)]`), tests d'intégration dans `tests/` avec un serveur SSH russh in-process (pas de dépendance à un sshd système), `clippy -D warnings`, `rustfmt`.
 - `ssh-config` : tests différentiels contre `ssh -G` (activés si `ssh` présent).
@@ -342,7 +403,7 @@ Le détail coché est dans [`TASKS.md`](./TASKS.md). Les phases UI/CLI ne sont c
 - Accessibilité manuelle : checklist par phase UI (clavier seul, NVDA, Orca, zoom 200 %, contraste élevé Windows) — l'automatique ne couvre qu'une partie des critères.
 - CI GitHub Actions : matrice Linux / Windows. macOS retiré de la CI (2026-10-18) : seuls Windows et Debian sont utilisés ; le code macOS existant (cfg) reste mais n'est plus compilé ni testé.
 
-## 11. Risques
+## 12. Risques
 
 | Risque | Mitigation |
 |---|---|
@@ -354,3 +415,5 @@ Le détail coché est dans [`TASKS.md`](./TASKS.md). Les phases UI/CLI ne sont c
 | Sécurité X11 | Opt-in par host, avertissement explicite |
 | Lacunes d'accessibilité dans `@minimalstuff/ui` | `axe` + passe manuelle sur chaque composant utilisé dès la phase 6 ; correctifs remontés dans la lib |
 | Support lecteur d'écran inégal selon le webview (WebKitGTK + Orca moins mûr que WebView2 + NVDA) | Tester tôt (phase 6) sur les deux, privilégier HTML natif, CLI comme alternative complète |
+| Clé de signature des mises à jour perdue | Plus aucune mise à jour possible pour les installations existantes : copie hors GitHub (gestionnaire de mots de passe), clé protégée par mot de passe, présente seulement dans les secrets de la CI |
+| Binaires et installeur non signés (SmartScreen) | Documenté dans le README ; signature de code à envisager une fois le dépôt public |

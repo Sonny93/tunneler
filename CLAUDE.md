@@ -5,7 +5,7 @@ SSH tunnel manager: Rust daemon (embedded `russh` client, tray, IPC) + on-demand
 ## Source of truth
 
 - [`docs/PLAN.md`](docs/PLAN.md): design and **locked decisions (§1)**. Do not re-litigate them; if one must change, update the plan and say why.
-- [`docs/TASKS.md`](docs/TASKS.md): phased checklist. Tick tasks as they land and add a note under a task when reality diverges from the plan.
+- [`docs/TASKS.md`](docs/TASKS.md): what is left: the current phase, manual validations, known gaps. Tick tasks as they land and add a note under a task when reality diverges from the plan. Once a phase lands, remove it: decisions go to the plan, open validations and gaps to their sections, the rest stays in git history.
 - Accessibility (PLAN §8) is part of "done" for every UI/CLI task, not a later polish pass.
 
 ## Commands
@@ -28,6 +28,11 @@ pnpm build   # vite build → app/dist
 ```
 
 UI Rust crate: `cargo clippy -p tunneler-ui --all-targets --locked -- -D warnings`. Requires `app/dist` (run `pnpm build` first, `tauri::generate_context!` embeds it) and, on Linux, the webkit2gtk-4.1 dev packages listed in the README.
+
+Pitfalls:
+- `cargo build --release -p tunneler-ui` without `tauri/custom-protocol` builds in `cfg(dev)` and loads `devUrl` (blank window without `pnpm dev`). Build the release UI with `pnpm tauri build` only.
+- `pnpm tauri build` rewrites `app/src-tauri/Cargo.toml` (`features = []`): never commit that rewrite.
+- Headless (Xvfb), WebKitGTK never starts without a D-Bus session and reports no error: run the UI under `dbus-run-session`.
 
 CI (`.github/workflows/ci.yml`) runs the same commands on Linux and Windows (macOS is not maintained: no CI, cfg-gated code kept as is). Validate workflow edits with `actionlint`.
 
