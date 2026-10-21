@@ -27,7 +27,7 @@ export const FilterButton = ({
 		aria-current={isActive ? 'true' : undefined}
 		onClick={onSelect}
 		className={cn(
-			'flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-tn-text hover:bg-tn-surface-raised',
+			'flex min-h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-tn-text hover:bg-tn-surface-raised',
 			isActive && 'bg-tn-selected font-semibold hover:bg-tn-selected'
 		)}
 	>
