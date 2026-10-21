@@ -17,7 +17,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 33] = [
+pub const METHOD_NAMES: [&str; 34] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -29,6 +29,7 @@ pub const METHOD_NAMES: [&str; 33] = [
     "tunnel.logs",
     "tunnel.start_temporary",
     "tunnel.persist",
+    "tunnel.check_target",
     "hosts.list",
     "hosts.resolve",
     "import.ssh_config",
@@ -206,6 +207,13 @@ pub enum Request {
     /// temporary.
     #[serde(rename = "tunnel.persist")]
     TunnelPersist(TunnelIdParams),
+    /// Checks once whether the target of a running local or remote tunnel
+    /// answers, and answers with its health; answers `not_found` when the
+    /// tunnel does not exist and `invalid_state` when it is not running or
+    /// has no target (dynamic). Never runs on its own: every call opens one
+    /// connection to the target.
+    #[serde(rename = "tunnel.check_target")]
+    TunnelCheckTarget(TunnelIdParams),
     /// Lists the concrete `Host` aliases of the user's `ssh_config`.
     #[serde(rename = "hosts.list")]
     HostsList {},

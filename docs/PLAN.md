@@ -109,7 +109,7 @@ Règles par défaut : `target_port` absent = `listen_port` ; `listen_address` ab
 
 Santé de la cible, indépendante de l'état : `Unknown` · `Reachable` · `Unreachable { since, error }`.
 - Passif : un `direct-tcpip` refusé (`ConnectFailed`) marque la cible injoignable (« tunnel OK, service distant down »).
-- Pas de sonde périodique : les services protégés contre la force brute (Xvnc, fail2ban, `MaxStartups` de sshd) comptent chaque connexion non authentifiée comme un échec et finiraient par bloquer 127.0.0.1. La vivacité du lien vient du keepalive SSH ; une vérification ponctuelle sera déclenchée par l'utilisateur, à la demande, via l'action *Tester la cible*.
+- Pas de sonde périodique : les services protégés contre la force brute (Xvnc, fail2ban, `MaxStartups` de sshd) comptent chaque connexion non authentifiée comme un échec et finiraient par bloquer 127.0.0.1. La vivacité du lien vient du keepalive SSH ; une vérification ponctuelle est déclenchée par l'utilisateur, à la demande, via l'action *Tester la cible* (IPC `tunnel.check_target`, CLI `tunneler check`) : un seul canal `direct-tcpip` (tunnel local) ou une seule connexion locale (tunnel distant), refermé aussitôt, et le résultat met à jour la santé comme un rapport passif.
 
 Métriques par tunnel : connexions actives, octets in/out, dernière activité. Logs : ring buffer par tunnel + fichier de log tournant (`tracing`).
 
@@ -194,6 +194,7 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 | `tunnel.create` / `update` / `delete` / `start` / `stop` / `restart` | |
 | `tunnel.start_temporary { host, kind, listenPort, … }` | démarre un tunnel temporaire (sans `id` ni tags) → `TunnelDto` avec `isTemporary: true` ; `validation_failed` si la définition est invalide |
 | `tunnel.persist { id }` | enregistre un tunnel temporaire dans `tunnels.toml`, sans le redémarrer ; `not_found` si l'id est inconnu, `invalid_state` s'il n'est pas temporaire |
+| `tunnel.check_target { id }` | essaie la cible une seule fois, à la demande (jamais sur minuterie) → `{ health }` ; `not_found` si l'id est inconnu, `invalid_state` si le tunnel ne tourne pas ou est dynamique (sans cible) ; la santé du tunnel est mise à jour (événement `tunnel.changed`) |
 | `tag.start` / `tag.stop` | |
 | `tags.rename { from, to }` | renomme le tag dans tous les tunnels et dans `start_on_launch_tags` (une écriture, fusion si `to` existe) → `{ renamedCount }` |
 | `tags.delete { tag }` | retire le tag de tous les tunnels et de `start_on_launch_tags` (une écriture, les tunnels sont conservés, aucun redémarrage) → `{ removedCount }` ; `not_found` si aucun tunnel ne le porte |
@@ -256,7 +257,8 @@ Cible : **WCAG 2.2 niveau AA** pour l'UI ; CLI conforme aux conventions `NO_COLO
 - Confirmations interactives contournables (`--yes`), jamais de prompt bloquant hors TTY.
 - `--help` complet avec exemples, aide par sous-commande.
 - **Tunnels temporaires** : `tunneler up <hôte> -L [bind:]port[:hôte:port] | -R [bind:]port[:hôte:port] | -D [bind:]port` (syntaxe OpenSSH, un seul forward par appel ; un port seul vaut le même port sur le loopback de l'hôte, comme les défauts du formulaire). Si un tunnel enregistré fait déjà ce forward (genre, hôte, port d'écoute, cible), il est démarré à la place ; sinon un tunnel temporaire est démarré et la commande d'arrêt est affichée (`tunneler down hôte:port`). `list`/`status` ajoutent `(temporaire)` et leur `--json` porte `isTemporary`.
-- **Sélecteurs de tunnel** (`up`, `down`, `open`) : un nombre (`3333`) désigne le tunnel qui écoute sur ce port (erreur listant les `hôte:port` candidats s'il y en a plusieurs), `hôte:port` (`nova:3333`) celui de cet hôte, tout le reste est un tag (casse ignorée). `--tag` force la lecture en tag. `open` exige un seul tunnel. `list` et `status` affichent le libellé de la route, pas un nom.
+- **Vérification de la cible** : `tunneler check <port | hôte:port | tag>` essaie la cible d'un tunnel local ou distant démarré, une seule fois (`tunnel.check_target`), et affiche `<libellé> : target reachable` (code 0) ou l'erreur sur stderr (code 7, `TARGET_UNREACHABLE`). Un tunnel arrêté ou dynamique donne `invalid_state` (code 1).
+- **Sélecteurs de tunnel** (`up`, `down`, `open`, `check`) : un nombre (`3333`) désigne le tunnel qui écoute sur ce port (erreur listant les `hôte:port` candidats s'il y en a plusieurs), `hôte:port` (`nova:3333`) celui de cet hôte, tout le reste est un tag (casse ignorée). `--tag` force la lecture en tag. `open` exige un seul tunnel. `list` et `status` affichent le libellé de la route, pas un nom.
 
 ---
 

@@ -68,6 +68,21 @@ Examples:
   tunneler open nova:3333       The same, picking the tunnel by host and port
   tunneler open adonis          The same, by a tag that only one tunnel carries";
 
+const CHECK_EXAMPLES: &str = "\
+Examples:
+  tunneler check 3333           Try the target of the tunnel listening on port 3333
+  tunneler check nova:3333      The same, picking the tunnel by host and port
+  tunneler check adonis         The same, by a tag that only one tunnel carries
+
+The tunnel must be running, and be a local or a remote one: a dynamic tunnel has
+no fixed target. The check opens one connection to the target (through the SSH
+session for a local tunnel, from this machine for a remote one) and closes it
+at once; it never runs on its own, and the result also updates the target health
+shown by `tunneler status`. Some services count a connection that closes without
+speaking their protocol as a failed login, so do not script it in a loop.
+
+Exits with 0 when the target answers, and 7 when it does not.";
+
 const QUIT_EXAMPLES: &str = "\
 Examples:
   tunneler quit                 Stop the daemon; asks first when tunnels are active
@@ -145,6 +160,9 @@ pub enum Command {
     /// Open a tunnel in the browser
     #[command(after_help = OPEN_EXAMPLES)]
     Open(OpenArguments),
+    /// Try the target of a running tunnel once
+    #[command(after_help = CHECK_EXAMPLES)]
+    Check(CheckArguments),
     /// Stop the daemon
     #[command(after_help = QUIT_EXAMPLES)]
     Quit(QuitArguments),
@@ -227,6 +245,14 @@ pub struct OutputArguments {
 #[derive(Debug, Args)]
 pub struct OpenArguments {
     /// The port, host:port pair or tag of the tunnel to open
+    #[arg(value_name = "TARGET")]
+    pub target: String,
+}
+
+/// The arguments of `check`.
+#[derive(Debug, Args)]
+pub struct CheckArguments {
+    /// The port, host:port pair or tag of the tunnel to check
     #[arg(value_name = "TARGET")]
     pub target: String,
 }

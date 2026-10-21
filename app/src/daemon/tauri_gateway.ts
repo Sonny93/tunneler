@@ -28,6 +28,7 @@ export function createTauriGateway(): DaemonGateway {
 		updateTunnel: (definition) => call('update_tunnel', { definition }),
 		startTemporaryTunnel: (spec) => call('start_temporary_tunnel', { spec }),
 		persistTunnel: (id) => call('persist_tunnel', { id }),
+		checkTarget: (id) => call('check_target', { id }),
 		deleteTunnel: (id) => call('delete_tunnel', { id }),
 		startTunnel: (id) => call('start_tunnel', { id }),
 		stopTunnel: (id) => call('stop_tunnel', { id }),

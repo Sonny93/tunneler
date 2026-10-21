@@ -81,6 +81,20 @@ pub enum CliError {
         /// How many were started.
         total: usize,
     },
+    /// The target of a tunnel did not answer the check.
+    #[error("the target of {label} is unreachable: {error}")]
+    TargetUnreachable {
+        /// The tunnel route.
+        label: String,
+        /// Why the target did not answer.
+        error: String,
+    },
+    /// The tunnel stopped before the check could tell anything.
+    #[error("the check of {label} was inconclusive: the tunnel stopped meanwhile")]
+    TargetCheckInconclusive {
+        /// The tunnel route.
+        label: String,
+    },
     /// The daemon closed the connection while the command was waiting.
     #[error("the daemon closed the connection")]
     ConnectionLost,
@@ -132,6 +146,7 @@ impl CliError {
             }
             Self::ForwardSpec(_) | Self::ForwardNeedsOneHost { .. } => exit_code::USAGE,
             Self::TargetsFailed { .. } => exit_code::TARGETS_FAILED,
+            Self::TargetUnreachable { .. } => exit_code::TARGET_UNREACHABLE,
             Self::ConfirmationRequired { .. } => exit_code::CONFIRMATION_REQUIRED,
             Self::TimedOutWaiting { .. } | Self::DaemonStopTimedOut { .. } => exit_code::TIMED_OUT,
             Self::DaemonSpawn(_)
@@ -145,6 +160,7 @@ impl CliError {
             | Self::ConnectionLost
             | Self::NotOpenable { .. }
             | Self::OpenFailed { .. }
+            | Self::TargetCheckInconclusive { .. }
             | Self::UiUnavailable { .. }
             | Self::Terminal(_)
             | Self::Encoding(_)
@@ -191,7 +207,11 @@ impl CliError {
             Self::OpenFailed { url, .. } => Some(format!("open {url} in your browser yourself")),
             Self::NotOpenable { .. } => Some("run `tunneler list` to see the kinds".to_owned()),
             Self::UiUnavailable { .. } => Some(UI_UNAVAILABLE_HINT.to_owned()),
+            Self::TargetUnreachable { .. } => {
+                Some("see `tunneler status` for the tunnel state".to_owned())
+            }
             Self::DaemonSpawn(_)
+            | Self::TargetCheckInconclusive { .. }
             | Self::Daemon(_)
             | Self::Endpoint(_)
             | Self::Store(_)
@@ -206,6 +226,10 @@ impl CliError {
 fn remote_hint(code: ErrorCode) -> Option<String> {
     match code {
         ErrorCode::NotFound => Some("run `tunneler list` to see the tunnels".to_owned()),
+        ErrorCode::InvalidState => Some(
+            "only a running local or remote tunnel can be checked: see `tunneler status`"
+                .to_owned(),
+        ),
         _ => None,
     }
 }
@@ -244,6 +268,18 @@ mod tests {
             }
             .exit_code(),
             exit_code::TARGETS_FAILED
+        );
+    }
+
+    #[test]
+    fn should_exit_with_7_when_the_target_is_unreachable() {
+        assert_eq!(
+            CliError::TargetUnreachable {
+                label: "3333".to_owned(),
+                error: "refused".to_owned()
+            }
+            .exit_code(),
+            exit_code::TARGET_UNREACHABLE
         );
     }
 

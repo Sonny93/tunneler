@@ -40,6 +40,7 @@ fn main() -> tauri::Result<()> {
             commands::update_tunnel,
             commands::start_temporary_tunnel,
             commands::persist_tunnel,
+            commands::check_target,
             commands::delete_tunnel,
             commands::start_tunnel,
             commands::stop_tunnel,

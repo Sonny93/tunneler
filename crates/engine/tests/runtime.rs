@@ -1517,6 +1517,102 @@ async fn should_not_open_any_connection_to_the_target_while_no_client_connects()
 }
 
 #[tokio::test]
+async fn should_report_the_target_reachable_with_one_request_when_checking_an_active_local_tunnel()
+{
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.start_and_wait_active("alpha").await;
+
+    let health = harness.engine.check_target(harness.id("alpha")).await;
+
+    assert_eq!(
+        (health.unwrap(), harness.target_requests()),
+        (TargetHealth::Reachable, 1)
+    );
+}
+
+#[tokio::test]
+async fn should_publish_the_new_health_when_checking_the_target() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.start_and_wait_active("alpha").await;
+
+    harness
+        .engine
+        .check_target(harness.id("alpha"))
+        .await
+        .unwrap();
+
+    wait_for_event(&mut harness.events, WAIT, is_reachable_event).await;
+}
+
+#[tokio::test]
+async fn should_report_the_target_unreachable_when_checking_a_local_tunnel_with_a_down_target() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .with_target_down()
+        .start()
+        .await;
+    harness.start_and_wait_active("alpha").await;
+
+    let health = harness.engine.check_target(harness.id("alpha")).await;
+
+    assert!(matches!(health, Ok(TargetHealth::Unreachable { .. })));
+}
+
+#[tokio::test]
+async fn should_fail_when_checking_the_target_of_a_stopped_tunnel() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let outcome = harness.engine.check_target(harness.id("alpha")).await;
+
+    assert!(matches!(outcome, Err(EngineError::TunnelNotActive(_))));
+}
+
+#[tokio::test]
+async fn should_fail_when_checking_the_target_of_an_unknown_tunnel() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let outcome = harness.engine.check_target(TunnelId::generate()).await;
+
+    assert!(matches!(outcome, Err(EngineError::UnknownTunnel(_))));
+}
+
+#[tokio::test]
+async fn should_fail_when_checking_the_target_of_a_dynamic_tunnel() {
+    let mut harness = HarnessBuilder::new(&["socks"])
+        .kind("dynamic")
+        .start()
+        .await;
+    harness.start_and_wait_active("socks").await;
+
+    let outcome = harness.engine.check_target(harness.id("socks")).await;
+
+    assert!(matches!(outcome, Err(EngineError::TunnelHasNoTarget(_))));
+}
+
+#[tokio::test]
+async fn should_report_the_target_reachable_when_checking_an_active_remote_tunnel() {
+    let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
+    harness.start_and_wait_active("rev").await;
+
+    let health = harness.engine.check_target(harness.id("rev")).await;
+
+    assert_eq!(health.unwrap(), TargetHealth::Reachable);
+}
+
+#[tokio::test]
+async fn should_report_the_target_unreachable_when_checking_a_remote_tunnel_with_a_down_target() {
+    let mut harness = HarnessBuilder::new(&["rev"])
+        .kind("remote")
+        .with_target_down()
+        .start()
+        .await;
+    harness.start_and_wait_active("rev").await;
+
+    let health = harness.engine.check_target(harness.id("rev")).await;
+
+    assert!(matches!(health, Ok(TargetHealth::Unreachable { .. })));
+}
+
+#[tokio::test]
 async fn should_start_and_stop_exactly_the_tagged_tunnels_when_toggling_a_tag() {
     let mut harness = HarnessBuilder::tagged(&[
         ("alpha", &["dev"]),

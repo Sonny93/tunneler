@@ -16,13 +16,13 @@ use tokio::task::JoinHandle;
 use crate::endpoint::Endpoint;
 use crate::error::ClientError;
 use crate::protocol::{
-    AdoptResult, CredentialAnswer, CredentialResponseParams, DaemonPathsResult, DeleteTagResult,
-    EventMessage, ForgetSecretsResult, Hello, HostKeyDecisionDto, HostKeyResponseParams,
-    HostParams, HostsResult, ImportPreviewDto, ImportScriptParams, LogEntryDto, LogsResult,
-    ProcessParams, QuitParams, RememberDto, RenameTagResult, Request, RequestEnvelope,
-    ResolvedHostDto, SettingsDto, SnapshotDto, TagParams, TagRenameParams, TemporaryTunnelSpecDto,
-    TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelSpecDto, UiClaimResult, X11HostParams,
-    X11LaunchParams, encode_line,
+    AdoptResult, CheckTargetResult, CredentialAnswer, CredentialResponseParams, DaemonPathsResult,
+    DeleteTagResult, EventMessage, ForgetSecretsResult, Hello, HostKeyDecisionDto,
+    HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto, ImportScriptParams,
+    LogEntryDto, LogsResult, ProcessParams, QuitParams, RememberDto, RenameTagResult, Request,
+    RequestEnvelope, ResolvedHostDto, SettingsDto, SnapshotDto, TagParams, TagRenameParams,
+    TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto, TunnelIdParams,
+    TunnelSpecDto, UiClaimResult, X11HostParams, X11LaunchParams, encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -152,6 +152,17 @@ impl IpcClient {
     pub async fn persist_tunnel(&self, id: &str) -> Result<(), ClientError> {
         self.call_without_result(Request::TunnelPersist(tunnel_id(id)))
             .await
+    }
+
+    /// Checks once whether the target of a running tunnel answers.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn check_target(&self, id: &str) -> Result<TargetHealthDto, ClientError> {
+        let result: CheckTargetResult =
+            self.call(Request::TunnelCheckTarget(tunnel_id(id))).await?;
+        Ok(result.health)
     }
 
     /// Replaces the definition of a tunnel.

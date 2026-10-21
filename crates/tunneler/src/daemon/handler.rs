@@ -6,17 +6,19 @@ use engine::{
     preview_ssh_config,
 };
 use ipc::protocol::{
-    AdoptResult, DaemonPathsResult, DeleteTagResult, ForgetSecretsResult, HostsResult, IpcError,
-    LogsResult, ProcessParams, QuitParams, RenameTagResult, Request, ResponsePayload, SettingsDto,
-    TagParams, TagRenameParams, TunnelIdParams, UiClaimResult, X11HostParams, X11LaunchParams,
+    AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, ForgetSecretsResult,
+    HostsResult, IpcError, LogsResult, ProcessParams, QuitParams, RenameTagResult, Request,
+    ResponsePayload, SettingsDto, TagParams, TagRenameParams, TunnelIdParams, UiClaimResult,
+    X11HostParams, X11LaunchParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use super::mapping::{
-    definition_from_dto, import_preview_to_dto, log_entry_to_dto, new_temporary_tunnel_from_spec,
-    new_tunnel_from_spec, resolved_host_to_dto, settings_from_dto, snapshot_to_dto, tunnel_to_dto,
+    definition_from_dto, health_to_dto, import_preview_to_dto, log_entry_to_dto,
+    new_temporary_tunnel_from_spec, new_tunnel_from_spec, resolved_host_to_dto, settings_from_dto,
+    snapshot_to_dto, tunnel_to_dto,
 };
 use super::prompts::PromptBroker;
 use super::tray::TrayStatus;
@@ -66,6 +68,7 @@ impl DaemonHandler {
             Request::TunnelUpdate(definition) => self.update_tunnel(definition).await,
             Request::TunnelStartTemporary(spec) => self.start_temporary_tunnel(spec).await,
             Request::TunnelPersist(params) => self.persist_tunnel(params).await,
+            Request::TunnelCheckTarget(params) => self.check_target(&params).await,
             Request::TunnelDelete(params) => self.delete_tunnel(params).await,
             Request::TunnelStart(params) => self.start_tunnel(&params),
             Request::TunnelStop(params) => self.stop_tunnel(&params),
@@ -282,6 +285,17 @@ impl DaemonHandler {
             .map_err(engine_error_to_ipc)
     }
 
+    async fn check_target(&self, params: &TunnelIdParams) -> Result<ResponsePayload, IpcError> {
+        let health = self
+            .engine
+            .check_target(parse_tunnel_id(params)?)
+            .await
+            .map_err(engine_error_to_ipc)?;
+        Ok(ResponsePayload::CheckTarget(CheckTargetResult {
+            health: health_to_dto(&health),
+        }))
+    }
+
     fn tunnel_logs(&self, params: &TunnelIdParams) -> Result<ResponsePayload, IpcError> {
         let entries = self
             .engine
@@ -411,7 +425,9 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         EngineError::ShutDown => IpcError::internal("the daemon is shutting down"),
         EngineError::NotExternal(_)
         | EngineError::TunnelIsTemporary(_)
-        | EngineError::TunnelIsNotTemporary(_) => IpcError::invalid_state(error.to_string()),
+        | EngineError::TunnelIsNotTemporary(_)
+        | EngineError::TunnelNotActive(_)
+        | EngineError::TunnelHasNoTarget(_) => IpcError::invalid_state(error.to_string()),
         EngineError::UnknownProcess(_) | EngineError::UnknownLauncher { .. } => {
             IpcError::not_found(error.to_string())
         }
@@ -421,7 +437,9 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         EngineError::X11(ref failure) if is_x11_precondition(failure) => {
             IpcError::invalid_state(error.to_string())
         }
-        EngineError::PortScan(_) | EngineError::X11(_) => IpcError::internal(error.to_string()),
+        EngineError::PortScan(_) | EngineError::X11(_) | EngineError::TargetCheckFailed(_) => {
+            IpcError::internal(error.to_string())
+        }
     }
 }
 
@@ -1418,6 +1436,38 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(error.code, ErrorCode::InvalidState);
+    }
+
+    #[tokio::test]
+    async fn should_answer_invalid_state_when_the_target_of_a_stopped_tunnel_is_checked() {
+        let fixture = fixture();
+        let tunnel = created_tunnel(&fixture, free_port().await).await;
+
+        let error = fixture
+            .handler
+            .dispatch(None, Request::TunnelCheckTarget(tunnel_id_params(&tunnel)))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::InvalidState);
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_the_target_of_an_unknown_tunnel_is_checked() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::TunnelCheckTarget(TunnelIdParams {
+                    id: TunnelId::generate().to_string(),
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
     }
 
     #[tokio::test]

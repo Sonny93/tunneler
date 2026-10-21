@@ -59,7 +59,8 @@ pub(crate) async fn serve_forwarded_connection(job: ForwardedJob) {
     relay(counted_target, channel.into_stream()).await;
 }
 
-async fn connect_to_target(target: &ForwardTarget) -> io::Result<TcpStream> {
+/// Opens a connection to the local target, bounded by a timeout.
+pub(crate) async fn connect_to_target(target: &ForwardTarget) -> io::Result<TcpStream> {
     timeout(
         LOCAL_CONNECT_TIMEOUT,
         TcpStream::connect((target.host.as_str(), target.port)),

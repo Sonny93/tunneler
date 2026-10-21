@@ -14,6 +14,7 @@ use crate::remote_forwards::{ForwardedConnection, RemoteForwardRegistration};
 use crate::runtime::backoff::random_jitter_fraction;
 use crate::runtime::definition_diff::{DefinitionChange, classify_change};
 use crate::runtime::dynamic_forward::{SocksJob, socks_connection};
+use crate::runtime::engine::EngineError;
 use crate::runtime::forward_run::{ClientProtocol, ForwardRun, Inbound};
 use crate::runtime::local_forward::{
     ConnectionJob, ForwardTarget, TargetReport, bind_listener, format_socket_address,
@@ -27,6 +28,7 @@ use crate::runtime::retry::{RetryDecision, decide_after_connect_error, reconnect
 use crate::runtime::session_manager::{AcquireError, SessionLease, SessionManager};
 use crate::runtime::shared::TunnelShared;
 use crate::runtime::state::{FailureReason, TargetHealth, TunnelState};
+use crate::runtime::target_check::{TargetCheckJob, TargetCheckReply, check_target};
 use crate::session::SshSession;
 use crate::store::{Settings, TunnelDefinition, TunnelKind};
 
@@ -42,6 +44,7 @@ pub(crate) enum TunnelCommand {
     Restart,
     UpdateDefinition(TunnelDefinition),
     PortObserved(Option<PortOccupation>),
+    CheckTarget(TargetCheckReply),
     Terminate,
 }
 
@@ -122,6 +125,11 @@ impl TunnelActor {
             TunnelCommand::Stop => self.stop_when_idle(),
             TunnelCommand::UpdateDefinition(definition) => self.context.definition = definition,
             TunnelCommand::PortObserved(occupation) => self.apply_observation(occupation),
+            TunnelCommand::CheckTarget(reply) => {
+                let _ = reply.send(Err(EngineError::TunnelNotActive(
+                    self.context.definition.id,
+                )));
+            }
             TunnelCommand::Terminate => return Exit::Terminate,
         }
         Exit::Idle
@@ -386,12 +394,32 @@ impl TunnelActor {
                 Some(report) = run.reports.recv() => self.apply_report(report),
                 _ = metrics_ticker.tick() => self.publish_metrics(run),
                 command = self.commands.recv() => {
-                    if let Some(interrupt) = self.interrupt_from(command) {
+                    if let Some(interrupt) = self.handle_active_command(run, session, command) {
                         return Step::Interrupted(interrupt);
                     }
                 }
             }
         }
+    }
+
+    fn handle_active_command(
+        &mut self,
+        run: &mut ForwardRun,
+        session: &Arc<SshSession>,
+        command: Option<TunnelCommand>,
+    ) -> Option<Interrupt> {
+        let Some(TunnelCommand::CheckTarget(reply)) = command else {
+            return self.interrupt_from(command);
+        };
+        run.connections.spawn(check_target(TargetCheckJob {
+            id: self.context.definition.id,
+            kind: self.context.definition.kind,
+            session: Arc::clone(session),
+            target: self.forward_target(),
+            shared: Arc::clone(&self.context.shared),
+            reply,
+        }));
+        None
     }
 
     async fn begin_forwarding(
@@ -607,6 +635,10 @@ fn interrupt_for(
         Some(TunnelCommand::Stop) => Some(Interrupt::Stop),
         Some(TunnelCommand::Restart) => Some(Interrupt::Restart),
         Some(TunnelCommand::Start | TunnelCommand::PortObserved(_)) => None,
+        Some(TunnelCommand::CheckTarget(reply)) => {
+            let _ = reply.send(Err(EngineError::TunnelNotActive(definition.id)));
+            None
+        }
         Some(TunnelCommand::UpdateDefinition(updated)) => {
             let change = classify_change(definition, &updated);
             *definition = updated;

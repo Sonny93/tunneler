@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::protocol::dto::{
-    ImportPreviewDto, LogEntryDto, ResolvedHostDto, SnapshotDto, TunnelDto,
+    ImportPreviewDto, LogEntryDto, ResolvedHostDto, SnapshotDto, TargetHealthDto, TunnelDto,
 };
 use crate::protocol::hello::HelloResult;
 
@@ -15,6 +15,14 @@ pub struct EmptyResult {}
 pub struct LogsResult {
     /// The recent entries, oldest first.
     pub entries: Vec<LogEntryDto>,
+}
+
+/// The result of `tunnel.check_target`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckTargetResult {
+    /// The health of the target after the check.
+    pub health: TargetHealthDto,
 }
 
 /// The result of `hosts.list`.
@@ -88,6 +96,8 @@ pub enum ResponsePayload {
     Tunnel(TunnelDto),
     /// The answer to `tunnel.logs`.
     Logs(LogsResult),
+    /// The answer to `tunnel.check_target`.
+    CheckTarget(CheckTargetResult),
     /// The answer to `hosts.list`.
     Hosts(HostsResult),
     /// The answer to `hosts.resolve`.

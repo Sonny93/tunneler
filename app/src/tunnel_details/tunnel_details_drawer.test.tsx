@@ -149,6 +149,92 @@ describe('TunnelDetailsDrawer', () => {
 		).not.toBeInTheDocument();
 	});
 
+	it('should not offer the target check for a dynamic forward', () => {
+		setUp({ kind: 'dynamic' });
+		renderDrawer();
+
+		expect(
+			screen.queryByRole('button', { name: /Tester la cible/ })
+		).not.toBeInTheDocument();
+	});
+
+	it('should offer the target check for a remote forward', () => {
+		setUp({ kind: 'remote', state: { kind: 'active' } });
+		renderDrawer();
+
+		expect(
+			screen.getByRole('button', { name: 'Tester la cible' })
+		).toBeEnabled();
+	});
+
+	it('should disable the target check with a visible reason when stopped', () => {
+		setUp();
+		renderDrawer();
+
+		expect(
+			screen.getByRole('button', { name: /Tester la cible/ })
+		).toHaveAccessibleDescription('Disponible quand le tunnel est démarré.');
+		expect(
+			screen.getByRole('button', { name: /Tester la cible/ })
+		).toBeDisabled();
+	});
+
+	it('should check the target and announce that it is reachable', async () => {
+		setUp({ state: { kind: 'active' } });
+		const { gateway } = renderDrawer();
+
+		await userEvent.click(
+			screen.getByRole('button', { name: 'Tester la cible' })
+		);
+
+		expect(gateway.checkTarget).toHaveBeenCalledWith('tunnel-1');
+		await waitFor(() =>
+			expect(
+				useToastStore.getState().toasts.map((toast) => toast.message)
+			).toEqual(['Cible joignable'])
+		);
+	});
+
+	it('should announce why the target is unreachable', async () => {
+		setUp({ state: { kind: 'active' } });
+		const gateway = createFakeGateway();
+		gateway.checkTarget.mockResolvedValue({
+			kind: 'unreachable',
+			since: 1,
+			error: 'connection refused',
+		});
+		renderDrawer(gateway);
+
+		await userEvent.click(
+			screen.getByRole('button', { name: 'Tester la cible' })
+		);
+
+		await waitFor(() =>
+			expect(
+				useToastStore.getState().toasts.map((toast) => toast.message)
+			).toEqual(['Cible injoignable : connection refused'])
+		);
+	});
+
+	it('should report the daemon error when the check fails', async () => {
+		setUp({ state: { kind: 'active' } });
+		const gateway = createFakeGateway();
+		gateway.checkTarget.mockRejectedValue(
+			new DaemonCommandError('invalid_state', 'le tunnel est arrêté')
+		);
+		renderDrawer(gateway);
+
+		await userEvent.click(
+			screen.getByRole('button', { name: 'Tester la cible' })
+		);
+
+		await waitFor(() =>
+			expect(
+				useToastStore.getState().toasts.map((toast) => toast.message)
+			).toEqual(['Test de la cible impossible : le tunnel est arrêté'])
+		);
+	});
+
 	it('should restart a running tunnel', async () => {
 		setUp({ state: { kind: 'active' } });
 		const { gateway } = renderDrawer();

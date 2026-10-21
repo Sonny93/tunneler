@@ -9,6 +9,7 @@ import type {
 	ResolvedHostDto,
 	SettingsDto,
 	SnapshotDto,
+	TargetHealthDto,
 	TunnelDefinitionDto,
 	TunnelDto,
 	TemporaryTunnelSpecDto,
@@ -31,6 +32,8 @@ export type DaemonGateway = {
 	startTemporaryTunnel(spec: TemporaryTunnelSpecDto): Promise<TunnelDto>;
 	/** Saves a temporary tunnel; it keeps running. */
 	persistTunnel(id: string): Promise<void>;
+	/** Tries the target of a running local or remote tunnel once, and resolves to its health. */
+	checkTarget(id: string): Promise<TargetHealthDto>;
 	deleteTunnel(id: string): Promise<void>;
 	startTunnel(id: string): Promise<void>;
 	stopTunnel(id: string): Promise<void>;

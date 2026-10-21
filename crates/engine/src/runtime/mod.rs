@@ -25,6 +25,7 @@ mod shared;
 mod state;
 mod tag_delete;
 mod tag_rename;
+mod target_check;
 mod tunnel_actor;
 mod x11_anchor;
 mod x11_anchors;

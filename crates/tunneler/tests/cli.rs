@@ -458,6 +458,36 @@ async fn should_return_at_once_when_up_is_given_no_wait() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn should_report_the_target_reachable_when_check_runs_on_an_active_tunnel() {
+    let fixture = Fixture::start().await;
+    fixture.run(&["up", "alpha"]).await;
+
+    let output = fixture.run(&["check", "alpha"]).await;
+
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains(": target reachable"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_exit_with_1_and_a_hint_when_check_runs_on_a_stopped_tunnel() {
+    let fixture = Fixture::start().await;
+    fixture.run(&["up", "alpha"]).await;
+
+    let output = fixture.run(&["check", "gamma"]).await;
+
+    assert_eq!(code(&output), EXIT_ERROR);
+    assert!(
+        stderr(&output).contains("only a running local or remote tunnel can be checked"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn should_exit_with_5_when_quit_needs_a_confirmation_and_there_is_no_terminal() {
     let fixture = Fixture::start().await;
     fixture.run(&["up", "dev"]).await;

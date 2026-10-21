@@ -7,7 +7,9 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use ipc::ClientError;
-use ipc::protocol::{ClientKind, ErrorCode, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES};
+use ipc::protocol::{
+    ClientKind, ErrorCode, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, TargetHealthDto,
+};
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use support::{
@@ -273,6 +275,32 @@ async fn should_persist_the_tunnel_when_the_handler_accepts() {
     let client = daemon.connect(ClientKind::Ui, false).await;
 
     assert!(client.persist_tunnel("temporary").await.is_ok());
+}
+
+#[tokio::test]
+async fn should_return_the_health_when_checking_a_target() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Cli, false).await;
+
+    let health = client.check_target("alpha").await.unwrap();
+
+    assert_eq!(health, TargetHealthDto::Reachable);
+}
+
+#[tokio::test]
+async fn should_fail_with_not_found_when_checking_the_target_of_an_unknown_tunnel() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Cli, false).await;
+
+    let error = client.check_target(MISSING_TUNNEL_ID).await.unwrap_err();
+
+    assert!(matches!(
+        error,
+        ClientError::Remote {
+            code: ErrorCode::NotFound,
+            ..
+        }
+    ));
 }
 
 #[tokio::test]

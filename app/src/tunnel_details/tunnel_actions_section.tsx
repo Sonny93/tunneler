@@ -4,6 +4,7 @@ import { Button } from '@minimalstuff/ui';
 import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
 import { copyTextWithToast } from '#/shared/copy_text';
+import { useCheckTarget } from '#/tunnel_details/use_check_target';
 import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
 import { buildSshCommand } from '#/tunnel_details/build_ssh_command';
 import { useOpenInBrowser } from '#/tunnel_details/use_open_in_browser';
@@ -17,11 +18,13 @@ export function TunnelActionsSection({
 }: Readonly<TunnelActionsSectionProps>) {
 	const headingId = useId();
 	const commandId = useId();
-	const browserReasonId = useId();
+	const runningReasonId = useId();
 	const restartReasonId = useId();
 	const openTunnelEditor = useUiStore((state) => state.openTunnelEditor);
 	const { restart, stopAndRemove, persist } = useTunnelActions(tunnel);
 	const { target, isRunning, open } = useOpenInBrowser(tunnel);
+	const { isChecking, check } = useCheckTarget(tunnel);
+	const hasTarget = tunnel.kind !== 'dynamic';
 	const command = buildSshCommand(tunnel);
 
 	const handleCopy = () => void copyTextWithToast(command, 'Commande copiée');
@@ -32,22 +35,35 @@ export function TunnelActionsSection({
 			<h3 id={headingId} className="m-0 text-sm font-semibold">
 				Actions
 			</h3>
-			{target !== null && (
+			{hasTarget && (
 				<div className="flex flex-col gap-1">
-					<div>
+					<div className="flex flex-wrap gap-2">
+						{target !== null && (
+							<Button
+								startIcon="i-mdi-open-in-new"
+								variant="outline"
+								color="neutral"
+								disabled={!isRunning}
+								aria-describedby={isRunning ? undefined : runningReasonId}
+								onClick={open}
+							>
+								Ouvrir dans le navigateur
+							</Button>
+						)}
 						<Button
-							startIcon="i-mdi-open-in-new"
+							startIcon="i-mdi-stethoscope"
 							variant="outline"
 							color="neutral"
+							loading={isChecking}
 							disabled={!isRunning}
-							aria-describedby={isRunning ? undefined : browserReasonId}
-							onClick={open}
+							aria-describedby={isRunning ? undefined : runningReasonId}
+							onClick={check}
 						>
-							Ouvrir dans le navigateur
+							Tester la cible
 						</Button>
 					</div>
 					{!isRunning && (
-						<p id={browserReasonId} className="m-0 text-xs text-tn-muted">
+						<p id={runningReasonId} className="m-0 text-xs text-tn-muted">
 							Disponible quand le tunnel est démarré.
 						</p>
 					)}

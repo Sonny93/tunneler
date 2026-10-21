@@ -1,17 +1,17 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use ipc::protocol::{
-    AdoptResult, ClientKind, ConfigInvalidEvent, CredentialAnswer, CredentialRequestDto,
-    CredentialRequestEvent, CredentialResponseParams, DaemonPathsResult, DeleteTagResult,
-    ErrorCode, EventMessage, ExternalForwardDto, ExternalProcessDto, ExternalsChangedEvent,
-    FailureReasonDto, ForgetSecretsResult, Hello, HostKeyAlertReasonDto, HostKeyDecisionDto,
-    HostKeyRequestEvent, HostKeyResponseParams, HostOptionDto, HostParams, HostsResult,
-    ImportCandidateDto, ImportPreviewDto, ImportScriptParams, ImportWarningDto, IpcError,
-    LogEntryDto, LogLevelDto, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto,
-    PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent, QuitParams,
-    RememberDto, RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload,
-    Secret, ServerFrame, SettingsDto, SnapshotDto, TagParams, TagRenameParams, TargetHealthDto,
-    TemporaryTunnelSpecDto, TrayChangedEvent, TrayStatusDto, TunnelChangedEvent,
+    AdoptResult, CheckTargetResult, ClientKind, ConfigInvalidEvent, CredentialAnswer,
+    CredentialRequestDto, CredentialRequestEvent, CredentialResponseParams, DaemonPathsResult,
+    DeleteTagResult, ErrorCode, EventMessage, ExternalForwardDto, ExternalProcessDto,
+    ExternalsChangedEvent, FailureReasonDto, ForgetSecretsResult, Hello, HostKeyAlertReasonDto,
+    HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, HostOptionDto, HostParams,
+    HostsResult, ImportCandidateDto, ImportPreviewDto, ImportScriptParams, ImportWarningDto,
+    IpcError, LogEntryDto, LogLevelDto, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES,
+    MetricsDto, PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent,
+    QuitParams, RememberDto, RenameTagResult, Request, RequestEnvelope, ResolvedHostDto,
+    ResponsePayload, Secret, ServerFrame, SettingsDto, SnapshotDto, TagParams, TagRenameParams,
+    TargetHealthDto, TemporaryTunnelSpecDto, TrayChangedEvent, TrayStatusDto, TunnelChangedEvent,
     TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto, TunnelLogEvent,
     TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, UiClaimResult, X11AnchorDto,
     X11ChangedEvent, X11HostParams, X11LaunchParams, X11LauncherDto, X11StateDto, encode_event,
@@ -170,7 +170,8 @@ fn every_request() -> Vec<Request> {
         Request::TunnelRestart(tunnel_id.clone()),
         Request::TunnelLogs(tunnel_id.clone()),
         Request::TunnelStartTemporary(temporary_spec()),
-        Request::TunnelPersist(tunnel_id),
+        Request::TunnelPersist(tunnel_id.clone()),
+        Request::TunnelCheckTarget(tunnel_id),
         Request::HostsList {},
         Request::HostsResolve(HostParams {
             host: "nova".to_owned(),
@@ -387,6 +388,38 @@ fn should_serialize_tunnel_persist_as_documented() {
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
         r#"{"id":5,"method":"tunnel.persist","params":{"id":"01J9ZK3Q8M5N7R2T4V6X8Y0ABC"}}"#
+    );
+}
+
+#[test]
+fn should_serialize_tunnel_check_target_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 5,
+        request: Request::TunnelCheckTarget(TunnelIdParams {
+            id: TUNNEL_ID.to_owned(),
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":5,"method":"tunnel.check_target","params":{"id":"01J9ZK3Q8M5N7R2T4V6X8Y0ABC"}}"#
+    );
+}
+
+#[test]
+fn should_serialize_a_check_target_response_as_documented() {
+    let result = CheckTargetResult {
+        health: TargetHealthDto::Unreachable {
+            since: 1_700_000_000_000,
+            error: "connection refused".to_owned(),
+        },
+    };
+
+    let line = encode_response(Some(6), &Ok(ResponsePayload::CheckTarget(result))).unwrap();
+
+    assert_eq!(
+        line,
+        "{\"id\":6,\"result\":{\"health\":{\"kind\":\"unreachable\",\"since\":1700000000000,\"error\":\"connection refused\"}}}\n"
     );
 }
 
@@ -1268,8 +1301,8 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_thirty_three_methods() {
-    assert_eq!(METHOD_NAMES.len(), 33);
+fn should_list_thirty_four_methods() {
+    assert_eq!(METHOD_NAMES.len(), 34);
 }
 
 #[test]

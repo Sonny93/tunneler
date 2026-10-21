@@ -4,12 +4,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use thiserror::Error;
-use tokio::sync::{broadcast, watch};
+use tokio::sync::{broadcast, oneshot, watch};
 use tokio::task::JoinHandle;
 
 use crate::blocking::run_blocking;
 use crate::clock::Clock;
 use crate::connector::{Connector, ConnectorDependencies};
+use crate::error::SessionError;
 use crate::external::{PortScanner, ScanError, TerminateError, UnmanagedProcess};
 use crate::keyring::SecretKeyring;
 use crate::passphrase_vault::PassphraseVault;
@@ -20,6 +21,7 @@ use crate::runtime::options::EngineOptions;
 use crate::runtime::port_watch::{PortWatch, run_scan_loop};
 use crate::runtime::reload::run_reload_loop;
 use crate::runtime::session_manager::SessionManager;
+use crate::runtime::state::TargetHealth;
 use crate::runtime::tag_delete::delete_tag;
 use crate::runtime::tag_rename::rename_tag;
 use crate::runtime::tunnel_actor::TunnelCommand;
@@ -88,6 +90,15 @@ pub enum EngineError {
     /// X11 forwarding could not be set up.
     #[error(transparent)]
     X11(#[from] X11Error),
+    /// The tunnel is not active, so there is no session to check through.
+    #[error("the tunnel {0} is not active")]
+    TunnelNotActive(TunnelId),
+    /// The tunnel is a dynamic forward, which has no fixed target.
+    #[error("the tunnel {0} has no target to check")]
+    TunnelHasNoTarget(TunnelId),
+    /// The check could not tell whether the target answers.
+    #[error("cannot check the target: {0}")]
+    TargetCheckFailed(#[source] SessionError),
 }
 
 /// What the engine is built from.
@@ -579,6 +590,17 @@ impl Engine {
     /// Stops the tunnel and starts it again; starts it when it was stopped.
     pub fn restart_tunnel(&self, id: TunnelId) -> Result<(), EngineError> {
         self.send(id, TunnelCommand::Restart)
+    }
+
+    /// Checks once whether the target of an active local or remote tunnel
+    /// answers, records the outcome in the health of the tunnel and returns
+    /// it. Never runs on its own: every call opens one channel or connection.
+    pub async fn check_target(&self, id: TunnelId) -> Result<TargetHealth, EngineError> {
+        let (reply, outcome) = oneshot::channel();
+        self.send(id, TunnelCommand::CheckTarget(reply))?;
+        outcome
+            .await
+            .unwrap_or(Err(EngineError::TunnelNotActive(id)))
     }
 
     /// Starts every tunnel carrying the tag and returns their ids.

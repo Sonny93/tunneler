@@ -2,8 +2,8 @@
 
 use ipc::protocol::{
     DeleteTagResult, ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto, LogEntryDto,
-    RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, TemporaryTunnelSpecDto,
-    TunnelDefinitionDto, TunnelDto, TunnelSpecDto,
+    RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, TargetHealthDto,
+    TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto, TunnelSpecDto,
 };
 use std::path::Path;
 
@@ -103,6 +103,14 @@ pub async fn start_temporary_tunnel(
 #[tauri::command]
 pub async fn persist_tunnel(state: State<'_, BridgeState>, id: String) -> CommandResult<()> {
     Ok(state.client()?.persist_tunnel(&id).await?)
+}
+
+#[tauri::command]
+pub async fn check_target(
+    state: State<'_, BridgeState>,
+    id: String,
+) -> CommandResult<TargetHealthDto> {
+    Ok(state.client()?.check_target(&id).await?)
 }
 
 #[tauri::command]

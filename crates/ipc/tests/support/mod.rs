@@ -8,10 +8,11 @@ use interprocess::local_socket::tokio::Stream;
 use interprocess::local_socket::traits::tokio::Stream as _;
 use interprocess::local_socket::{GenericFilePath, ToFsName};
 use ipc::protocol::{
-    AdoptResult, ClientKind, ConfigInvalidEvent, DaemonPathsResult, DeleteTagResult, EventMessage,
-    ForgetSecretsResult, Hello, HostOptionDto, ImportCandidateDto, ImportPreviewDto, IpcError,
-    LogEntryDto, LogLevelDto, LogsResult, RenameTagResult, Request, RequestEnvelope,
-    ResolvedHostDto, ResponsePayload, TunnelKindDto, UiClaimResult,
+    AdoptResult, CheckTargetResult, ClientKind, ConfigInvalidEvent, DaemonPathsResult,
+    DeleteTagResult, EventMessage, ForgetSecretsResult, Hello, HostOptionDto, ImportCandidateDto,
+    ImportPreviewDto, IpcError, LogEntryDto, LogLevelDto, LogsResult, RenameTagResult, Request,
+    RequestEnvelope, ResolvedHostDto, ResponsePayload, TargetHealthDto, TunnelKindDto,
+    UiClaimResult,
 };
 use ipc::{
     ConnectionInfo, Endpoint, IpcClient, IpcServer, RequestHandler, ServerHandle, ServerOptions,
@@ -59,6 +60,12 @@ impl RequestHandler for FakeHandler {
                     }],
                 }))
             }
+            Request::TunnelCheckTarget(params) if params.id == MISSING_TUNNEL_ID => {
+                Err(IpcError::not_found("no such tunnel"))
+            }
+            Request::TunnelCheckTarget(_) => Ok(ResponsePayload::CheckTarget(CheckTargetResult {
+                health: TargetHealthDto::Reachable,
+            })),
             Request::TunnelDelete(params) if params.id == MISSING_TUNNEL_ID => {
                 Err(IpcError::not_found("no such tunnel"))
             }

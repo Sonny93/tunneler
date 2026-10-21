@@ -14,6 +14,8 @@ pub const TARGETS_FAILED: u8 = 4;
 pub const CONFIRMATION_REQUIRED: u8 = 5;
 /// The command timed out waiting for the daemon or the tunnels.
 pub const TIMED_OUT: u8 = 6;
+/// `check`: the target of the tunnel does not answer.
+pub const TARGET_UNREACHABLE: u8 = 7;
 
 /// The exit codes in the form `--help` shows them.
 pub fn describe_exit_codes() -> String {
@@ -28,6 +30,7 @@ pub fn describe_exit_codes() -> String {
             "confirmation required but not possible: not a terminal, pass --yes",
         ),
         (TIMED_OUT, "timed out waiting"),
+        (TARGET_UNREACHABLE, "the target of the tunnel does not answer (check)"),
     ]
     .map(|(code, meaning)| format!("  {code}  {meaning}"))
     .join("\n")
@@ -49,7 +52,8 @@ mod tests {
                 DAEMON_NOT_RUNNING,
                 TARGETS_FAILED,
                 CONFIRMATION_REQUIRED,
-                TIMED_OUT
+                TIMED_OUT,
+                TARGET_UNREACHABLE
             ]
             .iter()
             .all(|code| description.contains(&format!("  {code}  ")))
