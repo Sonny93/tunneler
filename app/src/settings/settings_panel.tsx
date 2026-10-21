@@ -4,7 +4,6 @@ import { Button } from '@minimalstuff/ui';
 import { Drawer } from '#/shared/drawer';
 import { useUiStore } from '#/state/ui_store';
 import type { SettingsDto } from '#/daemon/protocol';
-import { SettingsSwitch } from '#/settings/settings_switch';
 import { FormErrorSummary } from '#/shared/form_error_summary';
 import { useSettingsForm } from '#/settings/use_settings_form';
 import { SettingsFieldset } from '#/settings/settings_fieldset';
@@ -55,16 +54,6 @@ export function SettingsPanel({ settings }: Readonly<SettingsPanelProps>) {
 						onChange={form.changeText}
 					/>
 				))}
-				<fieldset className="border-0 p-0">
-					<legend className="mb-3 text-sm font-semibold">Santé</legend>
-					<SettingsSwitch
-						field="healthProbe"
-						label="Sonder la cible périodiquement"
-						hint="Uniquement quand cette fenêtre est ouverte"
-						isChecked={values.healthProbe}
-						onChange={form.changeToggle}
-					/>
-				</fieldset>
 				<SettingsStartupFieldset
 					values={values}
 					onChangeText={form.changeText}

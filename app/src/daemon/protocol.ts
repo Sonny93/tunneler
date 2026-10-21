@@ -111,7 +111,6 @@ export type SettingsDto = {
 	sessionIdleGraceMs: number;
 	reconnectInitialDelayMs: number;
 	reconnectMaxDelayMs: number;
-	healthProbe: boolean;
 	restoreOnLaunch: boolean;
 	startOnLaunchTags: string[];
 	launchAtLogin: boolean;

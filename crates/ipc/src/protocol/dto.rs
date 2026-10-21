@@ -264,8 +264,6 @@ pub struct SettingsDto {
     pub reconnect_initial_delay_ms: u64,
     /// Upper bound of the reconnection backoff.
     pub reconnect_max_delay_ms: u64,
-    /// Whether the target of a tunnel is probed periodically.
-    pub health_probe: bool,
     /// Whether tunnels that were active at the last exit are restarted.
     pub restore_on_launch: bool,
     /// Tags whose tunnels start when the daemon launches.

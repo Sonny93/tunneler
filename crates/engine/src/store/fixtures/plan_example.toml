@@ -8,7 +8,6 @@ keepalive_max = 3
 session_idle_grace_s = 30
 reconnect_initial_delay_ms = 1000
 reconnect_max_delay_ms = 60000
-health_probe = true
 restore_on_launch = true          # restarts the tunnels that were active at the last exit
 start_on_launch_tags = []         # tags started when the daemon launches
 launch_at_login = false

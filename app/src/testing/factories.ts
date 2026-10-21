@@ -72,7 +72,6 @@ export function buildSettings(
 		sessionIdleGraceMs: MINUTE_IN_MILLISECONDS,
 		reconnectInitialDelayMs: 1000,
 		reconnectMaxDelayMs: MINUTE_IN_MILLISECONDS,
-		healthProbe: true,
 		restoreOnLaunch: true,
 		startOnLaunchTags: [],
 		launchAtLogin: false,

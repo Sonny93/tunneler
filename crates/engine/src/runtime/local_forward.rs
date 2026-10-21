@@ -2,7 +2,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, copy_bidirectional};
+use tokio::io::{AsyncRead, AsyncWrite, copy_bidirectional};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tracing::debug;
@@ -119,27 +119,6 @@ where
 {
     if let Err(error) = copy_bidirectional(&mut local, &mut channel).await {
         debug!(%error, "forwarded connection ended with an error");
-    }
-}
-
-/// Opens a channel to the target and closes it right away.
-pub(crate) async fn probe_target(
-    session: Arc<SshSession>,
-    target: ForwardTarget,
-    reports: mpsc::UnboundedSender<TargetReport>,
-) {
-    match session
-        .open_direct_tcpip(&target.host, target.port, None)
-        .await
-    {
-        Ok(mut channel) => {
-            let _ = channel.shutdown().await;
-            let _ = reports.send(TargetReport::Reachable);
-        }
-        Err(error) if is_target_unreachable(&error) => {
-            let _ = reports.send(TargetReport::Unreachable(error.to_string()));
-        }
-        Err(error) => debug!(%error, "health probe could not open a channel"),
     }
 }
 

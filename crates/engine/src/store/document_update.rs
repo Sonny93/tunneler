@@ -12,6 +12,7 @@ const LEGACY_NAME_KEY: &str = "name";
 const HOSTS_KEY: &str = "hosts";
 const LAUNCHERS_KEY: &str = "x11_launchers";
 const X11_DISPLAY_KEY: &str = "x11_display";
+const REMOVED_SETTINGS_KEYS: [&str; 1] = ["health_probe"];
 const SECTION_SEPARATOR: &str = "\n";
 const FIRST_SECTION_POSITION: isize = -1;
 
@@ -36,6 +37,9 @@ fn update_settings(root: &mut Table, settings: &Settings) {
     if let Some(table) = section.as_table_like_mut() {
         for (key, entry) in settings_entries(settings) {
             set_value(table, key, entry);
+        }
+        for key in REMOVED_SETTINGS_KEYS {
+            table.remove(key);
         }
     }
 }
@@ -67,7 +71,6 @@ fn settings_entries(settings: &Settings) -> Vec<(&'static str, Value)> {
             "reconnect_max_delay_ms",
             integer(settings.reconnect_max_delay.as_millis()),
         ),
-        ("health_probe", Value::from(settings.health_probe)),
         ("restore_on_launch", Value::from(settings.restore_on_launch)),
         (
             "start_on_launch_tags",
@@ -465,6 +468,16 @@ tags = []
             updated.contains("reconnect_max_delay_ms = 60000"),
             "{updated}"
         );
+    }
+
+    #[test]
+    fn should_remove_the_health_probe_key_when_settings_are_written() {
+        let text = "[settings]\nhealth_probe = true\nkeepalive_max = 3\n";
+        let document = load(text);
+
+        let updated = update(text, &document);
+
+        assert!(!updated.contains("health_probe"), "{updated}");
     }
 
     #[test]

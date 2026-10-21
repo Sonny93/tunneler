@@ -156,8 +156,6 @@ pub struct Settings {
     pub reconnect_initial_delay: Duration,
     /// Upper bound of the reconnection backoff.
     pub reconnect_max_delay: Duration,
-    /// Whether the target of a tunnel is probed periodically.
-    pub health_probe: bool,
     /// Whether tunnels that were active at the last exit are restarted.
     pub restore_on_launch: bool,
     /// Tags whose tunnels start when the daemon launches.
@@ -180,7 +178,6 @@ impl Default for Settings {
             session_idle_grace: DEFAULT_SESSION_IDLE_GRACE,
             reconnect_initial_delay: DEFAULT_RECONNECT_INITIAL_DELAY,
             reconnect_max_delay: DEFAULT_RECONNECT_MAX_DELAY,
-            health_probe: true,
             restore_on_launch: true,
             start_on_launch_tags: Vec::new(),
             launch_at_login: false,

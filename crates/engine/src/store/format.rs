@@ -60,7 +60,10 @@ struct StoredSettings {
     session_idle_grace_s: Option<u64>,
     reconnect_initial_delay_ms: Option<u64>,
     reconnect_max_delay_ms: Option<u64>,
-    health_probe: Option<bool>,
+    /// Accepted only so files written before the periodic health probe was
+    /// removed keep loading; the value is ignored and dropped on the next save.
+    #[serde(rename = "health_probe")]
+    _deprecated_health_probe: Option<bool>,
     restore_on_launch: Option<bool>,
     start_on_launch_tags: Option<Vec<String>>,
     launch_at_login: Option<bool>,
@@ -222,7 +225,6 @@ impl StoredSettings {
             reconnect_max_delay: self
                 .reconnect_max_delay_ms
                 .map_or(defaults.reconnect_max_delay, Duration::from_millis),
-            health_probe: self.health_probe.unwrap_or(defaults.health_probe),
             restore_on_launch: self.restore_on_launch.unwrap_or(defaults.restore_on_launch),
             start_on_launch_tags: self
                 .start_on_launch_tags
@@ -407,6 +409,13 @@ mod tests {
                 ..Settings::default()
             }
         );
+    }
+
+    #[test]
+    fn should_load_the_file_when_it_still_carries_the_removed_health_probe_key() {
+        let outcome = parse("[settings]\nhealth_probe = true\n").unwrap();
+
+        assert_eq!(outcome.document.settings, Settings::default());
     }
 
     #[test]

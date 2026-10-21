@@ -426,7 +426,6 @@ mod tests {
                 session_idle_grace_ms: 0,
                 reconnect_initial_delay_ms: 0,
                 reconnect_max_delay_ms: 0,
-                health_probe: true,
                 restore_on_launch: false,
                 start_on_launch_tags: Vec::new(),
                 launch_at_login: false,

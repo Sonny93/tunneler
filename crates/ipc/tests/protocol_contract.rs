@@ -50,7 +50,6 @@ fn settings() -> SettingsDto {
         session_idle_grace_ms: 60_000,
         reconnect_initial_delay_ms: 1_000,
         reconnect_max_delay_ms: 60_000,
-        health_probe: true,
         restore_on_launch: true,
         start_on_launch_tags: vec!["dev".to_owned()],
         launch_at_login: false,
@@ -904,7 +903,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isTemporary":false}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"healthProbe":true,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[]}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[]}}"#,
             "\n"
         )
     );

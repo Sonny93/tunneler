@@ -5,7 +5,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-/// Whether a UI is watching: health probing and port scanning only run then.
+/// Whether a UI is watching: port scanning only runs then.
 pub(crate) fn is_ui_connected(client_kinds: impl IntoIterator<Item = ClientKind>) -> bool {
     client_kinds.into_iter().any(|kind| kind == ClientKind::Ui)
 }
@@ -20,14 +20,12 @@ fn ui_wanted(server: &ServerHandle) -> bool {
 }
 
 fn apply_presence(engine: &Engine, is_ui_present: bool) {
-    engine.set_health_probing(is_ui_present);
     engine.set_port_scanning(is_ui_present);
 }
 
-/// Keeps the engine's health probing and port scanning in step with the
-/// connected UIs.
+/// Keeps the engine's port scanning in step with the connected UIs.
 ///
-/// Both are on while at least one `ui` client is connected and off otherwise. The task ends when `shutdown` is cancelled.
+/// It is on while at least one `ui` client is connected and off otherwise. The task ends when `shutdown` is cancelled.
 pub(crate) fn spawn_ui_presence_follower(
     engine: Engine,
     server: ServerHandle,

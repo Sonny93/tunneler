@@ -30,7 +30,7 @@ const WAIT: Duration = Duration::from_secs(5);
 const RECONNECT_INITIAL: Duration = Duration::from_millis(20);
 const RECONNECT_MAXIMUM: Duration = Duration::from_millis(80);
 const SESSION_GRACE: Duration = Duration::from_millis(100);
-const PROBE_INTERVAL: Duration = Duration::from_millis(50);
+const TICK_INTERVAL: Duration = Duration::from_millis(50);
 const QUIET_PERIOD: Duration = Duration::from_millis(300);
 const LOOPBACK: &str = "127.0.0.1";
 const PAYLOAD: &[u8] = b"hello tunnel";
@@ -67,7 +67,6 @@ struct HarnessBuilder {
     kind: &'static str,
     kinds: Vec<(&'static str, &'static str)>,
     timing: Timing,
-    is_health_probe_enabled: bool,
     remote_forwards: RemoteForwardPolicy,
     keepalive: Option<Keepalive>,
     is_client_key_authorized: bool,
@@ -105,7 +104,6 @@ impl HarnessBuilder {
                 reconnect_maximum: RECONNECT_MAXIMUM,
                 session_grace: SESSION_GRACE,
             },
-            is_health_probe_enabled: true,
             remote_forwards: RemoteForwardPolicy::Allowed,
             keepalive: None,
             is_client_key_authorized: true,
@@ -145,11 +143,6 @@ impl HarnessBuilder {
     fn reconnect_delays(mut self, initial: Duration, maximum: Duration) -> Self {
         self.timing.reconnect_initial = initial;
         self.timing.reconnect_maximum = maximum;
-        self
-    }
-
-    fn without_health_probe_setting(mut self) -> Self {
-        self.is_health_probe_enabled = false;
         self
     }
 
@@ -233,12 +226,7 @@ impl HarnessBuilder {
         let store_path = store_directory.path().join("tunnels.toml");
         std::fs::write(&store_path, store_text(&specs, &self.timing)).unwrap();
         let (store, _) = Store::open(store_path).unwrap();
-        apply_sub_second_settings(
-            &store,
-            &self.timing,
-            self.is_health_probe_enabled,
-            self.keepalive,
-        );
+        apply_sub_second_settings(&store, &self.timing, self.keepalive);
         let state_store = Arc::new(MemoryStateStore::holding(AppState {
             running: self
                 .previously_running
@@ -267,9 +255,8 @@ impl HarnessBuilder {
                 keyring: None,
             },
             EngineOptions {
-                health_probe_interval: PROBE_INTERVAL,
-                metrics_event_interval: PROBE_INTERVAL,
-                port_scan_interval: PROBE_INTERVAL,
+                metrics_event_interval: TICK_INTERVAL,
+                port_scan_interval: TICK_INTERVAL,
                 connect_timeouts: ConnectTimeouts::default(),
             },
         )
@@ -363,19 +350,13 @@ fn tunnel_block(spec: &TunnelSpec) -> String {
     )
 }
 
-fn apply_sub_second_settings(
-    store: &Store,
-    timing: &Timing,
-    is_health_probe_enabled: bool,
-    keepalive: Option<Keepalive>,
-) {
+fn apply_sub_second_settings(store: &Store, timing: &Timing, keepalive: Option<Keepalive>) {
     let mut document = store.document();
     if let Some(keepalive) = keepalive {
         document.settings.keepalive_interval = keepalive.interval;
         document.settings.keepalive_max = keepalive.maximum_unanswered;
     }
     document.settings.session_idle_grace = timing.session_grace;
-    document.settings.health_probe = is_health_probe_enabled;
     store.save(document).unwrap();
 }
 
@@ -1012,7 +993,6 @@ async fn should_keep_the_target_health_unknown_when_a_socks_target_is_refused() 
         .start()
         .await;
     harness.start_and_wait_active("socks").await;
-    harness.engine.set_health_probing(true);
     let target_port = harness.spec("socks").target_port;
     let _ = socks_connect(harness.port("socks"), LOOPBACK, target_port).await;
 
@@ -1020,20 +1000,6 @@ async fn should_keep_the_target_health_unknown_when_a_socks_target_is_refused() 
 
     let snapshot = harness.engine.snapshot();
     assert_eq!(snapshot.tunnels[0].health, TargetHealth::Unknown);
-}
-
-#[tokio::test]
-async fn should_not_probe_anything_when_a_dynamic_tunnel_runs_with_probing_on() {
-    let mut harness = HarnessBuilder::new(&["socks"])
-        .kind("dynamic")
-        .start()
-        .await;
-    harness.start_and_wait_active("socks").await;
-
-    harness.engine.set_health_probing(true);
-    sleep(QUIET_PERIOD).await;
-
-    assert_eq!(harness.server.direct_tcpip_targets().len(), 0);
 }
 
 #[tokio::test]
@@ -1334,30 +1300,6 @@ async fn should_mark_the_target_reachable_when_the_remote_target_answers() {
 }
 
 #[tokio::test]
-async fn should_mark_the_target_unreachable_when_a_probe_finds_the_remote_target_down() {
-    let mut harness = HarnessBuilder::new(&["rev"])
-        .kind("remote")
-        .with_target_down()
-        .start()
-        .await;
-    harness.start_and_wait_active("rev").await;
-
-    harness.engine.set_health_probing(true);
-
-    wait_for_event(&mut harness.events, WAIT, is_unreachable_event).await;
-}
-
-#[tokio::test]
-async fn should_mark_the_target_reachable_when_a_probe_finds_the_remote_target_up() {
-    let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
-    harness.start_and_wait_active("rev").await;
-
-    harness.engine.set_health_probing(true);
-
-    wait_for_event(&mut harness.events, WAIT, is_reachable_event).await;
-}
-
-#[tokio::test]
 async fn should_count_the_bytes_when_data_goes_through_a_remote_tunnel() {
     let mut harness = HarnessBuilder::new(&["rev"]).kind("remote").start().await;
     harness.start_and_wait_active("rev").await;
@@ -1565,96 +1507,10 @@ async fn should_not_publish_a_state_change_when_a_client_connects() {
 }
 
 #[tokio::test]
-async fn should_not_probe_the_target_when_probing_is_off() {
+async fn should_not_open_any_connection_to_the_target_while_no_client_connects() {
     let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
     harness.start_and_wait_active("alpha").await;
 
-    sleep(QUIET_PERIOD).await;
-
-    assert_eq!(harness.target_requests(), 0);
-}
-
-#[tokio::test]
-async fn should_probe_the_target_when_probing_is_on() {
-    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
-    harness.start_and_wait_active("alpha").await;
-
-    harness.engine.set_health_probing(true);
-
-    let harness = &harness;
-    wait_until(WAIT, "two probes to reach the target", || {
-        harness.target_requests() >= 2
-    })
-    .await;
-}
-
-#[tokio::test]
-async fn should_mark_the_target_reachable_when_a_probe_succeeds() {
-    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
-    harness.start_and_wait_active("alpha").await;
-
-    harness.engine.set_health_probing(true);
-
-    wait_for_event(&mut harness.events, WAIT, |event| match event {
-        EngineEvent::TunnelChanged {
-            health: TargetHealth::Reachable,
-            ..
-        } => Some(()),
-        _ => None,
-    })
-    .await;
-}
-
-#[tokio::test]
-async fn should_mark_the_target_unreachable_when_a_probe_finds_it_down() {
-    let mut harness = HarnessBuilder::new(&["alpha"])
-        .with_target_down()
-        .start()
-        .await;
-    harness.start_and_wait_active("alpha").await;
-
-    harness.engine.set_health_probing(true);
-
-    wait_for_event(&mut harness.events, WAIT, |event| match event {
-        EngineEvent::TunnelChanged {
-            health: TargetHealth::Unreachable { .. },
-            ..
-        } => Some(()),
-        _ => None,
-    })
-    .await;
-}
-
-#[tokio::test]
-async fn should_stop_probing_when_probing_is_turned_off() {
-    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
-    harness.start_and_wait_active("alpha").await;
-    harness.engine.set_health_probing(true);
-    {
-        let harness = &harness;
-        wait_until(WAIT, "a probe to reach the target", || {
-            harness.target_requests() >= 1
-        })
-        .await;
-    }
-
-    harness.engine.set_health_probing(false);
-    sleep(PROBE_INTERVAL * 2).await;
-    let requests_after_settling = harness.target_requests();
-    sleep(QUIET_PERIOD).await;
-
-    assert_eq!(harness.target_requests(), requests_after_settling);
-}
-
-#[tokio::test]
-async fn should_not_probe_when_the_health_probe_setting_is_off() {
-    let mut harness = HarnessBuilder::new(&["alpha"])
-        .without_health_probe_setting()
-        .start()
-        .await;
-    harness.start_and_wait_active("alpha").await;
-
-    harness.engine.set_health_probing(true);
     sleep(QUIET_PERIOD).await;
 
     assert_eq!(harness.target_requests(), 0);
@@ -2568,7 +2424,7 @@ async fn should_stop_scanning_when_port_scanning_is_turned_off() {
     harness.engine.set_port_scanning(true);
     wait_until(WAIT, "a scan", || harness.scanner.scan_count() >= 1).await;
     harness.engine.set_port_scanning(false);
-    sleep(PROBE_INTERVAL * 2).await;
+    sleep(TICK_INTERVAL * 2).await;
     let count = harness.scanner.scan_count();
 
     sleep(QUIET_PERIOD).await;

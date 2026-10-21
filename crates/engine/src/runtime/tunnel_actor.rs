@@ -17,14 +17,12 @@ use crate::runtime::dynamic_forward::{SocksJob, socks_connection};
 use crate::runtime::forward_run::{ClientProtocol, ForwardRun, Inbound};
 use crate::runtime::local_forward::{
     ConnectionJob, ForwardTarget, TargetReport, bind_listener, format_socket_address,
-    forward_connection, probe_target,
+    forward_connection,
 };
 use crate::runtime::log_buffer::LogLevel;
 use crate::runtime::options::EngineOptions;
 use crate::runtime::port_watch::PortWatch;
-use crate::runtime::remote_forward::{
-    ForwardedJob, probe_local_target, serve_forwarded_connection,
-};
+use crate::runtime::remote_forward::{ForwardedJob, serve_forwarded_connection};
 use crate::runtime::retry::{RetryDecision, decide_after_connect_error, reconnect_delay};
 use crate::runtime::session_manager::{AcquireError, SessionLease, SessionManager};
 use crate::runtime::shared::TunnelShared;
@@ -85,7 +83,6 @@ pub(crate) struct TunnelContext {
     pub(crate) shared: Arc<TunnelShared>,
     pub(crate) sessions: SessionManager,
     pub(crate) settings: watch::Receiver<Settings>,
-    pub(crate) probing: watch::Receiver<bool>,
     pub(crate) options: EngineOptions,
     pub(crate) port_watch: Arc<PortWatch>,
 }
@@ -377,7 +374,6 @@ impl TunnelActor {
     ) -> Step {
         let shared = Arc::clone(&self.context.shared);
         shared.set_state(TunnelState::Active);
-        let mut probe_ticker = ticker(self.context.options.health_probe_interval);
         let mut metrics_ticker = ticker(self.context.options.metrics_event_interval);
         loop {
             tokio::select! {
@@ -387,9 +383,7 @@ impl TunnelActor {
                 }
                 inbound = run.inbound.next() => self.accept_inbound(run, session, inbound).await,
                 Some(_) = run.connections.join_next() => {}
-                Some(_) = run.probes.join_next() => {}
                 Some(report) = run.reports.recv() => self.apply_report(report),
-                _ = probe_ticker.tick() => self.start_probe(run, session),
                 _ = metrics_ticker.tick() => self.publish_metrics(run),
                 command = self.commands.recv() => {
                     if let Some(interrupt) = self.interrupt_from(command) {
@@ -528,33 +522,11 @@ impl TunnelActor {
         }
     }
 
-    fn start_probe(&self, run: &mut ForwardRun, session: &Arc<SshSession>) {
-        if !self.is_probing_enabled() || !run.probes.is_empty() {
-            return;
-        }
-        let target = self.forward_target();
-        let reports = run.reports_sender.clone();
-        match run.kind {
-            TunnelKind::Local => {
-                run.probes
-                    .spawn(probe_target(Arc::clone(session), target, reports));
-            }
-            TunnelKind::Remote => {
-                run.probes.spawn(probe_local_target(target, reports));
-            }
-            TunnelKind::Dynamic => {}
-        }
-    }
-
     fn publish_metrics(&self, run: &mut ForwardRun) {
         let metrics = self.context.shared.metrics();
         if run.throttle.should_emit_at(Instant::now(), &metrics) {
             self.context.shared.publish_metrics(metrics);
         }
-    }
-
-    fn is_probing_enabled(&self) -> bool {
-        *self.context.probing.borrow() && self.context.settings.borrow().health_probe
     }
 
     fn forward_target(&self) -> ForwardTarget {

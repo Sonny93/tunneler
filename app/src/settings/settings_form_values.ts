@@ -12,7 +12,6 @@ export type SettingsFormValues = {
 	sessionIdleGraceSeconds: string;
 	reconnectInitialDelaySeconds: string;
 	reconnectMaxDelaySeconds: string;
-	healthProbe: boolean;
 	launchAtLogin: boolean;
 	restoreOnLaunch: boolean;
 	startOnLaunchTags: string;
@@ -47,7 +46,6 @@ export function toSettingsFormValues(
 		reconnectMaxDelaySeconds: millisecondsToSeconds(
 			settings.reconnectMaxDelayMs
 		),
-		healthProbe: settings.healthProbe,
 		launchAtLogin: settings.launchAtLogin,
 		restoreOnLaunch: settings.restoreOnLaunch,
 		startOnLaunchTags: settings.startOnLaunchTags.join(TAGS_SEPARATOR),
@@ -73,7 +71,6 @@ export function toSettings(
 			values.reconnectInitialDelaySeconds
 		),
 		reconnectMaxDelayMs: secondsToMilliseconds(values.reconnectMaxDelaySeconds),
-		healthProbe: values.healthProbe,
 		launchAtLogin: values.launchAtLogin,
 		restoreOnLaunch: values.restoreOnLaunch,
 		startOnLaunchTags: parseTags(values.startOnLaunchTags),

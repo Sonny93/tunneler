@@ -54,11 +54,10 @@ describe('SettingsDrawer', () => {
 				'Connexion',
 				'Reconnexion',
 				'X11',
-				'Santé',
 				'Démarrage',
 				'Secrets',
 			].map((name) => screen.queryByRole('group', { name }) !== null)
-		).toEqual([true, true, true, true, true, true, true]);
+		).toEqual([true, true, true, true, true, true]);
 	});
 
 	it('should show durations in seconds', () => {
@@ -68,15 +67,6 @@ describe('SettingsDrawer', () => {
 		expect(
 			screen.getByRole('textbox', { name: /^Intervalle de keepalive/ })
 		).toHaveValue('30');
-	});
-
-	it('should describe the health probe', () => {
-		openSettings();
-		renderDrawer();
-
-		expect(
-			screen.getByRole('switch', { name: 'Sonder la cible périodiquement' })
-		).toHaveAccessibleDescription('Uniquement quand cette fenêtre est ouverte');
 	});
 
 	it('should have no axe violations', async () => {
@@ -97,15 +87,11 @@ describe('SettingsDrawer', () => {
 
 		await user.clear(grace);
 		await user.type(grace, '90');
-		await user.click(
-			screen.getByRole('switch', { name: 'Sonder la cible périodiquement' })
-		);
 		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
 			...settings,
 			sessionIdleGraceMs: 90_000,
-			healthProbe: false,
 		});
 	});
 

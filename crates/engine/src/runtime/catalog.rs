@@ -40,7 +40,6 @@ pub(crate) struct TunnelFactory {
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) sessions: SessionManager,
     pub(crate) settings: watch::Receiver<Settings>,
-    pub(crate) probing: watch::Receiver<bool>,
     pub(crate) options: EngineOptions,
     pub(crate) port_watch: Arc<PortWatch>,
 }
@@ -53,7 +52,6 @@ impl TunnelFactory {
             shared,
             sessions: self.sessions.clone(),
             settings: self.settings.clone(),
-            probing: self.probing.clone(),
             options: self.options,
             port_watch: Arc::clone(&self.port_watch),
         });

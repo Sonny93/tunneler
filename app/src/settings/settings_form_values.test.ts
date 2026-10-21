@@ -74,12 +74,10 @@ describe('settings round trip', () => {
 
 	it('should keep the settings it is not given values for', () => {
 		const settings = buildSettings({ keepaliveMax: 7 });
-		const values = { ...toSettingsFormValues(settings), healthProbe: false };
 
-		expect(toSettings(values, settings)).toEqual({
-			...settings,
-			healthProbe: false,
-		});
+		expect(toSettings(toSettingsFormValues(settings), settings)).toEqual(
+			settings
+		);
 	});
 
 	it('should show an unset X11 display as an empty field', () => {

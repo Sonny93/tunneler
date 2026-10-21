@@ -167,7 +167,6 @@ pub(crate) struct EngineInner {
     pub(crate) bus: EventBus,
     pub(crate) sessions: SessionManager,
     pub(crate) settings: watch::Sender<Settings>,
-    probing: watch::Sender<bool>,
     scanning: watch::Sender<bool>,
     pub(crate) port_watch: Arc<PortWatch>,
     x11_anchors: X11Anchors,
@@ -261,7 +260,6 @@ impl Engine {
         let document = store.document();
         let watcher = store.watch()?;
         let (settings_sender, settings) = watch::channel(document.settings);
-        let (probing_sender, probing) = watch::channel(false);
         let (scanning_sender, scanning) = watch::channel(false);
         let port_watch = Arc::new(PortWatch::new(port_scanner));
         let options = options.sanitized();
@@ -296,7 +294,6 @@ impl Engine {
             clock,
             sessions: sessions.clone(),
             settings,
-            probing,
             options,
             port_watch: Arc::clone(&port_watch),
         };
@@ -305,7 +302,6 @@ impl Engine {
             bus,
             sessions,
             settings: settings_sender,
-            probing: probing_sender,
             scanning: scanning_sender,
             port_watch,
             x11_anchors,
@@ -633,17 +629,10 @@ impl Engine {
             .ok_or(EngineError::UnknownTunnel(id))
     }
 
-    /// Turns the periodic health probes on or off. They run for active
-    /// tunnels while this is on and `Settings::health_probe` is set; the
-    /// daemon turns them on while a UI is connected.
-    pub fn set_health_probing(&self, is_enabled: bool) {
-        self.inner.probing.send_replace(is_enabled);
-    }
-
     /// Turns the periodic scan of the listening ports on or off. While it is
     /// on, tunnels whose port is held by another process report `External` or
     /// `Conflict` and unmanaged `ssh` forwards are listed; the daemon turns it
-    /// on while a UI is connected, like health probing.
+    /// on while a UI is connected.
     pub fn set_port_scanning(&self, is_enabled: bool) {
         self.inner.scanning.send_if_modified(|current| {
             let is_changed = *current != is_enabled;

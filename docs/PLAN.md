@@ -42,7 +42,7 @@ Les tunnels vivent *dans* le daemon : ils ne peuvent pas survivre à sa fermetur
 │      SessionManager (1 session russh / host, refcount, keepalive, reconnect)      │
 │      Forwards : local · remote · dynamic (SOCKS5) · X11                           │
 │      Auth (agent → clés → password/kbd-interactive via prompts)                   │
-│      HostKey (known-hosts) · PortScanner (tunnels externes) · Health probe        │
+│      HostKey (known-hosts) · PortScanner (tunnels externes)                       │
 └───────────────────────────────────────▲───────────────────────────────────────────┘
                                         │ JSON lines (local socket / named pipe)
                  ┌──────────────────────┴───────────────────────┐
@@ -109,7 +109,7 @@ Règles par défaut : `target_port` absent = `listen_port` ; `listen_address` ab
 
 Santé de la cible, indépendante de l'état : `Unknown` · `Reachable` · `Unreachable { since, error }`.
 - Passif : un `direct-tcpip` refusé (`ConnectFailed`) marque la cible injoignable (« tunnel OK, service distant down »).
-- Actif (option `health_probe`) : ouverture/fermeture périodique d'un canal vers la cible, uniquement quand une UI est connectée.
+- Pas de sonde périodique : les services protégés contre la force brute (Xvnc, fail2ban, `MaxStartups` de sshd) comptent chaque connexion non authentifiée comme un échec et finiraient par bloquer 127.0.0.1. La vivacité du lien vient du keepalive SSH ; une vérification ponctuelle sera déclenchée par l'utilisateur, à la demande, via l'action *Tester la cible*.
 
 Métriques par tunnel : connexions actives, octets in/out, dernière activité. Logs : ring buffer par tunnel + fichier de log tournant (`tracing`).
 
@@ -138,7 +138,6 @@ keepalive_max = 3
 session_idle_grace_s = 30
 reconnect_initial_delay_ms = 1000
 reconnect_max_delay_ms = 60000
-health_probe = true
 restore_on_launch = true          # relance les tunnels actifs à la fermeture précédente
 start_on_launch_tags = []         # tags démarrés au lancement du daemon
 launch_at_login = false
