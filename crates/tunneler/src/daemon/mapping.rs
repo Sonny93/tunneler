@@ -9,8 +9,8 @@ use engine::{
     AvailableOpener, DefaultOpener, EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision,
     ImportCandidate, ImportPreview, ImportWarning, InvalidTunnelId, LogLevel, NewTunnel, OpenHost,
     OpenOptions, OpenScheme, Opener, OpenerSource, PortOwner, RejectedHostKey, RejectionReason,
-    Retention, Settings, SshForward, TargetHealth, TunnelDefinition, TunnelId, TunnelKind,
-    TunnelLogEntry, TunnelMetrics, TunnelSnapshot, TunnelState, UnmanagedProcess,
+    Retention, Settings, SshForward, StandbyNotify, TargetHealth, TunnelDefinition, TunnelId,
+    TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot, TunnelState, UnmanagedProcess,
     X11AnchorSnapshot, X11AnchorState, X11Launcher, default_opener,
 };
 use ipc::protocol::{
@@ -19,7 +19,7 @@ use ipc::protocol::{
     HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent, HostOptionDto,
     ImportCandidateDto, ImportPreviewDto, ImportWarningDto, LogEntryDto, LogLevelDto, MetricsDto,
     OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto, OpenerSpecDto, PortOwnerDto,
-    RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, TargetHealthDto,
+    RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, StandbyNotifyDto, TargetHealthDto,
     TemporaryTunnelSpecDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
     TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
     X11ChangedEvent, X11LauncherDto, X11StateDto,
@@ -104,6 +104,24 @@ fn open_scheme_from_dto(scheme: OpenSchemeDto) -> OpenScheme {
     match scheme {
         OpenSchemeDto::Http => OpenScheme::Http,
         OpenSchemeDto::Https => OpenScheme::Https,
+    }
+}
+
+fn standby_notify_to_dto(mode: StandbyNotify) -> StandbyNotifyDto {
+    match mode {
+        StandbyNotify::None => StandbyNotifyDto::None,
+        StandbyNotify::Visual => StandbyNotifyDto::Visual,
+        StandbyNotify::Sound => StandbyNotifyDto::Sound,
+        StandbyNotify::Both => StandbyNotifyDto::Both,
+    }
+}
+
+fn standby_notify_from_dto(mode: StandbyNotifyDto) -> StandbyNotify {
+    match mode {
+        StandbyNotifyDto::None => StandbyNotify::None,
+        StandbyNotifyDto::Visual => StandbyNotify::Visual,
+        StandbyNotifyDto::Sound => StandbyNotify::Sound,
+        StandbyNotifyDto::Both => StandbyNotify::Both,
     }
 }
 
@@ -328,6 +346,7 @@ pub(crate) fn settings_to_dto(settings: &Settings) -> SettingsDto {
         open_host: open_host_to_dto(settings.open_host),
         standby: settings.standby,
         standby_idle_s: settings.standby_idle.as_secs(),
+        standby_notify: standby_notify_to_dto(settings.standby_notify),
     }
 }
 
@@ -348,6 +367,7 @@ pub(crate) fn settings_from_dto(dto: SettingsDto) -> Settings {
         open_host: open_host_from_dto(dto.open_host),
         standby: dto.standby,
         standby_idle: Duration::from_secs(dto.standby_idle_s),
+        standby_notify: standby_notify_from_dto(dto.standby_notify),
     }
 }
 
@@ -834,6 +854,7 @@ mod tests {
             open_host: OpenHost::Ip,
             standby: true,
             standby_idle: Duration::from_secs(90),
+            standby_notify: StandbyNotify::Both,
             ..Settings::default()
         };
 

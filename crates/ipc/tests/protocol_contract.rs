@@ -62,6 +62,7 @@ fn settings() -> SettingsDto {
         open_host: OpenHostDto::Localhost,
         standby: false,
         standby_idle_s: 300,
+        standby_notify: ipc::protocol::StandbyNotifyDto::Visual,
     }
 }
 
@@ -1115,7 +1116,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isTemporary":false,"defaultOpener":{"id":"browser","name":"Browser"}}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","standby":false,"standbyIdleS":300},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","standby":false,"standbyIdleS":300,"standbyNotify":"visual"},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
             "\n"
         )
     );
@@ -1334,6 +1335,39 @@ fn should_deserialize_settings_without_standby_as_off_with_five_minutes() {
     let parsed: SettingsDto = serde_json::from_value(value).unwrap();
 
     assert_eq!((parsed.standby, parsed.standby_idle_s), (false, 300));
+}
+
+#[test]
+fn should_deserialize_settings_without_standby_notify_as_visual() {
+    let mut value = to_json(&settings());
+    value.as_object_mut().unwrap().remove("standbyNotify");
+
+    let parsed: SettingsDto = serde_json::from_value(value).unwrap();
+
+    assert_eq!(
+        parsed.standby_notify,
+        ipc::protocol::StandbyNotifyDto::Visual
+    );
+}
+
+#[test]
+fn should_serialize_each_standby_notify_mode_in_camel_case() {
+    let modes = [
+        ipc::protocol::StandbyNotifyDto::None,
+        ipc::protocol::StandbyNotifyDto::Visual,
+        ipc::protocol::StandbyNotifyDto::Sound,
+        ipc::protocol::StandbyNotifyDto::Both,
+    ];
+
+    assert_eq!(
+        modes.map(|mode| to_json(&mode)),
+        [
+            json!("none"),
+            json!("visual"),
+            json!("sound"),
+            json!("both")
+        ]
+    );
 }
 
 #[test]

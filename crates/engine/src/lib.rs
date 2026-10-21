@@ -115,8 +115,8 @@ pub use session::SshSession;
 pub use store::{
     AppState, BROWSER_OPENER_ID, FileStateStore, HostOverrides, InvalidTunnelId, LoadOutcome,
     OpenHost, OpenOptions, OpenPathProblem, OpenScheme, Opener, OpenerIdProblem, Settings,
-    SourceLocation, StateStore, Store, StoreDocument, StoreError, StoreEvent, StoreWatcher,
-    TagProblem, TunnelDefinition, TunnelId, TunnelKind, TunnelReference, ValidationError,
-    X11Launcher, default_state_path, default_store_path,
+    SourceLocation, StandbyNotify, StateStore, Store, StoreDocument, StoreError, StoreEvent,
+    StoreWatcher, TagProblem, TunnelDefinition, TunnelId, TunnelKind, TunnelReference,
+    ValidationError, X11Launcher, default_state_path, default_store_path,
 };
 pub use x11::{DisplayPlatform, SystemX11Environment, X11Environment, X11Error};

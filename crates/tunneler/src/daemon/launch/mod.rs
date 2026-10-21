@@ -61,7 +61,9 @@ impl Launcher for SystemLauncher {
     }
 }
 
-fn spawn_detached(program: &str, args: &[String]) -> io::Result<()> {
+/// Runs `program` detached from the daemon, with null standard streams and
+/// without a shell; the child is reaped from a thread of its own.
+pub(crate) fn spawn_detached(program: &str, args: &[String]) -> io::Result<()> {
     let mut command = Command::new(program);
     command
         .args(args)

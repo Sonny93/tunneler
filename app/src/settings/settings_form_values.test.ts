@@ -127,4 +127,14 @@ describe('settings round trip', () => {
 			standbyIdleS: 60,
 		});
 	});
+
+	it('should apply the edited standby signal', () => {
+		const settings = buildSettings();
+		const values = {
+			...toSettingsFormValues(settings),
+			standbyNotify: 'both' as const,
+		};
+
+		expect(toSettings(values, settings).standbyNotify).toBe('both');
+	});
 });

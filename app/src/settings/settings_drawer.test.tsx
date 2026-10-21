@@ -153,6 +153,52 @@ describe('SettingsDrawer', () => {
 		});
 	});
 
+	it('should offer the standby signal choices with the current one checked', () => {
+		openSettings(buildSettings({ standbyNotify: 'sound' }));
+		renderDrawer();
+
+		const group = screen.getByRole('group', {
+			name: 'Signal à la sortie de veille',
+		});
+		expect(
+			within(group)
+				.getAllByRole('radio')
+				.map((radio) => [
+					radio.getAttribute('value'),
+					(radio as HTMLInputElement).checked,
+				])
+		).toEqual([
+			['none', false],
+			['visual', false],
+			['sound', true],
+			['both', false],
+		]);
+	});
+
+	it('should say the sound plays even when system notifications are off', () => {
+		openSettings();
+		renderDrawer();
+
+		expect(
+			screen.getByRole('group', { name: 'Signal à la sortie de veille' })
+		).toHaveAccessibleDescription(/même quand les notifications du système/);
+	});
+
+	it('should save the chosen standby signal', async () => {
+		const settings = buildSettings();
+		openSettings(settings);
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+
+		await user.click(screen.getByRole('radio', { name: 'Les deux' }));
+		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith({
+			...settings,
+			standbyNotify: 'both',
+		});
+	});
+
 	it('should flag an invalid standby delay and not save', async () => {
 		openSettings();
 		const user = userEvent.setup();

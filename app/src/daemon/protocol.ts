@@ -142,6 +142,8 @@ export type ImportPreviewDto = {
 	warnings: ImportWarningDto[];
 };
 
+export type StandbyNotifyDto = 'none' | 'visual' | 'sound' | 'both';
+
 export type SettingsDto = {
 	defaultBindAddress: string;
 	defaultRemoteBindAddress: string;
@@ -158,6 +160,7 @@ export type SettingsDto = {
 	openHost: OpenHostDto;
 	standby: boolean;
 	standbyIdleS: number;
+	standbyNotify: StandbyNotifyDto;
 };
 
 export type TrayStatusDto =

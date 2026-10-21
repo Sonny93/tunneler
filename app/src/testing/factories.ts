@@ -95,6 +95,7 @@ export function buildSettings(
 		openHost: 'localhost',
 		standby: false,
 		standbyIdleS: 300,
+		standbyNotify: 'visual',
 		...overrides,
 	};
 }

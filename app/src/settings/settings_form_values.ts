@@ -1,5 +1,9 @@
 import { parseTags } from '#/tunnel_form/parse_tags';
-import type { OpenHostDto, SettingsDto } from '#/daemon/protocol';
+import type {
+	OpenHostDto,
+	SettingsDto,
+	StandbyNotifyDto,
+} from '#/daemon/protocol';
 
 const MILLISECONDS_PER_SECOND = 1000;
 const TAGS_SEPARATOR = ', ';
@@ -20,6 +24,7 @@ export type SettingsFormValues = {
 	openHost: OpenHostDto;
 	standby: boolean;
 	standbyIdleSeconds: string;
+	standbyNotify: StandbyNotifyDto;
 };
 
 export function millisecondsToSeconds(milliseconds: number): string {
@@ -57,6 +62,7 @@ export function toSettingsFormValues(
 		openHost: settings.openHost,
 		standby: settings.standby,
 		standbyIdleSeconds: String(settings.standbyIdleS),
+		standbyNotify: settings.standbyNotify,
 	};
 }
 
@@ -85,5 +91,6 @@ export function toSettings(
 		openHost: values.openHost,
 		standby: values.standby,
 		standbyIdleS: Number(values.standbyIdleSeconds.trim()),
+		standbyNotify: values.standbyNotify,
 	};
 }

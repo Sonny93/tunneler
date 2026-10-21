@@ -16,6 +16,7 @@ mod mapping;
 mod os_keyring;
 mod prompts;
 mod signals;
+mod standby_signal;
 #[cfg(test)]
 #[cfg(unix)]
 mod testing;
@@ -30,11 +31,12 @@ use std::time::Duration;
 use engine::{
     ConnectorDependencies, Engine, EngineDependencies, FileStateStore, HostConfigResolver,
     PresetPlatform, SshConfigResolver, Store, SystemAgentLocator, SystemClock, SystemPortScanner,
-    SystemProgramLocator, SystemX11Environment, detect_presets,
+    SystemProgramLocator, SystemX11Environment, TunnelId, detect_presets,
 };
 use ipc::Endpoint;
 use ssh_config::{ConfigSources, SystemEnvironment};
 use tokio::sync::broadcast;
+use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
 pub(crate) use console::release_console_if_owned;
@@ -46,6 +48,9 @@ use launch::SystemLauncher;
 use login_launch::{spawn_login_launch_follower, system_login_launch};
 use os_keyring::OsKeyring;
 use prompts::PromptBroker;
+use standby_signal::{
+    StandbySignals, SystemNotifier, SystemSoundPlayer, spawn_standby_signal_follower,
+};
 use tray::{TrayService, TrayStatus, TrayStatusCell, spawn_tray_status_publisher};
 use ui::{ProcessUiLauncher, UiCoordinator};
 use ui_presence::spawn_ui_presence_follower;
@@ -119,6 +124,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         system_login_launch(),
         shutdown.clone(),
     );
+    let standby_signals = start_standby_signals(&engine, shutdown.clone());
     let tray_status = Arc::new(TrayStatusCell::new(TrayStatus::Disabled));
     let handler = Arc::new(DaemonHandler::new(
         engine.clone(),
@@ -166,6 +172,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         ui_follower,
         status_publisher,
         login_launch,
+        standby_signals,
     ] {
         if let Err(error) = task.await {
             tracing::warn!(%error, "a daemon task ended abnormally");
@@ -196,6 +203,34 @@ async fn start_tray_service(
         )
         .await,
     )
+}
+
+fn start_standby_signals(engine: &Engine, shutdown: CancellationToken) -> JoinHandle<()> {
+    spawn_standby_signal_follower(
+        engine.subscribe(),
+        {
+            let engine = engine.clone();
+            move || engine.snapshot().settings.standby_notify
+        },
+        {
+            let engine = engine.clone();
+            move |id| tunnel_label(&engine, id)
+        },
+        StandbySignals::new(
+            Arc::new(SystemNotifier::new()),
+            Arc::new(SystemSoundPlayer::new()),
+        ),
+        shutdown,
+    )
+}
+
+fn tunnel_label(engine: &Engine, id: TunnelId) -> Option<String> {
+    engine
+        .snapshot()
+        .tunnels
+        .into_iter()
+        .find(|tunnel| tunnel.definition.id == id)
+        .map(|tunnel| tunnel.definition.label())
 }
 
 fn start_launch_tunnels(engine: &Engine) {

@@ -13,8 +13,8 @@ use super::document_update;
 use super::error::{SourceLocation, StoreError};
 use super::migration::{CURRENT_VERSION, migrate};
 use super::model::{
-    HostOverrides, OpenHost, OpenOptions, OpenScheme, Opener, Settings, StoreDocument,
-    TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
+    HostOverrides, OpenHost, OpenOptions, OpenScheme, Opener, Settings, StandbyNotify,
+    StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
 };
 use super::validation::validate;
 
@@ -87,6 +87,16 @@ struct StoredSettings {
     open_host: Option<StoredOpenHost>,
     standby: Option<bool>,
     standby_idle_s: Option<u64>,
+    standby_notify: Option<StoredStandbyNotify>,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum StoredStandbyNotify {
+    None,
+    Visual,
+    Sound,
+    Both,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -286,6 +296,9 @@ impl StoredSettings {
             standby_idle: self
                 .standby_idle_s
                 .map_or(defaults.standby_idle, Duration::from_secs),
+            standby_notify: self
+                .standby_notify
+                .map_or(defaults.standby_notify, StandbyNotify::from),
         }
     }
 }
@@ -295,6 +308,17 @@ impl From<StoredOpenHost> for OpenHost {
         match host {
             StoredOpenHost::Localhost => Self::Localhost,
             StoredOpenHost::Ip => Self::Ip,
+        }
+    }
+}
+
+impl From<StoredStandbyNotify> for StandbyNotify {
+    fn from(mode: StoredStandbyNotify) -> Self {
+        match mode {
+            StoredStandbyNotify::None => Self::None,
+            StoredStandbyNotify::Visual => Self::Visual,
+            StoredStandbyNotify::Sound => Self::Sound,
+            StoredStandbyNotify::Both => Self::Both,
         }
     }
 }
@@ -841,6 +865,34 @@ mod tests {
             ),
             (true, Duration::from_secs(60))
         );
+    }
+
+    #[test]
+    fn should_read_the_standby_notify_setting_when_it_is_given() {
+        let outcome = parse("[settings]\nstandby_notify = \"both\"\n").unwrap();
+
+        assert_eq!(
+            outcome.document.settings.standby_notify,
+            StandbyNotify::Both
+        );
+    }
+
+    #[test]
+    fn should_notify_visually_when_the_standby_notify_setting_is_absent() {
+        let outcome = parse("version = 1\n").unwrap();
+
+        assert_eq!(
+            outcome.document.settings.standby_notify,
+            StandbyNotify::Visual
+        );
+    }
+
+    #[test]
+    fn should_reject_an_unknown_standby_notify_setting() {
+        assert!(matches!(
+            parse("[settings]\nstandby_notify = \"loud\"\n"),
+            Err(StoreError::Parse { .. })
+        ));
     }
 
     #[test]

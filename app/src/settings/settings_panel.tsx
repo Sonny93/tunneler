@@ -9,6 +9,7 @@ import { FormErrorSummary } from '#/shared/form_error_summary';
 import { useSettingsForm } from '#/settings/use_settings_form';
 import { SettingsFieldset } from '#/settings/settings_fieldset';
 import { ApplicationsSection } from '#/openers/applications_section';
+import { StandbyNotifyOptions } from '#/settings/standby_notify_options';
 import { SettingsOpenFieldset } from '#/settings/settings_open_fieldset';
 import { OpenConfigFolderButton } from '#/settings/open_config_folder_button';
 import { SettingsSecretsFieldset } from '#/settings/settings_secrets_fieldset';
@@ -72,6 +73,10 @@ export function SettingsPanel({ settings }: Readonly<SettingsPanelProps>) {
 						hint="Les tunnels locaux et dynamiques gardent leur port sans session SSH jusqu'à la première connexion. Prend effet au prochain démarrage de chaque tunnel."
 						isChecked={values.standby}
 						onChange={form.changeToggle}
+					/>
+					<StandbyNotifyOptions
+						value={values.standbyNotify}
+						onChange={form.changeStandbyNotify}
 					/>
 				</SettingsFieldset>
 				<SettingsOpenFieldset

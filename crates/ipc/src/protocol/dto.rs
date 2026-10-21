@@ -39,6 +39,21 @@ pub enum OpenHostDto {
     Ip,
 }
 
+/// How the daemon signals that a standby tunnel woke up or failed to.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum StandbyNotifyDto {
+    /// No signal.
+    None,
+    /// A silent desktop notification.
+    #[default]
+    Visual,
+    /// A sound played by the daemon.
+    Sound,
+    /// Both.
+    Both,
+}
+
 /// How a tunnel is opened; every field is optional.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -402,6 +417,9 @@ pub struct SettingsDto {
     /// session.
     #[serde(default = "default_standby_idle_s")]
     pub standby_idle_s: u64,
+    /// How a wake-up from standby, or its failure, is signalled.
+    #[serde(default)]
+    pub standby_notify: StandbyNotifyDto,
 }
 
 fn default_standby_idle_s() -> u64 {

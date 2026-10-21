@@ -96,6 +96,10 @@ fn settings_entries(settings: &Settings) -> Vec<(&'static str, Value)> {
             "standby_idle_s",
             integer(u128::from(settings.standby_idle.as_secs())),
         ),
+        (
+            "standby_notify",
+            Value::from(settings.standby_notify.as_str()),
+        ),
     ]
 }
 
@@ -783,6 +787,16 @@ tags = []
             updated.contains("standby = true") && updated.contains("standby_idle_s = 90"),
             "{updated}"
         );
+    }
+
+    #[test]
+    fn should_write_the_standby_notify_setting_when_settings_are_written() {
+        let mut document = StoreDocument::default();
+        document.settings.standby_notify = crate::store::StandbyNotify::Sound;
+
+        let updated = update("", &document);
+
+        assert!(updated.contains("standby_notify = \"sound\""), "{updated}");
     }
 
     #[test]

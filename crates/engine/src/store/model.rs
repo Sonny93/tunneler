@@ -106,6 +106,32 @@ impl OpenHost {
     }
 }
 
+/// How the daemon signals that a standby tunnel woke up or failed to.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum StandbyNotify {
+    /// No signal.
+    None,
+    /// A silent desktop notification.
+    #[default]
+    Visual,
+    /// A sound played by the daemon.
+    Sound,
+    /// Both.
+    Both,
+}
+
+impl StandbyNotify {
+    /// The mode as written in the store file.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Visual => "visual",
+            Self::Sound => "sound",
+            Self::Both => "both",
+        }
+    }
+}
+
 /// How a tunnel is opened; every field is optional and falls back to a
 /// default.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -272,6 +298,8 @@ pub struct Settings {
     /// How long a standby tunnel stays connected without any connection
     /// before it releases its session.
     pub standby_idle: Duration,
+    /// How a wake-up from standby, or its failure, is signalled.
+    pub standby_notify: StandbyNotify,
 }
 
 impl Default for Settings {
@@ -292,6 +320,7 @@ impl Default for Settings {
             open_host: OpenHost::default(),
             standby: false,
             standby_idle: DEFAULT_STANDBY_IDLE,
+            standby_notify: StandbyNotify::default(),
         }
     }
 }

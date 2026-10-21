@@ -124,7 +124,9 @@ Règles par défaut : `target_port` absent = `listen_port` ; `listen_address` ab
 - Arrêter un tunnel en veille libère le port (`Stopped`). `restore_on_launch` et `start_on_launch_tags` remettent en veille, sans session.
 - Signal au réveil depuis la veille et en cas d'échec, au choix (`settings.standby_notify`) : `none`, `visual`, `sound` ou `both` (défaut `visual`). Le son est joué par le daemon lui-même, indépendamment des notifications système : il reste audible quand celles-ci sont coupées (mode « ne pas déranger », notifications désactivées). La notification visuelle est donc toujours envoyée silencieuse.
   - Visuel : `org.freedesktop.Notifications` via `zbus` (déjà présent, pas de GTK) sous Linux, toast WinRT sous Windows.
-  - Son : thème de sons freedesktop sous Linux (`canberra-gtk-play -i <événement>`, sinon `pw-play`/`paplay` sur `/usr/share/sounds/freedesktop/stereo/`), son système sous Windows (`PlaySoundW` alias `SystemNotification`/`SystemHand`, `SND_ASYNC`). Aucun lecteur trouvé → un avertissement dans le journal, une seule fois.
+  - Son : thème de sons freedesktop sous Linux (`canberra-gtk-play -i <événement>`, sinon `pw-play`/`paplay` sur `/usr/share/sounds/freedesktop/stereo/`), son système sous Windows (`PlaySoundW` alias `SystemNotification` au réveil, `SystemExclamation` à l'échec, `SND_ALIAS | SND_ASYNC | SND_NODEFAULT`). Aucun lecteur trouvé → un avertissement dans le journal, une seule fois.
+  - Au plus un signal d'échec de réveil par tunnel toutes les 30 s (un navigateur qui réessaie ne doit pas spammer) ; les réveils ne sont pas limités.
+  - Textes : « Tunnel sorti de veille » + libellé du tunnel ; « Réveil impossible » + « libellé : raison ».
   - Le tray et l'UI restent la source complète.
 
 Santé de la cible, indépendante de l'état : `Unknown` · `Reachable` · `Unreachable { since, error }`.

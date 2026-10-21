@@ -35,6 +35,7 @@ tray-icon = { workspace = true, features = ["ksni"] }
 zbus.workspace = true
 
 [target.'cfg(windows)'.dependencies]
+tauri-winrt-notification.workspace = true
 tray-icon.workspace = true
 winit.workspace = true
 windows-sys.workspace = true

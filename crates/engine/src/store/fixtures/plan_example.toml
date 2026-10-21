@@ -16,6 +16,7 @@ x11_display = ""                  # empty = $DISPLAY, or 127.0.0.1:0.0 on Window
 open_host = "localhost"           # localhost | ip (127.0.0.1, or [::1] when the tunnel listens on IPv6)
 standby = false                   # local/dynamic tunnels hold their port without an SSH session until a client connects
 standby_idle_s = 300              # back to standby after this long without a connection
+standby_notify = "visual"         # none | visual | sound | both, when a standby tunnel wakes up or fails to
 
 [[tunnels]]
 id = "01JA0000000000000000000000"  # ULID

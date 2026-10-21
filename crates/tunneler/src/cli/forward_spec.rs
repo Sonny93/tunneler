@@ -440,6 +440,7 @@ mod tests {
                 open_host: ipc::protocol::OpenHostDto::Localhost,
                 standby: false,
                 standby_idle_s: 300,
+                standby_notify: ipc::protocol::StandbyNotifyDto::Visual,
             },
             tray: TrayStatusDto::default(),
             externals: Vec::new(),

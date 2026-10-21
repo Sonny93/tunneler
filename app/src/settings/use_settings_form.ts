@@ -3,8 +3,12 @@ import { useState, type FormEvent } from 'react';
 import { useUiStore } from '#/state/ui_store';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import type { OpenHostDto, SettingsDto } from '#/daemon/protocol';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
+import type {
+	OpenHostDto,
+	SettingsDto,
+	StandbyNotifyDto,
+} from '#/daemon/protocol';
 import type {
 	SettingsTextField,
 	SettingsToggleField,
@@ -28,6 +32,7 @@ type UseSettingsFormReturn = {
 	changeText: (field: SettingsTextField, value: string) => void;
 	changeToggle: (field: SettingsToggleField, isEnabled: boolean) => void;
 	changeOpenHost: (host: OpenHostDto) => void;
+	changeStandbyNotify: (mode: StandbyNotifyDto) => void;
 	submit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
@@ -52,6 +57,9 @@ export function useSettingsForm(
 
 	const changeOpenHost = (openHost: OpenHostDto) =>
 		setValues((current) => ({ ...current, openHost }));
+
+	const changeStandbyNotify = (standbyNotify: StandbyNotifyDto) =>
+		setValues((current) => ({ ...current, standbyNotify }));
 
 	const save = async () => {
 		setIsSaving(true);
@@ -90,6 +98,7 @@ export function useSettingsForm(
 		changeText,
 		changeToggle,
 		changeOpenHost,
+		changeStandbyNotify,
 		submit,
 	};
 }
