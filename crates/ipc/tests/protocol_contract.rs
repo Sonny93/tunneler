@@ -34,6 +34,7 @@ fn spec() -> TunnelSpecDto {
         target_port: Some(5432),
         tags: vec!["dev".to_owned()],
         open: OpenOptionsDto::default(),
+        standby: None,
     }
 }
 
@@ -59,6 +60,8 @@ fn settings() -> SettingsDto {
         use_os_keyring: false,
         x11_display: None,
         open_host: OpenHostDto::Localhost,
+        standby: false,
+        standby_idle_s: 300,
     }
 }
 
@@ -1112,7 +1115,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isTemporary":false,"defaultOpener":{"id":"browser","name":"Browser"}}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost"},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","standby":false,"standbyIdleS":300},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
             "\n"
         )
     );
@@ -1298,6 +1301,58 @@ fn should_serialize_an_unresponsive_agent_failure_with_its_timeout_in_millisecon
         to_json(&state),
         json!({"kind":"failed","reason":{"kind":"agentUnresponsive","timeoutMs":30000}})
     );
+}
+
+#[test]
+fn should_serialize_a_standby_state_without_a_failure_as_a_bare_kind() {
+    let state = TunnelStateDto::Standby { last_failure: None };
+
+    assert_eq!(to_json(&state), json!({"kind":"standby"}));
+}
+
+#[test]
+fn should_serialize_a_standby_state_with_its_last_failure() {
+    let state = TunnelStateDto::Standby {
+        last_failure: Some(FailureReasonDto::Connect {
+            message: "authentication failed".to_owned(),
+        }),
+    };
+
+    assert_eq!(
+        to_json(&state),
+        json!({"kind":"standby","lastFailure":{"kind":"connect","message":"authentication failed"}})
+    );
+}
+
+#[test]
+fn should_deserialize_settings_without_standby_as_off_with_five_minutes() {
+    let mut value = to_json(&settings());
+    let fields = value.as_object_mut().unwrap();
+    fields.remove("standby");
+    fields.remove("standbyIdleS");
+
+    let parsed: SettingsDto = serde_json::from_value(value).unwrap();
+
+    assert_eq!((parsed.standby, parsed.standby_idle_s), (false, 300));
+}
+
+#[test]
+fn should_serialize_the_standby_override_of_a_tunnel_only_when_it_is_set() {
+    let spec = TunnelSpecDto {
+        standby: Some(true),
+        ..spec()
+    };
+
+    assert_eq!(to_json(&spec)["standby"], json!(true));
+}
+
+#[test]
+fn should_deserialize_a_tunnel_spec_without_standby_as_inheriting() {
+    let value = to_json(&spec());
+
+    let parsed: TunnelSpecDto = serde_json::from_value(value).unwrap();
+
+    assert_eq!(parsed.standby, None);
 }
 
 #[test]

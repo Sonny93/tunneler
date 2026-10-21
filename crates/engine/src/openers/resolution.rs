@@ -145,6 +145,7 @@ mod tests {
                 with: with.map(str::to_owned),
                 ..OpenOptions::default()
             },
+            standby: None,
         }
     }
 

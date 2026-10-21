@@ -13,6 +13,10 @@ const STATE_APPEARANCES: Readonly<
 		icon: 'i-mdi-stop-circle-outline',
 		toneClassName: 'text-tn-neutral bg-tn-neutral-subtle',
 	},
+	standby: {
+		icon: 'i-mdi-power-sleep',
+		toneClassName: 'text-tn-info bg-tn-info-subtle',
+	},
 	starting: {
 		icon: 'i-mdi-progress-clock',
 		toneClassName: 'text-tn-info bg-tn-info-subtle',

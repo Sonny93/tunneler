@@ -85,6 +85,8 @@ struct StoredSettings {
     use_os_keyring: Option<bool>,
     x11_display: Option<String>,
     open_host: Option<StoredOpenHost>,
+    standby: Option<bool>,
+    standby_idle_s: Option<u64>,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -134,6 +136,7 @@ struct StoredTunnel {
     tags: Vec<String>,
     #[serde(default)]
     open: StoredOpen,
+    standby: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -279,6 +282,10 @@ impl StoredSettings {
             use_os_keyring: self.use_os_keyring.unwrap_or(defaults.use_os_keyring),
             x11_display: self.x11_display.filter(|display| !display.is_empty()),
             open_host: self.open_host.map_or(defaults.open_host, OpenHost::from),
+            standby: self.standby.unwrap_or(defaults.standby),
+            standby_idle: self
+                .standby_idle_s
+                .map_or(defaults.standby_idle, Duration::from_secs),
         }
     }
 }
@@ -324,6 +331,7 @@ impl StoredTunnel {
             target_port: self.target_port,
             tags: self.tags,
             open: self.open.into_options(),
+            standby: self.standby,
         }
     }
 }
@@ -820,6 +828,37 @@ mod tests {
         let outcome = parse("[settings]\nopen_host = \"ip\"\n").unwrap();
 
         assert_eq!(outcome.document.settings.open_host, OpenHost::Ip);
+    }
+
+    #[test]
+    fn should_read_the_standby_settings_when_they_are_given() {
+        let outcome = parse("[settings]\nstandby = true\nstandby_idle_s = 60\n").unwrap();
+
+        assert_eq!(
+            (
+                outcome.document.settings.standby,
+                outcome.document.settings.standby_idle
+            ),
+            (true, Duration::from_secs(60))
+        );
+    }
+
+    #[test]
+    fn should_read_the_standby_override_of_a_tunnel_when_it_is_given() {
+        let outcome = parse(
+            "[[tunnels]]\nhost = \"nova\"\nkind = \"local\"\nlisten_port = 3333\nstandby = true\n",
+        )
+        .unwrap();
+
+        assert_eq!(outcome.document.tunnels[0].standby, Some(true));
+    }
+
+    #[test]
+    fn should_leave_the_standby_override_absent_when_a_tunnel_does_not_set_it() {
+        let outcome =
+            parse("[[tunnels]]\nhost = \"nova\"\nkind = \"local\"\nlisten_port = 3333\n").unwrap();
+
+        assert_eq!(outcome.document.tunnels[0].standby, None);
     }
 
     #[test]

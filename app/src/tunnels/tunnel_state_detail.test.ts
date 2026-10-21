@@ -3,6 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { getTunnelStateDetail } from '#/tunnels/tunnel_state_detail';
 
 describe('getTunnelStateDetail', () => {
+	it('should have no detail when a standby tunnel did not fail to wake up', () => {
+		expect(getTunnelStateDetail({ kind: 'standby' })).toBeNull();
+	});
+
+	it('should give the last wake-up failure of a standby tunnel', () => {
+		expect(
+			getTunnelStateDetail({
+				kind: 'standby',
+				lastFailure: { kind: 'connect', message: 'refusé' },
+			})
+		).toBe('dernier réveil en échec : Connexion SSH impossible : refusé');
+	});
+
 	it('should name the process providing an external tunnel', () => {
 		expect(
 			getTunnelStateDetail({

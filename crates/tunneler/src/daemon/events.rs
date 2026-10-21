@@ -17,7 +17,9 @@ pub(crate) fn spawn_event_bridge(
         loop {
             match engine_events.recv().await {
                 Ok(event) => {
-                    let _ = outgoing.send(event_to_message(&event));
+                    if let Some(message) = event_to_message(&event) {
+                        let _ = outgoing.send(message);
+                    }
                 }
                 Err(RecvError::Lagged(skipped)) => {
                     tracing::warn!(skipped, "the engine events overran the bridge");

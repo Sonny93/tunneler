@@ -56,6 +56,7 @@ mod tests {
             target_port: None,
             tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
             open: crate::store::OpenOptions::default(),
+            standby: None,
         }
     }
 

@@ -115,7 +115,7 @@ fn initial_status(id: &str, snapshot: &SnapshotDto) -> TargetStatus {
         .find(|tunnel| tunnel.definition.id == id)
         .map(|tunnel| &tunnel.state);
     match state {
-        Some(TunnelStateDto::Active) => TargetStatus::Active,
+        Some(TunnelStateDto::Active | TunnelStateDto::Standby { .. }) => TargetStatus::Active,
         Some(TunnelStateDto::External { .. }) => TargetStatus::Provided,
         Some(TunnelStateDto::Conflict { .. }) => TargetStatus::Unsuccessful,
         _ => TargetStatus::Waiting,
@@ -124,7 +124,7 @@ fn initial_status(id: &str, snapshot: &SnapshotDto) -> TargetStatus {
 
 fn status_after(state: &TunnelStateDto) -> TargetStatus {
     match state {
-        TunnelStateDto::Active => TargetStatus::Active,
+        TunnelStateDto::Active | TunnelStateDto::Standby { .. } => TargetStatus::Active,
         TunnelStateDto::External { .. } => TargetStatus::Provided,
         TunnelStateDto::Failed { .. }
         | TunnelStateDto::Stopped
@@ -139,6 +139,7 @@ pub fn describe_step(tunnel_label: &str, state: &TunnelStateDto, style: Style) -
     match state {
         TunnelStateDto::Starting => format!("{tunnel_label}: connecting{}", style.ellipsis()),
         TunnelStateDto::Active => format!("{tunnel_label}: active"),
+        TunnelStateDto::Standby { .. } => format!("{tunnel_label}: en veille"),
         TunnelStateDto::Reconnecting { attempt, .. } => {
             format!("{tunnel_label}: reconnecting (attempt {attempt})")
         }
@@ -186,6 +187,7 @@ mod tests {
                     target_port: None,
                     tags: Vec::new(),
                     open: ipc::protocol::OpenOptionsDto::default(),
+                    standby: None,
                 },
             },
             state,
@@ -228,6 +230,8 @@ mod tests {
                 use_os_keyring: false,
                 x11_display: None,
                 open_host: ipc::protocol::OpenHostDto::Localhost,
+                standby: false,
+                standby_idle_s: 300,
             },
         }
     }
@@ -407,6 +411,36 @@ mod tests {
         assert_eq!(
             (tracker.is_settled(), tracker.unsuccessful_count()),
             (true, 1)
+        );
+    }
+
+    #[test]
+    fn should_settle_without_failure_when_a_tunnel_reaches_standby() {
+        let mut tracker = tracker_for_two_stopped_tunnels();
+
+        tracker.apply(&change("1", TunnelStateDto::Active));
+        tracker.apply(&change("2", TunnelStateDto::Standby { last_failure: None }));
+
+        assert_eq!(
+            (tracker.is_settled(), tracker.unsuccessful_count()),
+            (true, 0)
+        );
+    }
+
+    #[test]
+    fn should_announce_standby_as_en_veille() {
+        let state = TunnelStateDto::Standby { last_failure: None };
+
+        assert_eq!(
+            describe_step(
+                "3333 → nova:3333",
+                &state,
+                Style {
+                    color: false,
+                    unicode: true
+                }
+            ),
+            "3333 → nova:3333: en veille"
         );
     }
 

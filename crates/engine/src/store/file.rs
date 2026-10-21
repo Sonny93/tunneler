@@ -87,7 +87,7 @@ impl SharedStore {
             Ok(outcome) => {
                 state.document = outcome.document.clone();
                 state.is_normalization_pending = outcome.was_normalized;
-                Some(StoreEvent::Reloaded(outcome))
+                Some(StoreEvent::Reloaded(Box::new(outcome)))
             }
             Err(error) => Some(StoreEvent::Invalid(error)),
         }

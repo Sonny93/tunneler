@@ -18,6 +18,8 @@ export type SettingsFormValues = {
 	useOsKeyring: boolean;
 	x11Display: string;
 	openHost: OpenHostDto;
+	standby: boolean;
+	standbyIdleSeconds: string;
 };
 
 export function millisecondsToSeconds(milliseconds: number): string {
@@ -53,6 +55,8 @@ export function toSettingsFormValues(
 		useOsKeyring: settings.useOsKeyring,
 		x11Display: settings.x11Display ?? '',
 		openHost: settings.openHost,
+		standby: settings.standby,
+		standbyIdleSeconds: String(settings.standbyIdleS),
 	};
 }
 
@@ -79,5 +83,7 @@ export function toSettings(
 		useOsKeyring: values.useOsKeyring,
 		x11Display: x11Display === '' ? undefined : x11Display,
 		openHost: values.openHost,
+		standby: values.standby,
+		standbyIdleS: Number(values.standbyIdleSeconds.trim()),
 	};
 }

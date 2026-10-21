@@ -342,6 +342,64 @@ async fn should_report_the_tagged_tunnels_as_active_when_status_prints_json() {
     assert!(status["daemonVersion"].is_string());
 }
 
+fn make_first_tunnel_standby(fixture: &Fixture) {
+    let path = fixture.workspace.file("tunnels.toml");
+    let text = std::fs::read_to_string(&path).unwrap();
+    let updated = text.replacen(
+        "kind = \"local\"\n",
+        "kind = \"local\"\nstandby = true\n",
+        1,
+    );
+    std::fs::write(path, updated).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_report_a_standby_tunnel_as_success_when_up_targets_it() {
+    let fixture = Fixture::start().await;
+    make_first_tunnel_standby(&fixture);
+
+    let output = fixture.run(&["up", "alpha"]).await;
+
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    let steps = stdout(&output);
+    assert!(
+        has_step(&steps, fixture.listen_ports[0], "en veille"),
+        "{steps}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_carry_the_standby_state_when_status_prints_json() {
+    let fixture = Fixture::start().await;
+    make_first_tunnel_standby(&fixture);
+    fixture.run(&["up", "alpha"]).await;
+
+    let status = fixture.status_json().await;
+
+    assert_eq!(
+        tunnel_states(&status)[0],
+        (u64::from(fixture.listen_ports[0]), "standby".to_owned())
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_print_the_word_veille_without_escape_sequences_when_status_runs_without_color() {
+    let fixture = Fixture::start().await;
+    make_first_tunnel_standby(&fixture);
+    fixture.run(&["up", "alpha"]).await;
+
+    let output = fixture
+        .run_with_environment(&["status"], &[("NO_COLOR", "1")])
+        .await;
+
+    let text = stdout(&output);
+    assert!(!text.contains(ESCAPE), "{text}");
+    assert!(
+        text.contains(&format!("veille  {} ", fixture.listen_ports[0])),
+        "{text}"
+    );
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn should_print_words_without_escape_sequences_when_status_runs_without_a_terminal() {
     let fixture = Fixture::start().await;

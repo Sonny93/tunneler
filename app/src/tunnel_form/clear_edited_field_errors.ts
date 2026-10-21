@@ -14,6 +14,7 @@ function getEditedErrorFields(
 		case 'openSchemeChanged':
 		case 'openHostChanged':
 		case 'openWithChanged':
+		case 'standbyChanged':
 			return [];
 		case 'kindChanged':
 		case 'targetPortChanged':

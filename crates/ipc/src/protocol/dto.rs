@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+/// The default of `standby_idle_s`, in seconds.
+pub const DEFAULT_STANDBY_IDLE_S: u64 = 300;
+
 /// A point in time: milliseconds since the Unix epoch, UTC.
 pub type EpochMillis = u64;
 
@@ -137,6 +140,9 @@ pub struct TunnelSpecDto {
     /// How the tunnel is opened; absent when nothing is set.
     #[serde(default, skip_serializing_if = "OpenOptionsDto::is_empty")]
     pub open: OpenOptionsDto,
+    /// Overrides the standby setting for this tunnel; absent inherits it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub standby: Option<bool>,
 }
 
 /// The definition of a temporary tunnel: a [`TunnelSpecDto`] without tags,
@@ -230,6 +236,13 @@ pub struct PortOwnerDto {
 pub enum TunnelStateDto {
     /// Not running.
     Stopped,
+    /// Holding the listening port without an SSH session; the first
+    /// connection opens one.
+    Standby {
+        /// Why the last wake-up failed; absent when it did not.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        last_failure: Option<FailureReasonDto>,
+    },
     /// Connecting.
     Starting,
     /// Forwarding.
@@ -382,6 +395,17 @@ pub struct SettingsDto {
     /// Which loopback name opened tunnels use unless they say otherwise.
     #[serde(default)]
     pub open_host: OpenHostDto,
+    /// Whether local and dynamic tunnels without an override wait in standby.
+    #[serde(default)]
+    pub standby: bool,
+    /// Seconds without a connection before a standby tunnel releases its
+    /// session.
+    #[serde(default = "default_standby_idle_s")]
+    pub standby_idle_s: u64,
+}
+
+fn default_standby_idle_s() -> u64 {
+    DEFAULT_STANDBY_IDLE_S
 }
 
 /// Whether the daemon shows its notification-area (tray) icon.

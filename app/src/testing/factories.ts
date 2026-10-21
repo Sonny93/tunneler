@@ -93,6 +93,8 @@ export function buildSettings(
 		launchAtLogin: false,
 		useOsKeyring: false,
 		openHost: 'localhost',
+		standby: false,
+		standbyIdleS: 300,
 		...overrides,
 	};
 }

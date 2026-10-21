@@ -382,6 +382,7 @@ mod tests {
                 target_port: None,
                 tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
                 open: ipc::protocol::OpenOptionsDto::default(),
+                standby: None,
             },
         }
     }
@@ -416,6 +417,8 @@ mod tests {
                 use_os_keyring: false,
                 x11_display: None,
                 open_host: ipc::protocol::OpenHostDto::Localhost,
+                standby: false,
+                standby_idle_s: 300,
             },
             tray: TrayStatusDto::default(),
             externals: Vec::new(),

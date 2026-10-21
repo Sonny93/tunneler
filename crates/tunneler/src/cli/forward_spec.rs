@@ -417,6 +417,7 @@ mod tests {
             target_port,
             tags: Vec::new(),
             open: ipc::protocol::OpenOptionsDto::default(),
+            standby: None,
         }
     }
 
@@ -437,6 +438,8 @@ mod tests {
                 use_os_keyring: false,
                 x11_display: None,
                 open_host: ipc::protocol::OpenHostDto::Localhost,
+                standby: false,
+                standby_idle_s: 300,
             },
             tray: TrayStatusDto::default(),
             externals: Vec::new(),

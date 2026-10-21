@@ -7,7 +7,9 @@ use crate::store::{TunnelDefinition, TunnelId};
 pub(crate) enum DefinitionChange {
     /// Nothing changed.
     Unchanged,
-    /// Only labels changed (tags): a running tunnel is not disturbed.
+    /// Only labels and start-up preferences changed (tags, open options,
+    /// standby): a running tunnel is not disturbed. A new standby choice
+    /// applies at the next start.
     InPlace,
     /// A field that shapes the connection changed (host, kind, listen or
     /// target address): a running tunnel must restart.
@@ -79,6 +81,7 @@ mod tests {
             target_port: None,
             tags: Vec::new(),
             open: crate::store::OpenOptions::default(),
+            standby: None,
         }
     }
 
@@ -105,6 +108,14 @@ mod tests {
     fn should_apply_in_place_when_only_the_tags_changed() {
         let old = definition();
         let new = with(&old, |new| new.tags = vec!["dev".to_owned()]);
+
+        assert_eq!(classify_change(&old, &new), DefinitionChange::InPlace);
+    }
+
+    #[test]
+    fn should_apply_in_place_when_only_the_standby_choice_changed() {
+        let old = definition();
+        let new = with(&old, |new| new.standby = Some(true));
 
         assert_eq!(classify_change(&old, &new), DefinitionChange::InPlace);
     }

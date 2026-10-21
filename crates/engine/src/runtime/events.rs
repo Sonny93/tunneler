@@ -3,7 +3,7 @@ use tokio::sync::broadcast;
 use crate::external::UnmanagedProcess;
 use crate::runtime::log_buffer::TunnelLogEntry;
 use crate::runtime::metrics::TunnelMetrics;
-use crate::runtime::state::{TargetHealth, TunnelState};
+use crate::runtime::state::{FailureReason, TargetHealth, TunnelState};
 use crate::runtime::x11_state::X11AnchorState;
 use crate::store::TunnelId;
 
@@ -21,6 +21,19 @@ pub enum EngineEvent {
         state: TunnelState,
         /// Its new target health.
         health: TargetHealth,
+    },
+    /// A tunnel left standby: its first connection opened the SSH session.
+    TunnelWoke {
+        /// The tunnel.
+        id: TunnelId,
+    },
+    /// A tunnel could not leave standby; it went back to it and keeps the
+    /// reason.
+    TunnelWakeFailed {
+        /// The tunnel.
+        id: TunnelId,
+        /// Why the SSH session could not be opened.
+        reason: FailureReason,
     },
     /// The metrics of a tunnel changed; sent at most once a second per tunnel.
     TunnelMetrics {

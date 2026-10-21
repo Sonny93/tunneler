@@ -34,6 +34,7 @@ zeroize.workspace = true
 pretty_assertions.workspace = true
 tempfile.workspace = true
 test-support.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
 
 [[bin]]
 name = "tcp-bridge"

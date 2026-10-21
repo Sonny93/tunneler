@@ -2,13 +2,17 @@ import { useId } from 'react';
 
 import { useDaemonStore } from '#/state/daemon_store';
 import type { TunnelKindDto } from '#/daemon/protocol';
+import { StandbyField } from '#/tunnel_form/standby_field';
 import { TargetPortField } from '#/tunnel_form/target_port_field';
 import { TunnelKindField } from '#/tunnel_form/tunnel_kind_field';
 import { TunnelTextField } from '#/tunnel_form/tunnel_text_field';
 import { OpenOptionsFields } from '#/tunnel_form/open_options_fields';
-import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 import { getTunnelKindFieldTexts } from '#/tunnel_form/tunnel_kind_texts';
 import type { TunnelFormErrors } from '#/tunnel_form/validate_tunnel_form';
+import type {
+	StandbyChoice,
+	TunnelFormValues,
+} from '#/tunnel_form/tunnel_form_values';
 import type {
 	TunnelFormAction,
 	TunnelFormTextField,
@@ -22,6 +26,8 @@ type TunnelFormFieldsProps = {
 	hasTags?: boolean;
 	/** Temporary tunnels are never opened with saved options. */
 	hasOpenOptions?: boolean;
+	/** Temporary tunnels start at once, so they never wait in standby. */
+	hasStandby?: boolean;
 };
 
 export function TunnelFormFields({
@@ -30,6 +36,7 @@ export function TunnelFormFields({
 	dispatch,
 	hasTags = true,
 	hasOpenOptions = true,
+	hasStandby = true,
 }: Readonly<TunnelFormFieldsProps>) {
 	const hosts = useDaemonStore((state) => state.hosts);
 	const defaultBindAddress = useDaemonStore((state) =>
@@ -48,6 +55,8 @@ export function TunnelFormFields({
 	const changeTargetPort = (value: string) =>
 		dispatch({ type: 'targetPortChanged', value });
 	const relinkTargetPort = () => dispatch({ type: 'targetPortRelinked' });
+	const changeStandby = (choice: StandbyChoice) =>
+		dispatch({ type: 'standbyChanged', choice });
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -113,6 +122,9 @@ export function TunnelFormFields({
 					onChange={changeText}
 					error={errors.tags}
 				/>
+			)}
+			{hasStandby && values.kind !== 'remote' && (
+				<StandbyField value={values.standby} onChange={changeStandby} />
 			)}
 			{hasOpenOptions && values.kind === 'local' && (
 				<OpenOptionsFields

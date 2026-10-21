@@ -32,13 +32,18 @@ export type TunnelSpecDto = {
 	targetPort?: number;
 	tags: string[];
 	open?: OpenOptionsDto;
+	/** Absent inherits the general `standby` setting; ignored for a remote tunnel. */
+	standby?: boolean;
 };
 
 /** What `tunnel.open` opened: the URL for the browser. */
 export type OpenTunnelResultDto = { target: string };
 
 /** A temporary tunnel is never selected by tag, so it has none. */
-export type TemporaryTunnelSpecDto = Omit<TunnelSpecDto, 'tags' | 'open'>;
+export type TemporaryTunnelSpecDto = Omit<
+	TunnelSpecDto,
+	'tags' | 'open' | 'standby'
+>;
 
 export type TunnelDefinitionDto = TunnelSpecDto & { id: string };
 
@@ -53,6 +58,7 @@ export type ProcessOwnerDto = { pid: number; process: string };
 
 export type TunnelStateDto =
 	| { kind: 'stopped' }
+	| { kind: 'standby'; lastFailure?: FailureReasonDto }
 	| { kind: 'starting' }
 	| { kind: 'active' }
 	| { kind: 'reconnecting'; attempt: number; nextRetryAt: EpochMillis }
@@ -150,6 +156,8 @@ export type SettingsDto = {
 	useOsKeyring: boolean;
 	x11Display?: string;
 	openHost: OpenHostDto;
+	standby: boolean;
+	standbyIdleS: number;
 };
 
 export type TrayStatusDto =

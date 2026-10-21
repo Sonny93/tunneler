@@ -28,7 +28,7 @@ impl EngineInner {
                     message: error.to_string(),
                 });
             }
-            StoreEvent::Reloaded(outcome) => self.apply_reload(outcome).await,
+            StoreEvent::Reloaded(outcome) => self.apply_reload(*outcome).await,
         }
     }
 

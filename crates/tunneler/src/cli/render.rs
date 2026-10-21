@@ -88,6 +88,20 @@ fn state_label(state: &TunnelStateDto, style: Style) -> StateLabel {
             Tone::Warning,
         ),
         TunnelStateDto::Starting => ("…", "[..]", "starting".to_owned(), Tone::Warning),
+        TunnelStateDto::Standby { last_failure: None } => {
+            ("◌", "[zz]", "veille".to_owned(), Tone::Muted)
+        }
+        TunnelStateDto::Standby {
+            last_failure: Some(reason),
+        } => (
+            "◌",
+            "[zz]",
+            format!(
+                "veille (dernier réveil en échec : {})",
+                describe_failure(reason)
+            ),
+            Tone::Warning,
+        ),
         TunnelStateDto::Stopped => ("○", "[ ]", "stopped".to_owned(), Tone::Muted),
         TunnelStateDto::Failed { reason } => (
             "✖",
@@ -501,6 +515,8 @@ mod tests {
             use_os_keyring: false,
             x11_display: None,
             open_host: ipc::protocol::OpenHostDto::Localhost,
+            standby: false,
+            standby_idle_s: 300,
         }
     }
 
@@ -517,6 +533,7 @@ mod tests {
                     target_port: None,
                     tags: vec!["dev".to_owned(), "adonis".to_owned()],
                     open: ipc::protocol::OpenOptionsDto::default(),
+                    standby: None,
                 },
             },
             state,
@@ -725,6 +742,32 @@ mod tests {
         assert_eq!(
             render_one(state, ASCII_PLAIN),
             "[~] reconnecting (attempt 2)  3333 -> nova:3333  [dev, adonis]"
+        );
+    }
+
+    #[test]
+    fn should_render_a_standby_tunnel_with_a_symbol_and_the_word_veille() {
+        let state = TunnelStateDto::Standby { last_failure: None };
+
+        assert_eq!(
+            render_one(state.clone(), UNICODE_PLAIN),
+            "◌ veille  3333 → nova:3333  [dev, adonis]"
+        );
+        assert_eq!(
+            render_one(state, ASCII_PLAIN),
+            "[zz] veille  3333 -> nova:3333  [dev, adonis]"
+        );
+    }
+
+    #[test]
+    fn should_render_the_last_failure_of_a_standby_tunnel() {
+        let state = TunnelStateDto::Standby {
+            last_failure: Some(port_in_use()),
+        };
+
+        assert_eq!(
+            render_one(state, ASCII_PLAIN),
+            "[zz] veille (dernier réveil en échec : port already in use on 127.0.0.1:3333)  3333 -> nova:3333  [dev, adonis]"
         );
     }
 

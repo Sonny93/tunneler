@@ -15,6 +15,7 @@ const DEFAULT_KEEPALIVE_MAX: u32 = 3;
 const DEFAULT_SESSION_IDLE_GRACE: Duration = Duration::from_secs(30);
 const DEFAULT_RECONNECT_INITIAL_DELAY: Duration = Duration::from_millis(1000);
 const DEFAULT_RECONNECT_MAX_DELAY: Duration = Duration::from_millis(60_000);
+const DEFAULT_STANDBY_IDLE: Duration = Duration::from_secs(300);
 
 /// The identifier of a tunnel: a ULID, stable across edits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -167,6 +168,9 @@ pub struct TunnelDefinition {
     pub tags: Vec<String>,
     /// How the tunnel is opened in the browser.
     pub open: OpenOptions,
+    /// Overrides `Settings::standby` for this tunnel; ignored for remote
+    /// tunnels.
+    pub standby: Option<bool>,
 }
 
 impl TunnelDefinition {
@@ -180,6 +184,16 @@ impl TunnelDefinition {
         match self.kind {
             TunnelKind::Local | TunnelKind::Dynamic => &settings.default_bind_address,
             TunnelKind::Remote => &settings.default_remote_bind_address,
+        }
+    }
+
+    /// Whether the tunnel holds its local port without an SSH session until
+    /// a client connects: the override, else the setting. Never for a remote
+    /// tunnel, whose listener lives on the server and needs a session.
+    pub fn is_standby(&self, settings: &Settings) -> bool {
+        match self.kind {
+            TunnelKind::Local | TunnelKind::Dynamic => self.standby.unwrap_or(settings.standby),
+            TunnelKind::Remote => false,
         }
     }
 
@@ -253,6 +267,11 @@ pub struct Settings {
     pub x11_display: Option<String>,
     /// Which loopback name opened tunnels use unless they say otherwise.
     pub open_host: OpenHost,
+    /// Whether local and dynamic tunnels without an override wait in standby.
+    pub standby: bool,
+    /// How long a standby tunnel stays connected without any connection
+    /// before it releases its session.
+    pub standby_idle: Duration,
 }
 
 impl Default for Settings {
@@ -271,6 +290,8 @@ impl Default for Settings {
             use_os_keyring: false,
             x11_display: None,
             open_host: OpenHost::default(),
+            standby: false,
+            standby_idle: DEFAULT_STANDBY_IDLE,
         }
     }
 }
@@ -428,6 +449,59 @@ mod tests {
     #[test]
     fn should_label_a_dynamic_tunnel_as_a_socks_proxy() {
         assert_eq!(tunnel(TunnelKind::Dynamic).label(), "3333 (SOCKS via nova)");
+    }
+
+    #[test]
+    fn should_not_be_standby_when_neither_the_tunnel_nor_the_settings_ask_for_it() {
+        assert!(!tunnel(TunnelKind::Local).is_standby(&Settings::default()));
+    }
+
+    #[test]
+    fn should_be_standby_when_the_setting_asks_for_it() {
+        let settings = Settings {
+            standby: true,
+            ..Settings::default()
+        };
+
+        assert!(tunnel(TunnelKind::Local).is_standby(&settings));
+    }
+
+    #[test]
+    fn should_be_standby_when_the_tunnel_asks_for_it_against_the_setting() {
+        let definition = TunnelDefinition {
+            standby: Some(true),
+            ..tunnel(TunnelKind::Dynamic)
+        };
+
+        assert!(definition.is_standby(&Settings::default()));
+    }
+
+    #[test]
+    fn should_not_be_standby_when_the_tunnel_refuses_it_against_the_setting() {
+        let settings = Settings {
+            standby: true,
+            ..Settings::default()
+        };
+        let definition = TunnelDefinition {
+            standby: Some(false),
+            ..tunnel(TunnelKind::Local)
+        };
+
+        assert!(!definition.is_standby(&settings));
+    }
+
+    #[test]
+    fn should_never_be_standby_when_the_tunnel_is_remote() {
+        let settings = Settings {
+            standby: true,
+            ..Settings::default()
+        };
+        let definition = TunnelDefinition {
+            standby: Some(true),
+            ..tunnel(TunnelKind::Remote)
+        };
+
+        assert!(!definition.is_standby(&settings));
     }
 
     #[test]

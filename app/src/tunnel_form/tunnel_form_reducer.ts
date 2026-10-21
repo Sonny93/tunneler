@@ -1,6 +1,7 @@
 import type { OpenSchemeDto, TunnelKindDto } from '#/daemon/protocol';
 import type {
 	OpenHostChoice,
+	StandbyChoice,
 	TunnelFormValues,
 } from '#/tunnel_form/tunnel_form_values';
 
@@ -18,6 +19,7 @@ export type TunnelFormAction =
 	| { type: 'openSchemeChanged'; scheme: OpenSchemeDto }
 	| { type: 'openHostChanged'; host: OpenHostChoice }
 	| { type: 'openWithChanged'; opener: string }
+	| { type: 'standbyChanged'; choice: StandbyChoice }
 	| { type: 'targetPortChanged'; value: string }
 	| { type: 'targetPortRelinked' };
 
@@ -42,6 +44,8 @@ export function tunnelFormReducer(
 			return { ...values, openHost: action.host };
 		case 'openWithChanged':
 			return { ...values, openWith: action.opener };
+		case 'standbyChanged':
+			return { ...values, standby: action.choice };
 		case 'targetPortChanged':
 			return {
 				...values,

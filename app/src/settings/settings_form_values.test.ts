@@ -107,4 +107,24 @@ describe('settings round trip', () => {
 
 		expect(toSettings(values, settings).sessionIdleGraceMs).toBe(90_000);
 	});
+
+	it('should show the standby delay in seconds', () => {
+		const values = toSettingsFormValues(buildSettings({ standbyIdleS: 120 }));
+
+		expect(values.standbyIdleSeconds).toBe('120');
+	});
+
+	it('should apply the edited standby switch and delay', () => {
+		const settings = buildSettings();
+		const values = {
+			...toSettingsFormValues(settings),
+			standby: true,
+			standbyIdleSeconds: ' 60 ',
+		};
+
+		expect(toSettings(values, settings)).toMatchObject({
+			standby: true,
+			standbyIdleS: 60,
+		});
+	});
 });

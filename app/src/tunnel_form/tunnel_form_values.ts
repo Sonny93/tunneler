@@ -7,6 +7,9 @@ import type {
 
 export const DEFAULT_OPEN_SCHEME: OpenSchemeDto = 'http';
 
+/** An empty choice inherits the general `standby` setting. */
+export type StandbyChoice = '' | 'yes' | 'no';
+
 /** An empty host inherits the general `openHost` setting. */
 export type OpenHostChoice = OpenHostDto | '';
 
@@ -24,6 +27,7 @@ export type TunnelFormValues = {
 	openHost: OpenHostChoice;
 	/** Empty means automatic: the suggestion for the target port, else the browser. */
 	openWith: string;
+	standby: StandbyChoice;
 };
 
 export const EMPTY_TUNNEL_FORM_VALUES: TunnelFormValues = {
@@ -39,9 +43,15 @@ export const EMPTY_TUNNEL_FORM_VALUES: TunnelFormValues = {
 	openPath: '',
 	openHost: '',
 	openWith: '',
+	standby: '',
 };
 
 const TAGS_SEPARATOR = ', ';
+
+function toStandbyChoice(standby: boolean | undefined): StandbyChoice {
+	if (standby === undefined) return '';
+	return standby ? 'yes' : 'no';
+}
 
 /** Form values of an existing tunnel or of a draft, or the empty form when creating. */
 export function toTunnelFormValues(
@@ -63,5 +73,6 @@ export function toTunnelFormValues(
 		openPath: definition.open?.path ?? '',
 		openHost: definition.open?.host ?? '',
 		openWith: definition.open?.with ?? '',
+		standby: toStandbyChoice(definition.standby),
 	};
 }

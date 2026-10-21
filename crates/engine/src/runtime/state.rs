@@ -49,6 +49,12 @@ pub enum FailureReason {
 pub enum TunnelState {
     /// Not running.
     Stopped,
+    /// Holding the listening port without an SSH session; the first
+    /// connection opens one.
+    Standby {
+        /// Why the last wake-up failed; cleared by a successful one.
+        last_failure: Option<FailureReason>,
+    },
     /// Listening and opening the SSH session for the first time.
     Starting,
     /// Forwarding.
@@ -79,12 +85,12 @@ pub enum TunnelState {
 }
 
 impl TunnelState {
-    /// Whether the tunnel holds resources: it is starting, forwarding or
-    /// waiting to reconnect.
+    /// Whether the tunnel holds resources: it is in standby, starting,
+    /// forwarding or waiting to reconnect.
     pub fn is_running(&self) -> bool {
         matches!(
             self,
-            Self::Starting | Self::Active | Self::Reconnecting { .. }
+            Self::Standby { .. } | Self::Starting | Self::Active | Self::Reconnecting { .. }
         )
     }
 
@@ -97,6 +103,10 @@ impl fmt::Display for TunnelState {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Stopped => formatter.write_str("stopped"),
+            Self::Standby { last_failure: None } => formatter.write_str("standby"),
+            Self::Standby {
+                last_failure: Some(reason),
+            } => write!(formatter, "standby (last wake-up failed: {reason})"),
             Self::Starting => formatter.write_str("starting"),
             Self::Active => formatter.write_str("active"),
             Self::Reconnecting { attempt, .. } => {
@@ -224,6 +234,25 @@ mod tests {
         };
 
         assert!(!TunnelState::Stopped.is_running() && !failed.is_running());
+    }
+
+    #[test]
+    fn should_be_running_when_on_standby() {
+        assert!(TunnelState::Standby { last_failure: None }.is_running());
+    }
+
+    #[test]
+    fn should_display_the_last_failure_when_standby_follows_a_failed_wake_up() {
+        let state = TunnelState::Standby {
+            last_failure: Some(FailureReason::Connect {
+                message: "authentication failed".to_owned(),
+            }),
+        };
+
+        assert_eq!(
+            state.to_string(),
+            "standby (last wake-up failed: authentication failed)"
+        );
     }
 
     #[test]

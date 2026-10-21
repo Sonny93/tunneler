@@ -59,6 +59,7 @@ pub(crate) struct TrayView {
 #[derive(Debug, Default, PartialEq, Eq)]
 struct Counts {
     active: usize,
+    standby: usize,
     starting: usize,
     reconnecting: usize,
     failed: usize,
@@ -76,6 +77,7 @@ impl Counts {
     fn add(&mut self, tunnel: &TunnelSnapshot) {
         match tunnel.state {
             TunnelState::Active => self.active += 1,
+            TunnelState::Standby { .. } => self.standby += 1,
             TunnelState::Starting => self.starting += 1,
             TunnelState::Reconnecting { .. } => self.reconnecting += 1,
             TunnelState::Failed { .. } => self.failed += 1,
@@ -100,6 +102,7 @@ impl Counts {
 
     fn summary(&self) -> String {
         let optional_parts = [
+            (self.standby, "en veille"),
             (self.starting, "en démarrage"),
             (self.reconnecting, "en reconnexion"),
             (self.failed, "en échec"),
@@ -198,6 +201,7 @@ mod tests {
                 target_port: None,
                 tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
                 open: engine::OpenOptions::default(),
+                standby: None,
             },
             state,
             health,
@@ -284,6 +288,33 @@ mod tests {
         let starting = tunnel(TunnelState::Starting, TargetHealth::Unknown, &[]);
 
         assert_eq!(view_of(vec![starting]).status, GlobalStatus::Healthy);
+    }
+
+    #[test]
+    fn should_stay_idle_when_the_only_tunnels_are_on_standby() {
+        let standby = tunnel(
+            TunnelState::Standby { last_failure: None },
+            TargetHealth::Unknown,
+            &[],
+        );
+
+        assert_eq!(view_of(vec![standby]).status, GlobalStatus::Idle);
+    }
+
+    #[test]
+    fn should_count_the_standby_tunnels_in_the_summary() {
+        let standby = || {
+            tunnel(
+                TunnelState::Standby { last_failure: None },
+                TargetHealth::Unknown,
+                &[],
+            )
+        };
+
+        assert_eq!(
+            view_of(vec![standby(), standby()]).summary_line,
+            "Aucun tunnel actif, 2 en veille"
+        );
     }
 
     #[test]

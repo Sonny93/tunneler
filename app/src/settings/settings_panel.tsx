@@ -4,15 +4,19 @@ import { Button } from '@minimalstuff/ui';
 import { Drawer } from '#/shared/drawer';
 import { useUiStore } from '#/state/ui_store';
 import type { SettingsDto } from '#/daemon/protocol';
+import { SettingsSwitch } from '#/settings/settings_switch';
 import { FormErrorSummary } from '#/shared/form_error_summary';
 import { useSettingsForm } from '#/settings/use_settings_form';
 import { SettingsFieldset } from '#/settings/settings_fieldset';
-import { SETTINGS_SECTIONS } from '#/settings/settings_field_specs';
 import { ApplicationsSection } from '#/openers/applications_section';
 import { SettingsOpenFieldset } from '#/settings/settings_open_fieldset';
 import { OpenConfigFolderButton } from '#/settings/open_config_folder_button';
 import { SettingsSecretsFieldset } from '#/settings/settings_secrets_fieldset';
 import { SettingsStartupFieldset } from '#/settings/settings_startup_fieldset';
+import {
+	SETTINGS_SECTIONS,
+	STANDBY_SECTION,
+} from '#/settings/settings_field_specs';
 
 type SettingsPanelProps = {
 	settings: SettingsDto;
@@ -56,6 +60,20 @@ export function SettingsPanel({ settings }: Readonly<SettingsPanelProps>) {
 						onChange={form.changeText}
 					/>
 				))}
+				<SettingsFieldset
+					section={STANDBY_SECTION}
+					values={values}
+					errors={errors}
+					onChange={form.changeText}
+				>
+					<SettingsSwitch
+						field="standby"
+						label="Mettre les tunnels en veille"
+						hint="Les tunnels locaux et dynamiques gardent leur port sans session SSH jusqu'à la première connexion. Prend effet au prochain démarrage de chaque tunnel."
+						isChecked={values.standby}
+						onChange={form.changeToggle}
+					/>
+				</SettingsFieldset>
 				<SettingsOpenFieldset
 					value={values.openHost}
 					onChange={form.changeOpenHost}

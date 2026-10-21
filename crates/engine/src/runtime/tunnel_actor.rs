@@ -24,9 +24,12 @@ use crate::runtime::log_buffer::LogLevel;
 use crate::runtime::options::EngineOptions;
 use crate::runtime::port_watch::PortWatch;
 use crate::runtime::remote_forward::{ForwardedJob, serve_forwarded_connection};
-use crate::runtime::retry::{RetryDecision, decide_after_connect_error, reconnect_delay};
+use crate::runtime::retry::{
+    RetryDecision, decide_after_connect_error, failure_reason_of, reconnect_delay,
+};
 use crate::runtime::session_manager::{AcquireError, SessionLease, SessionManager};
 use crate::runtime::shared::TunnelShared;
+use crate::runtime::standby::{HeldClient, IdleTimer};
 use crate::runtime::state::{FailureReason, TargetHealth, TunnelState};
 use crate::runtime::target_check::{TargetCheckJob, TargetCheckReply, check_target};
 use crate::session::SshSession;
@@ -68,6 +71,7 @@ enum RunEnd {
 
 enum Step {
     SessionLost,
+    IdleTimedOut,
     ConnectFailed(Arc<ConnectError>),
     Refused(FailureReason),
     Interrupted(Interrupt),
@@ -88,6 +92,8 @@ pub(crate) struct TunnelContext {
     pub(crate) settings: watch::Receiver<Settings>,
     pub(crate) options: EngineOptions,
     pub(crate) port_watch: Arc<PortWatch>,
+    /// Temporary tunnels are explicit requests: they never wait in standby.
+    pub(crate) is_temporary: bool,
 }
 
 /// Starts the task of a tunnel. It begins stopped.
@@ -185,11 +191,23 @@ impl TunnelActor {
 
     async fn open_forward(&self) -> Result<ForwardRun, FailureReason> {
         let interval = self.context.options.metrics_event_interval;
-        match self.context.definition.kind {
-            TunnelKind::Local => Ok(ForwardRun::local(self.bind().await?, interval)),
-            TunnelKind::Dynamic => Ok(ForwardRun::dynamic(self.bind().await?, interval)),
-            TunnelKind::Remote => Ok(ForwardRun::remote(interval)),
+        let run = match self.context.definition.kind {
+            TunnelKind::Local => ForwardRun::local(self.bind().await?, interval),
+            TunnelKind::Dynamic => ForwardRun::dynamic(self.bind().await?, interval),
+            TunnelKind::Remote => ForwardRun::remote(interval),
+        };
+        if self.is_standby() {
+            return Ok(run.in_standby());
         }
+        Ok(run)
+    }
+
+    fn is_standby(&self) -> bool {
+        !self.context.is_temporary
+            && self
+                .context
+                .definition
+                .is_standby(&self.context.settings.borrow())
     }
 
     async fn bind(&self) -> Result<TcpListener, FailureReason> {
@@ -240,12 +258,15 @@ impl TunnelActor {
     }
 
     async fn drive(&mut self, run: &mut ForwardRun) -> RunEnd {
+        if run.is_standby() {
+            return self.drive_standby(run).await;
+        }
         let mut failed_attempts = 0_u32;
         loop {
             let (reason, delay) = match self.connect_and_serve(run).await {
                 Step::Interrupted(interrupt) => return RunEnd::Interrupted(interrupt),
                 Step::Refused(reason) => return self.fail(reason),
-                Step::SessionLost => {
+                Step::SessionLost | Step::IdleTimedOut => {
                     failed_attempts = FIRST_ATTEMPT;
                     let delay = self.next_delay(failed_attempts);
                     ("the SSH session was lost".to_owned(), delay)
@@ -265,6 +286,85 @@ impl TunnelActor {
                 return RunEnd::Interrupted(interrupt);
             }
         }
+    }
+
+    /// Holds the port without a session. The first client wakes the tunnel;
+    /// a failed wake-up, a lost session or a long idle time bring it back to
+    /// standby, and it never retries on its own.
+    async fn drive_standby(&mut self, run: &mut ForwardRun) -> RunEnd {
+        let mut last_failure = None;
+        loop {
+            self.context.shared.set_health(TargetHealth::Unknown);
+            self.context.shared.set_state(TunnelState::Standby {
+                last_failure: last_failure.clone(),
+            });
+            if let Some(interrupt) = self.wait_for_client(run).await {
+                return RunEnd::Interrupted(interrupt);
+            }
+            last_failure = match self.wake(run).await {
+                Ok(failure) => failure,
+                Err(interrupt) => return RunEnd::Interrupted(interrupt),
+            };
+        }
+    }
+
+    async fn wait_for_client(&mut self, run: &mut ForwardRun) -> Option<Interrupt> {
+        loop {
+            tokio::select! {
+                inbound = run.inbound.next() => {
+                    self.receive_without_session(run, inbound).await;
+                    if run.has_held() {
+                        return None;
+                    }
+                }
+                command = self.commands.recv() => {
+                    if let Some(interrupt) = self.interrupt_while_standby(command) {
+                        return Some(interrupt);
+                    }
+                }
+            }
+        }
+    }
+
+    fn interrupt_while_standby(&mut self, command: Option<TunnelCommand>) -> Option<Interrupt> {
+        let Some(TunnelCommand::CheckTarget(reply)) = command else {
+            return self.interrupt_from(command);
+        };
+        let _ = reply.send(Err(EngineError::TunnelOnStandby(
+            self.context.definition.id,
+        )));
+        None
+    }
+
+    /// Opens the session for the clients that wait and serves them until the
+    /// tunnel goes back to standby. Returns why the wake-up failed, if it did.
+    async fn wake(&mut self, run: &mut ForwardRun) -> Result<Option<FailureReason>, Interrupt> {
+        self.context.shared.set_state(TunnelState::Starting);
+        match self.connect_and_serve(run).await {
+            Step::Interrupted(interrupt) => Err(interrupt),
+            Step::ConnectFailed(error) => {
+                Ok(Some(self.fail_to_wake(run, failure_reason_of(&error))))
+            }
+            Step::Refused(reason) => Ok(Some(self.fail_to_wake(run, reason))),
+            Step::SessionLost => {
+                self.context.shared.log(
+                    LogLevel::Warn,
+                    "the SSH session was lost; back to standby".to_owned(),
+                );
+                Ok(None)
+            }
+            Step::IdleTimedOut => Ok(None),
+        }
+    }
+
+    fn fail_to_wake(&self, run: &mut ForwardRun, reason: FailureReason) -> FailureReason {
+        let closed = run.take_held().len();
+        self.context.shared.log(
+            LogLevel::Error,
+            format!("cannot wake up: {reason}; {closed} waiting connection(s) closed"),
+        );
+        self.context.shared.publish_wake_failed(reason.clone());
+        reason
     }
 
     fn decide_retry(&self, error: &ConnectError, attempt: u32) -> RetryDecision {
@@ -322,7 +422,7 @@ impl TunnelActor {
         loop {
             tokio::select! {
                 output = &mut wait => return Ok(output),
-                inbound = run.inbound.next() => self.refuse_inbound(inbound).await,
+                inbound = run.inbound.next() => self.receive_without_session(run, inbound).await,
                 command = self.commands.recv() => {
                     if let Some(interrupt) = self.interrupt_from(command) {
                         return Err(interrupt);
@@ -332,9 +432,23 @@ impl TunnelActor {
         }
     }
 
-    async fn refuse_inbound(&self, inbound: Inbound) {
+    async fn receive_without_session(&self, run: &mut ForwardRun, inbound: Inbound) {
         match inbound {
-            Inbound::Client { accepted, .. } => self.refuse_connection(accepted).await,
+            Inbound::Client {
+                accepted: Ok((client, peer)),
+                protocol,
+            } => self.hold_or_close(
+                run,
+                HeldClient {
+                    client,
+                    peer,
+                    protocol,
+                },
+            ),
+            Inbound::Client {
+                accepted: Err(error),
+                ..
+            } => self.report_accept_failure(&error).await,
             Inbound::Forwarded(connection) => self.context.shared.log(
                 LogLevel::Warn,
                 format!(
@@ -345,14 +459,21 @@ impl TunnelActor {
         }
     }
 
-    async fn refuse_connection(&self, accepted: io::Result<(TcpStream, SocketAddr)>) {
-        match accepted {
-            Ok((_client, peer)) => self.context.shared.log(
-                LogLevel::Warn,
-                format!("connection from {peer} closed: no SSH session available"),
-            ),
-            Err(error) => self.report_accept_failure(&error).await,
-        }
+    fn hold_or_close(&self, run: &mut ForwardRun, client: HeldClient) {
+        let peer = client.peer;
+        let is_standby = run.is_standby();
+        let Err(_closed) = run.hold(client) else {
+            return;
+        };
+        let reason = if is_standby {
+            "too many connections are waiting for the SSH session"
+        } else {
+            "no SSH session available"
+        };
+        self.context.shared.log(
+            LogLevel::Warn,
+            format!("connection from {peer} closed: {reason}"),
+        );
     }
 
     async fn report_accept_failure(&self, error: &io::Error) {
@@ -382,12 +503,28 @@ impl TunnelActor {
     ) -> Step {
         let shared = Arc::clone(&self.context.shared);
         shared.set_state(TunnelState::Active);
+        if run.is_standby() {
+            shared.publish_woke();
+            self.serve_held(run, session);
+        }
+        let mut idle_timer = IdleTimer::new(self.current_settings().standby_idle);
         let mut metrics_ticker = ticker(self.context.options.metrics_event_interval);
         loop {
+            if run.is_standby() {
+                idle_timer.observe(!run.connections.is_empty());
+            }
             tokio::select! {
                 () = lease.lost() => {
                     run.close_connections().await;
                     return Step::SessionLost;
+                }
+                () = idle_timer.expired() => {
+                    shared.log(
+                        LogLevel::Info,
+                        "no connection for a while; releasing the SSH session".to_owned(),
+                    );
+                    run.close_connections().await;
+                    return Step::IdleTimedOut;
                 }
                 inbound = run.inbound.next() => self.accept_inbound(run, session, inbound).await,
                 Some(_) = run.connections.join_next() => {}
@@ -399,6 +536,12 @@ impl TunnelActor {
                     }
                 }
             }
+        }
+    }
+
+    fn serve_held(&self, run: &mut ForwardRun, session: &Arc<SshSession>) {
+        for held in run.take_held() {
+            self.serve_client(run, session, held.client, held.peer, held.protocol);
         }
     }
 
@@ -747,6 +890,17 @@ mod tests {
     }
 
     #[test]
+    fn should_keep_standby_when_a_holder_is_observed() {
+        assert_eq!(
+            state_after_observation(
+                &TunnelState::Standby { last_failure: None },
+                Some(PortOccupation::Conflict(None))
+            ),
+            None
+        );
+    }
+
+    #[test]
     fn should_keep_running_states_when_a_holder_is_observed() {
         assert_eq!(
             state_after_observation(&TunnelState::Active, Some(PortOccupation::Conflict(None))),
@@ -784,6 +938,7 @@ mod tests {
             target_port: None,
             tags: Vec::new(),
             open: crate::store::OpenOptions::default(),
+            standby: None,
         }
     }
 

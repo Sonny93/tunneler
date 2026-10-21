@@ -242,6 +242,10 @@ pub enum ValidationError {
         "settings: keepalive_max must be greater than 0 when keepalive is enabled (set keepalive_interval_s to 0 to disable it)"
     )]
     ZeroKeepaliveMax,
+    /// The standby idle delay is zero, which would put a tunnel back in
+    /// standby the moment it wakes.
+    #[error("settings: standby_idle_s must be greater than 0")]
+    ZeroStandbyIdle,
     /// A default bind address is empty.
     #[error("settings: {setting} must not be empty")]
     EmptyBindAddress {
@@ -313,6 +317,9 @@ fn validate_settings(settings: &Settings) -> Vec<ValidationError> {
     }
     if !settings.keepalive_interval.is_zero() && settings.keepalive_max == 0 {
         errors.push(ValidationError::ZeroKeepaliveMax);
+    }
+    if settings.standby_idle.is_zero() {
+        errors.push(ValidationError::ZeroStandbyIdle);
     }
     errors.extend(validate_bind_addresses(settings));
     errors.extend(settings.start_on_launch_tags.iter().filter_map(|tag| {
@@ -1227,6 +1234,16 @@ mod tests {
         });
 
         assert_eq!(validate(&document), Ok(()));
+    }
+
+    #[test]
+    fn should_reject_zero_standby_idle() {
+        let document = document_with_settings(Settings {
+            standby_idle: Duration::ZERO,
+            ..Settings::default()
+        });
+
+        assert_eq!(errors_of(&document), vec![ValidationError::ZeroStandbyIdle]);
     }
 
     #[test]

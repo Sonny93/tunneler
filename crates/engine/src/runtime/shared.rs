@@ -6,7 +6,7 @@ use crate::clock::Clock;
 use crate::runtime::events::{EngineEvent, EventBus};
 use crate::runtime::log_buffer::{LogBuffer, LogLevel, TUNNEL_LOG_CAPACITY, TunnelLogEntry};
 use crate::runtime::metrics::{MetricsCounters, TunnelMetrics};
-use crate::runtime::state::{TargetHealth, TunnelState, TunnelStatus};
+use crate::runtime::state::{FailureReason, TargetHealth, TunnelState, TunnelStatus};
 use crate::store::TunnelId;
 
 /// What a tunnel publishes about itself: its status, metrics and log. The
@@ -89,6 +89,17 @@ impl TunnelShared {
         self.set_health(health);
     }
 
+    pub(crate) fn publish_woke(&self) {
+        self.bus.publish(EngineEvent::TunnelWoke { id: self.id });
+    }
+
+    pub(crate) fn publish_wake_failed(&self, reason: FailureReason) {
+        self.bus.publish(EngineEvent::TunnelWakeFailed {
+            id: self.id,
+            reason,
+        });
+    }
+
     pub(crate) fn publish_metrics(&self, metrics: TunnelMetrics) {
         self.bus.publish(EngineEvent::TunnelMetrics {
             id: self.id,
@@ -130,6 +141,7 @@ fn level_of(state: &TunnelState) -> LogLevel {
         TunnelState::Failed { .. } => LogLevel::Error,
         TunnelState::Reconnecting { .. } | TunnelState::Conflict { .. } => LogLevel::Warn,
         TunnelState::Stopped
+        | TunnelState::Standby { .. }
         | TunnelState::Starting
         | TunnelState::Active
         | TunnelState::External { .. } => LogLevel::Info,

@@ -23,6 +23,7 @@ mod remote_forward;
 mod retry;
 mod session_manager;
 mod shared;
+mod standby;
 mod state;
 mod tag_delete;
 mod tag_rename;

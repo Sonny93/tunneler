@@ -99,6 +99,9 @@ pub enum EngineError {
     /// The tunnel is not active, so there is no session to check through.
     #[error("the tunnel {0} is not active")]
     TunnelNotActive(TunnelId),
+    /// The tunnel waits in standby, so there is no session to check through.
+    #[error("the tunnel {0} is on standby and has no SSH session; a connection wakes it")]
+    TunnelOnStandby(TunnelId),
     /// The tunnel is a dynamic forward, which has no fixed target.
     #[error("the tunnel {0} has no target to check")]
     TunnelHasNoTarget(TunnelId),
@@ -178,6 +181,8 @@ pub struct NewTunnel {
     pub tags: Vec<String>,
     /// How the tunnel is opened in the browser.
     pub open: OpenOptions,
+    /// Overrides the standby setting for this tunnel.
+    pub standby: Option<bool>,
 }
 
 impl NewTunnel {
@@ -192,6 +197,7 @@ impl NewTunnel {
             target_port: self.target_port,
             tags: self.tags,
             open: self.open,
+            standby: self.standby,
         }
     }
 }
@@ -655,8 +661,9 @@ impl Engine {
     }
 
     /// Starts the tunnel when it is not running and waits until it is ready:
-    /// `Active`, or provided by an external process. A tunnel that is already
-    /// ready, or reconnecting (its listener is bound), returns at once.
+    /// `Active`, in `Standby`, or provided by an external process. A tunnel
+    /// that is already ready, or reconnecting (its listener is bound),
+    /// returns at once.
     ///
     /// Fails when the tunnel fails, is stopped or loses its port while
     /// starting, or is not ready within `EngineOptions::tunnel_ready_timeout`

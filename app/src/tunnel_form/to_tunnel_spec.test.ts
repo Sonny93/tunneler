@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { toTunnelSpec } from '#/tunnel_form/to_tunnel_spec';
 import { EMPTY_TUNNEL_FORM_VALUES } from '#/tunnel_form/tunnel_form_values';
+import {
+	toTemporaryTunnelSpec,
+	toTunnelSpec,
+} from '#/tunnel_form/to_tunnel_spec';
 
 const valid = {
 	...EMPTY_TUNNEL_FORM_VALUES,
@@ -127,5 +130,33 @@ describe('toTunnelSpec', () => {
 		expect(toTunnelSpec({ ...valid, openWith: 'browser' }).open).toEqual({
 			with: 'browser',
 		});
+	});
+
+	it('should omit the standby choice when it is inherited', () => {
+		expect(toTunnelSpec(valid).standby).toBeUndefined();
+	});
+
+	it.each([
+		['yes', true],
+		['no', false],
+	] as const)(
+		'should send the standby choice "%s" as %s',
+		(choice, expected) => {
+			expect(toTunnelSpec({ ...valid, standby: choice }).standby).toBe(
+				expected
+			);
+		}
+	);
+
+	it('should drop the standby choice of a remote tunnel', () => {
+		const spec = toTunnelSpec({ ...valid, kind: 'remote', standby: 'yes' });
+
+		expect(spec.standby).toBeUndefined();
+	});
+
+	it('should not carry the standby choice into a temporary tunnel', () => {
+		const spec = toTemporaryTunnelSpec({ ...valid, standby: 'yes' });
+
+		expect('standby' in spec).toBe(false);
 	});
 });

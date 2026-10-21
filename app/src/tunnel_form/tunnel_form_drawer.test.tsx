@@ -80,6 +80,15 @@ describe('TunnelFormDrawer', () => {
 			).toBeInTheDocument();
 		});
 
+		it('should have no standby choice', () => {
+			openTemporaryEditor();
+			renderDrawer();
+
+			expect(
+				screen.queryByRole('group', { name: 'Veille' })
+			).not.toBeInTheDocument();
+		});
+
 		it('should have no tags field', () => {
 			openTemporaryEditor();
 			renderDrawer();
@@ -565,6 +574,60 @@ describe('TunnelFormDrawer opening options', () => {
 		expect(
 			screen.getByRole('radio', { name: 'Réglage général (localhost)' })
 		).toBeChecked();
+	});
+
+	it('should offer the standby choice inheriting the general setting', () => {
+		openEditor();
+		renderDrawer();
+
+		expect(
+			screen.getByRole('radio', { name: 'Réglage général (non)' })
+		).toBeChecked();
+	});
+
+	it('should describe the standby choice with its start-up hint', () => {
+		openEditor();
+		renderDrawer();
+
+		expect(
+			screen.getByRole('group', { name: 'Veille' })
+		).toHaveAccessibleDescription(/Prend effet au prochain démarrage/);
+	});
+
+	it('should hide the standby choice for a remote tunnel', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		renderDrawer();
+
+		await user.click(screen.getByRole('radio', { name: /Distant/ }));
+
+		expect(
+			screen.queryByRole('group', { name: 'Veille' })
+		).not.toBeInTheDocument();
+	});
+
+	it('should keep the standby choice for a dynamic tunnel', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		renderDrawer();
+
+		await user.click(screen.getByRole('radio', { name: /Dynamique/ }));
+
+		expect(screen.getByRole('group', { name: 'Veille' })).toBeInTheDocument();
+	});
+
+	it('should send the chosen standby when creating', async () => {
+		openEditor();
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		await fillRequiredFields(user);
+		await user.click(screen.getByRole('radio', { name: 'Oui' }));
+
+		await user.click(screen.getByRole('button', { name: 'Créer' }));
+
+		expect(gateway.createTunnel).toHaveBeenCalledWith(
+			expect.objectContaining({ standby: true })
+		);
 	});
 
 	it('should preview the final url', async () => {

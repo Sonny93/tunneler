@@ -19,7 +19,7 @@ const RELOAD_DEBOUNCE: Duration = Duration::from_millis(200);
 pub enum StoreEvent {
     /// The file changed and is valid; it is now the store's document. The
     /// outcome says whether the file still lacks ids the store generated.
-    Reloaded(LoadOutcome),
+    Reloaded(Box<LoadOutcome>),
     /// The file changed but cannot be used (or could not be read); the last
     /// good document stays the store's state.
     Invalid(StoreError),

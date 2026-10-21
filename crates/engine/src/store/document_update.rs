@@ -91,6 +91,11 @@ fn settings_entries(settings: &Settings) -> Vec<(&'static str, Value)> {
             Value::from(settings.x11_display.as_deref().unwrap_or_default()),
         ),
         ("open_host", Value::from(settings.open_host.as_str())),
+        ("standby", Value::from(settings.standby)),
+        (
+            "standby_idle_s",
+            integer(u128::from(settings.standby_idle.as_secs())),
+        ),
     ]
 }
 
@@ -184,6 +189,7 @@ fn apply_tunnel(table: &mut Table, tunnel: &TunnelDefinition) {
     );
     set_value(table, "tags", string_array(&tunnel.tags));
     apply_open(table, &tunnel.open);
+    set_optional(table, "standby", tunnel.standby.map(Value::from));
 }
 
 fn apply_open(table: &mut Table, open: &OpenOptions) {
@@ -763,6 +769,42 @@ tags = []
         let updated = update("", &document);
 
         assert!(updated.contains("open_host = \"ip\""), "{updated}");
+    }
+
+    #[test]
+    fn should_write_the_standby_settings_when_settings_are_written() {
+        let mut document = StoreDocument::default();
+        document.settings.standby = true;
+        document.settings.standby_idle = std::time::Duration::from_secs(90);
+
+        let updated = update("", &document);
+
+        assert!(
+            updated.contains("standby = true") && updated.contains("standby_idle_s = 90"),
+            "{updated}"
+        );
+    }
+
+    #[test]
+    fn should_write_the_standby_override_of_a_tunnel_when_it_is_set() {
+        let text = "[[tunnels]]\nid = \"01JA0000000000000000000000\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\ntags = []\n";
+        let mut document = load(text);
+        document.tunnels[0].standby = Some(false);
+
+        let updated = update(text, &document);
+
+        assert!(updated.contains("standby = false"), "{updated}");
+    }
+
+    #[test]
+    fn should_remove_the_standby_override_of_a_tunnel_when_it_is_cleared() {
+        let text = "[[tunnels]]\nid = \"01JA0000000000000000000000\"\nhost = \"h\"\nkind = \"local\"\nlisten_port = 1\ntags = []\nstandby = true\n";
+        let mut document = load(text);
+        document.tunnels[0].standby = None;
+
+        let updated = update(text, &document);
+
+        assert!(!updated.contains("standby = true"), "{updated}");
     }
 
     #[test]

@@ -5,6 +5,7 @@ import { getTunnelStateLabel } from '#/tunnels/tunnel_state_label';
 describe('getTunnelStateLabel', () => {
 	it.each([
 		[{ kind: 'stopped' }, 'Arrêté'],
+		[{ kind: 'standby' }, 'Veille'],
 		[{ kind: 'starting' }, 'Démarrage…'],
 		[{ kind: 'active' }, 'Actif'],
 		[

@@ -4,6 +4,7 @@ import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 
 describe('isTunnelRunning', () => {
 	it.each([
+		[{ kind: 'standby' }, true],
 		[{ kind: 'starting' }, true],
 		[{ kind: 'active' }, true],
 		[{ kind: 'reconnecting', attempt: 1, nextRetryAt: 0 }, true],

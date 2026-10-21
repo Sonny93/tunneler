@@ -53,6 +53,24 @@ describe('validateSettingsForm', () => {
 	});
 });
 
+describe('validateSettingsForm for the standby delay', () => {
+	it.each(['0', '-1', '1.5', '', 'abc'])(
+		'should reject "%s" as a standby delay',
+		(standbyIdleSeconds) => {
+			expect(
+				validateSettingsForm({ ...valid, standbyIdleSeconds })
+					.standbyIdleSeconds
+			).toBe('Le délai doit être un nombre entier de secondes supérieur à 0.');
+		}
+	);
+
+	it('should accept a whole number of seconds', () => {
+		expect(
+			validateSettingsForm({ ...valid, standbyIdleSeconds: '45' })
+		).toEqual({});
+	});
+});
+
 describe('getFirstInvalidSettingsField', () => {
 	it('should return the first invalid field in form order', () => {
 		expect(
@@ -61,6 +79,14 @@ describe('getFirstInvalidSettingsField', () => {
 				keepaliveMax: 'y',
 			})
 		).toBe('keepaliveMax');
+	});
+
+	it('should return the standby delay after the other fields', () => {
+		expect(
+			getFirstInvalidSettingsField({
+				standbyIdleSeconds: 'x',
+			})
+		).toBe('standbyIdleSeconds');
 	});
 
 	it('should return null without errors', () => {

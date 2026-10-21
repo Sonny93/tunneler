@@ -9,6 +9,10 @@ export function getTunnelStateDetail(
 	switch (state.kind) {
 		case 'failed':
 			return getFailureReasonLabel(state.reason);
+		case 'standby':
+			return state.lastFailure
+				? `dernier réveil en échec : ${getFailureReasonLabel(state.lastFailure)}`
+				: null;
 		case 'external':
 			return `fourni par ${describeProcess(state.owner)}`;
 		case 'conflict':

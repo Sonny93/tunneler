@@ -54,6 +54,7 @@ impl TunnelFactory {
             settings: self.settings.clone(),
             options: self.options,
             port_watch: Arc::clone(&self.port_watch),
+            is_temporary,
         });
         TunnelEntry {
             definition,

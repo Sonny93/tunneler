@@ -26,6 +26,14 @@ describe('buildStateAnnouncement', () => {
 		);
 	});
 
+	it('should announce a tunnel going to standby', () => {
+		const standby = buildTunnel({ state: { kind: 'standby' } });
+
+		expect(buildStateAnnouncement([standby])).toBe(
+			'3333 vers nova:3333 : Veille'
+		);
+	});
+
 	it('should include the owner of an external tunnel', () => {
 		const external = buildTunnel({
 			state: { kind: 'external', owner: { pid: 4242, process: 'ssh' } },

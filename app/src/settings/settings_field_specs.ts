@@ -25,6 +25,19 @@ export type SettingsSectionSpec = {
 	fields: readonly SettingsFieldSpec[];
 };
 
+/** The standby switch is rendered apart, above the idle delay. */
+export const STANDBY_SECTION: SettingsSectionSpec = {
+	legend: 'Veille',
+	fields: [
+		{
+			field: 'standbyIdleSeconds',
+			label: 'Retour en veille après (secondes)',
+			hint: 'Délai sans connexion avant de libérer la session SSH',
+			inputMode: 'numeric',
+		},
+	],
+};
+
 /** Validated text fields in display order; the switches and the start-up tags are rendered apart. */
 export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
 	{

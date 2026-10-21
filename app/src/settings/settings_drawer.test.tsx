@@ -54,11 +54,12 @@ describe('SettingsDrawer', () => {
 				'Connexion',
 				'Reconnexion',
 				'X11',
+				'Veille',
 				'Ouverture',
 				'Démarrage',
 				'Secrets',
 			].map((name) => screen.queryByRole('group', { name }) !== null)
-		).toEqual([true, true, true, true, true, true, true]);
+		).toEqual([true, true, true, true, true, true, true, true]);
 	});
 
 	it('should show durations in seconds', () => {
@@ -110,6 +111,62 @@ describe('SettingsDrawer', () => {
 		renderDrawer();
 
 		expect(screen.getByRole('radio', { name: /^Adresse IP/ })).toBeChecked();
+	});
+
+	it('should offer the standby switch and delay in a labelled section', () => {
+		openSettings();
+		renderDrawer();
+
+		const section = screen.getByRole('group', { name: 'Veille' });
+		expect(
+			within(section).getByRole('switch', {
+				name: 'Mettre les tunnels en veille',
+			})
+		).not.toBeChecked();
+		expect(
+			within(section).getByRole('textbox', {
+				name: /^Retour en veille après \(secondes\)/,
+			})
+		).toHaveValue('300');
+	});
+
+	it('should save the standby switch and delay', async () => {
+		const settings = buildSettings();
+		openSettings(settings);
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		const delay = screen.getByRole('textbox', {
+			name: /^Retour en veille après/,
+		});
+
+		await user.click(
+			screen.getByRole('switch', { name: 'Mettre les tunnels en veille' })
+		);
+		await user.clear(delay);
+		await user.type(delay, '120');
+		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith({
+			...settings,
+			standby: true,
+			standbyIdleS: 120,
+		});
+	});
+
+	it('should flag an invalid standby delay and not save', async () => {
+		openSettings();
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		const delay = screen.getByRole('textbox', {
+			name: /^Retour en veille après/,
+		});
+
+		await user.clear(delay);
+		await user.type(delay, '0');
+		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+		expect(delay).toBeInvalid();
+		expect(gateway.updateSettings).not.toHaveBeenCalled();
 	});
 
 	it('should save the chosen open host', async () => {

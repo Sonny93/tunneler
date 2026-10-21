@@ -37,19 +37,20 @@ pub(crate) fn decide_after_connect_error(
     jitter_fraction: f64,
 ) -> RetryDecision {
     if !is_retryable(error) {
-        return RetryDecision::Fail(fatal_reason(error));
+        return RetryDecision::Fail(failure_reason_of(error));
     }
     RetryDecision::Retry {
         delay: reconnect_delay(attempt, settings, jitter_fraction),
     }
 }
 
-fn fatal_reason(error: &ConnectError) -> FailureReason {
+/// The reason shown to the user when `error` ends a connection attempt.
+pub(crate) fn failure_reason_of(error: &ConnectError) -> FailureReason {
     match error {
         ConnectError::AgentUnresponsive { timeout } => {
             FailureReason::AgentUnresponsive { timeout: *timeout }
         }
-        ConnectError::Jump { source, .. } => fatal_reason(source),
+        ConnectError::Jump { source, .. } => failure_reason_of(source),
         _ => FailureReason::Connect {
             message: error.to_string(),
         },

@@ -11,6 +11,7 @@ pub(crate) fn tunnel(kind: TunnelKind) -> TunnelDefinition {
         target_port: None,
         tags: Vec::new(),
         open: OpenOptions::default(),
+        standby: None,
     }
 }
 

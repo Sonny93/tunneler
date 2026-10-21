@@ -14,6 +14,15 @@ describe('countActiveTunnels', () => {
 		expect(countActiveTunnels(tunnels)).toEqual({ running: 2, total: 3 });
 	});
 
+	it('should not count a tunnel in standby as active', () => {
+		const tunnels = [
+			buildTunnel({ id: 'a', state: { kind: 'active' } }),
+			buildTunnel({ id: 'b', state: { kind: 'standby' } }),
+		];
+
+		expect(countActiveTunnels(tunnels)).toEqual({ running: 1, total: 2 });
+	});
+
 	it('should return zeros for no tunnels', () => {
 		expect(countActiveTunnels([])).toEqual({ running: 0, total: 0 });
 	});

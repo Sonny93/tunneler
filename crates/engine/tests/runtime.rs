@@ -31,6 +31,8 @@ const WAIT: Duration = Duration::from_secs(5);
 const RECONNECT_INITIAL: Duration = Duration::from_millis(20);
 const RECONNECT_MAXIMUM: Duration = Duration::from_millis(80);
 const SESSION_GRACE: Duration = Duration::from_millis(100);
+const STANDBY_IDLE: Duration = Duration::from_secs(60);
+const SHORT_STANDBY_IDLE: Duration = Duration::from_millis(150);
 const TICK_INTERVAL: Duration = Duration::from_millis(50);
 const QUIET_PERIOD: Duration = Duration::from_millis(300);
 const LOOPBACK: &str = "127.0.0.1";
@@ -43,6 +45,7 @@ struct TunnelSpec {
     listen_port: u16,
     target_port: u16,
     tags: Vec<String>,
+    standby: Option<bool>,
 }
 
 #[derive(Clone, Copy)]
@@ -61,6 +64,8 @@ struct Timing {
     reconnect_initial: Duration,
     reconnect_maximum: Duration,
     session_grace: Duration,
+    standby: bool,
+    standby_idle: Duration,
 }
 
 struct HarnessBuilder {
@@ -77,6 +82,7 @@ struct HarnessBuilder {
     clock: Arc<dyn Clock>,
     port_scanner: Option<Arc<dyn PortScanner>>,
     previously_running: Vec<&'static str>,
+    standby_overrides: Vec<(&'static str, bool)>,
 }
 
 struct Harness {
@@ -104,6 +110,8 @@ impl HarnessBuilder {
                 reconnect_initial: RECONNECT_INITIAL,
                 reconnect_maximum: RECONNECT_MAXIMUM,
                 session_grace: SESSION_GRACE,
+                standby: false,
+                standby_idle: STANDBY_IDLE,
             },
             remote_forwards: RemoteForwardPolicy::Allowed,
             keepalive: None,
@@ -114,6 +122,7 @@ impl HarnessBuilder {
             clock: Arc::new(SystemClock),
             port_scanner: None,
             previously_running: Vec::new(),
+            standby_overrides: Vec::new(),
         }
     }
 
@@ -187,6 +196,21 @@ impl HarnessBuilder {
 
     fn previously_running(mut self, names: &[&'static str]) -> Self {
         self.previously_running = names.to_vec();
+        self
+    }
+
+    fn standby_by_default(mut self) -> Self {
+        self.timing.standby = true;
+        self
+    }
+
+    fn standby_idle(mut self, idle: Duration) -> Self {
+        self.timing.standby_idle = idle;
+        self
+    }
+
+    fn standby_override(mut self, name: &'static str, is_standby: bool) -> Self {
+        self.standby_overrides.push((name, is_standby));
         self
     }
 
@@ -295,6 +319,11 @@ impl HarnessBuilder {
                 listen_port: free_port().await,
                 target_port,
                 tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
+                standby: self
+                    .standby_overrides
+                    .iter()
+                    .find(|(overridden, _)| overridden == name)
+                    .map(|(_, is_standby)| *is_standby),
             });
         }
         specs
@@ -326,9 +355,10 @@ async fn server_authorizing(
 
 fn store_text(specs: &[TunnelSpec], timing: &Timing) -> String {
     let mut text = format!(
-        "version = 1\n\n[settings]\nreconnect_initial_delay_ms = {}\nreconnect_max_delay_ms = {}\nsession_idle_grace_s = 0\n\n",
+        "version = 1\n\n[settings]\nreconnect_initial_delay_ms = {}\nreconnect_max_delay_ms = {}\nsession_idle_grace_s = 0\nstandby = {}\n\n",
         timing.reconnect_initial.as_millis(),
-        timing.reconnect_maximum.as_millis()
+        timing.reconnect_maximum.as_millis(),
+        timing.standby
     );
     for spec in specs {
         text.push_str(&tunnel_block(spec));
@@ -343,8 +373,11 @@ fn tunnel_block(spec: &TunnelSpec) -> String {
     } else {
         format!("target_port = {}\n", spec.target_port)
     };
+    let standby_line = spec.standby.map_or_else(String::new, |is_standby| {
+        format!("standby = {is_standby}\n")
+    });
     format!(
-        "[[tunnels]]\nid = \"{}\"\nhost = \"{}\"\nkind = \"{}\"\nlisten_port = {}\n{target_line}tags = [{}]\n\n",
+        "[[tunnels]]\nid = \"{}\"\nhost = \"{}\"\nkind = \"{}\"\nlisten_port = {}\n{target_line}{standby_line}tags = [{}]\n\n",
         spec.id,
         support::ALIAS,
         spec.kind,
@@ -360,6 +393,7 @@ fn apply_sub_second_settings(store: &Store, timing: &Timing, keepalive: Option<K
         document.settings.keepalive_max = keepalive.maximum_unanswered;
     }
     document.settings.session_idle_grace = timing.session_grace;
+    document.settings.standby_idle = timing.standby_idle;
     store.save(document).unwrap();
 }
 
@@ -430,6 +464,13 @@ impl Harness {
             .await;
     }
 
+    async fn wait_standby(&mut self, name: &str) {
+        self.wait_for(name, |state| {
+            matches!(state, TunnelState::Standby { last_failure: None })
+        })
+        .await;
+    }
+
     async fn wait_active(&mut self, name: &str) {
         self.wait_for(name, |state| matches!(state, TunnelState::Active))
             .await;
@@ -450,6 +491,15 @@ impl Harness {
             matches!(event, EngineEvent::ConfigReloaded).then_some(())
         })
         .await;
+    }
+
+    fn set_standby_override(&mut self, name: &str, is_standby: Option<bool>) {
+        let position = self
+            .specs
+            .iter()
+            .position(|spec| spec.name == name)
+            .unwrap();
+        self.specs[position].standby = is_standby;
     }
 
     fn rewrite_store(&self) {
@@ -2023,6 +2073,7 @@ fn new_tunnel(listen_port: u16) -> NewTunnel {
         target_port: None,
         tags: vec!["fresh".to_owned()],
         open: OpenOptions::default(),
+        standby: None,
     }
 }
 
@@ -3700,4 +3751,457 @@ async fn should_follow_the_open_host_setting_when_building_the_browser_url() {
     let url = browser_url_of(&harness);
 
     assert_eq!(url, format!("http://127.0.0.1:{}/", harness.port("alpha")));
+}
+
+#[tokio::test]
+async fn should_bind_without_opening_a_session_when_a_tunnel_starts_in_standby() {
+    let harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .start()
+        .await;
+
+    harness
+        .engine
+        .start_tunnel_and_wait(harness.id("alpha"))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        harness.state_of("alpha"),
+        TunnelState::Standby { last_failure: None }
+    );
+    assert_eq!(harness.server.connection_count(), 0);
+    assert!(!can_bind(harness.port("alpha")).await);
+}
+
+#[tokio::test]
+async fn should_start_in_standby_when_only_the_tunnel_asks_for_it() {
+    let mut harness = HarnessBuilder::new(&["alpha", "beta"])
+        .standby_override("alpha", true)
+        .start()
+        .await;
+
+    harness.start_tunnel("alpha");
+    harness.start_tunnel("beta");
+
+    harness.wait_standby("alpha").await;
+    harness.wait_active("beta").await;
+}
+
+#[tokio::test]
+async fn should_start_active_when_the_tunnel_refuses_the_standby_of_the_settings() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .standby_override("alpha", false)
+        .start()
+        .await;
+
+    harness.start_and_wait_active("alpha").await;
+
+    assert_eq!(harness.server.connection_count(), 1);
+}
+
+#[tokio::test]
+async fn should_wake_up_and_forward_when_a_client_connects_to_a_standby_tunnel() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+
+    let echoed = echo_through(harness.port("alpha"), PAYLOAD).await;
+
+    assert_eq!(echoed, PAYLOAD);
+    assert_eq!(harness.state_of("alpha"), TunnelState::Active);
+    assert_eq!(harness.server.connection_count(), 1);
+}
+
+#[tokio::test]
+async fn should_publish_a_woke_event_when_a_client_wakes_a_standby_tunnel() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+    let id = harness.id("alpha");
+
+    echo_through(harness.port("alpha"), PAYLOAD).await;
+
+    wait_for_event(&mut harness.events, WAIT, |event| {
+        matches!(event, EngineEvent::TunnelWoke { id: woke } if *woke == id).then_some(())
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn should_serve_every_held_connection_when_several_clients_wake_a_standby_tunnel() {
+    const CLIENT_COUNT: usize = 5;
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+    let port = harness.port("alpha");
+
+    let clients: Vec<_> = (0..CLIENT_COUNT)
+        .map(|_| tokio::spawn(echo_through(port, PAYLOAD)))
+        .collect();
+
+    for client in clients {
+        assert_eq!(client.await.unwrap(), PAYLOAD);
+    }
+    assert_eq!(harness.target_requests(), CLIENT_COUNT);
+    assert_eq!(harness.server.connection_count(), 1);
+}
+
+#[tokio::test]
+async fn should_wake_up_a_standby_dynamic_tunnel_when_a_socks_client_connects() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .kind("dynamic")
+        .standby_by_default()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+
+    let echoed =
+        echo_through_socks(harness.port("alpha"), LOOPBACK, harness.echo.port, PAYLOAD).await;
+
+    assert_eq!(echoed, PAYLOAD);
+}
+
+#[tokio::test]
+async fn should_go_back_to_standby_and_release_the_session_when_no_connection_stays_open() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .standby_idle(SHORT_STANDBY_IDLE)
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+    echo_through(harness.port("alpha"), PAYLOAD).await;
+
+    harness.wait_standby("alpha").await;
+
+    wait_until(WAIT, "the session to close", || {
+        harness.server.open_connection_count() == 0
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn should_wake_up_again_when_a_client_connects_after_the_tunnel_went_back_to_standby() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .standby_idle(SHORT_STANDBY_IDLE)
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+    echo_through(harness.port("alpha"), PAYLOAD).await;
+    harness.wait_standby("alpha").await;
+
+    let echoed = echo_through(harness.port("alpha"), PAYLOAD).await;
+
+    assert_eq!(echoed, PAYLOAD);
+}
+
+#[tokio::test]
+async fn should_stay_active_when_a_connection_stays_open_longer_than_the_idle_delay() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .standby_idle(SHORT_STANDBY_IDLE)
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+    let mut client = TcpStream::connect((LOOPBACK, harness.port("alpha")))
+        .await
+        .unwrap();
+    harness.wait_active("alpha").await;
+
+    sleep(SHORT_STANDBY_IDLE * 3).await;
+
+    client.write_all(PAYLOAD).await.unwrap();
+    let mut received = vec![0_u8; PAYLOAD.len()];
+    timeout(WAIT, client.read_exact(&mut received))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(harness.state_of("alpha"), TunnelState::Active);
+}
+
+#[tokio::test]
+async fn should_close_held_connections_and_keep_the_reason_when_the_wake_up_fails() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .with_unauthorized_client_key()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+
+    assert!(is_closed_by_the_tunnel(harness.port("alpha")).await);
+
+    let state = harness
+        .wait_for("alpha", |state| {
+            matches!(
+                state,
+                TunnelState::Standby {
+                    last_failure: Some(_)
+                }
+            )
+        })
+        .await;
+    assert!(matches!(
+        state,
+        TunnelState::Standby {
+            last_failure: Some(FailureReason::Connect { .. })
+        }
+    ));
+}
+
+#[tokio::test]
+async fn should_publish_a_wake_failed_event_when_the_wake_up_fails() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .with_unauthorized_client_key()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+    let id = harness.id("alpha");
+
+    is_closed_by_the_tunnel(harness.port("alpha")).await;
+
+    let reason = wait_for_event(&mut harness.events, WAIT, |event| match event {
+        EngineEvent::TunnelWakeFailed { id: failed, reason } if *failed == id => {
+            Some(reason.clone())
+        }
+        _ => None,
+    })
+    .await;
+    assert!(matches!(reason, FailureReason::Connect { .. }));
+}
+
+#[tokio::test]
+async fn should_not_retry_on_its_own_when_the_wake_up_fails() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .with_unauthorized_client_key()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+    is_closed_by_the_tunnel(harness.port("alpha")).await;
+    harness
+        .wait_for("alpha", |state| {
+            matches!(
+                state,
+                TunnelState::Standby {
+                    last_failure: Some(_)
+                }
+            )
+        })
+        .await;
+    let attempts = harness.server.connection_count();
+
+    sleep(QUIET_PERIOD).await;
+
+    assert_eq!(harness.server.connection_count(), attempts);
+}
+
+#[tokio::test]
+async fn should_try_again_when_a_client_connects_after_a_failed_wake_up() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .with_unauthorized_client_key()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+    is_closed_by_the_tunnel(harness.port("alpha")).await;
+    harness
+        .wait_for("alpha", |state| {
+            matches!(
+                state,
+                TunnelState::Standby {
+                    last_failure: Some(_)
+                }
+            )
+        })
+        .await;
+    let attempts = harness.server.connection_count();
+
+    is_closed_by_the_tunnel(harness.port("alpha")).await;
+
+    wait_until(WAIT, "a second connection attempt", || {
+        harness.server.connection_count() > attempts
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn should_go_straight_back_to_standby_when_the_session_is_lost() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+    let _client = TcpStream::connect((LOOPBACK, harness.port("alpha")))
+        .await
+        .unwrap();
+    harness.wait_active("alpha").await;
+    let id = harness.id("alpha");
+
+    harness.server.cut_connections();
+
+    let mut was_reconnecting = false;
+    wait_for_event(&mut harness.events, WAIT, |event| match event {
+        EngineEvent::TunnelChanged {
+            id: changed, state, ..
+        } if *changed == id => {
+            was_reconnecting |= matches!(state, TunnelState::Reconnecting { .. });
+            matches!(state, TunnelState::Standby { last_failure: None }).then_some(())
+        }
+        _ => None,
+    })
+    .await;
+    assert!(!was_reconnecting);
+}
+
+#[tokio::test]
+async fn should_ignore_standby_when_the_tunnel_is_remote() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .kind("remote")
+        .standby_by_default()
+        .start()
+        .await;
+
+    harness.start_and_wait_active("alpha").await;
+
+    assert_eq!(harness.server.remote_forward_requests().len(), 1);
+}
+
+#[tokio::test]
+async fn should_ignore_standby_when_the_tunnel_is_temporary() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .start()
+        .await;
+
+    let (_id, _port) = start_active_temporary(&mut harness).await;
+
+    assert_eq!(harness.server.connection_count(), 1);
+}
+
+#[tokio::test]
+async fn should_keep_running_without_restarting_when_the_standby_choice_changes() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.start_and_wait_active("alpha").await;
+    harness.set_standby_override("alpha", Some(true));
+
+    harness.rewrite_store();
+    harness.wait_for_config_reload().await;
+
+    sleep(QUIET_PERIOD).await;
+    assert_eq!(harness.state_of("alpha"), TunnelState::Active);
+    assert_eq!(harness.server.connection_count(), 1);
+}
+
+#[tokio::test]
+async fn should_start_in_standby_when_the_standby_choice_changed_while_the_tunnel_ran() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.start_and_wait_active("alpha").await;
+    harness.set_standby_override("alpha", Some(true));
+    harness.rewrite_store();
+    harness.wait_for_config_reload().await;
+
+    harness.stop_tunnel("alpha");
+    harness.wait_stopped("alpha").await;
+    harness.start_tunnel("alpha");
+
+    harness.wait_standby("alpha").await;
+}
+
+#[tokio::test]
+async fn should_refuse_to_check_the_target_when_the_tunnel_is_on_standby() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+
+    let outcome = harness.engine.check_target(harness.id("alpha")).await;
+
+    assert!(matches!(outcome, Err(EngineError::TunnelOnStandby(_))));
+}
+
+#[tokio::test]
+async fn should_restore_a_standby_tunnel_in_standby_when_restoring_on_launch() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .previously_running(&["alpha"])
+        .start()
+        .await;
+    configure_launch(&harness, true, &[]).await;
+
+    harness.engine.start_launch_tunnels().unwrap();
+
+    harness.wait_standby("alpha").await;
+    assert_eq!(harness.server.connection_count(), 0);
+}
+
+#[tokio::test]
+async fn should_start_a_standby_tunnel_in_standby_when_its_tag_is_started() {
+    let mut harness = HarnessBuilder::tagged(&[("alpha", &["dev"])])
+        .standby_by_default()
+        .start()
+        .await;
+
+    harness.engine.start_tag("dev").unwrap();
+
+    harness.wait_standby("alpha").await;
+}
+
+#[tokio::test]
+async fn should_stop_a_standby_tunnel_and_free_its_port_when_it_is_stopped() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+
+    harness.stop_tunnel("alpha");
+
+    harness.wait_stopped("alpha").await;
+    assert!(can_bind(harness.port("alpha")).await);
+}
+
+#[tokio::test]
+async fn should_stay_in_standby_when_the_scanner_sees_the_daemon_on_the_port() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+
+    harness.set_scan(foreign_scan(
+        std::process::id(),
+        "tunneler",
+        harness.port("alpha"),
+    ));
+
+    sleep(QUIET_PERIOD).await;
+    assert_eq!(
+        harness.state_of("alpha"),
+        TunnelState::Standby { last_failure: None }
+    );
 }

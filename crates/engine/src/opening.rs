@@ -138,6 +138,7 @@ mod tests {
             target_port: None,
             tags: Vec::new(),
             open: OpenOptions::default(),
+            standby: None,
         }
     }
 

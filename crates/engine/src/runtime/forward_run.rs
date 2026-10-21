@@ -10,6 +10,7 @@ use tokio::task::JoinSet;
 use crate::remote_forwards::{ForwardedConnection, ForwardedSender};
 use crate::runtime::local_forward::TargetReport;
 use crate::runtime::metrics::MetricsThrottle;
+use crate::runtime::standby::{BoundedQueue, HELD_CONNECTIONS_LIMIT, HeldClient};
 
 /// What a client that connects to the listener of a tunnel speaks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,13 +47,15 @@ pub(crate) enum InboundSource {
 /// The resources of one run of a forward: the listener of a local or dynamic
 /// forward, which stays bound for the whole run, or the channel that receives
 /// the connections of a remote forward, and the tasks working for it.
-/// Dropping it closes the listener and every connection.
+/// A run in standby also holds the clients that connect while the tunnel has
+/// no session. Dropping it closes the listener and every connection.
 pub(crate) struct ForwardRun {
     pub(crate) inbound: InboundSource,
     pub(crate) connections: JoinSet<()>,
     pub(crate) reports_sender: mpsc::UnboundedSender<TargetReport>,
     pub(crate) reports: mpsc::UnboundedReceiver<TargetReport>,
     pub(crate) throttle: MetricsThrottle,
+    held: Option<BoundedQueue<HeldClient>>,
 }
 
 impl InboundSource {
@@ -117,7 +120,40 @@ impl ForwardRun {
             reports_sender,
             reports,
             throttle: MetricsThrottle::new(metrics_event_interval),
+            held: None,
         }
+    }
+
+    /// Makes the run a standby one: it holds the clients that connect while
+    /// there is no session instead of closing them.
+    pub(crate) fn in_standby(mut self) -> Self {
+        self.held = Some(BoundedQueue::new(HELD_CONNECTIONS_LIMIT));
+        self
+    }
+
+    pub(crate) fn is_standby(&self) -> bool {
+        self.held.is_some()
+    }
+
+    /// Holds `client` until the session is there; gives it back when the run
+    /// is not a standby one or when too many clients already wait.
+    pub(crate) fn hold(&mut self, client: HeldClient) -> Result<(), HeldClient> {
+        match &mut self.held {
+            Some(queue) => queue.push(client),
+            None => Err(client),
+        }
+    }
+
+    pub(crate) fn has_held(&self) -> bool {
+        self.held.as_ref().is_some_and(|queue| !queue.is_empty())
+    }
+
+    /// Takes the clients that wait for the session, oldest first.
+    pub(crate) fn take_held(&mut self) -> Vec<HeldClient> {
+        self.held
+            .as_mut()
+            .map(BoundedQueue::take_all)
+            .unwrap_or_default()
     }
 
     pub(crate) async fn close_connections(&mut self) {

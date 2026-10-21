@@ -7,6 +7,7 @@ import { TunnelStatusBadge } from '#/shared/status_badge';
 
 const STATES: readonly [TunnelStateDto, string][] = [
 	[{ kind: 'stopped' }, 'Arrêté'],
+	[{ kind: 'standby' }, 'Veille'],
 	[{ kind: 'starting' }, 'Démarrage…'],
 	[{ kind: 'active' }, 'Actif'],
 	[
@@ -46,6 +47,23 @@ describe('TunnelStatusBadge', () => {
 
 		expect(
 			screen.getByText('Port déjà utilisé (127.0.0.1:3333)')
+		).toBeVisible();
+	});
+
+	it('should show the last wake-up failure of a standby tunnel as visible text', () => {
+		render(
+			<TunnelStatusBadge
+				state={{
+					kind: 'standby',
+					lastFailure: { kind: 'connect', message: 'authentification refusée' },
+				}}
+			/>
+		);
+
+		expect(
+			screen.getByText(
+				/dernier réveil en échec : Connexion SSH impossible : authentification refusée/
+			)
 		).toBeVisible();
 	});
 

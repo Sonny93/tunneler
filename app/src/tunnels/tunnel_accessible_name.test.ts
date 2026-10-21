@@ -10,6 +10,14 @@ describe('getTunnelAccessibleName', () => {
 		).toBe('Tunnel 3333 vers nova:3333, actif');
 	});
 
+	it('should name the standby state', () => {
+		expect(
+			getTunnelAccessibleName(buildTunnel({ state: { kind: 'standby' } }))
+		).toBe(
+			'Tunnel 3333 vers nova:3333, en veille'.replace('en veille', 'veille')
+		);
+	});
+
 	it('should name the external state', () => {
 		expect(
 			getTunnelAccessibleName(

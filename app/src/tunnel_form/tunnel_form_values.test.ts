@@ -79,4 +79,15 @@ describe('toTunnelFormValues', () => {
 			toTunnelFormValues(buildTunnel()).openWith,
 		]).toEqual(['freerdp', '']);
 	});
+
+	it.each([
+		[undefined, ''],
+		[true, 'yes'],
+		[false, 'no'],
+	] as const)(
+		'should show the standby override %s as "%s"',
+		(standby, choice) => {
+			expect(toTunnelFormValues(buildTunnel({ standby })).standby).toBe(choice);
+		}
+	);
 });

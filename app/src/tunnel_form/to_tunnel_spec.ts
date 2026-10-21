@@ -37,6 +37,12 @@ function toOpenOptions(
 	return isEmpty ? undefined : options;
 }
 
+/** Only local and dynamic tunnels can wait in standby; an inherited choice is omitted. */
+function toStandby(values: Readonly<TunnelFormValues>): boolean | undefined {
+	if (values.kind === 'remote' || values.standby === '') return undefined;
+	return values.standby === 'yes';
+}
+
 /** Builds the spec of valid form values; blank optional texts are omitted. */
 export function toTunnelSpec(
 	values: Readonly<TunnelFormValues>
@@ -54,6 +60,7 @@ export function toTunnelSpec(
 				: undefined,
 		tags: parseTags(values.tags),
 		open: toOpenOptions(values),
+		standby: toStandby(values),
 	};
 }
 
@@ -61,6 +68,11 @@ export function toTunnelSpec(
 export function toTemporaryTunnelSpec(
 	values: Readonly<TunnelFormValues>
 ): TemporaryTunnelSpecDto {
-	const { tags: _tags, open: _open, ...spec } = toTunnelSpec(values);
+	const {
+		tags: _tags,
+		open: _open,
+		standby: _standby,
+		...spec
+	} = toTunnelSpec(values);
 	return spec;
 }

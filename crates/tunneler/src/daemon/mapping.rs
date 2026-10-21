@@ -70,6 +70,7 @@ pub(crate) fn definition_to_dto(definition: &TunnelDefinition) -> TunnelDefiniti
             target_port: definition.target_port,
             tags: definition.tags.clone(),
             open: open_options_to_dto(&definition.open),
+            standby: definition.standby,
         },
     }
 }
@@ -135,6 +136,7 @@ pub(crate) fn definition_from_dto(
         target_port: spec.target_port,
         tags: spec.tags,
         open: open_options_from_dto(spec.open),
+        standby: spec.standby,
     })
 }
 
@@ -148,6 +150,7 @@ pub(crate) fn new_tunnel_from_spec(spec: TunnelSpecDto) -> NewTunnel {
         target_port: spec.target_port,
         tags: spec.tags,
         open: open_options_from_dto(spec.open),
+        standby: spec.standby,
     }
 }
 
@@ -161,6 +164,7 @@ pub(crate) fn new_temporary_tunnel_from_spec(spec: TemporaryTunnelSpecDto) -> Ne
         target_port: spec.target_port,
         tags: Vec::new(),
         open: OpenOptions::default(),
+        standby: None,
     }
 }
 
@@ -188,6 +192,9 @@ fn failure_to_dto(reason: &FailureReason) -> FailureReasonDto {
 pub(crate) fn state_to_dto(state: &TunnelState) -> TunnelStateDto {
     match state {
         TunnelState::Stopped => TunnelStateDto::Stopped,
+        TunnelState::Standby { last_failure } => TunnelStateDto::Standby {
+            last_failure: last_failure.as_ref().map(failure_to_dto),
+        },
         TunnelState::Starting => TunnelStateDto::Starting,
         TunnelState::Active => TunnelStateDto::Active,
         TunnelState::Reconnecting {
@@ -319,6 +326,8 @@ pub(crate) fn settings_to_dto(settings: &Settings) -> SettingsDto {
         use_os_keyring: settings.use_os_keyring,
         x11_display: settings.x11_display.clone(),
         open_host: open_host_to_dto(settings.open_host),
+        standby: settings.standby,
+        standby_idle_s: settings.standby_idle.as_secs(),
     }
 }
 
@@ -337,6 +346,8 @@ pub(crate) fn settings_from_dto(dto: SettingsDto) -> Settings {
         use_os_keyring: dto.use_os_keyring,
         x11_display: dto.x11_display,
         open_host: open_host_from_dto(dto.open_host),
+        standby: dto.standby,
+        standby_idle: Duration::from_secs(dto.standby_idle_s),
     }
 }
 
@@ -492,8 +503,10 @@ fn import_warning_to_dto(warning: &ImportWarning) -> ImportWarningDto {
     }
 }
 
-pub(crate) fn event_to_message(event: &EngineEvent) -> EventMessage {
-    match event {
+/// The wire form of an engine event; `None` for the events that stay in the
+/// daemon.
+pub(crate) fn event_to_message(event: &EngineEvent) -> Option<EventMessage> {
+    Some(match event {
         EngineEvent::TunnelChanged { id, state, health } => {
             EventMessage::TunnelChanged(TunnelChangedEvent {
                 id: id.to_string(),
@@ -524,7 +537,8 @@ pub(crate) fn event_to_message(event: &EngineEvent) -> EventMessage {
             host: host.clone(),
             state: x11_state_to_dto(state),
         }),
-    }
+        EngineEvent::TunnelWoke { .. } | EngineEvent::TunnelWakeFailed { .. } => return None,
+    })
 }
 
 pub(crate) fn host_key_decision_from_dto(decision: HostKeyDecisionDto) -> HostKeyDecision {
@@ -705,6 +719,7 @@ mod tests {
                 host: Some(OpenHost::Ip),
                 with: Some("remmina-vnc".to_owned()),
             },
+            standby: Some(true),
         }
     }
 
@@ -764,6 +779,7 @@ mod tests {
         let definition = TunnelDefinition {
             target_port: Some(5900),
             open: OpenOptions::default(),
+            standby: None,
             ..sample_definition()
         };
         let snapshot = TunnelSnapshot {
@@ -816,6 +832,8 @@ mod tests {
             start_on_launch_tags: vec!["dev".to_owned()],
             x11_display: Some("host:0.0".to_owned()),
             open_host: OpenHost::Ip,
+            standby: true,
+            standby_idle: Duration::from_secs(90),
             ..Settings::default()
         };
 
@@ -846,6 +864,44 @@ mod tests {
                 next_retry_at: SECONDS_AFTER_EPOCH * 1000
             }
         );
+    }
+
+    #[test]
+    fn should_convert_a_standby_state_with_its_last_failure() {
+        let state = TunnelState::Standby {
+            last_failure: Some(FailureReason::Connect {
+                message: "refused".to_owned(),
+            }),
+        };
+
+        assert_eq!(
+            state_to_dto(&state),
+            TunnelStateDto::Standby {
+                last_failure: Some(FailureReasonDto::Connect {
+                    message: "refused".to_owned()
+                })
+            }
+        );
+    }
+
+    #[test]
+    fn should_convert_a_standby_state_without_failure() {
+        assert_eq!(
+            state_to_dto(&TunnelState::Standby { last_failure: None }),
+            TunnelStateDto::Standby { last_failure: None }
+        );
+    }
+
+    #[test]
+    fn should_express_the_standby_idle_of_the_settings_in_seconds() {
+        assert_eq!(settings_to_dto(&Settings::default()).standby_idle_s, 300);
+    }
+
+    #[test]
+    fn should_not_forward_the_standby_events_over_the_wire() {
+        let id = TunnelId::generate();
+
+        assert_eq!(event_to_message(&EngineEvent::TunnelWoke { id }), None);
     }
 
     #[test]
@@ -1069,7 +1125,7 @@ mod tests {
         };
 
         assert_eq!(
-            event_to_message(&event),
+            event_to_message(&event).unwrap(),
             EventMessage::X11Changed(X11ChangedEvent {
                 host: "nova".to_owned(),
                 state: X11StateDto::Stopped
@@ -1084,7 +1140,7 @@ mod tests {
         };
 
         assert_eq!(
-            event_to_message(&event),
+            event_to_message(&event).unwrap(),
             EventMessage::ExternalsChanged(ExternalsChangedEvent {
                 processes: vec![unmanaged_dto()]
             })
@@ -1144,7 +1200,7 @@ mod tests {
         };
 
         assert_eq!(
-            event_to_message(&event),
+            event_to_message(&event).unwrap(),
             EventMessage::TunnelChanged(TunnelChangedEvent {
                 id: id.to_string(),
                 state: TunnelStateDto::Active,
@@ -1166,7 +1222,7 @@ mod tests {
         };
 
         assert_eq!(
-            event_to_message(&event),
+            event_to_message(&event).unwrap(),
             EventMessage::TunnelLog(TunnelLogEvent {
                 id: id.to_string(),
                 entry: LogEntryDto {
@@ -1185,7 +1241,7 @@ mod tests {
         };
 
         assert_eq!(
-            event_to_message(&event),
+            event_to_message(&event).unwrap(),
             EventMessage::ConfigInvalid(ConfigInvalidEvent {
                 messages: vec!["bad file".to_owned()]
             })
@@ -1195,7 +1251,7 @@ mod tests {
     #[test]
     fn should_convert_a_config_reloaded_event() {
         assert_eq!(
-            event_to_message(&EngineEvent::ConfigReloaded),
+            event_to_message(&EngineEvent::ConfigReloaded).unwrap(),
             EventMessage::ConfigReloaded {}
         );
     }

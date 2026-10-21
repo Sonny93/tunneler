@@ -1,5 +1,5 @@
 import { Input } from '@minimalstuff/ui';
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, ReactNode } from 'react';
 
 import type { SettingsFormValues } from '#/settings/settings_form_values';
 import type { SettingsFormErrors } from '#/settings/validate_settings_form';
@@ -45,6 +45,8 @@ type SettingsFieldsetProps = {
 	values: SettingsFormValues;
 	errors: SettingsFormErrors;
 	onChange: (field: SettingsTextField, value: string) => void;
+	/** Controls shown above the text fields, such as a switch. */
+	children?: ReactNode;
 };
 
 export const SettingsFieldset = ({
@@ -52,9 +54,11 @@ export const SettingsFieldset = ({
 	values,
 	errors,
 	onChange,
+	children,
 }: Readonly<SettingsFieldsetProps>) => (
 	<fieldset className="flex flex-col gap-4 border-0 p-0">
 		<legend className="mb-3 text-sm font-semibold">{section.legend}</legend>
+		{children}
 		{section.fields.map((spec) => (
 			<SettingsField
 				key={spec.field}

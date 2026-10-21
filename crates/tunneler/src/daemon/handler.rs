@@ -491,6 +491,7 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         | EngineError::TunnelIsTemporary(_)
         | EngineError::TunnelIsNotTemporary(_)
         | EngineError::TunnelNotActive(_)
+        | EngineError::TunnelOnStandby(_)
         | EngineError::TunnelHasNoTarget(_)
         | EngineError::Open(_) => IpcError::invalid_state(error.to_string()),
         EngineError::TunnelStartFailed(_)
@@ -756,6 +757,7 @@ mod tests {
             target_port: None,
             tags: vec!["dev".to_owned()],
             open: OpenOptionsDto::default(),
+            standby: None,
         }
     }
 

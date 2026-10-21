@@ -11,7 +11,8 @@ use crate::store::TunnelId;
 /// What a tunnel state means for someone who wants to use the tunnel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Readiness {
-    /// The listening port answers, or something else provides it.
+    /// The listening port answers (a connection wakes a standby tunnel), or
+    /// something else provides it.
     Ready,
     /// The tunnel is not started yet or is still starting.
     NotReady,
@@ -23,9 +24,10 @@ pub(crate) enum Readiness {
 /// `Stopped` and `Failed` count as not ready: the caller starts the tunnel.
 pub(crate) fn assess_start(state: &TunnelState) -> Readiness {
     match state {
-        TunnelState::Active | TunnelState::Reconnecting { .. } | TunnelState::External { .. } => {
-            Readiness::Ready
-        }
+        TunnelState::Active
+        | TunnelState::Standby { .. }
+        | TunnelState::Reconnecting { .. }
+        | TunnelState::External { .. } => Readiness::Ready,
         TunnelState::Conflict { .. } => Readiness::PortConflict,
         TunnelState::Stopped | TunnelState::Starting | TunnelState::Failed { .. } => {
             Readiness::NotReady
@@ -114,6 +116,14 @@ mod tests {
     }
 
     #[test]
+    fn should_be_ready_when_the_tunnel_is_on_standby() {
+        assert_eq!(
+            assess_start(&TunnelState::Standby { last_failure: None }),
+            Readiness::Ready
+        );
+    }
+
+    #[test]
     fn should_be_ready_when_the_tunnel_is_reconnecting() {
         let state = TunnelState::Reconnecting {
             attempt: 1,
@@ -159,6 +169,20 @@ mod tests {
         let (sender, mut events) = broadcast::channel(8);
         sender.send(change(id, TunnelState::Starting)).unwrap();
         sender.send(change(id, TunnelState::Active)).unwrap();
+
+        let outcome = wait_until_ready(id, &mut events, Duration::from_secs(5), || None).await;
+
+        assert!(outcome.is_ok());
+    }
+
+    #[tokio::test]
+    async fn should_resolve_when_the_tunnel_reaches_standby() {
+        let id = TunnelId::generate();
+        let (sender, mut events) = broadcast::channel(8);
+        sender.send(change(id, TunnelState::Starting)).unwrap();
+        sender
+            .send(change(id, TunnelState::Standby { last_failure: None }))
+            .unwrap();
 
         let outcome = wait_until_ready(id, &mut events, Duration::from_secs(5), || None).await;
 
