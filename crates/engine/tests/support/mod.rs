@@ -33,7 +33,8 @@ pub use scripted::{ScriptedPrompter, ScriptedVerifier};
 pub use test_support::TestAgent;
 pub use test_support::{
     ALIAS, EchoServer, HostSpec, REMOTE_USER, SilentListener, TestServer, TestServerBuilder,
-    TestUser, X11Request, fingerprint_of, fixture_key, free_port, generate_key, write_private_key,
+    TestUser, X11Request, fingerprint_of, fixture_key, free_port, free_ports, generate_key,
+    write_private_key,
 };
 pub use workspace::{NoAgentLocator, Workspace, quiet_prompter, rejecting_verifier};
 pub use x11::{

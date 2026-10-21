@@ -1,3 +1,5 @@
+use std::net::Ipv4Addr;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -37,10 +39,53 @@ impl EchoServer {
     }
 }
 
+/// First port of the pool test ports are taken from.
+const TEST_PORT_POOL_START: u16 = 20_000;
+/// End (exclusive) of the pool: Linux hands out ephemeral ports from 32768,
+/// Windows and macOS from 49152.
+const TEST_PORT_POOL_END: u16 = 32_768;
+const TEST_PORT_POOL_SIZE: u32 = (TEST_PORT_POOL_END - TEST_PORT_POOL_START) as u32;
+/// Spreads concurrent test binaries over the pool.
+const PROCESS_OFFSET_STRIDE: u32 = 97;
+
+static NEXT_POOL_OFFSET: AtomicU32 = AtomicU32::new(0);
+
+fn next_pool_port() -> u16 {
+    let process_offset = std::process::id().wrapping_mul(PROCESS_OFFSET_STRIDE);
+    let step = NEXT_POOL_OFFSET.fetch_add(1, Ordering::Relaxed);
+    let offset = process_offset.wrapping_add(step) % TEST_PORT_POOL_SIZE;
+    TEST_PORT_POOL_START + u16::try_from(offset).unwrap()
+}
+
 /// A port nobody listens on right now.
 pub async fn free_port() -> u16 {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    listener.local_addr().unwrap().port()
+    free_ports(1).await[0]
+}
+
+/// `count` distinct ports nobody listens on right now.
+///
+/// The ports come from a pool below every operating system's ephemeral range,
+/// so the connections other tests open in parallel can never take one of them
+/// between this call and the moment the caller binds it. All the listeners
+/// are held while the ports are collected, so two ports of one call never
+/// collide.
+pub async fn free_ports(count: usize) -> Vec<u16> {
+    let mut listeners = Vec::with_capacity(count);
+    let mut attempts = 0;
+    while listeners.len() < count {
+        assert!(
+            attempts < TEST_PORT_POOL_SIZE,
+            "no free port left in the test pool {TEST_PORT_POOL_START}..{TEST_PORT_POOL_END}"
+        );
+        attempts += 1;
+        if let Ok(listener) = TcpListener::bind((Ipv4Addr::LOCALHOST, next_pool_port())).await {
+            listeners.push(listener);
+        }
+    }
+    listeners
+        .iter()
+        .map(|listener| listener.local_addr().unwrap().port())
+        .collect()
 }
 
 impl Drop for EchoServer {

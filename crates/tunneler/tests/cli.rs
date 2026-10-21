@@ -10,8 +10,8 @@ use std::time::Duration;
 use russh::keys::Algorithm;
 use serde_json::Value;
 use test_support::{
-    ALIAS, EchoServer, REMOTE_USER, TestServer, TestUser, Workspace, free_port, generate_key,
-    write_private_key,
+    ALIAS, EchoServer, REMOTE_USER, TestServer, TestUser, Workspace, free_port, free_ports,
+    generate_key, write_private_key,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -197,13 +197,7 @@ impl Drop for Fixture {
 }
 
 async fn distinct_free_ports() -> [u16; 3] {
-    let mut ports = Vec::new();
-    while ports.len() < 3 {
-        let port = free_port().await;
-        if !ports.contains(&port) {
-            ports.push(port);
-        }
-    }
+    let ports = free_ports(3).await;
     [ports[0], ports[1], ports[2]]
 }
 

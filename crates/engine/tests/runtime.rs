@@ -19,8 +19,9 @@ use fast_socks5::{ReplyError, SocksError};
 use russh::keys::{Algorithm, PrivateKey};
 use support::{
     EchoServer, FakePortScanner, FakeX11Environment, MemoryStateStore, ScriptedPrompter,
-    ScriptedVerifier, TestServer, TestUser, Workspace, foreign_scan, free_port, generate_key,
-    identity_of, ssh_scan, wait_for_event, wait_for_state, wait_until, write_private_key,
+    ScriptedVerifier, TestServer, TestUser, Workspace, foreign_scan, free_port, free_ports,
+    generate_key, identity_of, ssh_scan, wait_for_event, wait_for_state, wait_until,
+    write_private_key,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -223,12 +224,14 @@ impl HarnessBuilder {
         )
         .await;
         let echo = EchoServer::start().await;
+        let down_target_count = usize::from(!self.is_target_up);
+        let mut free = free_ports(self.tunnels.len() + down_target_count).await;
         let target_port = if self.is_target_up {
             echo.port
         } else {
-            free_port().await
+            free.pop().unwrap()
         };
-        let specs = self.specs(target_port).await;
+        let specs = self.specs(target_port, &free);
         let workspace = Workspace::new();
         let key_path = write_private_key(workspace.path(), "id_test", &client_key, None);
         let identity_line = format!("IdentityFile {}", key_path.display());
@@ -305,9 +308,9 @@ impl HarnessBuilder {
         }
     }
 
-    async fn specs(&self, target_port: u16) -> Vec<TunnelSpec> {
+    fn specs(&self, target_port: u16, listen_ports: &[u16]) -> Vec<TunnelSpec> {
         let mut specs = Vec::new();
-        for (name, tags) in &self.tunnels {
+        for ((name, tags), listen_port) in self.tunnels.iter().zip(listen_ports) {
             specs.push(TunnelSpec {
                 id: TunnelId::generate(),
                 name: (*name).to_owned(),
@@ -316,7 +319,7 @@ impl HarnessBuilder {
                     .iter()
                     .find(|(kinded, _)| kinded == name)
                     .map_or(self.kind, |(_, kind)| *kind),
-                listen_port: free_port().await,
+                listen_port: *listen_port,
                 target_port,
                 tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
                 standby: self
