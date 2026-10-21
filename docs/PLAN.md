@@ -24,6 +24,8 @@ La liste des tâches à cocher vit dans [`TASKS.md`](./TASKS.md). Ce fichier dé
 | D10 | **Single instance portée par le daemon** (bind du socket IPC = verrou) | Pas besoin de `tauri-plugin-single-instance` : une 2ᵉ invocation devient un client qui demande au daemon d'afficher l'UI |
 | D13 | **Pas de nom de tunnel : les tags sont le seul mécanisme de nommage et de regroupement** | Le nom était une saisie redondante avec l'adresse (`3333 → nova:3333` suffit à identifier un tunnel) et un champ de plus à garder unique. Un tunnel est désigné par son libellé (voir §7), la CLI le sélectionne par port (`3333`), par `hôte:port` ou par tag. Un tag ne peut donc ni être composé uniquement de chiffres ni contenir `:`, pour ne jamais se confondre avec un port ou un `hôte:port`. Projet non publié : pas de migration, un `name` resté dans un `tunnels.toml` existant est ignoré à la lecture et disparaît à la prochaine écriture |
 | D11 | **Accessibilité = exigence, pas une finition** : UI conforme WCAG 2.2 AA, CLI utilisable sans couleur ni TTY (voir §8) | Une fonctionnalité n'est pas « faite » tant qu'elle n'est pas utilisable au clavier seul, au lecteur d'écran et sans dépendre de la couleur |
+| D14 | **Veille = écoute locale sans session SSH**, opt-in (réglage général + surcharge par tunnel), tunnels `local` et `dynamic` seulement | Le daemon tient le port, retient les connexions entrantes, ouvre la session à la première puis les branche sur leurs canaux : aucune session SSH ne tourne tant que personne ne se connecte. Pas de process séparé, le daemon possède déjà l'écoute (`TcpListener` → `direct-tcpip` par connexion). Pas de veille pour `remote` : son écoute est côté serveur et exige une session |
+| D15 | **Ouverture d'un tunnel portée par le daemon** (`tunnel.open`) : navigateur ou application externe | Une seule implémentation pour l'UI, la CLI et la palette (l'UI et la CLI construisaient chacune leur URL). Les commandes viennent de la config de l'utilisateur, jamais des paramètres IPC, et sont lancées sans shell |
 
 ### Conséquence de D1/D2 sur la fermeture
 Les tunnels vivent *dans* le daemon : ils ne peuvent pas survivre à sa fermeture. L'option « quitter en laissant tourner » proposée initialement disparaît.
@@ -105,7 +107,20 @@ Les prompts passent par le trait `CredentialPrompter` → événement IPC `crede
 Règles par défaut : `target_port` absent = `listen_port` ; `listen_address` absent = `settings.default_bind_address` (local) ou `settings.default_remote_bind_address` (remote) ; `target_host` absent = `127.0.0.1`.
 
 ### États d'un tunnel
-`Stopped` · `Starting` · `Active` · `Reconnecting { attempt, next_retry_at }` · `Failed { reason }` · `External { pid, process }` · `Conflict { pid, process }`
+`Stopped` · `Standby` · `Starting` · `Active` · `Reconnecting { attempt, next_retry_at }` · `Failed { reason }` · `External { pid, process }` · `Conflict { pid, process }`
+
+### Veille (D14)
+- Veille effective d'un tunnel = `tunnels[].standby` s'il est présent, sinon `settings.standby` (défaut `false`). Ignorée pour `remote` (option désactivée dans le formulaire, avec la raison).
+- Démarrer un tunnel en veille : bind du port → `Standby`. Aucune session n'est demandée, le port est tenu (un port déjà pris donne `Conflict` comme d'habitude).
+- Connexion entrante en `Standby` : `accept`, connexion retenue → `Starting` (session ouverte ou partagée, prompts compris) → `Active`, puis chaque connexion retenue est branchée sur son canal `direct-tcpip` (SOCKS pour `dynamic`). Les connexions qui arrivent pendant `Starting` sont retenues aussi, en nombre borné.
+- Aucune connexion active pendant `standby_idle_s` (défaut 300) → retour en `Standby` : le tunnel lâche la session, qui se ferme après `session_idle_grace_s` si plus personne ne l'utilise.
+- Échec de l'ouverture (hôte injoignable, auth refusée, clé d'hôte) : connexions retenues fermées, notification système, retour en `Standby` avec la raison du dernier échec affichée. Jamais de boucle de reconnexion depuis la veille : la prochaine connexion retente.
+- Perte de session pendant `Active` : reconnexion habituelle tant que des connexions sont ouvertes, sinon retour direct en `Standby`.
+- Arrêter un tunnel en veille libère le port (`Stopped`). `restore_on_launch` et `start_on_launch_tags` remettent en veille, sans session.
+- Signal au réveil depuis la veille et en cas d'échec, au choix (`settings.standby_notify`) : `none`, `visual`, `sound` ou `both` (défaut `visual`). Le son est joué par le daemon lui-même, indépendamment des notifications système : il reste audible quand celles-ci sont coupées (mode « ne pas déranger », notifications désactivées). La notification visuelle est donc toujours envoyée silencieuse.
+  - Visuel : `org.freedesktop.Notifications` via `zbus` (déjà présent, pas de GTK) sous Linux, toast WinRT sous Windows.
+  - Son : thème de sons freedesktop sous Linux (`canberra-gtk-play -i <événement>`, sinon `pw-play`/`paplay` sur `/usr/share/sounds/freedesktop/stereo/`), son système sous Windows (`PlaySoundW` alias `SystemNotification`/`SystemHand`, `SND_ASYNC`). Aucun lecteur trouvé → un avertissement dans le journal, une seule fois.
+  - Le tray et l'UI restent la source complète.
 
 Santé de la cible, indépendante de l'état : `Unknown` · `Reachable` · `Unreachable { since, error }`.
 - Passif : un `direct-tcpip` refusé (`ConnectFailed`) marque la cible injoignable (« tunnel OK, service distant down »).
@@ -143,6 +158,10 @@ start_on_launch_tags = []         # tags démarrés au lancement du daemon
 launch_at_login = false
 use_os_keyring = false            # passphrases mémorisables dans le trousseau du système
 x11_display = ""                  # vide = $DISPLAY, ou 127.0.0.1:0.0 sous Windows
+standby = false                   # veille par défaut des tunnels local/dynamic (D14)
+standby_idle_s = 300              # retour en veille après ce délai sans connexion
+standby_notify = "visual"         # none | visual | sound | both, au réveil et à l'échec
+open_host = "localhost"           # localhost | ip (127.0.0.1, ou [::1] si l'écoute est IPv6)
 
 [[tunnels]]
 id = "01JA..."                    # ULID
@@ -153,6 +172,14 @@ listen_port = 3333
 # target_host = "127.0.0.1"
 # target_port = 3333              # défaut = listen_port
 tags = ["dev", "adonis"]
+# standby = true                  # surcharge settings.standby
+# open = { scheme = "https", path = "/admin", host = "ip", with = "remmina" }
+
+[[openers]]                       # applications ajoutées à la main (les préréglages détectés n'y sont pas)
+id = "dbeaver"
+name = "DBeaver"
+command = "dbeaver"
+args = ["-con", "driver=postgresql|host={host}|port={port}"]
 
 [hosts.nova]                      # surcharges propres à l'app, par alias
 x11_display = "198.51.100.135:0.0"
@@ -162,6 +189,14 @@ host = "nova"
 name = "VS Code"
 command = "code --wait"
 ```
+
+**Ouverture (D15).** Champs de `open`, tous optionnels :
+- `scheme` : `http` (défaut) ou `https`. Liste blanche, rien d'autre.
+- `path` : commence par `/` mais pas par `//`, sans espace ni caractère de contrôle (défaut `/`).
+- `host` : `localhost` ou `ip`, surcharge `settings.open_host`. Ne s'applique qu'à une écoute loopback ou joker (`127.0.0.1`, `::1`, `0.0.0.0`, `::`) ; une écoute sur une IP précise ouvre cette IP. Jamais de nom d'hôte distant : il contournerait le tunnel.
+- `with` : `browser` ou l'`id` d'une application. Absent → suggestion d'après le port cible parmi les applications disponibles (5900-5999 → VNC, 3389 → RDP, 5432/3306 → client SQL), sinon navigateur.
+
+Applications : préréglages intégrés détectés au lancement du daemon (`PATH` sous Linux, chemins d'installation connus sous Windows ; `mstsc` toujours présent sous Windows), plus les `[[openers]]` de l'utilisateur. Arguments en liste (pas de shell), substitution de `{host}`, `{port}`, `{url}`. Un `id` d'utilisateur qui reprend celui d'un préréglage le remplace. `browser` est réservé.
 
 L'état courant est stocké à part dans `state.toml` (dossier state/data) pour ne pas polluer le fichier édité à la main : `running` (tunnels démarrés par l'utilisateur, pas vidé par « Tout arrêter et quitter », relancés si `restore_on_launch`) et `keyring_entries` (passphrases déposées dans le trousseau, pour pouvoir les oublier).
 
@@ -195,6 +230,8 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 | `tunnel.start_temporary { host, kind, listenPort, … }` | démarre un tunnel temporaire (sans `id` ni tags) → `TunnelDto` avec `isTemporary: true` ; `validation_failed` si la définition est invalide |
 | `tunnel.persist { id }` | enregistre un tunnel temporaire dans `tunnels.toml`, sans le redémarrer ; `not_found` si l'id est inconnu, `invalid_state` s'il n'est pas temporaire |
 | `tunnel.check_target { id }` | essaie la cible une seule fois, à la demande (jamais sur minuterie) → `{ health }` ; `not_found` si l'id est inconnu, `invalid_state` si le tunnel ne tourne pas ou est dynamique (sans cible) ; la santé du tunnel est mise à jour (événement `tunnel.changed`) |
+| `tunnel.open { id, with? }` | ouvre le tunnel avec son action par défaut ou l'application `with` (D15). Tunnel arrêté → démarré puis ouvert une fois `Active` ou `Standby` (délai borné) ; `not_found`, `invalid_state` pour un `remote`, `unknown_opener` si `with` est inconnu ou indisponible |
+| `openers.update { openers }` | remplace la liste `[[openers]]` (une écriture) ; la liste disponible (préréglages détectés + utilisateur, avec la source) est dans `state.snapshot` |
 | `tag.start` / `tag.stop` | |
 | `tags.rename { from, to }` | renomme le tag dans tous les tunnels et dans `start_on_launch_tags` (une écriture, fusion si `to` existe) → `{ renamedCount }` |
 | `tags.delete { tag }` | retire le tag de tous les tunnels et de `start_on_launch_tags` (une écriture, les tunnels sont conservés, aucun redémarrage) → `{ removedCount }` ; `not_found` si aucun tunnel ne le porte |
@@ -224,7 +261,8 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 - **Palette de commandes** `Ctrl+K` (motif combobox + listbox, raccourcis via `useGlobalHotkeysStore`) : démarrer/arrêter tunnel ou tag, ouvrir, créer.
 - **Prompts modaux** : passphrase/mot de passe, clé d'hôte inconnue, confirmation de sortie.
 - **Tray** : icône selon l'état global (gris = rien, vert = actifs OK, orange = reconnexion/cible down, rouge = erreur) — chaque état a aussi une **forme/pictogramme distinct** et un tooltip textuel (« 3 tunnels actifs, 1 en reconnexion »). Menu : tags (toggle), *Ouvrir Tunneler*, *Quitter*.
-- **Ouvrir dans le navigateur** : `http://localhost:<port>` pour un tunnel local actif, depuis le menu de ligne, le panneau détail ou la palette (pas de clic sur le port : la liste garde un arrêt de tabulation par contrôle). L'URL est construite côté natif, limitée aux adresses locales/IP.
+- **Ouvrir** (D15) : action par défaut du tunnel (navigateur ou application), depuis le menu de ligne, le panneau détail ou la palette (pas de clic sur le port : la liste garde un arrêt de tabulation par contrôle). Le libellé dit ce qui va se passer (« Ouvrir dans le navigateur », « Ouvrir avec Remmina »). Sous-menu « Ouvrir avec… » listant les autres applications, et une commande de palette par application (« Ouvrir 5999 avec Remmina »). Un tunnel arrêté est démarré puis ouvert, en un seul geste. Formulaire d'édition, section « Ouverture » : schéma, chemin, hôte (réglage général / `localhost` / IP), application (automatique / navigateur / liste), aperçu textuel de l'URL ou de la commande finale. Réglages : hôte préféré, applications (détectées, en lecture seule ; ajoutées, modifiables).
+- **Veille** (D14) : réglage général « Mettre les tunnels en veille » et choix par tunnel (hériter / oui / non) dans le formulaire. Badge d'état « Veille » (icône + texte, dans le nom accessible du switch). Tray : la veille seule garde l'icône « rien », le tooltip la compte (« 2 en veille »).
 
 ---
 
@@ -258,6 +296,7 @@ Cible : **WCAG 2.2 niveau AA** pour l'UI ; CLI conforme aux conventions `NO_COLO
 - `--help` complet avec exemples, aide par sous-commande.
 - **Tunnels temporaires** : `tunneler up <hôte> -L [bind:]port[:hôte:port] | -R [bind:]port[:hôte:port] | -D [bind:]port` (syntaxe OpenSSH, un seul forward par appel ; un port seul vaut le même port sur le loopback de l'hôte, comme les défauts du formulaire). Si un tunnel enregistré fait déjà ce forward (genre, hôte, port d'écoute, cible), il est démarré à la place ; sinon un tunnel temporaire est démarré et la commande d'arrêt est affichée (`tunneler down hôte:port`). `list`/`status` ajoutent `(temporaire)` et leur `--json` porte `isTemporary`.
 - **Vérification de la cible** : `tunneler check <port | hôte:port | tag>` essaie la cible d'un tunnel local ou distant démarré, une seule fois (`tunnel.check_target`), et affiche `<libellé> : target reachable` (code 0) ou l'erreur sur stderr (code 7, `TARGET_UNREACHABLE`). Un tunnel arrêté ou dynamique donne `invalid_state` (code 1).
+- **Ouverture** : `tunneler open <sélecteur> [--with <app>]` passe par `tunnel.open` ; une application inconnue donne la liste des disponibles. `list`/`status` affichent `veille` comme état.
 - **Sélecteurs de tunnel** (`up`, `down`, `open`, `check`) : un nombre (`3333`) désigne le tunnel qui écoute sur ce port (erreur listant les `hôte:port` candidats s'il y en a plusieurs), `hôte:port` (`nova:3333`) celui de cet hôte, tout le reste est un tag (casse ignorée). `--tag` force la lecture en tag. `open` exige un seul tunnel. `list` et `status` affichent le libellé de la route, pas un nom.
 
 ---
