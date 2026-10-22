@@ -357,7 +357,7 @@ async fn should_report_a_standby_tunnel_as_success_when_up_targets_it() {
     assert_eq!(code(&output), 0, "{}", stderr(&output));
     let steps = stdout(&output);
     assert!(
-        has_step(&steps, fixture.listen_ports[0], "en veille"),
+        has_step(&steps, fixture.listen_ports[0], "standby"),
         "{steps}"
     );
 }
@@ -377,7 +377,7 @@ async fn should_carry_the_standby_state_when_status_prints_json() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn should_print_the_word_veille_without_escape_sequences_when_status_runs_without_color() {
+async fn should_print_the_word_standby_without_escape_sequences_when_status_runs_without_color() {
     let fixture = Fixture::start().await;
     make_first_tunnel_standby(&fixture);
     fixture.run(&["up", "alpha"]).await;
@@ -389,7 +389,7 @@ async fn should_print_the_word_veille_without_escape_sequences_when_status_runs_
     let text = stdout(&output);
     assert!(!text.contains(ESCAPE), "{text}");
     assert!(
-        text.contains(&format!("veille  {} ", fixture.listen_ports[0])),
+        text.contains(&format!("standby  {} ", fixture.listen_ports[0])),
         "{text}"
     );
 }

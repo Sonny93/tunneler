@@ -21,6 +21,7 @@ rpassword.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 ssh-config.workspace = true
+sys-locale.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time", "sync", "signal", "io-util", "process"] }
 tokio-util = { workspace = true, features = ["rt"] }

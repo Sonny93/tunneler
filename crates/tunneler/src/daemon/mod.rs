@@ -6,6 +6,7 @@
 //! until a termination signal or an accepted `daemon.quit` stops it.
 
 mod console;
+mod display_language;
 mod error;
 mod events;
 mod handler;
@@ -41,6 +42,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
 pub(crate) use console::release_console_if_owned;
+use display_language::DisplayLanguage;
 pub use error::DaemonError;
 use events::spawn_event_bridge;
 use handler::{DaemonHandler, LocalEffects};
@@ -220,6 +222,7 @@ fn start_standby_signals(engine: &Engine, shutdown: CancellationToken) -> JoinHa
                 StandbyPreferences {
                     notify: settings.standby_notify,
                     sound: settings.standby_sound,
+                    language: DisplayLanguage::current(settings.language),
                 }
             }
         },

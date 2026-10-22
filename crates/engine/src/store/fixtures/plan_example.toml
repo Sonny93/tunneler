@@ -18,6 +18,7 @@ standby = false                   # local/dynamic tunnels hold their port withou
 standby_idle_s = 300              # back to standby after this long without a connection
 standby_notify = "visual"         # none | visual | sound | both, when a standby tunnel wakes up or fails to
 standby_sound = "pluck"           # system | chime | marimba | pluck, the sound played in sound mode
+language = "system"               # system | en | fr, the language of the UI, tray and notifications; system follows the OS
 check_for_updates = true          # the UI looks for a newer release when it opens
 
 [[tunnels]]

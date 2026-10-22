@@ -28,7 +28,7 @@ const DAEMON_DISCONNECTED_EVENT: &str = "daemon-disconnected";
 const DAEMON_SUBCOMMAND: &str = "daemon";
 const EXIT_SUCCESS: i32 = 0;
 const CLAIM_TIMEOUT: Duration = Duration::from_secs(5);
-const DISCONNECTED_MESSAGE: &str = "La connexion au daemon a été perdue.";
+const DISCONNECTED_MESSAGE: &str = "The connection to the daemon was lost.";
 
 #[derive(Serialize, Clone)]
 struct DisconnectedPayload {

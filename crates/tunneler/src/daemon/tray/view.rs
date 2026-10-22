@@ -5,6 +5,8 @@ use std::collections::BTreeMap;
 
 use engine::{EngineSnapshot, TargetHealth, TunnelSnapshot, TunnelState};
 
+use crate::daemon::display_language::DisplayLanguage;
+
 const TOOLTIP_PREFIX: &str = "Tunneler — ";
 const SUMMARY_SEPARATOR: &str = ", ";
 
@@ -37,14 +39,20 @@ pub(crate) struct TagEntry {
 impl TagEntry {
     /// The text of the menu item: the state is spelled out, not only checked.
     #[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
-    pub(crate) fn label(&self) -> String {
-        format!("{} — {} sur {} actifs", self.tag, self.running, self.total)
+    pub(crate) fn label(&self, language: DisplayLanguage) -> String {
+        let (running, total) = (self.running, self.total);
+        match language {
+            DisplayLanguage::English => format!("{} — {running} of {total} active", self.tag),
+            DisplayLanguage::French => format!("{} — {running} sur {total} actifs", self.tag),
+        }
     }
 }
 
 /// Everything the tray displays; two equal views need no redraw.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct TrayView {
+    /// The language of the texts of the menu.
+    pub(crate) language: DisplayLanguage,
     /// Picks the icon.
     pub(crate) status: GlobalStatus,
     /// The hover text of the icon.
@@ -103,19 +111,20 @@ impl Counts {
         }
     }
 
-    fn summary(&self) -> String {
+    fn summary(&self, language: DisplayLanguage) -> String {
+        let wordings = SituationWordings::of(language);
         let optional_parts = [
-            (self.standby, "en veille"),
-            (self.starting, "en démarrage"),
-            (self.reconnecting, "en reconnexion"),
-            (self.failed, "en échec"),
+            (self.standby, wordings.standby),
+            (self.starting, wordings.starting),
+            (self.reconnecting, wordings.reconnecting),
+            (self.failed, wordings.failed),
         ]
         .into_iter()
         .filter(|(count, _)| *count > 0)
         .map(|(count, wording)| format!("{count} {wording}"));
-        std::iter::once(describe_active(self.active))
+        std::iter::once(describe_active(self.active, language))
             .chain(optional_parts)
-            .chain(describe_unreachable(self.unreachable))
+            .chain(describe_unreachable(self.unreachable, language))
             .collect::<Vec<_>>()
             .join(SUMMARY_SEPARATOR)
     }
@@ -125,19 +134,52 @@ fn is_unreachable_while_running(tunnel: &TunnelSnapshot) -> bool {
     tunnel.state.is_running() && matches!(tunnel.health, TargetHealth::Unreachable { .. })
 }
 
-fn describe_active(count: usize) -> String {
-    match count {
-        0 => "aucun tunnel actif".to_owned(),
-        1 => "1 tunnel actif".to_owned(),
-        count => format!("{count} tunnels actifs"),
+/// What follows a count in the summary, for the situations that need no
+/// plural.
+struct SituationWordings {
+    standby: &'static str,
+    starting: &'static str,
+    reconnecting: &'static str,
+    failed: &'static str,
+}
+
+impl SituationWordings {
+    fn of(language: DisplayLanguage) -> Self {
+        match language {
+            DisplayLanguage::English => Self {
+                standby: "on standby",
+                starting: "starting",
+                reconnecting: "reconnecting",
+                failed: "failed",
+            },
+            DisplayLanguage::French => Self {
+                standby: "en veille",
+                starting: "en démarrage",
+                reconnecting: "en reconnexion",
+                failed: "en échec",
+            },
+        }
     }
 }
 
-fn describe_unreachable(count: usize) -> Option<String> {
-    match count {
-        0 => None,
-        1 => Some("1 cible injoignable".to_owned()),
-        count => Some(format!("{count} cibles injoignables")),
+fn describe_active(count: usize, language: DisplayLanguage) -> String {
+    match (language, count) {
+        (DisplayLanguage::English, 0) => "no active tunnel".to_owned(),
+        (DisplayLanguage::English, 1) => "1 active tunnel".to_owned(),
+        (DisplayLanguage::English, count) => format!("{count} active tunnels"),
+        (DisplayLanguage::French, 0) => "aucun tunnel actif".to_owned(),
+        (DisplayLanguage::French, 1) => "1 tunnel actif".to_owned(),
+        (DisplayLanguage::French, count) => format!("{count} tunnels actifs"),
+    }
+}
+
+fn describe_unreachable(count: usize, language: DisplayLanguage) -> Option<String> {
+    match (language, count) {
+        (_, 0) => None,
+        (DisplayLanguage::English, 1) => Some("1 unreachable target".to_owned()),
+        (DisplayLanguage::English, count) => Some(format!("{count} unreachable targets")),
+        (DisplayLanguage::French, 1) => Some("1 cible injoignable".to_owned()),
+        (DisplayLanguage::French, count) => Some(format!("{count} cibles injoignables")),
     }
 }
 
@@ -171,17 +213,27 @@ fn tag_entries(tunnels: &[TunnelSnapshot]) -> Vec<TagEntry> {
     entries
 }
 
-/// What the tray displays for this snapshot.
-pub(crate) fn tray_view(snapshot: &EngineSnapshot) -> TrayView {
+/// What the tray displays for this snapshot, in `language`.
+pub(crate) fn tray_view(snapshot: &EngineSnapshot, language: DisplayLanguage) -> TrayView {
     let counts = Counts::of(&snapshot.tunnels);
-    let summary = counts.summary();
+    let summary = counts.summary(language);
     TrayView {
+        language,
         status: counts.global_status(),
         tooltip: format!("{TOOLTIP_PREFIX}{summary}"),
         summary_line: capitalize_first_letter(&summary),
         tags: tag_entries(&snapshot.tunnels),
         has_awake_tunnels: snapshot.tunnels.iter().any(|tunnel| tunnel.is_awake),
     }
+}
+
+/// What the tray displays for this snapshot, in the language its settings
+/// ask for.
+pub(crate) fn current_tray_view(snapshot: &EngineSnapshot) -> TrayView {
+    tray_view(
+        snapshot,
+        DisplayLanguage::current(snapshot.settings.language),
+    )
 }
 
 #[cfg(test)]
@@ -237,15 +289,22 @@ mod tests {
         }
     }
 
+    fn view_in(language: DisplayLanguage, tunnels: Vec<TunnelSnapshot>) -> TrayView {
+        tray_view(
+            &EngineSnapshot {
+                tunnels,
+                settings: Settings::default(),
+                externals: Vec::new(),
+                x11_anchors: Vec::new(),
+                x11_launchers: Vec::new(),
+                openers: Vec::new(),
+            },
+            language,
+        )
+    }
+
     fn view_of(tunnels: Vec<TunnelSnapshot>) -> TrayView {
-        tray_view(&EngineSnapshot {
-            tunnels,
-            settings: Settings::default(),
-            externals: Vec::new(),
-            x11_anchors: Vec::new(),
-            x11_launchers: Vec::new(),
-            openers: Vec::new(),
-        })
+        view_in(DisplayLanguage::English, tunnels)
     }
 
     fn active(tags: &[&str]) -> TunnelSnapshot {
@@ -318,7 +377,7 @@ mod tests {
 
         assert_eq!(
             view_of(vec![standby(), standby()]).summary_line,
-            "Aucun tunnel actif, 2 en veille"
+            "No active tunnel, 2 on standby"
         );
     }
 
@@ -338,7 +397,7 @@ mod tests {
         let view = view_of(vec![tunnel(TunnelState::Active, unreachable(), &[])]);
 
         assert_eq!(view.status, GlobalStatus::Degraded);
-        assert_eq!(view.summary_line, "1 tunnel actif, 1 cible injoignable");
+        assert_eq!(view.summary_line, "1 active tunnel, 1 unreachable target");
     }
 
     #[test]
@@ -360,19 +419,19 @@ mod tests {
 
     #[test]
     fn should_say_that_no_tunnel_is_active_when_nothing_runs() {
-        assert_eq!(view_of(vec![]).summary_line, "Aucun tunnel actif");
+        assert_eq!(view_of(vec![]).summary_line, "No active tunnel");
     }
 
     #[test]
     fn should_use_the_singular_when_one_tunnel_is_active() {
-        assert_eq!(view_of(vec![active(&[])]).summary_line, "1 tunnel actif");
+        assert_eq!(view_of(vec![active(&[])]).summary_line, "1 active tunnel");
     }
 
     #[test]
     fn should_use_the_plural_when_several_tunnels_are_active() {
         let tunnels = vec![active(&[]), active(&[]), active(&[])];
 
-        assert_eq!(view_of(tunnels).summary_line, "3 tunnels actifs");
+        assert_eq!(view_of(tunnels).summary_line, "3 active tunnels");
     }
 
     #[test]
@@ -388,7 +447,7 @@ mod tests {
 
         assert_eq!(
             view_of(tunnels).summary_line,
-            "3 tunnels actifs, 1 en démarrage, 1 en reconnexion, 1 en échec, 2 cibles injoignables"
+            "3 active tunnels, 1 starting, 1 reconnecting, 1 failed, 2 unreachable targets"
         );
     }
 
@@ -403,7 +462,7 @@ mod tests {
 
         assert_eq!(
             view_of(tunnels).tooltip,
-            "Tunneler — 3 tunnels actifs, 1 en reconnexion"
+            "Tunneler — 3 active tunnels, 1 reconnecting"
         );
     }
 
@@ -445,7 +504,7 @@ mod tests {
         let view = view_of(vec![active(&["dev"]), stopped(&["dev"])]);
 
         assert!(!view.tags[0].is_checked);
-        assert_eq!(view.tags[0].label(), "dev — 1 sur 2 actifs");
+        assert_eq!(view.tags[0].label(view.language), "dev — 1 of 2 active");
     }
 
     #[test]
@@ -491,5 +550,63 @@ mod tests {
         let tunnels = || vec![active(&["dev"])];
 
         assert_eq!(view_of(tunnels()), view_of(tunnels()));
+    }
+
+    #[test]
+    fn should_summarize_in_french_when_the_language_is_french() {
+        let tunnels = vec![
+            active(&[]),
+            active(&[]),
+            tunnel(
+                TunnelState::Standby { last_failure: None },
+                TargetHealth::Unknown,
+                &[],
+            ),
+            tunnel(TunnelState::Starting, TargetHealth::Unknown, &[]),
+            tunnel(reconnecting(), TargetHealth::Unknown, &[]),
+            tunnel(failed(), TargetHealth::Unknown, &[]),
+            tunnel(TunnelState::Active, unreachable(), &[]),
+        ];
+
+        let view = view_in(DisplayLanguage::French, tunnels);
+
+        assert_eq!(
+            view.summary_line,
+            "3 tunnels actifs, 1 en veille, 1 en démarrage, 1 en reconnexion, 1 en échec, 1 cible injoignable"
+        );
+        assert_eq!(
+            view.tooltip,
+            format!("Tunneler — {}", view.summary_line.to_lowercase())
+        );
+    }
+
+    #[test]
+    fn should_use_the_french_singular_and_zero_forms_when_the_language_is_french() {
+        assert_eq!(
+            view_in(DisplayLanguage::French, vec![]).summary_line,
+            "Aucun tunnel actif"
+        );
+        assert_eq!(
+            view_in(DisplayLanguage::French, vec![active(&[])]).summary_line,
+            "1 tunnel actif"
+        );
+    }
+
+    #[test]
+    fn should_label_a_tag_in_french_when_the_language_is_french() {
+        let view = view_in(
+            DisplayLanguage::French,
+            vec![active(&["dev"]), stopped(&["dev"])],
+        );
+
+        assert_eq!(view.tags[0].label(view.language), "dev — 1 sur 2 actifs");
+    }
+
+    #[test]
+    fn should_report_different_views_when_only_the_language_differs() {
+        assert_ne!(
+            view_in(DisplayLanguage::English, vec![]),
+            view_in(DisplayLanguage::French, vec![])
+        );
     }
 }

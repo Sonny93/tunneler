@@ -69,6 +69,19 @@ pub enum StandbySoundDto {
     Pluck,
 }
 
+/// The language of the UI, the tray and the notifications.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LanguageDto {
+    /// The language of the operating system.
+    #[default]
+    System,
+    /// English.
+    En,
+    /// French.
+    Fr,
+}
+
 /// What a sound announces.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -452,6 +465,9 @@ pub struct SettingsDto {
     /// The sound played when a wake-up, or its failure, is signalled by sound.
     #[serde(default)]
     pub standby_sound: StandbySoundDto,
+    /// The language of the UI, the tray and the notifications.
+    #[serde(default)]
+    pub language: LanguageDto,
     /// Whether the UI looks for a newer release when it opens.
     #[serde(default = "default_check_for_updates")]
     pub check_for_updates: bool,

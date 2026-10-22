@@ -7,8 +7,9 @@
 			"nsis": {
 				"installMode": "both",
 				"startMenuFolder": "Tunneler",
-				"languages": ["French"],
+				"languages": ["English", "French"],
 				"customLanguageFiles": {
+					"English": "windows/English.nsh",
 					"French": "windows/French.nsh"
 				},
 				"installerHooks": "windows/hooks.nsh"

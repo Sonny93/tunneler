@@ -34,28 +34,25 @@ impl BridgeError {
     pub fn disconnected() -> Self {
         Self::new(
             CODE_DISCONNECTED,
-            "La connexion au daemon a été perdue.".to_owned(),
+            "The connection to the daemon was lost.".to_owned(),
         )
     }
 
     /// A failure of the bridge itself.
     pub fn internal(cause: &str) -> Self {
-        Self::new(CODE_INTERNAL, format!("Erreur interne : {cause}"))
+        Self::new(CODE_INTERNAL, format!("Internal error: {cause}"))
     }
 
     /// Downloading, verifying or installing the update failed.
     pub fn update_failed(cause: &dyn std::fmt::Display) -> Self {
-        Self::new(
-            CODE_UPDATE_FAILED,
-            format!("La mise à jour a échoué : {cause}"),
-        )
+        Self::new(CODE_UPDATE_FAILED, format!("The update failed: {cause}"))
     }
 
     /// There is no update to install or to show, or this form cannot install it.
     pub fn update_unavailable() -> Self {
         Self::new(
             CODE_UPDATE_UNAVAILABLE,
-            "Aucune mise à jour installable n'est disponible.".to_owned(),
+            "No installable update is available.".to_owned(),
         )
     }
 
@@ -63,7 +60,7 @@ impl BridgeError {
     pub fn daemon_unreachable(cause: &dyn std::fmt::Display) -> Self {
         Self::new(
             CODE_DAEMON_UNREACHABLE,
-            format!("Impossible de démarrer le daemon : {cause}"),
+            format!("Cannot start the daemon: {cause}"),
         )
     }
 
@@ -111,7 +108,7 @@ impl BridgeError {
     fn protocol_mismatch(error: &ClientError) -> Self {
         Self::new(
             CODE_PROTOCOL_MISMATCH,
-            format!("Le daemon et l'interface ne sont pas compatibles : {error}"),
+            format!("The daemon and the interface are not compatible: {error}"),
         )
     }
 }

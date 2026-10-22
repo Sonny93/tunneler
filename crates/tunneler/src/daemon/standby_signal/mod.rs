@@ -35,12 +35,11 @@ use tokio::task::JoinHandle;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
+use super::display_language::DisplayLanguage;
+
 /// The least time between two wake-failure signals of one tunnel: a browser
 /// that retries would otherwise signal on every attempt.
 const WAKE_FAILURE_THROTTLE: Duration = Duration::from_secs(30);
-
-const WOKE_SUMMARY: &str = "Tunnel sorti de veille";
-const WAKE_FAILED_SUMMARY: &str = "Réveil impossible";
 
 /// What happened to a standby tunnel; also picks the sound.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,6 +70,8 @@ pub(crate) struct StandbyPreferences {
     pub(crate) notify: StandbyNotify,
     /// The sound played when the signals include one.
     pub(crate) sound: StandbySound,
+    /// The language of the notification.
+    pub(crate) language: DisplayLanguage,
 }
 
 /// What a mode asks for when an event happens.
@@ -123,11 +124,19 @@ impl Occurrence {
     }
 
     /// The summary and the body of the notification.
-    fn text(&self) -> (String, String) {
-        match self {
-            Self::Woke { label, .. } => (WOKE_SUMMARY.to_owned(), label.clone()),
-            Self::WakeFailed { label, reason, .. } => (
-                WAKE_FAILED_SUMMARY.to_owned(),
+    fn text(&self, language: DisplayLanguage) -> (String, String) {
+        match (self, language) {
+            (Self::Woke { label, .. }, DisplayLanguage::English) => {
+                ("Tunnel woke from standby".to_owned(), label.clone())
+            }
+            (Self::Woke { label, .. }, DisplayLanguage::French) => {
+                ("Tunnel sorti de veille".to_owned(), label.clone())
+            }
+            (Self::WakeFailed { label, reason, .. }, DisplayLanguage::English) => {
+                ("Wake failed".to_owned(), format!("{label}: {reason}"))
+            }
+            (Self::WakeFailed { label, reason, .. }, DisplayLanguage::French) => (
+                "Réveil impossible".to_owned(),
                 format!("{label} : {reason}"),
             ),
         }
@@ -195,7 +204,7 @@ impl StandbySignals {
             self.sound_player.play(preferences.sound, event);
         }
         if signal.shows_notification {
-            let (summary, body) = occurrence.text();
+            let (summary, body) = occurrence.text(preferences.language);
             self.notifier.notify(&summary, &body).await;
         }
     }
@@ -279,6 +288,7 @@ mod tests {
         StandbyPreferences {
             notify,
             sound: StandbySound::Pluck,
+            language: DisplayLanguage::English,
         }
     }
 
@@ -374,7 +384,7 @@ mod tests {
         assert_eq!(
             *fixture.notifier.shown.lock().unwrap(),
             vec![(
-                "Tunnel sorti de veille".to_owned(),
+                "Tunnel woke from standby".to_owned(),
                 "3333 → nova:3333".to_owned()
             )]
         );
@@ -396,9 +406,41 @@ mod tests {
         assert_eq!(
             *fixture.notifier.shown.lock().unwrap(),
             vec![(
-                "Réveil impossible".to_owned(),
-                "3333 → nova:3333 : authentication failed".to_owned()
+                "Wake failed".to_owned(),
+                "3333 → nova:3333: authentication failed".to_owned()
             )]
+        );
+    }
+
+    #[tokio::test]
+    async fn should_notify_in_french_when_the_language_is_french() {
+        let mut fixture = fixture();
+        let french = StandbyPreferences {
+            language: DisplayLanguage::French,
+            ..preferences(StandbyNotify::Visual)
+        };
+
+        fixture
+            .signals
+            .signal(french, &woke(TunnelId::generate()), Instant::now())
+            .await;
+        fixture
+            .signals
+            .signal(french, &wake_failed(TunnelId::generate()), Instant::now())
+            .await;
+
+        assert_eq!(
+            *fixture.notifier.shown.lock().unwrap(),
+            vec![
+                (
+                    "Tunnel sorti de veille".to_owned(),
+                    "3333 → nova:3333".to_owned()
+                ),
+                (
+                    "Réveil impossible".to_owned(),
+                    "3333 → nova:3333 : authentication failed".to_owned()
+                )
+            ]
         );
     }
 
@@ -447,6 +489,7 @@ mod tests {
                 StandbyPreferences {
                     notify: StandbyNotify::Sound,
                     sound: StandbySound::Marimba,
+                    language: DisplayLanguage::English,
                 },
                 &woke(TunnelId::generate()),
                 Instant::now(),
@@ -564,7 +607,7 @@ mod tests {
         assert_eq!(
             *notifier.shown.lock().unwrap(),
             vec![(
-                "Tunnel sorti de veille".to_owned(),
+                "Tunnel woke from standby".to_owned(),
                 "3333 → nova:3333".to_owned()
             )]
         );

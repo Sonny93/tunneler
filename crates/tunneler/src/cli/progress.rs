@@ -139,7 +139,7 @@ pub fn describe_step(tunnel_label: &str, state: &TunnelStateDto, style: Style) -
     match state {
         TunnelStateDto::Starting => format!("{tunnel_label}: connecting{}", style.ellipsis()),
         TunnelStateDto::Active => format!("{tunnel_label}: active"),
-        TunnelStateDto::Standby { .. } => format!("{tunnel_label}: en veille"),
+        TunnelStateDto::Standby { .. } => format!("{tunnel_label}: standby"),
         TunnelStateDto::Reconnecting { attempt, .. } => {
             format!("{tunnel_label}: reconnecting (attempt {attempt})")
         }
@@ -235,6 +235,7 @@ mod tests {
                 standby_idle_s: 300,
                 standby_notify: ipc::protocol::StandbyNotifyDto::Visual,
                 standby_sound: ipc::protocol::StandbySoundDto::Pluck,
+                language: ipc::protocol::LanguageDto::System,
                 check_for_updates: true,
             },
         }
@@ -433,7 +434,7 @@ mod tests {
     }
 
     #[test]
-    fn should_announce_standby_as_en_veille() {
+    fn should_announce_standby_as_standby() {
         let state = TunnelStateDto::Standby { last_failure: None };
 
         assert_eq!(
@@ -445,7 +446,7 @@ mod tests {
                     unicode: true
                 }
             ),
-            "3333 → nova:3333: en veille"
+            "3333 → nova:3333: standby"
         );
     }
 

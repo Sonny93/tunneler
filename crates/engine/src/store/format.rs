@@ -13,7 +13,7 @@ use super::document_update;
 use super::error::{SourceLocation, StoreError};
 use super::migration::{CURRENT_VERSION, migrate};
 use super::model::{
-    HostOverrides, OpenHost, OpenOptions, OpenScheme, Opener, Settings, StandbyNotify,
+    HostOverrides, Language, OpenHost, OpenOptions, OpenScheme, Opener, Settings, StandbyNotify,
     StandbySound, StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
 };
 use super::validation::validate;
@@ -89,6 +89,7 @@ struct StoredSettings {
     standby_idle_s: Option<u64>,
     standby_notify: Option<StoredStandbyNotify>,
     standby_sound: Option<StoredStandbySound>,
+    language: Option<StoredLanguage>,
     check_for_updates: Option<bool>,
 }
 
@@ -108,6 +109,16 @@ enum StoredStandbySound {
     Chime,
     Marimba,
     Pluck,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+enum StoredLanguage {
+    #[serde(rename = "system")]
+    System,
+    #[serde(rename = "en")]
+    English,
+    #[serde(rename = "fr")]
+    French,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -313,6 +324,7 @@ impl StoredSettings {
             standby_sound: self
                 .standby_sound
                 .map_or(defaults.standby_sound, StandbySound::from),
+            language: self.language.map_or(defaults.language, Language::from),
             check_for_updates: self.check_for_updates.unwrap_or(defaults.check_for_updates),
         }
     }
@@ -345,6 +357,16 @@ impl From<StoredStandbySound> for StandbySound {
             StoredStandbySound::Chime => Self::Chime,
             StoredStandbySound::Marimba => Self::Marimba,
             StoredStandbySound::Pluck => Self::Pluck,
+        }
+    }
+}
+
+impl From<StoredLanguage> for Language {
+    fn from(language: StoredLanguage) -> Self {
+        match language {
+            StoredLanguage::System => Self::System,
+            StoredLanguage::English => Self::English,
+            StoredLanguage::French => Self::French,
         }
     }
 }
@@ -934,6 +956,28 @@ mod tests {
     fn should_reject_an_unknown_standby_sound_setting() {
         assert!(matches!(
             parse("[settings]\nstandby_sound = \"siren\"\n"),
+            Err(StoreError::Parse { .. })
+        ));
+    }
+
+    #[test]
+    fn should_read_the_language_setting_when_it_is_given() {
+        let outcome = parse("[settings]\nlanguage = \"fr\"\n").unwrap();
+
+        assert_eq!(outcome.document.settings.language, Language::French);
+    }
+
+    #[test]
+    fn should_follow_the_system_language_when_the_language_setting_is_absent() {
+        let outcome = parse("version = 1\n").unwrap();
+
+        assert_eq!(outcome.document.settings.language, Language::System);
+    }
+
+    #[test]
+    fn should_reject_an_unknown_language_setting() {
+        assert!(matches!(
+            parse("[settings]\nlanguage = \"de\"\n"),
             Err(StoreError::Parse { .. })
         ));
     }

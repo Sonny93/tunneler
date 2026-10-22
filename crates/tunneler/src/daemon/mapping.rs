@@ -7,22 +7,23 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use engine::{
     AvailableOpener, DefaultOpener, EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision,
-    ImportCandidate, ImportPreview, ImportWarning, InvalidTunnelId, LogLevel, NewTunnel, OpenHost,
-    OpenOptions, OpenScheme, Opener, OpenerSource, PortOwner, RejectedHostKey, RejectionReason,
-    Retention, Settings, SshForward, StandbyNotify, StandbySound, TargetHealth, TunnelDefinition,
-    TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot, TunnelState,
-    UnmanagedProcess, X11AnchorSnapshot, X11AnchorState, X11Launcher, default_opener,
+    ImportCandidate, ImportPreview, ImportWarning, InvalidTunnelId, Language, LogLevel, NewTunnel,
+    OpenHost, OpenOptions, OpenScheme, Opener, OpenerSource, PortOwner, RejectedHostKey,
+    RejectionReason, Retention, Settings, SshForward, StandbyNotify, StandbySound, TargetHealth,
+    TunnelDefinition, TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot,
+    TunnelState, UnmanagedProcess, X11AnchorSnapshot, X11AnchorState, X11Launcher, default_opener,
 };
 use ipc::protocol::{
     AvailableOpenerDto, ConfigInvalidEvent, DefaultOpenerDto, EpochMillis, EventMessage,
     ExternalForwardDto, ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto,
     HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent, HostOptionDto,
-    ImportCandidateDto, ImportPreviewDto, ImportWarningDto, LogEntryDto, LogLevelDto, MetricsDto,
-    OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto, OpenerSpecDto, PortOwnerDto,
-    RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, SoundEventDto, StandbyNotifyDto,
-    StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto, TrayStatusDto, TunnelChangedEvent,
-    TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent,
-    TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11ChangedEvent, X11LauncherDto, X11StateDto,
+    ImportCandidateDto, ImportPreviewDto, ImportWarningDto, LanguageDto, LogEntryDto, LogLevelDto,
+    MetricsDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto, OpenerSpecDto,
+    PortOwnerDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, SoundEventDto,
+    StandbyNotifyDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto, TrayStatusDto,
+    TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelLogEvent,
+    TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11ChangedEvent,
+    X11LauncherDto, X11StateDto,
 };
 
 use ssh_config::Resolution;
@@ -123,6 +124,22 @@ fn standby_notify_from_dto(mode: StandbyNotifyDto) -> StandbyNotify {
         StandbyNotifyDto::Visual => StandbyNotify::Visual,
         StandbyNotifyDto::Sound => StandbyNotify::Sound,
         StandbyNotifyDto::Both => StandbyNotify::Both,
+    }
+}
+
+fn language_to_dto(language: Language) -> LanguageDto {
+    match language {
+        Language::System => LanguageDto::System,
+        Language::English => LanguageDto::En,
+        Language::French => LanguageDto::Fr,
+    }
+}
+
+fn language_from_dto(language: LanguageDto) -> Language {
+    match language {
+        LanguageDto::System => Language::System,
+        LanguageDto::En => Language::English,
+        LanguageDto::Fr => Language::French,
     }
 }
 
@@ -375,6 +392,7 @@ pub(crate) fn settings_to_dto(settings: &Settings) -> SettingsDto {
         standby_idle_s: settings.standby_idle.as_secs(),
         standby_notify: standby_notify_to_dto(settings.standby_notify),
         standby_sound: standby_sound_to_dto(settings.standby_sound),
+        language: language_to_dto(settings.language),
         check_for_updates: settings.check_for_updates,
     }
 }
@@ -398,6 +416,7 @@ pub(crate) fn settings_from_dto(dto: SettingsDto) -> Settings {
         standby_idle: Duration::from_secs(dto.standby_idle_s),
         standby_notify: standby_notify_from_dto(dto.standby_notify),
         standby_sound: standby_sound_from_dto(dto.standby_sound),
+        language: language_from_dto(dto.language),
         check_for_updates: dto.check_for_updates,
     }
 }
@@ -892,6 +911,7 @@ mod tests {
             standby_idle: Duration::from_secs(90),
             standby_notify: StandbyNotify::Both,
             standby_sound: StandbySound::Marimba,
+            language: Language::French,
             check_for_updates: false,
             ..Settings::default()
         };

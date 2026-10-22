@@ -26,9 +26,9 @@ pub use error::{SourceLocation, StoreError};
 pub use file::{Store, default_store_path};
 pub use format::LoadOutcome;
 pub use model::{
-    BROWSER_OPENER_ID, HostOverrides, InvalidTunnelId, OpenHost, OpenOptions, OpenScheme, Opener,
-    Settings, StandbyNotify, StandbySound, StoreDocument, TunnelDefinition, TunnelId, TunnelKind,
-    X11Launcher,
+    BROWSER_OPENER_ID, HostOverrides, InvalidTunnelId, Language, OpenHost, OpenOptions, OpenScheme,
+    Opener, Settings, StandbyNotify, StandbySound, StoreDocument, TunnelDefinition, TunnelId,
+    TunnelKind, X11Launcher,
 };
 pub use state::{AppState, FileStateStore, StateStore, default_state_path};
 pub use validation::{

@@ -16,9 +16,9 @@ mod secret;
 pub use dto::{
     AvailableOpenerDto, CredentialRequestDto, DefaultOpenerDto, EpochMillis, ExternalForwardDto,
     ExternalProcessDto, FailureReasonDto, HostKeyAlertReasonDto, HostKeyDecisionDto, HostOptionDto,
-    ImportCandidateDto, ImportPreviewDto, ImportWarningDto, LogEntryDto, LogLevelDto, MetricsDto,
-    OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto, OpenerSpecDto, PortOwnerDto,
-    PromptDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, SoundEventDto,
+    ImportCandidateDto, ImportPreviewDto, ImportWarningDto, LanguageDto, LogEntryDto, LogLevelDto,
+    MetricsDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto, OpenerSpecDto,
+    PortOwnerDto, PromptDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, SoundEventDto,
     StandbyNotifyDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto, TrayStatusDto,
     TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
     X11LauncherDto, X11StateDto,

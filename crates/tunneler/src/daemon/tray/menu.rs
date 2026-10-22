@@ -8,17 +8,37 @@ use tray_icon::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuI
 
 #[cfg(any(target_os = "linux", windows))]
 use super::view::TrayView;
+use crate::daemon::display_language::DisplayLanguage;
 
 const TAG_ID_PREFIX: &str = "tag:";
 const OPEN_ID: &str = "open";
 const QUIT_ID: &str = "quit";
 const STANDBY_ID: &str = "standby";
-#[cfg(any(target_os = "linux", windows))]
-const OPEN_LABEL: &str = "Ouvrir Tunneler";
-#[cfg(any(target_os = "linux", windows))]
-const QUIT_LABEL: &str = "Quitter";
-#[cfg(any(target_os = "linux", windows))]
-const STANDBY_LABEL: &str = "Mettre en veille les tunnels réveillés";
+
+/// The fixed texts of the menu in one language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct MenuLabels {
+    open: &'static str,
+    quit: &'static str,
+    standby: &'static str,
+}
+
+impl MenuLabels {
+    fn of(language: DisplayLanguage) -> Self {
+        match language {
+            DisplayLanguage::English => Self {
+                open: "Open Tunneler",
+                quit: "Quit",
+                standby: "Send awake tunnels back to standby",
+            },
+            DisplayLanguage::French => Self {
+                open: "Ouvrir Tunneler",
+                quit: "Quitter",
+                standby: "Mettre en veille les tunnels réveillés",
+            },
+        }
+    }
+}
 
 /// What the user asked for through the tray.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,15 +84,20 @@ pub(crate) fn action_for_menu_id(menu_id: &str) -> Option<TrayAction> {
 #[cfg(any(target_os = "linux", windows))]
 pub(super) fn build_menu(view: &TrayView) -> tray_icon::menu::Result<Menu> {
     let summary = MenuItem::new(&view.summary_line, false, None);
-    let tag_items: Vec<CheckMenuItem> = view.tags.iter().map(tag_item).collect();
+    let labels = MenuLabels::of(view.language);
+    let tag_items: Vec<CheckMenuItem> = view
+        .tags
+        .iter()
+        .map(|entry| tag_item(entry, view.language))
+        .collect();
     let standby = MenuItem::with_id(
         TrayAction::StandbyAll.menu_id(),
-        STANDBY_LABEL,
+        labels.standby,
         view.has_awake_tunnels,
         None,
     );
-    let open = MenuItem::with_id(TrayAction::OpenUi.menu_id(), OPEN_LABEL, true, None);
-    let quit = MenuItem::with_id(TrayAction::Quit.menu_id(), QUIT_LABEL, true, None);
+    let open = MenuItem::with_id(TrayAction::OpenUi.menu_id(), labels.open, true, None);
+    let quit = MenuItem::with_id(TrayAction::Quit.menu_id(), labels.quit, true, None);
     let separator = PredefinedMenuItem::separator();
     let mut items: Vec<&dyn IsMenuItem> = vec![&summary, &separator];
     items.extend(tag_items.iter().map(|item| item as &dyn IsMenuItem));
@@ -84,10 +109,10 @@ pub(super) fn build_menu(view: &TrayView) -> tray_icon::menu::Result<Menu> {
 }
 
 #[cfg(any(target_os = "linux", windows))]
-fn tag_item(entry: &super::view::TagEntry) -> CheckMenuItem {
+fn tag_item(entry: &super::view::TagEntry, language: DisplayLanguage) -> CheckMenuItem {
     CheckMenuItem::with_id(
         TrayAction::ToggleTag(entry.tag.clone()).menu_id(),
-        entry.label(),
+        entry.label(language),
         true,
         entry.is_checked,
         None,
@@ -124,6 +149,30 @@ mod tests {
     #[test]
     fn should_ignore_an_unknown_identifier() {
         assert_eq!(action_for_menu_id("something-else"), None);
+    }
+
+    #[test]
+    fn should_label_the_items_in_english_when_the_language_is_english() {
+        assert_eq!(
+            MenuLabels::of(DisplayLanguage::English),
+            MenuLabels {
+                open: "Open Tunneler",
+                quit: "Quit",
+                standby: "Send awake tunnels back to standby",
+            }
+        );
+    }
+
+    #[test]
+    fn should_label_the_items_in_french_when_the_language_is_french() {
+        assert_eq!(
+            MenuLabels::of(DisplayLanguage::French),
+            MenuLabels {
+                open: "Ouvrir Tunneler",
+                quit: "Quitter",
+                standby: "Mettre en veille les tunnels réveillés",
+            }
+        );
     }
 
     #[test]

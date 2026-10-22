@@ -15,7 +15,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::TrayDisplay;
 use super::menu::TrayAction;
-use super::view::{TrayView, tray_view};
+use super::view::{TrayView, current_tray_view};
 use crate::daemon::ui::{UiCoordinator, UiLaunchError};
 
 /// What the tray needs from the tunnel engine.
@@ -187,7 +187,7 @@ impl TrayController {
     }
 
     fn refresh(&mut self) {
-        let view = tray_view(&self.engine.snapshot());
+        let view = current_tray_view(&self.engine.snapshot());
         if view != self.shown_view {
             self.show(view);
         }
@@ -210,7 +210,7 @@ impl TrayController {
     /// Redraws afterwards even when nothing changed: a native check item may
     /// have toggled itself.
     fn toggle_tag(&mut self, tag: &str) {
-        let is_running = tray_view(&self.engine.snapshot())
+        let is_running = current_tray_view(&self.engine.snapshot())
             .tags
             .iter()
             .any(|entry| entry.tag == tag && entry.is_checked);
@@ -222,7 +222,7 @@ impl TrayController {
         if let Err(error) = outcome {
             tracing::warn!(tag, %error, "the tray could not toggle the tag");
         }
-        self.show(tray_view(&self.engine.snapshot()));
+        self.show(current_tray_view(&self.engine.snapshot()));
     }
 
     fn standby_all(&self) {
@@ -269,10 +269,12 @@ mod tests {
     use std::time::Duration;
 
     use engine::{
-        Settings, TargetHealth, TunnelDefinition, TunnelId, TunnelKind, TunnelMetrics,
+        Language, Settings, TargetHealth, TunnelDefinition, TunnelId, TunnelKind, TunnelMetrics,
         TunnelSnapshot, TunnelState,
     };
     use pretty_assertions::assert_eq;
+
+    use crate::daemon::display_language::DisplayLanguage;
     use tokio::time::timeout;
 
     use super::*;
@@ -317,6 +319,7 @@ mod tests {
 
     struct FakeEngine {
         tunnels: Mutex<Vec<TunnelSnapshot>>,
+        language: Mutex<Language>,
         events: broadcast::Sender<EngineEvent>,
         started_tags: Mutex<Vec<String>>,
         stopped_tags: Mutex<Vec<String>>,
@@ -332,6 +335,7 @@ mod tests {
                 .count();
             Arc::new(Self {
                 tunnels: Mutex::new(tunnels),
+                language: Mutex::new(Language::English),
                 events: broadcast::channel(EVENT_CAPACITY).0,
                 started_tags: Mutex::new(Vec::new()),
                 stopped_tags: Mutex::new(Vec::new()),
@@ -344,6 +348,10 @@ mod tests {
             *self.tunnels.lock().unwrap() = tunnels;
         }
 
+        fn replace_language(&self, language: Language) {
+            *self.language.lock().unwrap() = language;
+        }
+
         fn announce_change(&self) {
             let changed = EngineEvent::ConfigReloaded;
             self.events.send(changed).unwrap();
@@ -354,7 +362,10 @@ mod tests {
         fn snapshot(&self) -> EngineSnapshot {
             EngineSnapshot {
                 tunnels: self.tunnels.lock().unwrap().clone(),
-                settings: Settings::default(),
+                settings: Settings {
+                    language: *self.language.lock().unwrap(),
+                    ..Settings::default()
+                },
                 externals: Vec::new(),
                 x11_anchors: Vec::new(),
                 x11_launchers: Vec::new(),
@@ -476,7 +487,7 @@ mod tests {
                     actions: action_receiver,
                     ui: ui.clone(),
                     quit_requested: quit_requested.clone(),
-                    shown_view: tray_view(&engine.snapshot()),
+                    shown_view: current_tray_view(&engine.snapshot()),
                 },
                 shutdown.clone(),
             );
@@ -524,7 +535,22 @@ mod tests {
         fixture
             .wait_until("the new view", || !fixture.display.shown().is_empty())
             .await;
-        assert_eq!(fixture.display.shown()[0].summary_line, "1 tunnel actif");
+        assert_eq!(fixture.display.shown()[0].summary_line, "1 active tunnel");
+    }
+
+    #[tokio::test]
+    async fn should_show_the_new_language_when_the_language_setting_changes() {
+        let fixture = Fixture::start(vec![]);
+        fixture.engine.replace_language(Language::French);
+
+        fixture.engine.announce_change();
+
+        fixture
+            .wait_until("the new view", || !fixture.display.shown().is_empty())
+            .await;
+        let view = fixture.display.shown().remove(0);
+        assert_eq!(view.language, DisplayLanguage::French);
+        assert_eq!(view.summary_line, "Aucun tunnel actif");
     }
 
     #[tokio::test]
@@ -576,7 +602,7 @@ mod tests {
         let engine = FakeEngine::with_tunnels(vec![tunnel(TunnelState::Active, &[])]);
         let display = Arc::new(RecordingDisplay::default());
         let (_actions, action_receiver) = mpsc::unbounded_channel();
-        let stale_view = tray_view(&FakeEngine::with_tunnels(vec![]).snapshot());
+        let stale_view = current_tray_view(&FakeEngine::with_tunnels(vec![]).snapshot());
 
         let task = spawn_tray_controller(
             TrayControllerParts {

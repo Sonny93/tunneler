@@ -1,6 +1,6 @@
 //! The notification-area icon of the daemon.
 //!
-//! The pure parts ([`tray_view`], [`render_icon`], the menu actions) know
+//! The pure parts ([`current_tray_view`], [`render_icon`], the menu actions) know
 //! nothing about the platform. The icon itself lives on a dedicated thread
 //! (see `platform`), because `tray-icon` objects are `!Send`; the controller
 //! drives it through a [`TrayDisplay`].
@@ -32,7 +32,7 @@ use controller::{TrayControllerParts, spawn_tray_controller};
 pub(crate) use menu::TrayAction;
 pub(crate) use publisher::spawn_tray_status_publisher;
 pub(crate) use status::{TrayStatus, TrayStatusCell};
-pub(crate) use view::{TrayView, tray_view};
+pub(crate) use view::{TrayView, current_tray_view};
 
 /// How long the daemon waits for the tray thread to report whether the icon
 /// could be created.
@@ -145,7 +145,7 @@ impl TrayService {
         quit_requested: CancellationToken,
         shutdown: CancellationToken,
     ) -> Self {
-        let initial_view = tray_view(&engine.snapshot());
+        let initial_view = current_tray_view(&engine.snapshot());
         let (actions_sender, actions) = mpsc::unbounded_channel();
         let handle = Arc::new(start_tray(initial_view.clone(), actions_sender, status).await);
         let controller = spawn_tray_controller(

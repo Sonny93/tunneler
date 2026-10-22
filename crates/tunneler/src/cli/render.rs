@@ -89,17 +89,14 @@ fn state_label(state: &TunnelStateDto, style: Style) -> StateLabel {
         ),
         TunnelStateDto::Starting => ("…", "[..]", "starting".to_owned(), Tone::Warning),
         TunnelStateDto::Standby { last_failure: None } => {
-            ("◌", "[zz]", "veille".to_owned(), Tone::Muted)
+            ("◌", "[zz]", "standby".to_owned(), Tone::Muted)
         }
         TunnelStateDto::Standby {
             last_failure: Some(reason),
         } => (
             "◌",
             "[zz]",
-            format!(
-                "veille (dernier réveil en échec : {})",
-                describe_failure(reason)
-            ),
+            format!("standby (last wake failed: {})", describe_failure(reason)),
             Tone::Warning,
         ),
         TunnelStateDto::Stopped => ("○", "[ ]", "stopped".to_owned(), Tone::Muted),
@@ -519,6 +516,7 @@ mod tests {
             standby_idle_s: 300,
             standby_notify: ipc::protocol::StandbyNotifyDto::Visual,
             standby_sound: ipc::protocol::StandbySoundDto::Pluck,
+            language: ipc::protocol::LanguageDto::System,
             check_for_updates: true,
         }
     }
@@ -750,16 +748,16 @@ mod tests {
     }
 
     #[test]
-    fn should_render_a_standby_tunnel_with_a_symbol_and_the_word_veille() {
+    fn should_render_a_standby_tunnel_with_a_symbol_and_the_word_standby() {
         let state = TunnelStateDto::Standby { last_failure: None };
 
         assert_eq!(
             render_one(state.clone(), UNICODE_PLAIN),
-            "◌ veille  3333 → nova:3333  [dev, adonis]"
+            "◌ standby  3333 → nova:3333  [dev, adonis]"
         );
         assert_eq!(
             render_one(state, ASCII_PLAIN),
-            "[zz] veille  3333 -> nova:3333  [dev, adonis]"
+            "[zz] standby  3333 -> nova:3333  [dev, adonis]"
         );
     }
 
@@ -771,7 +769,7 @@ mod tests {
 
         assert_eq!(
             render_one(state, ASCII_PLAIN),
-            "[zz] veille (dernier réveil en échec : port already in use on 127.0.0.1:3333)  3333 -> nova:3333  [dev, adonis]"
+            "[zz] standby (last wake failed: port already in use on 127.0.0.1:3333)  3333 -> nova:3333  [dev, adonis]"
         );
     }
 

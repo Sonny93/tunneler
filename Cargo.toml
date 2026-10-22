@@ -35,6 +35,7 @@ sha1 = "0.11"
 sha1_smol = "1"
 sha2 = "0.11"
 ssh-config = { path = "crates/ssh-config" }
+sys-locale = "0.3"
 sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 tempfile = "3"
 test-support = { path = "crates/test-support" }

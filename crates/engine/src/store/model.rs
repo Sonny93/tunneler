@@ -158,6 +158,29 @@ impl StandbySound {
     }
 }
 
+/// The language of the UI, the tray and the notifications.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum Language {
+    /// The language of the operating system.
+    #[default]
+    System,
+    /// English.
+    English,
+    /// French.
+    French,
+}
+
+impl Language {
+    /// The language as written in the store file.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::System => "system",
+            Self::English => "en",
+            Self::French => "fr",
+        }
+    }
+}
+
 /// How a tunnel is opened; every field is optional and falls back to a
 /// default.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -328,6 +351,8 @@ pub struct Settings {
     pub standby_notify: StandbyNotify,
     /// The sound played when a wake-up, or its failure, is signalled by sound.
     pub standby_sound: StandbySound,
+    /// The language of the UI, the tray and the notifications.
+    pub language: Language,
     /// Whether the UI looks for a newer release when it opens.
     pub check_for_updates: bool,
 }
@@ -352,6 +377,7 @@ impl Default for Settings {
             standby_idle: DEFAULT_STANDBY_IDLE,
             standby_notify: StandbyNotify::default(),
             standby_sound: StandbySound::default(),
+            language: Language::default(),
             check_for_updates: true,
         }
     }
