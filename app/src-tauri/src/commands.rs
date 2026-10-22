@@ -3,8 +3,8 @@
 use ipc::protocol::{
     AvailableOpenerDto, DeleteTagResult, ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto,
     LogEntryDto, OpenTunnelResult, OpenerSpecDto, RememberDto, ResolvedHostDto, SettingsDto,
-    SnapshotDto, TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto,
-    TunnelSpecDto,
+    SnapshotDto, SoundEventDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto,
+    TunnelDefinitionDto, TunnelDto, TunnelSpecDto,
 };
 use std::path::Path;
 
@@ -123,6 +123,15 @@ pub async fn check_target(
     id: String,
 ) -> CommandResult<TargetHealthDto> {
     Ok(state.client()?.check_target(&id).await?)
+}
+
+#[tauri::command]
+pub async fn preview_sound(
+    state: State<'_, BridgeState>,
+    sound: StandbySoundDto,
+    event: SoundEventDto,
+) -> CommandResult<()> {
+    Ok(state.client()?.preview_sound(sound, event).await?)
 }
 
 #[tauri::command]

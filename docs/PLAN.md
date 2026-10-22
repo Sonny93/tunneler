@@ -125,7 +125,11 @@ Règles par défaut : `target_port` absent = `listen_port` ; `listen_address` ab
 - Arrêter un tunnel en veille libère le port (`Stopped`). `restore_on_launch` et `start_on_launch_tags` remettent en veille, sans session.
 - Signal au réveil depuis la veille et en cas d'échec, au choix (`settings.standby_notify`) : `none`, `visual`, `sound` ou `both` (défaut `visual`). Le son est joué par le daemon lui-même, indépendamment des notifications système : il reste audible quand celles-ci sont coupées (mode « ne pas déranger », notifications désactivées). La notification visuelle est donc toujours envoyée silencieuse.
   - Visuel : `org.freedesktop.Notifications` via `zbus` (déjà présent, pas de GTK) sous Linux, toast WinRT sous Windows.
-  - Son : thème de sons freedesktop sous Linux (`canberra-gtk-play -i <événement>`, sinon `pw-play`/`paplay` sur `/usr/share/sounds/freedesktop/stereo/`), son système sous Windows (`PlaySoundW` alias `SystemNotification` au réveil, `SystemExclamation` à l'échec, `SND_ALIAS | SND_ASYNC | SND_NODEFAULT`). Aucun lecteur trouvé → un avertissement dans le journal, une seule fois.
+  - Son : synthétisé par le daemon (module `standby_signal/synthesis.rs`, WAV mono 16 bits à 44,1 kHz construit en mémoire, sans fichier ni dépendance), au choix (`settings.standby_sound`) : `pluck` (corde pincée, Karplus-Strong, défaut), `chime` (carillon), `marimba`, ou `system` qui garde l'ancien comportement du système. Chaque son tient en deux notes, montantes au réveil et descendantes à l'échec. Pourquoi ne pas se fier au système : le jeu de sons de l'utilisateur peut être muet (« Notification » réglé sur « (Aucun) » sous Windows), et `PlaySoundW` avec un alias répond quand même « succès », sans rien jouer ; le daemon ne peut ni le détecter ni le contourner.
+    - Windows : `PlaySoundW(buffer, NULL, SND_MEMORY | SND_ASYNC | SND_NODEFAULT)` sur un tampon `'static` (le même pour toute la durée du processus, mis en cache par son et événement). `system` : alias `SystemNotification` au réveil, `SystemExclamation` à l'échec (`SND_ALIAS | SND_ASYNC | SND_NODEFAULT`).
+    - Linux : le WAV est écrit sur l'entrée standard de `pw-play -`, sinon de `paplay` (sans fichier), sans fichier temporaire. Aucun des deux → repli sur `system`. `system` : thème de sons freedesktop (`canberra-gtk-play -i <événement>`, sinon `pw-play`/`paplay` sur `/usr/share/sounds/freedesktop/stereo/`). Aucun lecteur trouvé → un avertissement dans le journal, une seule fois.
+    - Le son est lu pour chaque événement : changer le réglage s'applique aussitôt.
+    - Écoute : `settings.preview_sound { sound, event }` joue un son tout de suite, sans tenir compte de `standby_notify` ni de la limite de 30 s (voir l'API).
   - Au plus un signal d'échec de réveil par tunnel toutes les 30 s (un navigateur qui réessaie ne doit pas spammer) ; les réveils ne sont pas limités.
   - Textes : « Tunnel sorti de veille » + libellé du tunnel ; « Réveil impossible » + « libellé : raison ».
   - Le tray et l'UI restent la source complète.
@@ -169,6 +173,7 @@ x11_display = ""                  # vide = $DISPLAY, ou 127.0.0.1:0.0 sous Windo
 standby = false                   # veille par défaut des tunnels local/dynamic (D14)
 standby_idle_s = 300              # retour en veille après ce délai sans connexion
 standby_notify = "visual"         # none | visual | sound | both, au réveil et à l'échec
+standby_sound = "pluck"           # system | chime | marimba | pluck, le son joué en mode sound ou both
 open_host = "localhost"           # localhost | ip (127.0.0.1, ou [::1] si l'écoute est IPv6)
 check_for_updates = true          # vérifie les GitHub Releases à l'ouverture de l'UI (§9)
 
@@ -248,6 +253,7 @@ JSON lines. Handshake `hello { protocol_version, client_kind: ui | cli }`.
 | `external.adopt` / `kill` / `ignore` | `import` passe par le formulaire de création prérempli (`tunnel.create`) |
 | `hosts.list` / `hosts.resolve` | alias de `ssh_config` + config résolue (équivalent `ssh -G`) |
 | `settings.update` | |
+| `settings.preview_sound { sound, event }` | joue tout de suite le son `sound` (`system` \| `chime` \| `marimba` \| `pluck`) pour `event` (`woke` \| `wakeFailed`), quel que soit `standby_notify` et sans la limite de 30 s des échecs de réveil → résultat vide ; pour écouter un choix dans les réglages |
 | `credential.respond` / `hostkey.respond` | réponses aux prompts (`remember` pour une passphrase) |
 | `secrets.forget` | oublie les passphrases mémorisées (mémoire + trousseau) |
 | `x11.start` / `x11.stop` / `x11.launch` | |

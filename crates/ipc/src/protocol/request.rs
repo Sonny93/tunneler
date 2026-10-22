@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::protocol::dto::{
-    HostKeyDecisionDto, OpenerSpecDto, RememberDto, SettingsDto, TemporaryTunnelSpecDto,
-    TunnelDefinitionDto, TunnelSpecDto,
+    HostKeyDecisionDto, OpenerSpecDto, RememberDto, SettingsDto, SoundEventDto, StandbySoundDto,
+    TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelSpecDto,
 };
 use crate::protocol::error::IpcError;
 use crate::protocol::hello::Hello;
@@ -17,7 +17,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 36] = [
+pub const METHOD_NAMES: [&str; 37] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -39,6 +39,7 @@ pub const METHOD_NAMES: [&str; 36] = [
     "tag.start",
     "tag.stop",
     "settings.update",
+    "settings.preview_sound",
     "credential.respond",
     "hostkey.respond",
     "daemon.quit",
@@ -62,6 +63,16 @@ pub const METHOD_NAMES: [&str; 36] = [
 pub struct TunnelIdParams {
     /// The tunnel.
     pub id: String,
+}
+
+/// The parameters of `settings.preview_sound`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreviewSoundParams {
+    /// The sound to play.
+    pub sound: StandbySoundDto,
+    /// What the sound announces.
+    pub event: SoundEventDto,
 }
 
 /// The parameters of `tunnel.open`.
@@ -271,6 +282,10 @@ pub enum Request {
     /// Replaces the settings.
     #[serde(rename = "settings.update")]
     SettingsUpdate(SettingsDto),
+    /// Plays a standby sound now, whatever `standbyNotify` says and without
+    /// the wake-failure throttle.
+    #[serde(rename = "settings.preview_sound")]
+    SettingsPreviewSound(PreviewSoundParams),
     /// Answers a `credential.request` event.
     #[serde(rename = "credential.respond")]
     CredentialRespond(CredentialResponseParams),

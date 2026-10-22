@@ -132,6 +132,32 @@ impl StandbyNotify {
     }
 }
 
+/// The sound the daemon plays when a standby tunnel wakes up or fails to.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum StandbySound {
+    /// The sound of the operating system, which its sound scheme may mute.
+    System,
+    /// Two bell notes.
+    Chime,
+    /// Two marimba notes.
+    Marimba,
+    /// Two plucked-string notes.
+    #[default]
+    Pluck,
+}
+
+impl StandbySound {
+    /// The sound as written in the store file.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::System => "system",
+            Self::Chime => "chime",
+            Self::Marimba => "marimba",
+            Self::Pluck => "pluck",
+        }
+    }
+}
+
 /// How a tunnel is opened; every field is optional and falls back to a
 /// default.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -300,6 +326,8 @@ pub struct Settings {
     pub standby_idle: Duration,
     /// How a wake-up from standby, or its failure, is signalled.
     pub standby_notify: StandbyNotify,
+    /// The sound played when a wake-up, or its failure, is signalled by sound.
+    pub standby_sound: StandbySound,
     /// Whether the UI looks for a newer release when it opens.
     pub check_for_updates: bool,
 }
@@ -323,6 +351,7 @@ impl Default for Settings {
             standby: false,
             standby_idle: DEFAULT_STANDBY_IDLE,
             standby_notify: StandbyNotify::default(),
+            standby_sound: StandbySound::default(),
             check_for_updates: true,
         }
     }

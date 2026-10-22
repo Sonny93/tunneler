@@ -200,6 +200,32 @@ describe('SettingsDrawer', () => {
 		});
 	});
 
+	it('should save the chosen standby sound', async () => {
+		const settings = buildSettings();
+		openSettings(settings);
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+
+		await user.click(screen.getByRole('radio', { name: 'Marimba' }));
+		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith({
+			...settings,
+			standbySound: 'marimba',
+		});
+	});
+
+	it('should preview the unsaved standby sound', async () => {
+		openSettings();
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+
+		await user.click(screen.getByRole('radio', { name: 'Carillon' }));
+		await user.click(screen.getByRole('button', { name: 'Écouter le réveil' }));
+
+		expect(gateway.previewSound).toHaveBeenCalledWith('chime', 'woke');
+	});
+
 	it('should flag an invalid standby delay and not save', async () => {
 		openSettings();
 		const user = userEvent.setup();

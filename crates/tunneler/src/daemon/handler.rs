@@ -8,9 +8,9 @@ use engine::{
 use ipc::protocol::{
     AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, ForgetSecretsResult,
     HostsResult, IpcError, LogsResult, OpenTunnelParams, OpenTunnelResult, OpenersResult,
-    OpenersUpdateParams, ProcessParams, QuitParams, RenameTagResult, Request, ResponsePayload,
-    SettingsDto, TagParams, TagRenameParams, TunnelIdParams, UiClaimResult, X11HostParams,
-    X11LaunchParams,
+    OpenersUpdateParams, PreviewSoundParams, ProcessParams, QuitParams, RenameTagResult, Request,
+    ResponsePayload, SettingsDto, TagParams, TagRenameParams, TunnelIdParams, UiClaimResult,
+    X11HostParams, X11LaunchParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
@@ -20,11 +20,21 @@ use super::launch::Launcher;
 use super::mapping::{
     available_opener_to_dto, definition_from_dto, health_to_dto, import_preview_to_dto,
     log_entry_to_dto, new_temporary_tunnel_from_spec, new_tunnel_from_spec, opener_from_spec_dto,
-    resolved_host_to_dto, settings_from_dto, snapshot_to_dto, tunnel_to_dto,
+    resolved_host_to_dto, settings_from_dto, snapshot_to_dto, sound_event_from_dto,
+    standby_sound_from_dto, tunnel_to_dto,
 };
 use super::prompts::PromptBroker;
+use super::standby_signal::SoundPlayer;
 use super::tray::TrayStatus;
 use super::ui::UiCoordinator;
+
+/// What the daemon does on this machine for the user, outside the tunnels.
+pub(crate) struct LocalEffects {
+    /// Opens programs and addresses.
+    pub(crate) program_launcher: Arc<dyn Launcher>,
+    /// Plays the sounds of the settings preview.
+    pub(crate) sound_player: Arc<dyn SoundPlayer>,
+}
 
 /// Maps each IPC request to calls on the engine, the store, the prompt broker
 /// and the UI coordinator.
@@ -36,6 +46,7 @@ pub(crate) struct DaemonHandler {
     ui: Arc<UiCoordinator>,
     tray_status: watch::Receiver<TrayStatus>,
     program_launcher: Arc<dyn Launcher>,
+    sound_player: Arc<dyn SoundPlayer>,
 }
 
 impl DaemonHandler {
@@ -46,7 +57,7 @@ impl DaemonHandler {
         quit_requested: CancellationToken,
         ui: Arc<UiCoordinator>,
         tray_status: watch::Receiver<TrayStatus>,
-        program_launcher: Arc<dyn Launcher>,
+        effects: LocalEffects,
     ) -> Self {
         Self {
             engine,
@@ -55,7 +66,8 @@ impl DaemonHandler {
             quit_requested,
             ui,
             tray_status,
-            program_launcher,
+            program_launcher: effects.program_launcher,
+            sound_player: effects.sound_player,
         }
     }
 
@@ -88,6 +100,7 @@ impl DaemonHandler {
             Request::TagStart(params) => self.start_tag(&params.tag),
             Request::TagStop(params) => self.stop_tag(&params.tag),
             Request::SettingsUpdate(settings) => self.update_settings(settings).await,
+            Request::SettingsPreviewSound(params) => Ok(self.preview_sound(params)),
             Request::CredentialRespond(params) => self
                 .prompts
                 .respond_credential(requester, params)
@@ -425,6 +438,14 @@ impl DaemonHandler {
         Ok(ResponsePayload::empty())
     }
 
+    fn preview_sound(&self, params: PreviewSoundParams) -> ResponsePayload {
+        self.sound_player.play(
+            standby_sound_from_dto(params.sound),
+            sound_event_from_dto(params.event),
+        );
+        ResponsePayload::empty()
+    }
+
     fn quit(&self, params: QuitParams) -> Result<ResponsePayload, IpcError> {
         let active_sessions = self.engine.active_tunnel_count() + self.engine.active_x11_count();
         if !params.force && active_sessions > 0 {
@@ -549,12 +570,12 @@ mod tests {
 
     use engine::{
         AppState, ConnectorDependencies, EngineDependencies, FileStateStore, KeyringError,
-        SecretKeyring, SshConfigResolver, StateStore, Store, SystemAgentLocator, SystemClock,
-        SystemX11Environment,
+        SecretKeyring, SshConfigResolver, StandbySound, StateStore, Store, SystemAgentLocator,
+        SystemClock, SystemX11Environment,
     };
     use ipc::protocol::{
         AvailableOpenerDto, ErrorCode, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto,
-        OpenerSpecDto, TunnelDto, TunnelKindDto, TunnelSpecDto,
+        OpenerSpecDto, SoundEventDto, StandbySoundDto, TunnelDto, TunnelKindDto, TunnelSpecDto,
     };
     use russh::keys::Algorithm;
     use ssh_config::{ConfigSources, SystemEnvironment};
@@ -567,6 +588,8 @@ mod tests {
     use super::*;
     use crate::daemon::launch::testing::RecordingLauncher;
     use crate::daemon::prompts::NoResponderSource;
+    use crate::daemon::standby_signal::SoundEvent;
+    use crate::daemon::standby_signal::testing::RecordingSoundPlayer;
     use crate::daemon::testing::{EmptyPortScanner, TestServer};
     use crate::daemon::tray::TrayStatusCell;
     use crate::daemon::ui::testing::FakeLauncher;
@@ -636,6 +659,7 @@ mod tests {
     struct Fixture {
         handler: DaemonHandler,
         program_launcher: Arc<RecordingLauncher>,
+        sound_player: Arc<RecordingSoundPlayer>,
         ssh_backend: Option<SshBackend>,
         keyring: Arc<RecordingKeyring>,
         engine: Engine,
@@ -723,6 +747,7 @@ mod tests {
         let quit_requested = CancellationToken::new();
         let ui = Arc::new(UiCoordinator::new(server.handle.clone(), launcher.clone()));
         let tray_status = Arc::new(TrayStatusCell::new(TrayStatus::Disabled));
+        let sound_player = Arc::new(RecordingSoundPlayer::default());
         let handler = DaemonHandler::new(
             engine.clone(),
             prompts,
@@ -730,11 +755,15 @@ mod tests {
             quit_requested.clone(),
             ui,
             tray_status.subscribe(),
-            program_launcher.clone(),
+            LocalEffects {
+                program_launcher: program_launcher.clone(),
+                sound_player: sound_player.clone(),
+            },
         );
         Fixture {
             handler,
             program_launcher,
+            sound_player,
             ssh_backend,
             keyring,
             engine,
@@ -1446,6 +1475,33 @@ mod tests {
             .await;
 
         assert!(response.is_ok() && fixture.quit_requested.is_cancelled());
+    }
+
+    #[tokio::test]
+    async fn should_play_the_requested_sound_when_a_preview_is_requested() {
+        let fixture = fixture();
+
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::SettingsPreviewSound(PreviewSoundParams {
+                    sound: StandbySoundDto::Chime,
+                    event: SoundEventDto::WakeFailed,
+                }),
+            )
+            .await;
+
+        assert_eq!(
+            (
+                response,
+                fixture.sound_player.played.lock().unwrap().clone()
+            ),
+            (
+                Ok(ResponsePayload::empty()),
+                vec![(StandbySound::Chime, SoundEvent::WakeFailed)]
+            )
+        );
     }
 
     #[tokio::test]

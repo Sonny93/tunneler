@@ -233,6 +233,7 @@ mod tests {
                 standby: false,
                 standby_idle_s: 300,
                 standby_notify: ipc::protocol::StandbyNotifyDto::Visual,
+                standby_sound: ipc::protocol::StandbySoundDto::Pluck,
                 check_for_updates: true,
             },
         }

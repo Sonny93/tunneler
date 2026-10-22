@@ -11,6 +11,8 @@ import type {
 	RememberDto,
 	ResolvedHostDto,
 	SettingsDto,
+	SoundEventDto,
+	StandbySoundDto,
 	SnapshotDto,
 	TargetHealthDto,
 	TunnelDefinitionDto,
@@ -39,6 +41,8 @@ export type DaemonGateway = {
 	persistTunnel(id: string): Promise<void>;
 	/** Tries the target of a running local or remote tunnel once, and resolves to its health. */
 	checkTarget(id: string): Promise<TargetHealthDto>;
+	/** Asks the daemon to play a standby sound now. */
+	previewSound(sound: StandbySoundDto, event: SoundEventDto): Promise<void>;
 	deleteTunnel(id: string): Promise<void>;
 	startTunnel(id: string): Promise<void>;
 	stopTunnel(id: string): Promise<void>;

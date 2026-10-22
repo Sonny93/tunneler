@@ -1,5 +1,7 @@
 //! Linux: the notification goes through `org.freedesktop.Notifications` and
-//! the sound through the first sound player found on the machine.
+//! the sound through the first sound player found on the machine. The
+//! synthesized sounds go to the standard input of a player; the sound of the
+//! system is a file of the sound theme.
 
 use std::collections::HashMap;
 use std::io;
@@ -7,11 +9,13 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use async_trait::async_trait;
+use engine::StandbySound;
 use zbus::blocking::Connection;
 use zbus::zvariant::Value;
 
+use super::synthesis::synthesized_wav;
 use super::{DesktopNotifier, SoundEvent, SoundPlayer};
-use crate::daemon::launch::spawn_detached;
+use crate::daemon::launch::{spawn_detached, spawn_detached_with_input};
 
 const NOTIFICATIONS_SERVICE: &str = "org.freedesktop.Notifications";
 const NOTIFICATIONS_PATH: &str = "/org/freedesktop/Notifications";
@@ -23,6 +27,9 @@ const SOUND_THEME_DIRECTORY: &str = "/usr/share/sounds/freedesktop/stereo";
 
 const CANBERRA_PLAYER: &str = "canberra-gtk-play";
 const FILE_PLAYERS: [&str; 2] = ["pw-play", "paplay"];
+/// The players that read a WAV file from their standard input, with the
+/// arguments that ask for it.
+const STDIN_PLAYERS: [(&str, &[&str]); 2] = [("pw-play", &["-"]), ("paplay", &[])];
 
 fn sound_id(event: SoundEvent) -> &'static str {
     match event {
@@ -68,18 +75,21 @@ impl SystemSoundPlayer {
         }
     }
 
-    fn try_candidate(candidate: &SoundCandidate) -> io::Result<()> {
-        if let Some(file) = &candidate.required_file
-            && !file.exists()
-        {
-            return Err(io::Error::from(io::ErrorKind::NotFound));
+    /// Feeds `wav` to the first player that reads its standard input; false
+    /// when none can run.
+    fn play_from_stdin(wav: &'static [u8]) -> bool {
+        for (program, args) in STDIN_PLAYERS {
+            let args: Vec<String> = args.iter().map(|argument| (*argument).to_owned()).collect();
+            match spawn_detached_with_input(program, &args, wav) {
+                Ok(()) => return true,
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+                Err(error) => tracing::warn!(program, %error, "cannot play the sound"),
+            }
         }
-        spawn_detached(candidate.program, &candidate.args)
+        false
     }
-}
 
-impl SoundPlayer for SystemSoundPlayer {
-    fn play(&self, event: SoundEvent) {
+    fn play_system_sound(&self, event: SoundEvent) {
         for candidate in sound_candidates(event) {
             match Self::try_candidate(&candidate) {
                 Ok(()) => return,
@@ -92,6 +102,26 @@ impl SoundPlayer for SystemSoundPlayer {
         if !self.has_warned.swap(true, Ordering::Relaxed) {
             tracing::warn!("no sound player found (canberra-gtk-play, pw-play, paplay)");
         }
+    }
+
+    fn try_candidate(candidate: &SoundCandidate) -> io::Result<()> {
+        if let Some(file) = &candidate.required_file
+            && !file.exists()
+        {
+            return Err(io::Error::from(io::ErrorKind::NotFound));
+        }
+        spawn_detached(candidate.program, &candidate.args)
+    }
+}
+
+impl SoundPlayer for SystemSoundPlayer {
+    fn play(&self, sound: StandbySound, event: SoundEvent) {
+        if let Some(wav) = synthesized_wav(sound, event)
+            && Self::play_from_stdin(wav)
+        {
+            return;
+        }
+        self.play_system_sound(event);
     }
 }
 
@@ -184,6 +214,14 @@ mod tests {
                     vec!["/usr/share/sounds/freedesktop/stereo/dialog-warning.oga".to_owned()]
                 ),
             ]
+        );
+    }
+
+    #[test]
+    fn should_read_the_sound_from_standard_input_with_pw_play_then_paplay() {
+        assert_eq!(
+            STDIN_PLAYERS,
+            [("pw-play", &["-"][..]), ("paplay", &[][..])]
         );
     }
 

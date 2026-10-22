@@ -25,6 +25,14 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
   - Fait : jobs Windows (installeur NSIS + zip) et Linux (`.deb` + tar.gz + AppImage) du workflow de release, `SHA256SUMS` inchangé, README (installation, désinstallation, mode portable). Signatures (`.sig` renommés comme leurs actifs) et `latest.json` (notes = corps de la release s'il existe) produits par le workflow, `SHA256SUMS` calculé après eux. Validé avec `actionlint` ; jamais exécuté en CI.
 - [ ] 18.8 Validation à la main sous Windows : installation « pour moi » et « pour tous », raccourcis cochés ou non, mise à jour depuis la version précédente (tunnels restaurés), désinstallation avec et sans la case (aucune trace du tableau PLAN §9), installeur au clavier et avec NVDA ; sous Debian : `.deb` installé, lancé, mis à jour, retiré
 
+## Phase 19 — Sons de veille synthétisés (D14, PLAN §« Veille »)
+- [x] 19.1 Réglage `settings.standby_sound` (`system` \| `chime` \| `marimba` \| `pluck`, défaut `pluck`) : moteur (modèle, lecture/écriture du TOML, exemple du plan), DTO IPC (`standbySound`, défaut `pluck`), mapping du daemon
+- [x] 19.2 Synthèse en Rust, sans dépendance (`standby_signal/synthesis.rs`) : carillon, marimba, corde pincée (Karplus-Strong, bruit xorshift à graines fixes), deux notes montantes au réveil et descendantes à l'échec, WAV 44,1 kHz mono 16 bits normalisé à 0,5, mis en cache par son et événement
+  - Note : le son est celui des prototypes (mêmes notes, durées, écarts, fondu final de 20 ms) mais pas échantillon pour échantillon : le bruit vient d'un générateur maison, pas de Python.
+- [x] 19.3 Lecture : `SoundPlayer::play(sound, event)`, lu à chaque événement ; Windows `PlaySoundW` en `SND_MEMORY` sur le tampon mis en cache ; Linux par l'entrée standard de `pw-play -` puis `paplay` (`launch::spawn_detached_with_input`, un thread nourrit et récolte le processus), repli sur les candidats `system`
+- [x] 19.4 `settings.preview_sound { sound, event }` : requête IPC (contrat JSON figé, `METHOD_NAMES`), client `preview_sound`, handler du daemon, commande Tauri `preview_sound`
+- [x] 19.5 Réglages de l'interface (Veille) : choix « Son » (corde pincée, carillon, marimba, son du système), toujours actif, avec l'indication « Choisissez « Son » ou « Les deux »… » quand le signal n'en joue pas ; boutons « Écouter le réveil » / « Écouter l'échec » sur la valeur du formulaire, même non enregistrée, erreur en toast via `useDaemonAction`
+
 ## Reste à valider à la main
 - [~] 6.13 Zoom 200 % sans scroll horizontal dans une vraie webview (`prefers-reduced-motion` et mise en page empilée sous `md` faits)
 - [~] 6.14 NVDA (Windows/WebView2), contraste élevé Windows, écoute Orca par un humain (passe clavier + arbre AT-SPI faite sous Linux le 2026-10-16)
@@ -34,6 +42,7 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 - [ ] Rendu réel jamais vu par un humain : tiroirs (détails, import, X11, config d'hôte), palette, panneau replié, renommage/suppression de tag, formulaire « Ouverture », section « Applications », badges de veille, infobulles, clic droit, sélection multiple
 - [ ] Entrée pour valider une invite de passphrase (jsdom ne soumet pas un formulaire dont le bouton est hors du `<form>`)
 - [ ] Windows, code compilé en cross-clippy mais pas explicitement vérifié : named pipe et son ACL, tray (`winit`), `FreeConsole`, ressources MSVC, `Run` (`winreg`), Credential Manager, `TerminateProcess`, agent par named pipe + Pageant, `ProxyCommand`/`Match exec` via `cmd /C`, détection des applications, lancement détaché, toast, `PlaySoundW`
+- [ ] 19.6 Sons de veille : les écouter sur un vrai Windows (dont avec « Notification » réglé sur « (Aucun) » dans le jeu de sons, et en `PlaySoundW` `SND_MEMORY`) et sur un vrai bureau Linux (PipeWire : `pw-play -`) ; `paplay` par l'entrée standard (non installé sur la machine de dev, jamais essayé)
 - [ ] Linux : tray sous KDE ; notification D-Bus et sons de veille sur un vrai bureau ; mesure RAM de l'UI sur un vrai bureau (410 Mio PSS mesurés sous Xvfb en rendu logiciel)
 
 ## À corriger ailleurs

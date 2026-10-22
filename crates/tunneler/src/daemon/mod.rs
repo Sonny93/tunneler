@@ -43,14 +43,15 @@ use tokio_util::sync::CancellationToken;
 pub(crate) use console::release_console_if_owned;
 pub use error::DaemonError;
 use events::spawn_event_bridge;
-use handler::DaemonHandler;
+use handler::{DaemonHandler, LocalEffects};
 use instance::bind_single_instance;
 use launch::SystemLauncher;
 use login_launch::{spawn_login_launch_follower, system_login_launch};
 use os_keyring::OsKeyring;
 use prompts::PromptBroker;
 use standby_signal::{
-    StandbySignals, SystemNotifier, SystemSoundPlayer, spawn_standby_signal_follower,
+    StandbyPreferences, StandbySignals, SystemNotifier, SystemSoundPlayer,
+    spawn_standby_signal_follower,
 };
 use tray::{TrayService, TrayStatus, TrayStatusCell, spawn_tray_status_publisher};
 use ui::{ProcessUiLauncher, UiCoordinator};
@@ -134,7 +135,10 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         quit_requested.clone(),
         ui.clone(),
         tray_status.subscribe(),
-        Arc::new(SystemLauncher),
+        LocalEffects {
+            program_launcher: Arc::new(SystemLauncher),
+            sound_player: Arc::new(SystemSoundPlayer::new()),
+        },
     ));
     let ui_presence = spawn_ui_presence_follower(engine.clone(), server.handle(), shutdown.clone());
     let ui_follower = ui.spawn_follower(shutdown.clone());
@@ -211,7 +215,13 @@ fn start_standby_signals(engine: &Engine, shutdown: CancellationToken) -> JoinHa
         engine.subscribe(),
         {
             let engine = engine.clone();
-            move || engine.snapshot().settings.standby_notify
+            move || {
+                let settings = engine.snapshot().settings;
+                StandbyPreferences {
+                    notify: settings.standby_notify,
+                    sound: settings.standby_sound,
+                }
+            }
         },
         {
             let engine = engine.clone();

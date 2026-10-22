@@ -46,6 +46,7 @@ export function createFakeGateway(
 		),
 		persistTunnel: vi.fn(() => Promise.resolve()),
 		checkTarget: vi.fn(() => Promise.resolve({ kind: 'reachable' as const })),
+		previewSound: vi.fn(() => Promise.resolve()),
 		deleteTunnel: vi.fn(() => Promise.resolve()),
 		startTunnel: vi.fn(() => Promise.resolve()),
 		stopTunnel: vi.fn(() => Promise.resolve()),

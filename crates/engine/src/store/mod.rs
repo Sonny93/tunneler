@@ -27,7 +27,8 @@ pub use file::{Store, default_store_path};
 pub use format::LoadOutcome;
 pub use model::{
     BROWSER_OPENER_ID, HostOverrides, InvalidTunnelId, OpenHost, OpenOptions, OpenScheme, Opener,
-    Settings, StandbyNotify, StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
+    Settings, StandbyNotify, StandbySound, StoreDocument, TunnelDefinition, TunnelId, TunnelKind,
+    X11Launcher,
 };
 pub use state::{AppState, FileStateStore, StateStore, default_state_path};
 pub use validation::{

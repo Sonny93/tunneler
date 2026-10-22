@@ -5,14 +5,15 @@ import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import type {
-	OpenHostDto,
-	SettingsDto,
-	StandbyNotifyDto,
-} from '#/daemon/protocol';
-import type {
 	SettingsTextField,
 	SettingsToggleField,
 } from '#/settings/settings_field_specs';
+import type {
+	OpenHostDto,
+	SettingsDto,
+	StandbyNotifyDto,
+	StandbySoundDto,
+} from '#/daemon/protocol';
 import {
 	toSettings,
 	toSettingsFormValues,
@@ -33,6 +34,7 @@ type UseSettingsFormReturn = {
 	changeToggle: (field: SettingsToggleField, isEnabled: boolean) => void;
 	changeOpenHost: (host: OpenHostDto) => void;
 	changeStandbyNotify: (mode: StandbyNotifyDto) => void;
+	changeStandbySound: (sound: StandbySoundDto) => void;
 	submit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
@@ -60,6 +62,9 @@ export function useSettingsForm(
 
 	const changeStandbyNotify = (standbyNotify: StandbyNotifyDto) =>
 		setValues((current) => ({ ...current, standbyNotify }));
+
+	const changeStandbySound = (standbySound: StandbySoundDto) =>
+		setValues((current) => ({ ...current, standbySound }));
 
 	const save = async () => {
 		setIsSaving(true);
@@ -99,6 +104,7 @@ export function useSettingsForm(
 		changeToggle,
 		changeOpenHost,
 		changeStandbyNotify,
+		changeStandbySound,
 		submit,
 	};
 }

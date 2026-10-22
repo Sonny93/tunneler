@@ -100,6 +100,10 @@ fn settings_entries(settings: &Settings) -> Vec<(&'static str, Value)> {
             "standby_notify",
             Value::from(settings.standby_notify.as_str()),
         ),
+        (
+            "standby_sound",
+            Value::from(settings.standby_sound.as_str()),
+        ),
         ("check_for_updates", Value::from(settings.check_for_updates)),
     ]
 }
@@ -798,6 +802,16 @@ tags = []
         let updated = update("", &document);
 
         assert!(updated.contains("standby_notify = \"sound\""), "{updated}");
+    }
+
+    #[test]
+    fn should_write_the_standby_sound_setting_when_settings_are_written() {
+        let mut document = StoreDocument::default();
+        document.settings.standby_sound = crate::store::StandbySound::Chime;
+
+        let updated = update("", &document);
+
+        assert!(updated.contains("standby_sound = \"chime\""), "{updated}");
     }
 
     #[test]

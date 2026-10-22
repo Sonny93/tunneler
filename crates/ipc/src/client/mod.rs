@@ -20,10 +20,11 @@ use crate::protocol::{
     DaemonPathsResult, DeleteTagResult, EventMessage, ForgetSecretsResult, Hello,
     HostKeyDecisionDto, HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto,
     ImportScriptParams, LogEntryDto, LogsResult, OpenTunnelParams, OpenTunnelResult, OpenerSpecDto,
-    OpenersResult, OpenersUpdateParams, ProcessParams, QuitParams, RememberDto, RenameTagResult,
-    Request, RequestEnvelope, ResolvedHostDto, SettingsDto, SnapshotDto, TagParams,
-    TagRenameParams, TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto,
-    TunnelIdParams, TunnelSpecDto, UiClaimResult, X11HostParams, X11LaunchParams, encode_line,
+    OpenersResult, OpenersUpdateParams, PreviewSoundParams, ProcessParams, QuitParams, RememberDto,
+    RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, SettingsDto, SnapshotDto,
+    SoundEventDto, StandbySoundDto, TagParams, TagRenameParams, TargetHealthDto,
+    TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelSpecDto,
+    UiClaimResult, X11HostParams, X11LaunchParams, encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -335,6 +336,23 @@ impl IpcClient {
     pub async fn update_settings(&self, settings: SettingsDto) -> Result<(), ClientError> {
         self.call_without_result(Request::SettingsUpdate(settings))
             .await
+    }
+
+    /// Plays a standby sound now, whatever the notification mode is.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn preview_sound(
+        &self,
+        sound: StandbySoundDto,
+        event: SoundEventDto,
+    ) -> Result<(), ClientError> {
+        self.call_without_result(Request::SettingsPreviewSound(PreviewSoundParams {
+            sound,
+            event,
+        }))
+        .await
     }
 
     /// Answers a credential prompt; `None` means the user cancelled. `remember`

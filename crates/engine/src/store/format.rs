@@ -14,7 +14,7 @@ use super::error::{SourceLocation, StoreError};
 use super::migration::{CURRENT_VERSION, migrate};
 use super::model::{
     HostOverrides, OpenHost, OpenOptions, OpenScheme, Opener, Settings, StandbyNotify,
-    StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
+    StandbySound, StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
 };
 use super::validation::validate;
 
@@ -88,6 +88,7 @@ struct StoredSettings {
     standby: Option<bool>,
     standby_idle_s: Option<u64>,
     standby_notify: Option<StoredStandbyNotify>,
+    standby_sound: Option<StoredStandbySound>,
     check_for_updates: Option<bool>,
 }
 
@@ -98,6 +99,15 @@ enum StoredStandbyNotify {
     Visual,
     Sound,
     Both,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum StoredStandbySound {
+    System,
+    Chime,
+    Marimba,
+    Pluck,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -300,6 +310,9 @@ impl StoredSettings {
             standby_notify: self
                 .standby_notify
                 .map_or(defaults.standby_notify, StandbyNotify::from),
+            standby_sound: self
+                .standby_sound
+                .map_or(defaults.standby_sound, StandbySound::from),
             check_for_updates: self.check_for_updates.unwrap_or(defaults.check_for_updates),
         }
     }
@@ -321,6 +334,17 @@ impl From<StoredStandbyNotify> for StandbyNotify {
             StoredStandbyNotify::Visual => Self::Visual,
             StoredStandbyNotify::Sound => Self::Sound,
             StoredStandbyNotify::Both => Self::Both,
+        }
+    }
+}
+
+impl From<StoredStandbySound> for StandbySound {
+    fn from(sound: StoredStandbySound) -> Self {
+        match sound {
+            StoredStandbySound::System => Self::System,
+            StoredStandbySound::Chime => Self::Chime,
+            StoredStandbySound::Marimba => Self::Marimba,
+            StoredStandbySound::Pluck => Self::Pluck,
         }
     }
 }
@@ -887,6 +911,31 @@ mod tests {
             outcome.document.settings.standby_notify,
             StandbyNotify::Visual
         );
+    }
+
+    #[test]
+    fn should_read_the_standby_sound_setting_when_it_is_given() {
+        let outcome = parse("[settings]\nstandby_sound = \"marimba\"\n").unwrap();
+
+        assert_eq!(
+            outcome.document.settings.standby_sound,
+            StandbySound::Marimba
+        );
+    }
+
+    #[test]
+    fn should_pluck_when_the_standby_sound_setting_is_absent() {
+        let outcome = parse("version = 1\n").unwrap();
+
+        assert_eq!(outcome.document.settings.standby_sound, StandbySound::Pluck);
+    }
+
+    #[test]
+    fn should_reject_an_unknown_standby_sound_setting() {
+        assert!(matches!(
+            parse("[settings]\nstandby_sound = \"siren\"\n"),
+            Err(StoreError::Parse { .. })
+        ));
     }
 
     #[test]

@@ -63,6 +63,7 @@ fn settings() -> SettingsDto {
         standby: false,
         standby_idle_s: 300,
         standby_notify: ipc::protocol::StandbyNotifyDto::Visual,
+        standby_sound: ipc::protocol::StandbySoundDto::Pluck,
         check_for_updates: true,
     }
 }
@@ -213,6 +214,10 @@ fn every_request() -> Vec<Request> {
         Request::TagStart(tag.clone()),
         Request::TagStop(tag),
         Request::SettingsUpdate(settings()),
+        Request::SettingsPreviewSound(ipc::protocol::PreviewSoundParams {
+            sound: ipc::protocol::StandbySoundDto::Chime,
+            event: ipc::protocol::SoundEventDto::WakeFailed,
+        }),
         Request::CredentialRespond(CredentialResponseParams {
             prompt_id: "p1".to_owned(),
             answer: Some(CredentialAnswer::Single(Secret::new("hunter2".to_owned()))),
@@ -1119,7 +1124,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isTemporary":false,"defaultOpener":{"id":"browser","name":"Browser"}}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","standby":false,"standbyIdleS":300,"standbyNotify":"visual","checkForUpdates":true},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","checkForUpdates":true},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
             "\n"
         )
     );
@@ -1354,6 +1359,52 @@ fn should_deserialize_settings_without_standby_notify_as_visual() {
 }
 
 #[test]
+fn should_deserialize_settings_without_standby_sound_as_pluck() {
+    let mut value = to_json(&settings());
+    value.as_object_mut().unwrap().remove("standbySound");
+
+    let parsed: SettingsDto = serde_json::from_value(value).unwrap();
+
+    assert_eq!(parsed.standby_sound, ipc::protocol::StandbySoundDto::Pluck);
+}
+
+#[test]
+fn should_serialize_each_standby_sound_in_camel_case() {
+    let sounds = [
+        ipc::protocol::StandbySoundDto::System,
+        ipc::protocol::StandbySoundDto::Chime,
+        ipc::protocol::StandbySoundDto::Marimba,
+        ipc::protocol::StandbySoundDto::Pluck,
+    ];
+
+    assert_eq!(
+        sounds.map(|sound| to_json(&sound)),
+        [
+            json!("system"),
+            json!("chime"),
+            json!("marimba"),
+            json!("pluck")
+        ]
+    );
+}
+
+#[test]
+fn should_serialize_settings_preview_sound_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 5,
+        request: Request::SettingsPreviewSound(ipc::protocol::PreviewSoundParams {
+            sound: ipc::protocol::StandbySoundDto::Pluck,
+            event: ipc::protocol::SoundEventDto::WakeFailed,
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":5,"method":"settings.preview_sound","params":{"sound":"pluck","event":"wakeFailed"}}"#
+    );
+}
+
+#[test]
 fn should_deserialize_settings_without_check_for_updates_as_enabled() {
     let mut value = to_json(&settings());
     value.as_object_mut().unwrap().remove("checkForUpdates");
@@ -1581,8 +1632,8 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_thirty_six_methods() {
-    assert_eq!(METHOD_NAMES.len(), 36);
+fn should_list_thirty_seven_methods() {
+    assert_eq!(METHOD_NAMES.len(), 37);
 }
 
 #[test]

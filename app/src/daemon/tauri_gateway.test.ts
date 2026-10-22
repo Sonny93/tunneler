@@ -52,6 +52,12 @@ describe('createTauriGateway', () => {
 		],
 		['persistTunnel', ['1'], 'persist_tunnel', { id: '1' }],
 		['checkTarget', ['1'], 'check_target', { id: '1' }],
+		[
+			'previewSound',
+			['chime', 'woke'],
+			'preview_sound',
+			{ sound: 'chime', event: 'woke' },
+		],
 		['deleteTunnel', ['1'], 'delete_tunnel', { id: '1' }],
 		['startTunnel', ['1'], 'start_tunnel', { id: '1' }],
 		['stopTunnel', ['1'], 'stop_tunnel', { id: '1' }],

@@ -9,9 +9,9 @@ use engine::{
     AvailableOpener, DefaultOpener, EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision,
     ImportCandidate, ImportPreview, ImportWarning, InvalidTunnelId, LogLevel, NewTunnel, OpenHost,
     OpenOptions, OpenScheme, Opener, OpenerSource, PortOwner, RejectedHostKey, RejectionReason,
-    Retention, Settings, SshForward, StandbyNotify, TargetHealth, TunnelDefinition, TunnelId,
-    TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot, TunnelState, UnmanagedProcess,
-    X11AnchorSnapshot, X11AnchorState, X11Launcher, default_opener,
+    Retention, Settings, SshForward, StandbyNotify, StandbySound, TargetHealth, TunnelDefinition,
+    TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot, TunnelState,
+    UnmanagedProcess, X11AnchorSnapshot, X11AnchorState, X11Launcher, default_opener,
 };
 use ipc::protocol::{
     AvailableOpenerDto, ConfigInvalidEvent, DefaultOpenerDto, EpochMillis, EventMessage,
@@ -19,14 +19,15 @@ use ipc::protocol::{
     HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent, HostOptionDto,
     ImportCandidateDto, ImportPreviewDto, ImportWarningDto, LogEntryDto, LogLevelDto, MetricsDto,
     OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto, OpenerSpecDto, PortOwnerDto,
-    RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, StandbyNotifyDto, TargetHealthDto,
-    TemporaryTunnelSpecDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
-    TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
-    X11ChangedEvent, X11LauncherDto, X11StateDto,
+    RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, SoundEventDto, StandbyNotifyDto,
+    StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto, TrayStatusDto, TunnelChangedEvent,
+    TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent,
+    TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11ChangedEvent, X11LauncherDto, X11StateDto,
 };
 
 use ssh_config::Resolution;
 
+use super::standby_signal::SoundEvent;
 use super::tray::TrayStatus;
 
 pub(crate) fn to_epoch_millis(time: SystemTime) -> EpochMillis {
@@ -122,6 +123,31 @@ fn standby_notify_from_dto(mode: StandbyNotifyDto) -> StandbyNotify {
         StandbyNotifyDto::Visual => StandbyNotify::Visual,
         StandbyNotifyDto::Sound => StandbyNotify::Sound,
         StandbyNotifyDto::Both => StandbyNotify::Both,
+    }
+}
+
+fn standby_sound_to_dto(sound: StandbySound) -> StandbySoundDto {
+    match sound {
+        StandbySound::System => StandbySoundDto::System,
+        StandbySound::Chime => StandbySoundDto::Chime,
+        StandbySound::Marimba => StandbySoundDto::Marimba,
+        StandbySound::Pluck => StandbySoundDto::Pluck,
+    }
+}
+
+pub(crate) fn standby_sound_from_dto(sound: StandbySoundDto) -> StandbySound {
+    match sound {
+        StandbySoundDto::System => StandbySound::System,
+        StandbySoundDto::Chime => StandbySound::Chime,
+        StandbySoundDto::Marimba => StandbySound::Marimba,
+        StandbySoundDto::Pluck => StandbySound::Pluck,
+    }
+}
+
+pub(crate) fn sound_event_from_dto(event: SoundEventDto) -> SoundEvent {
+    match event {
+        SoundEventDto::Woke => SoundEvent::Woke,
+        SoundEventDto::WakeFailed => SoundEvent::WakeFailed,
     }
 }
 
@@ -347,6 +373,7 @@ pub(crate) fn settings_to_dto(settings: &Settings) -> SettingsDto {
         standby: settings.standby,
         standby_idle_s: settings.standby_idle.as_secs(),
         standby_notify: standby_notify_to_dto(settings.standby_notify),
+        standby_sound: standby_sound_to_dto(settings.standby_sound),
         check_for_updates: settings.check_for_updates,
     }
 }
@@ -369,6 +396,7 @@ pub(crate) fn settings_from_dto(dto: SettingsDto) -> Settings {
         standby: dto.standby,
         standby_idle: Duration::from_secs(dto.standby_idle_s),
         standby_notify: standby_notify_from_dto(dto.standby_notify),
+        standby_sound: standby_sound_from_dto(dto.standby_sound),
         check_for_updates: dto.check_for_updates,
     }
 }
@@ -857,11 +885,20 @@ mod tests {
             standby: true,
             standby_idle: Duration::from_secs(90),
             standby_notify: StandbyNotify::Both,
+            standby_sound: StandbySound::Marimba,
             check_for_updates: false,
             ..Settings::default()
         };
 
         assert_eq!(settings_from_dto(settings_to_dto(&settings)), settings);
+    }
+
+    #[test]
+    fn should_map_the_sound_events_of_the_wire_to_the_daemon_ones() {
+        assert_eq!(
+            [SoundEventDto::Woke, SoundEventDto::WakeFailed].map(sound_event_from_dto),
+            [SoundEvent::Woke, SoundEvent::WakeFailed]
+        );
     }
 
     #[test]

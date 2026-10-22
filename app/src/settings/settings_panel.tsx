@@ -9,6 +9,7 @@ import { FormErrorSummary } from '#/shared/form_error_summary';
 import { useSettingsForm } from '#/settings/use_settings_form';
 import { SettingsFieldset } from '#/settings/settings_fieldset';
 import { ApplicationsSection } from '#/openers/applications_section';
+import { StandbySoundOptions } from '#/settings/standby_sound_options';
 import { StandbyNotifyOptions } from '#/settings/standby_notify_options';
 import { SettingsOpenFieldset } from '#/settings/settings_open_fieldset';
 import { OpenConfigFolderButton } from '#/settings/open_config_folder_button';
@@ -78,6 +79,11 @@ export function SettingsPanel({ settings }: Readonly<SettingsPanelProps>) {
 					<StandbyNotifyOptions
 						value={values.standbyNotify}
 						onChange={form.changeStandbyNotify}
+					/>
+					<StandbySoundOptions
+						value={values.standbySound}
+						notifyMode={values.standbyNotify}
+						onChange={form.changeStandbySound}
 					/>
 				</SettingsFieldset>
 				<SettingsOpenFieldset

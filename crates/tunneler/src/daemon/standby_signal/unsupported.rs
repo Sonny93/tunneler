@@ -1,6 +1,7 @@
 //! Platforms without a notification or sound backend signal nothing.
 
 use async_trait::async_trait;
+use engine::StandbySound;
 
 use super::{DesktopNotifier, SoundEvent, SoundPlayer};
 
@@ -14,5 +15,5 @@ impl DesktopNotifier for SystemNotifier {
 pub(crate) struct SystemSoundPlayer;
 
 impl SoundPlayer for SystemSoundPlayer {
-    fn play(&self, _event: SoundEvent) {}
+    fn play(&self, _sound: StandbySound, _event: SoundEvent) {}
 }

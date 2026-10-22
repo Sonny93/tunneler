@@ -54,6 +54,31 @@ pub enum StandbyNotifyDto {
     Both,
 }
 
+/// The sound the daemon plays when a standby tunnel wakes up or fails to.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum StandbySoundDto {
+    /// The sound of the operating system, which its sound scheme may mute.
+    System,
+    /// Two bell notes.
+    Chime,
+    /// Two marimba notes.
+    Marimba,
+    /// Two plucked-string notes.
+    #[default]
+    Pluck,
+}
+
+/// What a sound announces.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SoundEventDto {
+    /// A standby tunnel woke up.
+    Woke,
+    /// A standby tunnel could not wake up.
+    WakeFailed,
+}
+
 /// How a tunnel is opened; every field is optional.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -420,6 +445,9 @@ pub struct SettingsDto {
     /// How a wake-up from standby, or its failure, is signalled.
     #[serde(default)]
     pub standby_notify: StandbyNotifyDto,
+    /// The sound played when a wake-up, or its failure, is signalled by sound.
+    #[serde(default)]
+    pub standby_sound: StandbySoundDto,
     /// Whether the UI looks for a newer release when it opens.
     #[serde(default = "default_check_for_updates")]
     pub check_for_updates: bool,

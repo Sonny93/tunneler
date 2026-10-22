@@ -3,6 +3,7 @@ import type {
 	OpenHostDto,
 	SettingsDto,
 	StandbyNotifyDto,
+	StandbySoundDto,
 } from '#/daemon/protocol';
 
 const MILLISECONDS_PER_SECOND = 1000;
@@ -25,6 +26,7 @@ export type SettingsFormValues = {
 	standby: boolean;
 	standbyIdleSeconds: string;
 	standbyNotify: StandbyNotifyDto;
+	standbySound: StandbySoundDto;
 	checkForUpdates: boolean;
 };
 
@@ -64,6 +66,7 @@ export function toSettingsFormValues(
 		standby: settings.standby,
 		standbyIdleSeconds: String(settings.standbyIdleS),
 		standbyNotify: settings.standbyNotify,
+		standbySound: settings.standbySound,
 		checkForUpdates: settings.checkForUpdates,
 	};
 }
@@ -94,6 +97,7 @@ export function toSettings(
 		standby: values.standby,
 		standbyIdleS: Number(values.standbyIdleSeconds.trim()),
 		standbyNotify: values.standbyNotify,
+		standbySound: values.standbySound,
 		checkForUpdates: values.checkForUpdates,
 	};
 }

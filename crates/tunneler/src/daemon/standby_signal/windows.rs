@@ -1,12 +1,14 @@
 //! Windows: a silent toast from the application identity of Tunneler (the one
 //! of PowerShell when it cannot be registered), and the system sounds through
-//! `PlaySoundW`.
+//! `PlaySoundW`, which also plays the synthesized sounds from memory.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use async_trait::async_trait;
+use engine::StandbySound;
 use tauri_winrt_notification::Toast;
 
+use super::synthesis::synthesized_wav;
 use super::{DesktopNotifier, SoundEvent, SoundPlayer};
 use crate::daemon::notification_identity::{
     ToastIdentity, register_for_toasts, system_notification_identity,
@@ -80,9 +82,13 @@ impl SystemSoundPlayer {
 }
 
 impl SoundPlayer for SystemSoundPlayer {
-    fn play(&self, event: SoundEvent) {
-        if !play_alias(sound_alias(event)) && !self.has_warned.swap(true, Ordering::Relaxed) {
-            tracing::warn!("cannot play the system sound");
+    fn play(&self, sound: StandbySound, event: SoundEvent) {
+        let is_started = match synthesized_wav(sound, event) {
+            Some(wav) => play_wav(wav),
+            None => play_alias(sound_alias(event)),
+        };
+        if !is_started && !self.has_warned.swap(true, Ordering::Relaxed) {
+            tracing::warn!("cannot play the sound");
         }
     }
 }
@@ -100,6 +106,25 @@ fn play_alias(alias: &str) -> bool {
             wide_alias.as_ptr(),
             std::ptr::null_mut(),
             SND_ALIAS | SND_ASYNC | SND_NODEFAULT,
+        ) != 0
+    }
+}
+
+/// Starts `wav` and returns without waiting for it to end.
+#[allow(unsafe_code)]
+fn play_wav(wav: &'static [u8]) -> bool {
+    use windows_sys::Win32::Media::Audio::{PlaySoundW, SND_ASYNC, SND_MEMORY, SND_NODEFAULT};
+
+    // SAFETY: with SND_MEMORY the first argument points to a WAV file image
+    // in memory, not to a string; `wav` is a complete one. SND_ASYNC makes
+    // the call return at once while the system keeps reading the buffer, which
+    // is `'static` and never freed or modified, so it outlives the playback.
+    // No module handle is needed for a buffer.
+    unsafe {
+        PlaySoundW(
+            wav.as_ptr().cast(),
+            std::ptr::null_mut(),
+            SND_MEMORY | SND_ASYNC | SND_NODEFAULT,
         ) != 0
     }
 }

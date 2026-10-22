@@ -2,13 +2,17 @@
 //!
 //! [`spawn_standby_signal_follower`] listens to the engine events
 //! `TunnelWoke` and `TunnelWakeFailed` and, according to
-//! `settings.standby_notify`, shows a silent desktop notification, plays a
-//! sound, or both. The sound is played by the daemon itself, so it stays
-//! audible when the system notifications are turned off; the notification is
-//! therefore always silent. Failures to signal are logged, never fatal.
+//! `settings.standby_notify`, shows a silent desktop notification, plays the
+//! sound of `settings.standby_sound`, or both. The sound is played by the
+//! daemon itself, so it stays audible when the system notifications are turned
+//! off; the notification is therefore always silent. Failures to signal are
+//! logged, never fatal.
 
 #[cfg(all(unix, not(target_os = "macos")))]
 mod linux;
+mod synthesis;
+#[cfg(test)]
+pub(crate) mod testing;
 #[cfg(all(unix, not(target_os = "macos")))]
 pub(crate) use linux::{SystemNotifier, SystemSoundPlayer};
 #[cfg(not(any(all(unix, not(target_os = "macos")), windows)))]
@@ -25,7 +29,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use engine::{EngineEvent, FailureReason, StandbyNotify, TunnelId};
+use engine::{EngineEvent, FailureReason, StandbyNotify, StandbySound, TunnelId};
 use tokio::sync::broadcast::{self, error::RecvError};
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
@@ -56,8 +60,17 @@ pub(crate) trait DesktopNotifier: Send + Sync {
 
 /// Plays a short sound without waiting for it to end.
 pub(crate) trait SoundPlayer: Send + Sync {
-    /// Starts the sound of `event`. A failure is logged by the implementation.
-    fn play(&self, event: SoundEvent);
+    /// Starts `sound` for `event`. A failure is logged by the implementation.
+    fn play(&self, sound: StandbySound, event: SoundEvent);
+}
+
+/// The settings that decide how an occurrence is signalled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct StandbyPreferences {
+    /// Which signals are given.
+    pub(crate) notify: StandbyNotify,
+    /// The sound played when the signals include one.
+    pub(crate) sound: StandbySound,
 }
 
 /// What a mode asks for when an event happens.
@@ -161,14 +174,15 @@ impl StandbySignals {
         }
     }
 
-    /// Signals `occurrence` the way `mode` asks, at `now` for the throttle.
+    /// Signals `occurrence` the way `preferences` ask, at `now` for the
+    /// throttle.
     pub(crate) async fn signal(
         &mut self,
-        mode: StandbyNotify,
+        preferences: StandbyPreferences,
         occurrence: &Occurrence,
         now: Instant,
     ) {
-        let signal = signal_for(mode, occurrence.event());
+        let signal = signal_for(preferences.notify, occurrence.event());
         if signal == signal_for(StandbyNotify::None, occurrence.event()) {
             return;
         }
@@ -177,8 +191,8 @@ impl StandbySignals {
         if is_throttled {
             return;
         }
-        if let Some(sound) = signal.sound {
-            self.sound_player.play(sound);
+        if let Some(event) = signal.sound {
+            self.sound_player.play(preferences.sound, event);
         }
         if signal.shows_notification {
             let (summary, body) = occurrence.text();
@@ -188,11 +202,11 @@ impl StandbySignals {
 }
 
 /// Signals the wake-ups and wake failures of the engine's events until
-/// `shutdown` is cancelled or the engine's bus closes. `mode` and `label_of`
-/// are read for each event, so a changed setting applies at once.
+/// `shutdown` is cancelled or the engine's bus closes. `preferences` and
+/// `label_of` are read for each event, so a changed setting applies at once.
 pub(crate) fn spawn_standby_signal_follower(
     mut events: broadcast::Receiver<EngineEvent>,
-    mode: impl Fn() -> StandbyNotify + Send + Sync + 'static,
+    preferences: impl Fn() -> StandbyPreferences + Send + Sync + 'static,
     label_of: impl Fn(TunnelId) -> Option<String> + Send + Sync + 'static,
     mut signals: StandbySignals,
     shutdown: CancellationToken,
@@ -204,7 +218,9 @@ pub(crate) fn spawn_standby_signal_follower(
                 event = events.recv() => match event {
                     Ok(event) => {
                         if let Some(occurrence) = occurrence_of(&event, &label_of) {
-                            signals.signal(mode(), &occurrence, Instant::now()).await;
+                            signals
+                                .signal(preferences(), &occurrence, Instant::now())
+                                .await;
                         }
                     }
                     Err(RecvError::Lagged(_)) => {}
@@ -241,6 +257,7 @@ fn describe(reason: &FailureReason) -> String {
 mod tests {
     use std::sync::Mutex;
 
+    use super::testing::RecordingSoundPlayer;
     use super::*;
 
     #[derive(Default)]
@@ -258,26 +275,22 @@ mod tests {
         }
     }
 
-    #[derive(Default)]
-    struct FakeSoundPlayer {
-        played: Mutex<Vec<SoundEvent>>,
-    }
-
-    impl SoundPlayer for FakeSoundPlayer {
-        fn play(&self, event: SoundEvent) {
-            self.played.lock().unwrap().push(event);
+    fn preferences(notify: StandbyNotify) -> StandbyPreferences {
+        StandbyPreferences {
+            notify,
+            sound: StandbySound::Pluck,
         }
     }
 
     struct Fixture {
         notifier: Arc<FakeNotifier>,
-        sound_player: Arc<FakeSoundPlayer>,
+        sound_player: Arc<RecordingSoundPlayer>,
         signals: StandbySignals,
     }
 
     fn fixture() -> Fixture {
         let notifier = Arc::new(FakeNotifier::default());
-        let sound_player = Arc::new(FakeSoundPlayer::default());
+        let sound_player = Arc::new(RecordingSoundPlayer::default());
         let signals = StandbySignals::new(notifier.clone(), sound_player.clone());
         Fixture {
             notifier,
@@ -352,7 +365,7 @@ mod tests {
         fixture
             .signals
             .signal(
-                StandbyNotify::Visual,
+                preferences(StandbyNotify::Visual),
                 &woke(TunnelId::generate()),
                 Instant::now(),
             )
@@ -374,7 +387,7 @@ mod tests {
         fixture
             .signals
             .signal(
-                StandbyNotify::Visual,
+                preferences(StandbyNotify::Visual),
                 &wake_failed(TunnelId::generate()),
                 Instant::now(),
             )
@@ -396,7 +409,7 @@ mod tests {
         fixture
             .signals
             .signal(
-                StandbyNotify::Sound,
+                preferences(StandbyNotify::Sound),
                 &woke(TunnelId::generate()),
                 Instant::now(),
             )
@@ -412,7 +425,7 @@ mod tests {
         fixture
             .signals
             .signal(
-                StandbyNotify::Sound,
+                preferences(StandbyNotify::Sound),
                 &wake_failed(TunnelId::generate()),
                 Instant::now(),
             )
@@ -420,7 +433,29 @@ mod tests {
 
         assert_eq!(
             *fixture.sound_player.played.lock().unwrap(),
-            vec![SoundEvent::WakeFailed]
+            vec![(StandbySound::Pluck, SoundEvent::WakeFailed)]
+        );
+    }
+
+    #[tokio::test]
+    async fn should_play_the_chosen_sound_when_the_mode_is_sound() {
+        let mut fixture = fixture();
+
+        fixture
+            .signals
+            .signal(
+                StandbyPreferences {
+                    notify: StandbyNotify::Sound,
+                    sound: StandbySound::Marimba,
+                },
+                &woke(TunnelId::generate()),
+                Instant::now(),
+            )
+            .await;
+
+        assert_eq!(
+            *fixture.sound_player.played.lock().unwrap(),
+            vec![(StandbySound::Marimba, SoundEvent::Woke)]
         );
     }
 
@@ -431,11 +466,19 @@ mod tests {
 
         fixture
             .signals
-            .signal(StandbyNotify::None, &woke(tunnel), Instant::now())
+            .signal(
+                preferences(StandbyNotify::None),
+                &woke(tunnel),
+                Instant::now(),
+            )
             .await;
         fixture
             .signals
-            .signal(StandbyNotify::None, &wake_failed(tunnel), Instant::now())
+            .signal(
+                preferences(StandbyNotify::None),
+                &wake_failed(tunnel),
+                Instant::now(),
+            )
             .await;
 
         assert!(
@@ -454,7 +497,7 @@ mod tests {
             fixture
                 .signals
                 .signal(
-                    StandbyNotify::Visual,
+                    preferences(StandbyNotify::Visual),
                     &wake_failed(tunnel),
                     start + Duration::from_secs(offset),
                 )
@@ -473,7 +516,7 @@ mod tests {
             fixture
                 .signals
                 .signal(
-                    StandbyNotify::Visual,
+                    preferences(StandbyNotify::Visual),
                     &wake_failed(TunnelId::generate()),
                     now,
                 )
@@ -492,7 +535,7 @@ mod tests {
         for _ in 0..3 {
             fixture
                 .signals
-                .signal(StandbyNotify::Visual, &woke(tunnel), now)
+                .signal(preferences(StandbyNotify::Visual), &woke(tunnel), now)
                 .await;
         }
 
@@ -508,7 +551,7 @@ mod tests {
         let shutdown = CancellationToken::new();
         let task = spawn_standby_signal_follower(
             receiver,
-            || StandbyNotify::Visual,
+            || preferences(StandbyNotify::Visual),
             |_| Some("3333 → nova:3333".to_owned()),
             fixture.signals,
             shutdown.clone(),
@@ -535,7 +578,7 @@ mod tests {
         let tunnel = TunnelId::generate();
         let task = spawn_standby_signal_follower(
             receiver,
-            || StandbyNotify::Visual,
+            || preferences(StandbyNotify::Visual),
             |_| None,
             fixture.signals,
             CancellationToken::new(),

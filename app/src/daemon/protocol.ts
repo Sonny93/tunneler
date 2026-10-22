@@ -144,6 +144,10 @@ export type ImportPreviewDto = {
 
 export type StandbyNotifyDto = 'none' | 'visual' | 'sound' | 'both';
 
+export type StandbySoundDto = 'system' | 'chime' | 'marimba' | 'pluck';
+
+export type SoundEventDto = 'woke' | 'wakeFailed';
+
 export type SettingsDto = {
 	defaultBindAddress: string;
 	defaultRemoteBindAddress: string;
@@ -161,6 +165,7 @@ export type SettingsDto = {
 	standby: boolean;
 	standbyIdleS: number;
 	standbyNotify: StandbyNotifyDto;
+	standbySound: StandbySoundDto;
 	checkForUpdates: boolean;
 };
 
