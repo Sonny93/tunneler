@@ -3,6 +3,7 @@ import { Input, RadioOptions, Select } from '@minimalstuff/ui';
 
 import { useDaemonStore } from '#/state/daemon_store';
 import { suggestOpener } from '#/tunnel_form/suggest_opener';
+import { getRadioOrientation } from '#/shared/radio_orientation';
 import { buildOpenPreview } from '#/tunnel_form/build_open_preview';
 import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 import type { TunnelFormAction } from '#/tunnel_form/tunnel_form_reducer';
@@ -94,7 +95,7 @@ export function OpenOptionsFields({
 			<RadioOptions
 				name="openScheme"
 				label="Schéma"
-				orientation="horizontal"
+				orientation={getRadioOrientation(SCHEME_OPTIONS.length)}
 				options={SCHEME_OPTIONS}
 				value={values.openScheme}
 				onChange={changeScheme}

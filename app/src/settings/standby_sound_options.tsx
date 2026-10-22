@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { Button, RadioOptions } from '@minimalstuff/ui';
 
 import { useDaemonAction } from '#/daemon/use_daemon_action';
+import { getRadioOrientation } from '#/shared/radio_orientation';
 import type {
 	SoundEventDto,
 	StandbyNotifyDto,
@@ -55,7 +56,7 @@ export function StandbySoundOptions({
 			<RadioOptions
 				name="standbySound"
 				label="Son"
-				orientation="horizontal"
+				orientation={getRadioOrientation(OPTIONS.length)}
 				options={OPTIONS.map((option) => ({ ...option }))}
 				value={value}
 				onChange={handleChange}

@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { RadioOptions } from '@minimalstuff/ui';
 
 import { useDaemonStore } from '#/state/daemon_store';
+import { getRadioOrientation } from '#/shared/radio_orientation';
 import type { StandbyChoice } from '#/tunnel_form/tunnel_form_values';
 
 const INHERITED_VALUE = '';
@@ -34,7 +35,7 @@ export function StandbyField({ value, onChange }: Readonly<StandbyFieldProps>) {
 			<RadioOptions
 				name="standby"
 				label="Veille"
-				orientation="horizontal"
+				orientation={getRadioOrientation(options.length)}
 				options={options}
 				value={value}
 				onChange={handleChange}

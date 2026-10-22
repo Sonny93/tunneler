@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { RadioOptions } from '@minimalstuff/ui';
 
 import type { StandbyNotifyDto } from '#/daemon/protocol';
+import { getRadioOrientation } from '#/shared/radio_orientation';
 
 const OPTIONS: readonly { value: StandbyNotifyDto; label: string }[] = [
 	{ value: 'none', label: 'Aucun' },
@@ -32,7 +33,7 @@ export function StandbyNotifyOptions({
 			<RadioOptions
 				name="standbyNotify"
 				label="Signal à la sortie de veille"
-				orientation="horizontal"
+				orientation={getRadioOrientation(OPTIONS.length)}
 				options={OPTIONS.map((option) => ({ ...option }))}
 				value={value}
 				onChange={handleChange}
