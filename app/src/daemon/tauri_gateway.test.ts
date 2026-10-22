@@ -64,6 +64,9 @@ describe('createTauriGateway', () => {
 		['restartTunnel', ['1'], 'restart_tunnel', { id: '1' }],
 		['startTag', ['dev'], 'start_tag', { tag: 'dev' }],
 		['stopTag', ['dev'], 'stop_tag', { tag: 'dev' }],
+		['standbyTunnel', ['1'], 'standby_tunnel', { id: '1' }],
+		['standbyTag', ['dev'], 'standby_tag', { tag: 'dev' }],
+		['standbyAll', [], 'standby_all', undefined],
 		[
 			'renameTag',
 			['dev', 'staging'],

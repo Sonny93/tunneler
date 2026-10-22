@@ -55,6 +55,7 @@ mod tests {
                 id,
                 state: TunnelState::Active,
                 health: TargetHealth::Unknown,
+                is_awake: false,
             })
             .unwrap();
 

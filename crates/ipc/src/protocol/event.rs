@@ -15,6 +15,9 @@ pub struct TunnelChangedEvent {
     pub state: TunnelStateDto,
     /// Its new target health.
     pub health: TargetHealthDto,
+    /// Whether it is now woken from standby and serving.
+    #[serde(default)]
+    pub is_awake: bool,
 }
 
 /// The metrics of a tunnel changed.
@@ -150,6 +153,10 @@ pub enum EventMessage {
     /// Somebody asked the daemon to quit; the UI should confirm.
     #[serde(rename = "quit.requested")]
     QuitRequested {},
+    /// Somebody asked to send the awake tunnels back to standby; the UI
+    /// should confirm.
+    #[serde(rename = "standby.requested")]
+    StandbyRequested {},
     /// The tray icon status changed.
     #[serde(rename = "tray.changed")]
     TrayChanged(TrayChangedEvent),

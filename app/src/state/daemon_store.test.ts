@@ -76,7 +76,12 @@ describe('useDaemonStore', () => {
 
 		useDaemonStore.getState().applyEvent({
 			event: 'tunnel.changed',
-			data: { id: 'a', state: { kind: 'active' }, health: { kind: 'unknown' } },
+			data: {
+				id: 'a',
+				state: { kind: 'active' },
+				health: { kind: 'unknown' },
+				isAwake: false,
+			},
 		});
 
 		expect(useDaemonStore.getState().tunnels[0]?.state).toEqual({
@@ -112,6 +117,16 @@ describe('useDaemonStore', () => {
 			.dismissPrompt(alert && 'alertId' in alert ? alert.alertId : '');
 
 		expect(useDaemonStore.getState().prompts).toEqual([]);
+	});
+
+	it('should clear the standby request', () => {
+		useDaemonStore
+			.getState()
+			.applyEvent({ event: 'standby.requested', data: {} });
+
+		useDaemonStore.getState().clearStandbyRequest();
+
+		expect(useDaemonStore.getState().isStandbyRequested).toBe(false);
 	});
 
 	it('should clear the quit request', () => {

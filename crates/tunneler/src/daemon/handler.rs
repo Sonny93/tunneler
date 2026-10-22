@@ -91,6 +91,7 @@ impl DaemonHandler {
             Request::TunnelDelete(params) => self.delete_tunnel(params).await,
             Request::TunnelStart(params) => self.start_tunnel(&params),
             Request::TunnelStop(params) => self.stop_tunnel(&params),
+            Request::TunnelStandby(params) => self.standby_tunnel(&params),
             Request::TunnelRestart(params) => self.restart_tunnel(&params),
             Request::TunnelLogs(params) => self.tunnel_logs(&params),
             Request::HostsList {} => self.list_hosts().await,
@@ -99,6 +100,8 @@ impl DaemonHandler {
             Request::ImportScript(params) => self.import_script(params.text).await,
             Request::TagStart(params) => self.start_tag(&params.tag),
             Request::TagStop(params) => self.stop_tag(&params.tag),
+            Request::TagStandby(params) => self.standby_tag(&params.tag),
+            Request::TunnelsStandby {} => self.standby_all(),
             Request::SettingsUpdate(settings) => self.update_settings(settings).await,
             Request::SettingsPreviewSound(params) => Ok(self.preview_sound(params)),
             Request::CredentialRespond(params) => self
@@ -298,6 +301,13 @@ impl DaemonHandler {
             .map_err(engine_error_to_ipc)
     }
 
+    fn standby_tunnel(&self, params: &TunnelIdParams) -> Result<ResponsePayload, IpcError> {
+        self.engine
+            .standby_tunnel(parse_tunnel_id(params)?)
+            .map(|()| ResponsePayload::empty())
+            .map_err(engine_error_to_ipc)
+    }
+
     fn restart_tunnel(&self, params: &TunnelIdParams) -> Result<ResponsePayload, IpcError> {
         self.engine
             .restart_tunnel(parse_tunnel_id(params)?)
@@ -430,6 +440,20 @@ impl DaemonHandler {
             .map_err(engine_error_to_ipc)
     }
 
+    fn standby_tag(&self, tag: &str) -> Result<ResponsePayload, IpcError> {
+        self.engine
+            .standby_tag(tag)
+            .map(|_| ResponsePayload::empty())
+            .map_err(engine_error_to_ipc)
+    }
+
+    fn standby_all(&self) -> Result<ResponsePayload, IpcError> {
+        self.engine
+            .standby_all()
+            .map(|_| ResponsePayload::empty())
+            .map_err(engine_error_to_ipc)
+    }
+
     async fn update_settings(&self, dto: SettingsDto) -> Result<ResponsePayload, IpcError> {
         self.engine
             .update_settings(settings_from_dto(dto))
@@ -513,6 +537,7 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         | EngineError::TunnelIsNotTemporary(_)
         | EngineError::TunnelNotActive(_)
         | EngineError::TunnelOnStandby(_)
+        | EngineError::TunnelNotAwake(_)
         | EngineError::TunnelHasNoTarget(_)
         | EngineError::Open(_) => IpcError::invalid_state(error.to_string()),
         EngineError::TunnelStartFailed(_)
@@ -1023,6 +1048,81 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_sending_an_unknown_tag_to_standby() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::TagStandby(ipc::protocol::TagParams {
+                    tag: "ghost".to_owned(),
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    async fn should_answer_invalid_state_when_sending_a_tunnel_that_is_not_awake_to_standby() {
+        let fixture = fixture();
+        let tunnel = created_tunnel(&fixture, free_port().await).await;
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::TunnelStandby(TunnelIdParams {
+                    id: tunnel.definition.id,
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::InvalidState);
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_sending_an_unknown_tunnel_to_standby() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::TunnelStandby(TunnelIdParams {
+                    id: engine::TunnelId::generate().to_string(),
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    async fn should_answer_an_empty_result_when_no_tunnel_is_awake() {
+        let fixture = fixture();
+        created_tunnel(&fixture, free_port().await).await;
+
+        let response = fixture
+            .handler
+            .dispatch(None, Request::TunnelsStandby {})
+            .await;
+
+        assert_eq!(response.unwrap(), ResponsePayload::empty());
+    }
+
+    #[test]
+    fn should_answer_invalid_state_when_the_tunnel_is_not_awake() {
+        let error = EngineError::TunnelNotAwake(engine::TunnelId::generate());
+
+        assert_eq!(engine_error_to_ipc(error).code, ErrorCode::InvalidState);
     }
 
     fn delete_request(tag: &str) -> Request {

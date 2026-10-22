@@ -16,6 +16,7 @@ type DaemonActions = {
 	applyEvent: (event: EventMessage) => void;
 	dismissPrompt: (id: string) => void;
 	clearQuitRequest: () => void;
+	clearStandbyRequest: () => void;
 };
 
 export const useDaemonStore = create<DaemonState & DaemonActions>()((set) => ({
@@ -39,4 +40,5 @@ export const useDaemonStore = create<DaemonState & DaemonActions>()((set) => ({
 			prompts: state.prompts.filter((prompt) => getPromptId(prompt) !== id),
 		})),
 	clearQuitRequest: () => set({ isQuitRequested: false }),
+	clearStandbyRequest: () => set({ isStandbyRequested: false }),
 }));

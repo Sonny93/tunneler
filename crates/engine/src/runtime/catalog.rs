@@ -29,6 +29,9 @@ pub struct TunnelSnapshot {
     pub health: TargetHealth,
     /// What it carried.
     pub metrics: TunnelMetrics,
+    /// Whether the tunnel was woken from standby and is serving; it can be
+    /// sent back to standby.
+    pub is_awake: bool,
     /// Whether the tunnel lives only in the daemon: it is never saved to the
     /// store and is removed when it is stopped.
     pub is_temporary: bool,
@@ -82,6 +85,7 @@ impl TunnelEntry {
             state: status.state,
             health: status.health,
             metrics: self.handle.shared.metrics(),
+            is_awake: status.is_awake,
             is_temporary: self.is_temporary,
         }
     }
@@ -168,6 +172,20 @@ impl Catalog {
                 restored.is_some_and(|ids| ids.contains(&definition.id))
                     || definition.tags.iter().any(|tag| tags.contains(tag))
             })
+            .map(|entry| entry.definition.id)
+            .collect()
+    }
+
+    pub(crate) fn is_awake(&self, id: TunnelId) -> bool {
+        self.find(id)
+            .is_some_and(|entry| entry.handle.shared.status().is_awake)
+    }
+
+    /// The ids of the tunnels woken from standby and serving.
+    pub(crate) fn awake_ids(&self) -> Vec<TunnelId> {
+        self.entries
+            .iter()
+            .filter(|entry| entry.handle.shared.status().is_awake)
             .map(|entry| entry.definition.id)
             .collect()
     }

@@ -15,9 +15,9 @@ enum WindowRequest {
 
 fn window_request_for(event: &EventMessage) -> WindowRequest {
     match event {
-        EventMessage::ShowRequested {} | EventMessage::QuitRequested {} => {
-            WindowRequest::BringToFront
-        }
+        EventMessage::ShowRequested {}
+        | EventMessage::QuitRequested {}
+        | EventMessage::StandbyRequested {} => WindowRequest::BringToFront,
         EventMessage::CredentialRequest(_)
         | EventMessage::HostKeyRequest(HostKeyRequestEvent::Prompt { .. }) => {
             WindowRequest::RequestAttention
@@ -96,6 +96,13 @@ mod tests {
     #[test]
     fn quit_requested_brings_the_window_to_the_front() {
         let event = parse(r#"{"event":"quit.requested","data":{}}"#);
+
+        assert_eq!(window_request_for(&event), WindowRequest::BringToFront);
+    }
+
+    #[test]
+    fn standby_requested_brings_the_window_to_the_front() {
+        let event = parse(r#"{"event":"standby.requested","data":{}}"#);
 
         assert_eq!(window_request_for(&event), WindowRequest::BringToFront);
     }

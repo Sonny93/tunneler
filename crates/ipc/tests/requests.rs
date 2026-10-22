@@ -40,6 +40,16 @@ async fn should_return_unit_when_a_request_has_nothing_to_report() {
 }
 
 #[tokio::test]
+async fn should_return_unit_when_tunnels_are_sent_back_to_standby() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    assert!(client.standby_tunnel("abc").await.is_ok());
+    assert!(client.standby_tag("dev").await.is_ok());
+    assert!(client.standby_all().await.is_ok());
+}
+
+#[tokio::test]
 async fn should_return_the_started_ids_when_an_external_tunnel_is_adopted() {
     let daemon = TestDaemon::start();
     let client = daemon.connect(ClientKind::Ui, false).await;

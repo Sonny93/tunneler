@@ -38,6 +38,7 @@ export function buildTunnel(
 		state: { kind: 'stopped' },
 		health: { kind: 'unknown' },
 		metrics: buildMetrics(),
+		isAwake: false,
 		isTemporary: false,
 		defaultOpener: { id: 'browser', name: 'Browser' },
 		...overrides,

@@ -54,14 +54,25 @@ impl TunnelShared {
     }
 
     pub(crate) fn set_state(&self, state: TunnelState) {
+        self.apply_state(state, false);
+    }
+
+    /// Marks the tunnel `Active`. `is_awake` tells that it was woken from
+    /// standby, so that it can be sent back to it.
+    pub(crate) fn set_active(&self, is_awake: bool) {
+        self.apply_state(TunnelState::Active, is_awake);
+    }
+
+    fn apply_state(&self, state: TunnelState, is_awake: bool) {
         let mut status = lock(&self.status);
-        if status.state == state {
+        if status.state == state && status.is_awake == is_awake {
             return;
         }
         let is_transition = !status.state.is_same_kind_as(&state);
         let level = level_of(&state);
         let message = format!("state: {state}");
         status.state = state;
+        status.is_awake = is_awake;
         self.publish_status(&status);
         drop(status);
         if is_transition {
@@ -128,6 +139,7 @@ impl TunnelShared {
             id: self.id,
             state: status.state.clone(),
             health: status.health.clone(),
+            is_awake: status.is_awake,
         });
     }
 }
@@ -243,6 +255,29 @@ mod tests {
         shared.set_state(TunnelState::Active);
 
         assert_eq!(changed_states(&mut events), [TunnelState::Active]);
+    }
+
+    #[test]
+    fn should_publish_again_when_the_active_tunnel_wakes_from_standby() {
+        let Fixture {
+            shared, mut events, ..
+        } = fixture();
+        shared.set_active(false);
+
+        shared.set_active(true);
+
+        assert!(shared.status().is_awake);
+        assert_eq!(changed_states(&mut events).len(), 2);
+    }
+
+    #[test]
+    fn should_not_be_awake_once_the_state_leaves_active() {
+        let Fixture { shared, .. } = fixture();
+        shared.set_active(true);
+
+        shared.set_state(TunnelState::Standby { last_failure: None });
+
+        assert!(!shared.status().is_awake);
     }
 
     #[test]

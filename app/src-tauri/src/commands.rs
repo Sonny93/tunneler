@@ -164,6 +164,21 @@ pub async fn stop_tag(state: State<'_, BridgeState>, tag: String) -> CommandResu
     Ok(state.client()?.stop_tag(&tag).await?)
 }
 
+#[tauri::command]
+pub async fn standby_tunnel(state: State<'_, BridgeState>, id: String) -> CommandResult<()> {
+    Ok(state.client()?.standby_tunnel(&id).await?)
+}
+
+#[tauri::command]
+pub async fn standby_tag(state: State<'_, BridgeState>, tag: String) -> CommandResult<()> {
+    Ok(state.client()?.standby_tag(&tag).await?)
+}
+
+#[tauri::command]
+pub async fn standby_all(state: State<'_, BridgeState>) -> CommandResult<()> {
+    Ok(state.client()?.standby_all().await?)
+}
+
 /// Renames a tag everywhere; returns how many tunnels carried it.
 #[tauri::command]
 pub async fn rename_tag(

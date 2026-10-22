@@ -24,7 +24,12 @@ const activate = (id: string) =>
 	act(() =>
 		useDaemonStore.getState().applyEvent({
 			event: 'tunnel.changed',
-			data: { id, state: { kind: 'active' }, health: { kind: 'unknown' } },
+			data: {
+				id,
+				state: { kind: 'active' },
+				health: { kind: 'unknown' },
+				isAwake: false,
+			},
 		})
 	);
 
@@ -92,6 +97,7 @@ describe('useTunnelStateAnnouncements', () => {
 					id: 'a',
 					state: { kind: 'stopped' },
 					health: { kind: 'reachable' },
+					isAwake: false,
 				},
 			})
 		);

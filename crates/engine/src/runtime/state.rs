@@ -166,6 +166,9 @@ pub struct TunnelStatus {
     pub state: TunnelState,
     /// The health of the target.
     pub health: TargetHealth,
+    /// Whether the tunnel was woken from standby and is serving: only then
+    /// can it be sent back to standby.
+    pub is_awake: bool,
 }
 
 impl TunnelStatus {
@@ -173,6 +176,7 @@ impl TunnelStatus {
         Self {
             state: TunnelState::Stopped,
             health: TargetHealth::Unknown,
+            is_awake: false,
         }
     }
 }

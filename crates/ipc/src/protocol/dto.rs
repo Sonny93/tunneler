@@ -365,6 +365,10 @@ pub struct TunnelDto {
     pub health: TargetHealthDto,
     /// What it carried.
     pub metrics: MetricsDto,
+    /// Whether the tunnel was woken from standby and is serving: it can be
+    /// sent back to standby.
+    #[serde(default)]
+    pub is_awake: bool,
     /// Whether the tunnel lives only in the daemon: it is never saved, and
     /// stopping it removes it.
     #[serde(default)]

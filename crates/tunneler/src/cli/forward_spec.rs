@@ -395,6 +395,7 @@ mod tests {
             state: TunnelStateDto::Stopped,
             health: TargetHealthDto::Unknown,
             metrics: MetricsDto::default(),
+            is_awake: false,
             is_temporary: false,
             default_opener: ipc::protocol::DefaultOpenerDto {
                 id: "browser".to_owned(),

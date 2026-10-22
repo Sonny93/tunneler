@@ -350,6 +350,7 @@ pub(crate) fn tunnel_to_dto(snapshot: &TunnelSnapshot, openers: &[AvailableOpene
         state: state_to_dto(&snapshot.state),
         health: health_to_dto(&snapshot.health),
         metrics: metrics_to_dto(&snapshot.metrics),
+        is_awake: snapshot.is_awake,
         is_temporary: snapshot.is_temporary,
         default_opener: default_opener_to_dto(default_opener(&snapshot.definition, openers)),
     }
@@ -557,13 +558,17 @@ fn import_warning_to_dto(warning: &ImportWarning) -> ImportWarningDto {
 /// daemon.
 pub(crate) fn event_to_message(event: &EngineEvent) -> Option<EventMessage> {
     Some(match event {
-        EngineEvent::TunnelChanged { id, state, health } => {
-            EventMessage::TunnelChanged(TunnelChangedEvent {
-                id: id.to_string(),
-                state: state_to_dto(state),
-                health: health_to_dto(health),
-            })
-        }
+        EngineEvent::TunnelChanged {
+            id,
+            state,
+            health,
+            is_awake,
+        } => EventMessage::TunnelChanged(TunnelChangedEvent {
+            id: id.to_string(),
+            state: state_to_dto(state),
+            health: health_to_dto(health),
+            is_awake: *is_awake,
+        }),
         EngineEvent::TunnelMetrics { id, metrics } => {
             EventMessage::TunnelMetrics(TunnelMetricsEvent {
                 id: id.to_string(),
@@ -837,6 +842,7 @@ mod tests {
             state: TunnelState::Stopped,
             health: TargetHealth::Unknown,
             metrics: TunnelMetrics::default(),
+            is_awake: false,
             is_temporary: false,
         };
 
@@ -1258,6 +1264,7 @@ mod tests {
             id,
             state: TunnelState::Active,
             health: TargetHealth::Reachable,
+            is_awake: true,
         };
 
         assert_eq!(
@@ -1265,9 +1272,24 @@ mod tests {
             EventMessage::TunnelChanged(TunnelChangedEvent {
                 id: id.to_string(),
                 state: TunnelStateDto::Active,
-                health: TargetHealthDto::Reachable
+                health: TargetHealthDto::Reachable,
+                is_awake: true,
             })
         );
+    }
+
+    #[test]
+    fn should_carry_the_awake_flag_when_converting_a_tunnel() {
+        let snapshot = TunnelSnapshot {
+            definition: sample_definition(),
+            state: TunnelState::Active,
+            health: TargetHealth::Unknown,
+            metrics: TunnelMetrics::default(),
+            is_awake: true,
+            is_temporary: false,
+        };
+
+        assert!(tunnel_to_dto(&snapshot, &[]).is_awake);
     }
 
     #[test]

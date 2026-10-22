@@ -132,6 +132,7 @@ describe('useDaemonConnection', () => {
 					id: 'a',
 					state: { kind: 'active' },
 					health: { kind: 'unknown' },
+					isAwake: false,
 				},
 			})
 		);

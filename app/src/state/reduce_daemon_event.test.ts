@@ -27,6 +27,22 @@ const passwordRequestEvent = (promptId: string) =>
 	}) as const;
 
 describe('reduceDaemonEvent', () => {
+	it('should patch the awake flag of the tunnel on tunnel.changed', () => {
+		const state = stateWithTunnels(buildTunnel({ id: 'a' }));
+
+		const next = reduceDaemonEvent(state, {
+			event: 'tunnel.changed',
+			data: {
+				id: 'a',
+				state: { kind: 'active' },
+				health: { kind: 'unknown' },
+				isAwake: true,
+			},
+		});
+
+		expect(next.tunnels[0]?.isAwake).toBe(true);
+	});
+
 	it('should patch state and health of the tunnel on tunnel.changed', () => {
 		const state = stateWithTunnels(
 			buildTunnel({ id: 'a' }),
@@ -39,6 +55,7 @@ describe('reduceDaemonEvent', () => {
 				id: 'b',
 				state: { kind: 'active' },
 				health: { kind: 'reachable' },
+				isAwake: false,
 			},
 		});
 
@@ -58,6 +75,7 @@ describe('reduceDaemonEvent', () => {
 				id: 'zzz',
 				state: { kind: 'active' },
 				health: { kind: 'unknown' },
+				isAwake: false,
 			},
 		});
 
@@ -270,6 +288,15 @@ describe('reduceDaemonEvent', () => {
 		});
 
 		expect(next.isQuitRequested).toBe(true);
+	});
+
+	it('should flag the standby request on standby.requested', () => {
+		const next = reduceDaemonEvent(INITIAL_DAEMON_STATE, {
+			event: 'standby.requested',
+			data: {},
+		});
+
+		expect(next.isStandbyRequested).toBe(true);
 	});
 
 	it('should add the anchor of a host on x11.changed', () => {

@@ -30,6 +30,7 @@ const UI_LAUNCH_GRACE: Duration = Duration::from_secs(30);
 struct LaunchState {
     launched_at: Option<Instant>,
     is_quit_confirmation_pending: bool,
+    is_standby_confirmation_pending: bool,
 }
 
 impl LaunchState {
@@ -66,7 +67,8 @@ impl UiCoordinator {
     }
 
     /// Follows the connections: a UI that connects ends the wait for a launch
-    /// and receives the quit confirmation that was asked while it started.
+    /// and receives the quit and standby confirmations that were asked while
+    /// it started.
     /// The task ends when `shutdown` is cancelled.
     pub(crate) fn spawn_follower(self: &Arc<Self>, shutdown: CancellationToken) -> JoinHandle<()> {
         let coordinator = Arc::clone(self);
@@ -129,6 +131,21 @@ impl UiCoordinator {
         })
     }
 
+    /// Has the UI ask the user to confirm sending the awake tunnels back to
+    /// standby, launching it when none is connected; it is then told as soon
+    /// as it connects.
+    pub(crate) fn request_standby_confirmation(&self) -> Result<(), UiLaunchError> {
+        let uis = self.ui_connections();
+        if !uis.is_empty() {
+            self.notify(&uis, &EventMessage::StandbyRequested {});
+            return Ok(());
+        }
+        self.lock().is_standby_confirmation_pending = true;
+        self.launch_once().inspect_err(|_| {
+            self.lock().is_standby_confirmation_pending = false;
+        })
+    }
+
     fn launch_once(&self) -> Result<(), UiLaunchError> {
         {
             let mut state = self.lock();
@@ -144,23 +161,29 @@ impl UiCoordinator {
     }
 
     fn handle_ui_connected(&self, id: ConnectionId) {
-        let (was_launch_in_flight, was_quit_pending) = {
+        let (was_launch_in_flight, was_quit_pending, was_standby_pending) = {
             let mut state = self.lock();
             let was_launch_in_flight = state.is_launch_in_flight(self.launch_grace);
             state.launched_at = None;
             (
                 was_launch_in_flight,
                 std::mem::take(&mut state.is_quit_confirmation_pending),
+                std::mem::take(&mut state.is_standby_confirmation_pending),
             )
         };
-        if !was_quit_pending {
+        if !was_quit_pending && !was_standby_pending {
             return;
         }
         if !was_launch_in_flight {
-            tracing::debug!("dropped a quit confirmation that outlived its UI launch");
+            tracing::debug!("dropped a confirmation that outlived its UI launch");
             return;
         }
-        self.notify(&[id], &EventMessage::QuitRequested {});
+        if was_quit_pending {
+            self.notify(&[id], &EventMessage::QuitRequested {});
+        }
+        if was_standby_pending {
+            self.notify(&[id], &EventMessage::StandbyRequested {});
+        }
     }
 
     fn catch_up(&self) {
@@ -571,6 +594,78 @@ mod tests {
     async fn should_not_deliver_a_pending_quit_confirmation_to_a_cli() {
         let fixture = Fixture::start();
         fixture.coordinator.request_quit_confirmation().unwrap();
+
+        let mut cli = connect(&fixture.server, ClientKind::Cli).await;
+
+        assert_silent(&mut cli).await;
+    }
+
+    #[tokio::test]
+    async fn should_send_standby_requested_at_once_when_a_ui_is_connected() {
+        let fixture = Fixture::start();
+        let mut ui = connect(&fixture.server, ClientKind::Ui).await;
+
+        fixture.coordinator.request_standby_confirmation().unwrap();
+
+        assert_eq!(next_event(&mut ui).await, EventMessage::StandbyRequested {});
+    }
+
+    #[tokio::test]
+    async fn should_launch_the_ui_when_a_standby_confirmation_is_asked_without_one() {
+        let fixture = Fixture::start();
+
+        fixture.coordinator.request_standby_confirmation().unwrap();
+
+        assert_eq!(fixture.launcher.launch_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn should_deliver_the_pending_standby_confirmation_to_the_ui_that_connects() {
+        let fixture = Fixture::start();
+        fixture.coordinator.request_standby_confirmation().unwrap();
+
+        let mut ui = connect(&fixture.server, ClientKind::Ui).await;
+
+        assert_eq!(next_event(&mut ui).await, EventMessage::StandbyRequested {});
+    }
+
+    #[tokio::test]
+    async fn should_drop_the_pending_standby_confirmation_when_the_launch_grace_is_over() {
+        let fixture = Fixture::with_grace(Duration::from_millis(50));
+        fixture.coordinator.request_standby_confirmation().unwrap();
+        tokio::time::sleep(Duration::from_millis(150)).await;
+
+        let mut ui = connect(&fixture.server, ClientKind::Ui).await;
+
+        assert_silent(&mut ui).await;
+    }
+
+    #[tokio::test]
+    async fn should_deliver_the_pending_standby_confirmation_only_once() {
+        let fixture = Fixture::start();
+        fixture.coordinator.request_standby_confirmation().unwrap();
+        let mut first = connect(&fixture.server, ClientKind::Ui).await;
+        next_event(&mut first).await;
+
+        let mut second = connect(&fixture.server, ClientKind::Ui).await;
+
+        assert_silent(&mut second).await;
+    }
+
+    #[tokio::test]
+    async fn should_not_deliver_a_standby_confirmation_when_the_launch_failed() {
+        let fixture = Fixture::with_launcher(FakeLauncher::failing());
+        let _ = fixture.coordinator.request_standby_confirmation();
+
+        let mut ui = connect(&fixture.server, ClientKind::Ui).await;
+
+        assert_silent(&mut ui).await;
+    }
+
+    #[tokio::test]
+    async fn should_not_deliver_a_pending_standby_confirmation_to_a_cli() {
+        let fixture = Fixture::start();
+        fixture.coordinator.request_standby_confirmation().unwrap();
 
         let mut cli = connect(&fixture.server, ClientKind::Cli).await;
 

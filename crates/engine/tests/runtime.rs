@@ -427,6 +427,16 @@ impl Harness {
             .state
     }
 
+    fn is_awake(&self, name: &str) -> bool {
+        self.engine
+            .snapshot()
+            .tunnels
+            .into_iter()
+            .find(|tunnel| tunnel.definition.id == self.id(name))
+            .unwrap()
+            .is_awake
+    }
+
     fn start_tunnel(&self, name: &str) {
         self.engine.start_tunnel(self.id(name)).unwrap();
     }
@@ -3839,6 +3849,169 @@ async fn should_wake_up_again_when_a_client_connects_after_the_tunnel_went_back_
     let echoed = echo_through(harness.port("alpha"), PAYLOAD).await;
 
     assert_eq!(echoed, PAYLOAD);
+}
+
+async fn connect_and_wait_active(harness: &mut Harness, name: &str) -> TcpStream {
+    let client = TcpStream::connect((LOOPBACK, harness.port(name)))
+        .await
+        .unwrap();
+    harness.wait_active(name).await;
+    client
+}
+
+async fn is_closed_by_the_peer(client: &mut TcpStream) -> bool {
+    let mut buffer = [0_u8; 1];
+    matches!(
+        timeout(WAIT, client.read(&mut buffer)).await,
+        Ok(Ok(0) | Err(_))
+    )
+}
+
+#[tokio::test]
+async fn should_go_back_to_standby_and_close_the_open_connection_when_an_awake_tunnel_is_sent_to_standby()
+ {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+    let mut client = connect_and_wait_active(&mut harness, "alpha").await;
+
+    harness.engine.standby_tunnel(harness.id("alpha")).unwrap();
+
+    harness.wait_standby("alpha").await;
+    assert!(is_closed_by_the_peer(&mut client).await);
+    assert!(!can_bind(harness.port("alpha")).await);
+}
+
+#[tokio::test]
+async fn should_wake_up_again_when_a_client_connects_after_the_tunnel_was_sent_to_standby() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+    let _client = connect_and_wait_active(&mut harness, "alpha").await;
+    harness.engine.standby_tunnel(harness.id("alpha")).unwrap();
+    harness.wait_standby("alpha").await;
+
+    let echoed = echo_through(harness.port("alpha"), PAYLOAD).await;
+
+    assert_eq!(echoed, PAYLOAD);
+}
+
+#[tokio::test]
+async fn should_fail_with_not_awake_when_a_tunnel_on_standby_is_sent_to_standby() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .standby_by_default()
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+
+    let outcome = harness.engine.standby_tunnel(harness.id("alpha"));
+
+    assert!(matches!(outcome, Err(EngineError::TunnelNotAwake(_))));
+}
+
+#[tokio::test]
+async fn should_fail_with_not_awake_and_keep_serving_when_a_tunnel_without_standby_is_sent_to_standby()
+ {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.start_and_wait_active("alpha").await;
+
+    let outcome = harness.engine.standby_tunnel(harness.id("alpha"));
+
+    assert!(matches!(outcome, Err(EngineError::TunnelNotAwake(_))));
+    assert_eq!(echo_through(harness.port("alpha"), PAYLOAD).await, PAYLOAD);
+    assert_eq!(harness.state_of("alpha"), TunnelState::Active);
+}
+
+#[tokio::test]
+async fn should_fail_with_unknown_tunnel_when_an_unknown_tunnel_is_sent_to_standby() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    let outcome = harness.engine.standby_tunnel(TunnelId::generate());
+
+    assert!(matches!(outcome, Err(EngineError::UnknownTunnel(_))));
+}
+
+#[tokio::test]
+async fn should_be_awake_only_while_a_standby_tunnel_serves() {
+    let mut harness = HarnessBuilder::new(&["alpha", "beta"])
+        .standby_override("alpha", true)
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.wait_standby("alpha").await;
+    harness.start_and_wait_active("beta").await;
+    let is_awake_on_standby = harness.is_awake("alpha");
+
+    let _client = connect_and_wait_active(&mut harness, "alpha").await;
+
+    assert!(!is_awake_on_standby);
+    assert!(harness.is_awake("alpha"));
+    assert!(!harness.is_awake("beta"));
+}
+
+#[tokio::test]
+async fn should_send_only_the_awake_tunnels_back_to_standby_when_all_are_sent_to_standby() {
+    let mut harness = HarnessBuilder::new(&["alpha", "beta", "gamma"])
+        .standby_override("alpha", true)
+        .standby_override("beta", true)
+        .standby_override("gamma", false)
+        .start()
+        .await;
+    harness.start_tunnel("alpha");
+    harness.start_tunnel("beta");
+    harness.wait_standby("alpha").await;
+    harness.wait_standby("beta").await;
+    harness.start_and_wait_active("gamma").await;
+    let _client = connect_and_wait_active(&mut harness, "alpha").await;
+
+    let sent = harness.engine.standby_all().unwrap();
+
+    assert_eq!(sent, vec![harness.id("alpha")]);
+    harness.wait_standby("alpha").await;
+    assert_eq!(
+        harness.state_of("beta"),
+        TunnelState::Standby { last_failure: None }
+    );
+    assert_eq!(harness.state_of("gamma"), TunnelState::Active);
+}
+
+#[tokio::test]
+async fn should_send_only_the_awake_tunnels_of_the_tag_back_to_standby() {
+    let mut harness =
+        HarnessBuilder::tagged(&[("alpha", &["dev"]), ("beta", &["dev"]), ("gamma", &["web"])])
+            .standby_by_default()
+            .start()
+            .await;
+    harness.engine.start_tag("dev").unwrap();
+    harness.engine.start_tag("web").unwrap();
+    harness.wait_standby("alpha").await;
+    harness.wait_standby("beta").await;
+    harness.wait_standby("gamma").await;
+    let _alpha_client = connect_and_wait_active(&mut harness, "alpha").await;
+    let _gamma_client = connect_and_wait_active(&mut harness, "gamma").await;
+
+    let sent = harness.engine.standby_tag("dev").unwrap();
+
+    assert_eq!(sent, vec![harness.id("alpha")]);
+    harness.wait_standby("alpha").await;
+    assert!(harness.is_awake("gamma"));
+    assert!(!harness.is_awake("beta"));
+}
+
+#[tokio::test]
+async fn should_fail_with_unknown_tag_when_no_tunnel_carries_the_tag_sent_to_standby() {
+    let harness = HarnessBuilder::tagged(&[("alpha", &["dev"])]).start().await;
+
+    let outcome = harness.engine.standby_tag("missing");
+
+    assert!(matches!(outcome, Err(EngineError::UnknownTag(_))));
 }
 
 #[tokio::test]

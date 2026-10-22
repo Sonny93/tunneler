@@ -17,7 +17,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 37] = [
+pub const METHOD_NAMES: [&str; 40] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -25,6 +25,7 @@ pub const METHOD_NAMES: [&str; 37] = [
     "tunnel.delete",
     "tunnel.start",
     "tunnel.stop",
+    "tunnel.standby",
     "tunnel.restart",
     "tunnel.logs",
     "tunnel.start_temporary",
@@ -38,6 +39,8 @@ pub const METHOD_NAMES: [&str; 37] = [
     "import.script",
     "tag.start",
     "tag.stop",
+    "tag.standby",
+    "tunnels.standby",
     "settings.update",
     "settings.preview_sound",
     "credential.respond",
@@ -224,6 +227,11 @@ pub enum Request {
     /// Stops a tunnel.
     #[serde(rename = "tunnel.stop")]
     TunnelStop(TunnelIdParams),
+    /// Sends a tunnel woken from standby back to standby and closes its open
+    /// connections; answers `not_found` when the tunnel does not exist and
+    /// `invalid_state` when it is not awake.
+    #[serde(rename = "tunnel.standby")]
+    TunnelStandby(TunnelIdParams),
     /// Stops then starts a tunnel.
     #[serde(rename = "tunnel.restart")]
     TunnelRestart(TunnelIdParams),
@@ -279,6 +287,12 @@ pub enum Request {
     /// Stops every tunnel carrying a tag.
     #[serde(rename = "tag.stop")]
     TagStop(TagParams),
+    /// Sends every awake tunnel carrying a tag back to standby.
+    #[serde(rename = "tag.standby")]
+    TagStandby(TagParams),
+    /// Sends every awake tunnel back to standby.
+    #[serde(rename = "tunnels.standby")]
+    TunnelsStandby {},
     /// Replaces the settings.
     #[serde(rename = "settings.update")]
     SettingsUpdate(SettingsDto),

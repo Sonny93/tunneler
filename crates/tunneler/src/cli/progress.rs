@@ -193,6 +193,7 @@ mod tests {
             state,
             health: TargetHealthDto::Unknown,
             metrics: MetricsDto::default(),
+            is_awake: false,
             is_temporary: false,
             default_opener: ipc::protocol::DefaultOpenerDto {
                 id: "browser".to_owned(),
@@ -244,6 +245,7 @@ mod tests {
             id: id.to_owned(),
             state,
             health: TargetHealthDto::Unknown,
+            is_awake: false,
         }
     }
 

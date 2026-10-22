@@ -51,6 +51,7 @@ export type DaemonState = {
 	/** Empty when the configuration file is valid. */
 	configErrors: readonly string[];
 	isQuitRequested: boolean;
+	isStandbyRequested: boolean;
 	tray: TrayStatusDto;
 };
 
@@ -66,5 +67,6 @@ export const INITIAL_DAEMON_STATE: DaemonState = {
 	prompts: [],
 	configErrors: [],
 	isQuitRequested: false,
+	isStandbyRequested: false,
 	tray: { kind: 'disabled' },
 };

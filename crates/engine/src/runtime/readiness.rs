@@ -107,6 +107,7 @@ mod tests {
             id,
             state,
             health: TargetHealth::Unknown,
+            is_awake: false,
         }
     }
 

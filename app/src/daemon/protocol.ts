@@ -98,6 +98,8 @@ export type TunnelDto = TunnelDefinitionDto & {
 	state: TunnelStateDto;
 	health: TargetHealthDto;
 	metrics: MetricsDto;
+	/** Woken from standby and serving: it can be sent back to standby. */
+	isAwake: boolean;
 	/** Lives only in the daemon: never saved, and stopping it removes it. */
 	isTemporary: boolean;
 	defaultOpener: DefaultOpenerDto;
@@ -272,7 +274,12 @@ export type HostKeyRequestEventData =
 export type EventMessage =
 	| {
 			event: 'tunnel.changed';
-			data: { id: string; state: TunnelStateDto; health: TargetHealthDto };
+			data: {
+				id: string;
+				state: TunnelStateDto;
+				health: TargetHealthDto;
+				isAwake: boolean;
+			};
 	  }
 	| { event: 'tunnel.metrics'; data: { id: string; metrics: MetricsDto } }
 	| { event: 'tunnel.log'; data: { id: string; entry: LogEntryDto } }
@@ -284,6 +291,7 @@ export type EventMessage =
 	  }
 	| { event: 'hostkey.request'; data: HostKeyRequestEventData }
 	| { event: 'quit.requested'; data: Record<string, never> }
+	| { event: 'standby.requested'; data: Record<string, never> }
 	| { event: 'tray.changed'; data: { status: TrayStatusDto } }
 	| { event: 'show.requested'; data: Record<string, never> }
 	| { event: 'externals.changed'; data: { processes: ExternalProcessDto[] } }

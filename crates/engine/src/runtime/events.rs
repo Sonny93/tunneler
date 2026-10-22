@@ -21,6 +21,8 @@ pub enum EngineEvent {
         state: TunnelState,
         /// Its new target health.
         health: TargetHealth,
+        /// Whether it is now woken from standby and serving.
+        is_awake: bool,
     },
     /// A tunnel left standby: its first connection opened the SSH session.
     TunnelWoke {

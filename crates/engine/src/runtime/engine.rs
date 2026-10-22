@@ -102,6 +102,9 @@ pub enum EngineError {
     /// The tunnel waits in standby, so there is no session to check through.
     #[error("the tunnel {0} is on standby and has no SSH session; a connection wakes it")]
     TunnelOnStandby(TunnelId),
+    /// The tunnel was not woken from standby, so it cannot go back to it.
+    #[error("the tunnel {0} is not awake: it is not serving from standby")]
+    TunnelNotAwake(TunnelId),
     /// The tunnel is a dynamic forward, which has no fixed target.
     #[error("the tunnel {0} has no target to check")]
     TunnelHasNoTarget(TunnelId),
@@ -708,6 +711,22 @@ impl Engine {
         self.send(id, TunnelCommand::Restart)
     }
 
+    /// Sends a tunnel woken from standby back to standby and closes its open
+    /// connections. Fails when the tunnel is not awake. Not recorded as a
+    /// wish of the user: the tunnel keeps running.
+    pub fn standby_tunnel(&self, id: TunnelId) -> Result<(), EngineError> {
+        self.ensure_running()?;
+        let catalog = self.inner.catalog();
+        if !catalog.contains(id) {
+            return Err(EngineError::UnknownTunnel(id));
+        }
+        if !catalog.is_awake(id) {
+            return Err(EngineError::TunnelNotAwake(id));
+        }
+        catalog.send(id, TunnelCommand::Sleep);
+        Ok(())
+    }
+
     /// Checks once whether the target of an active local or remote tunnel
     /// answers, records the outcome in the health of the tunnel and returns
     /// it. Never runs on its own: every call opens one channel or connection.
@@ -732,6 +751,38 @@ impl Engine {
         let ids = self.send_to_tag(tag, || TunnelCommand::Stop)?;
         self.inner.record_unwanted(&ids);
         Ok(ids)
+    }
+
+    /// Sends the tunnels of the tag that are awake back to standby and
+    /// returns their ids. The tunnels that are not awake are left alone. Not
+    /// recorded as a wish of the user: the tunnels keep running.
+    pub fn standby_tag(&self, tag: &str) -> Result<Vec<TunnelId>, EngineError> {
+        self.ensure_running()?;
+        let catalog = self.inner.catalog();
+        let tagged = catalog.ids_with_tag(tag);
+        if tagged.is_empty() {
+            return Err(EngineError::UnknownTag(tag.to_owned()));
+        }
+        let awake: Vec<TunnelId> = tagged
+            .into_iter()
+            .filter(|id| catalog.is_awake(*id))
+            .collect();
+        for id in &awake {
+            catalog.send(*id, TunnelCommand::Sleep);
+        }
+        Ok(awake)
+    }
+
+    /// Sends every tunnel that is awake back to standby and returns their
+    /// ids. Not recorded as a wish of the user: the tunnels keep running.
+    pub fn standby_all(&self) -> Result<Vec<TunnelId>, EngineError> {
+        self.ensure_running()?;
+        let catalog = self.inner.catalog();
+        let awake = catalog.awake_ids();
+        for id in &awake {
+            catalog.send(*id, TunnelCommand::Sleep);
+        }
+        Ok(awake)
     }
 
     /// Starts the tunnels selected for the launch of the daemon: those the

@@ -49,6 +49,12 @@ export type DaemonGateway = {
 	restartTunnel(id: string): Promise<void>;
 	startTag(tag: string): Promise<void>;
 	stopTag(tag: string): Promise<void>;
+	/** Sends a tunnel woken from standby back to standby; its open connections are closed. */
+	standbyTunnel(id: string): Promise<void>;
+	/** Sends every awake tunnel of the tag back to standby. */
+	standbyTag(tag: string): Promise<void>;
+	/** Sends every awake tunnel back to standby. */
+	standbyAll(): Promise<void>;
 	/** Renames a tag in every tunnel and in the launch tags; resolves to the number of tunnels that carried it. */
 	renameTag(from: string, to: string): Promise<number>;
 	/** Removes a tag from every tunnel and from the launch tags, keeping the tunnels. */

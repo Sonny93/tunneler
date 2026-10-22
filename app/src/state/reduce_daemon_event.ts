@@ -10,7 +10,9 @@ type EventOf<TName extends EventMessage['event']> = Extract<
 function patchTunnel(
 	state: DaemonState,
 	id: string,
-	patch: Readonly<Partial<Pick<TunnelDto, 'state' | 'health' | 'metrics'>>>
+	patch: Readonly<
+		Partial<Pick<TunnelDto, 'state' | 'health' | 'metrics' | 'isAwake'>>
+	>
 ): DaemonState {
 	if (!state.tunnels.some((tunnel) => tunnel.id === id)) return state;
 	return {
@@ -78,6 +80,7 @@ export function reduceDaemonEvent(
 			return patchTunnel(state, event.data.id, {
 				state: event.data.state,
 				health: event.data.health,
+				isAwake: event.data.isAwake,
 			});
 		case 'tunnel.metrics':
 			return patchTunnel(state, event.data.id, { metrics: event.data.metrics });
@@ -100,6 +103,8 @@ export function reduceDaemonEvent(
 			};
 		case 'quit.requested':
 			return { ...state, isQuitRequested: true };
+		case 'standby.requested':
+			return { ...state, isStandbyRequested: true };
 		case 'tray.changed':
 			return { ...state, tray: event.data.status };
 		case 'tunnel.log':

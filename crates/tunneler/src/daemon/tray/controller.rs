@@ -28,6 +28,8 @@ pub(crate) trait TunnelControl: Send + Sync + 'static {
     fn start_tag(&self, tag: &str) -> Result<(), EngineError>;
     /// Stops every tunnel of a tag.
     fn stop_tag(&self, tag: &str) -> Result<(), EngineError>;
+    /// Sends every awake tunnel back to standby.
+    fn standby_all(&self) -> Result<(), EngineError>;
     /// How many tunnels and X11 anchors hold resources.
     fn active_count(&self) -> usize;
 }
@@ -49,6 +51,10 @@ impl TunnelControl for Engine {
         Engine::stop_tag(self, tag).map(|_| ())
     }
 
+    fn standby_all(&self) -> Result<(), EngineError> {
+        Engine::standby_all(self).map(|_| ())
+    }
+
     fn active_count(&self) -> usize {
         Engine::active_tunnel_count(self) + Engine::active_x11_count(self)
     }
@@ -60,6 +66,9 @@ pub(crate) trait UiRequests: Send + Sync + 'static {
     fn show(&self) -> Result<(), UiLaunchError>;
     /// Has the UI ask the user to confirm quitting.
     fn request_quit_confirmation(&self) -> Result<(), UiLaunchError>;
+    /// Has the UI ask the user to confirm sending the awake tunnels back to
+    /// standby.
+    fn request_standby_confirmation(&self) -> Result<(), UiLaunchError>;
 }
 
 impl UiRequests for UiCoordinator {
@@ -69,6 +78,10 @@ impl UiRequests for UiCoordinator {
 
     fn request_quit_confirmation(&self) -> Result<(), UiLaunchError> {
         UiCoordinator::request_quit_confirmation(self)
+    }
+
+    fn request_standby_confirmation(&self) -> Result<(), UiLaunchError> {
+        UiCoordinator::request_standby_confirmation(self)
     }
 }
 
@@ -80,7 +93,7 @@ pub(crate) struct TrayControllerParts {
     pub(crate) display: Arc<dyn TrayDisplay>,
     /// What the user chose in the tray.
     pub(crate) actions: mpsc::UnboundedReceiver<TrayAction>,
-    /// Where `Open` and `Quit` go.
+    /// Where `Open`, `Quit` and `StandbyAll` go.
     pub(crate) ui: Arc<dyn UiRequests>,
     /// Cancelled to stop the daemon.
     pub(crate) quit_requested: CancellationToken,
@@ -188,6 +201,7 @@ impl TrayController {
     fn on_action(&mut self, action: TrayAction) {
         match action {
             TrayAction::ToggleTag(tag) => self.toggle_tag(&tag),
+            TrayAction::StandbyAll => self.standby_all(),
             TrayAction::OpenUi => self.open_ui(),
             TrayAction::Quit => self.quit(),
         }
@@ -209,6 +223,26 @@ impl TrayController {
             tracing::warn!(tag, %error, "the tray could not toggle the tag");
         }
         self.show(tray_view(&self.engine.snapshot()));
+    }
+
+    fn standby_all(&self) {
+        if self.has_awake_tunnel_with_connections() {
+            if let Err(error) = self.ui.request_standby_confirmation() {
+                tracing::error!(%error, "awake tunnels have open connections and the UI that would confirm the standby cannot be launched, the tunnels stay awake");
+            }
+            return;
+        }
+        if let Err(error) = self.engine.standby_all() {
+            tracing::warn!(%error, "the tray could not send the awake tunnels back to standby");
+        }
+    }
+
+    fn has_awake_tunnel_with_connections(&self) -> bool {
+        self.engine
+            .snapshot()
+            .tunnels
+            .iter()
+            .any(|tunnel| tunnel.is_awake && tunnel.metrics.active_connections > 0)
     }
 
     fn open_ui(&self) {
@@ -265,7 +299,19 @@ mod tests {
             state,
             health: TargetHealth::Unknown,
             metrics: TunnelMetrics::default(),
+            is_awake: false,
             is_temporary: false,
+        }
+    }
+
+    fn awake_tunnel(active_connections: usize) -> TunnelSnapshot {
+        TunnelSnapshot {
+            is_awake: true,
+            metrics: TunnelMetrics {
+                active_connections,
+                ..TunnelMetrics::default()
+            },
+            ..tunnel(TunnelState::Active, &[])
         }
     }
 
@@ -274,6 +320,7 @@ mod tests {
         events: broadcast::Sender<EngineEvent>,
         started_tags: Mutex<Vec<String>>,
         stopped_tags: Mutex<Vec<String>>,
+        standby_all_calls: AtomicUsize,
         active_tunnels: AtomicUsize,
     }
 
@@ -288,6 +335,7 @@ mod tests {
                 events: broadcast::channel(EVENT_CAPACITY).0,
                 started_tags: Mutex::new(Vec::new()),
                 stopped_tags: Mutex::new(Vec::new()),
+                standby_all_calls: AtomicUsize::new(0),
                 active_tunnels: AtomicUsize::new(active_tunnels),
             })
         }
@@ -328,6 +376,11 @@ mod tests {
             Ok(())
         }
 
+        fn standby_all(&self) -> Result<(), EngineError> {
+            self.standby_all_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
         fn active_count(&self) -> usize {
             self.active_tunnels.load(Ordering::SeqCst)
         }
@@ -354,6 +407,7 @@ mod tests {
     struct RecordingUi {
         shows: AtomicUsize,
         quit_confirmations: AtomicUsize,
+        standby_confirmations: AtomicUsize,
         is_unavailable: bool,
     }
 
@@ -384,6 +438,11 @@ mod tests {
 
         fn request_quit_confirmation(&self) -> Result<(), UiLaunchError> {
             self.quit_confirmations.fetch_add(1, Ordering::SeqCst);
+            self.outcome()
+        }
+
+        fn request_standby_confirmation(&self) -> Result<(), UiLaunchError> {
+            self.standby_confirmations.fetch_add(1, Ordering::SeqCst);
             self.outcome()
         }
     }
@@ -580,6 +639,87 @@ mod tests {
             })
             .await;
         assert_eq!(*fixture.engine.started_tags.lock().unwrap(), vec!["dev"]);
+    }
+
+    #[tokio::test]
+    async fn should_stop_the_tag_when_toggling_a_tag_whose_tunnels_all_run_or_wait_on_standby() {
+        let fixture = Fixture::start(vec![
+            tunnel(TunnelState::Standby { last_failure: None }, &["dev"]),
+            tunnel(TunnelState::Active, &["dev"]),
+        ]);
+
+        fixture
+            .actions
+            .send(TrayAction::ToggleTag("dev".to_owned()))
+            .unwrap();
+
+        fixture
+            .wait_until("the tag to stop", || {
+                !fixture.engine.stopped_tags.lock().unwrap().is_empty()
+            })
+            .await;
+        assert!(fixture.engine.started_tags.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn should_send_the_awake_tunnels_back_to_standby_at_once_when_none_has_open_connections()
+    {
+        let fixture = Fixture::start(vec![awake_tunnel(0)]);
+
+        fixture.actions.send(TrayAction::StandbyAll).unwrap();
+
+        fixture
+            .wait_until("the standby", || {
+                fixture.engine.standby_all_calls.load(Ordering::SeqCst) == 1
+            })
+            .await;
+        assert_eq!(fixture.ui.standby_confirmations.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn should_ask_the_ui_to_confirm_when_an_awake_tunnel_has_open_connections() {
+        let fixture = Fixture::start(vec![awake_tunnel(0), awake_tunnel(2)]);
+
+        fixture.actions.send(TrayAction::StandbyAll).unwrap();
+
+        fixture
+            .wait_until("the confirmation request", || {
+                fixture.ui.standby_confirmations.load(Ordering::SeqCst) == 1
+            })
+            .await;
+        assert_eq!(fixture.engine.standby_all_calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn should_not_ask_for_a_confirmation_when_only_a_tunnel_that_is_not_awake_has_connections()
+     {
+        let busy_but_not_awake = TunnelSnapshot {
+            metrics: TunnelMetrics {
+                active_connections: 3,
+                ..TunnelMetrics::default()
+            },
+            ..tunnel(TunnelState::Active, &[])
+        };
+        let fixture = Fixture::start(vec![busy_but_not_awake, awake_tunnel(0)]);
+
+        fixture.actions.send(TrayAction::StandbyAll).unwrap();
+
+        fixture
+            .wait_until("the standby", || {
+                fixture.engine.standby_all_calls.load(Ordering::SeqCst) == 1
+            })
+            .await;
+        assert_eq!(fixture.ui.standby_confirmations.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_tunnels_awake_when_the_confirming_ui_cannot_be_launched() {
+        let fixture = Fixture::start_with_ui(vec![awake_tunnel(1)], RecordingUi::unavailable());
+
+        fixture.actions.send(TrayAction::StandbyAll).unwrap();
+        fixture.let_the_controller_catch_up().await;
+
+        assert_eq!(fixture.engine.standby_all_calls.load(Ordering::SeqCst), 0);
     }
 
     #[tokio::test]

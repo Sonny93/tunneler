@@ -48,6 +48,9 @@ pub(crate) enum TunnelCommand {
     UpdateDefinition(TunnelDefinition),
     PortObserved(Option<PortOccupation>),
     CheckTarget(TargetCheckReply),
+    /// Sends a tunnel woken from standby back to standby. Ignored by a
+    /// tunnel in any other situation.
+    Sleep,
     Terminate,
 }
 
@@ -72,6 +75,7 @@ enum RunEnd {
 enum Step {
     SessionLost,
     IdleTimedOut,
+    SleepRequested,
     ConnectFailed(Arc<ConnectError>),
     Refused(FailureReason),
     Interrupted(Interrupt),
@@ -136,6 +140,7 @@ impl TunnelActor {
                     self.context.definition.id,
                 )));
             }
+            TunnelCommand::Sleep => {}
             TunnelCommand::Terminate => return Exit::Terminate,
         }
         Exit::Idle
@@ -266,7 +271,7 @@ impl TunnelActor {
             let (reason, delay) = match self.connect_and_serve(run).await {
                 Step::Interrupted(interrupt) => return RunEnd::Interrupted(interrupt),
                 Step::Refused(reason) => return self.fail(reason),
-                Step::SessionLost | Step::IdleTimedOut => {
+                Step::SessionLost | Step::IdleTimedOut | Step::SleepRequested => {
                     failed_attempts = FIRST_ATTEMPT;
                     let delay = self.next_delay(failed_attempts);
                     ("the SSH session was lost".to_owned(), delay)
@@ -353,7 +358,7 @@ impl TunnelActor {
                 );
                 Ok(None)
             }
-            Step::IdleTimedOut => Ok(None),
+            Step::IdleTimedOut | Step::SleepRequested => Ok(None),
         }
     }
 
@@ -502,7 +507,7 @@ impl TunnelActor {
         session: &Arc<SshSession>,
     ) -> Step {
         let shared = Arc::clone(&self.context.shared);
-        shared.set_state(TunnelState::Active);
+        shared.set_active(run.is_standby());
         if run.is_standby() {
             shared.publish_woke();
             self.serve_held(run, session);
@@ -531,12 +536,25 @@ impl TunnelActor {
                 Some(report) = run.reports.recv() => self.apply_report(report),
                 _ = metrics_ticker.tick() => self.publish_metrics(run),
                 command = self.commands.recv() => {
+                    if matches!(command, Some(TunnelCommand::Sleep)) && run.is_standby() {
+                        return self.sleep_on_request(run).await;
+                    }
                     if let Some(interrupt) = self.handle_active_command(run, session, command) {
                         return Step::Interrupted(interrupt);
                     }
                 }
             }
         }
+    }
+
+    async fn sleep_on_request(&self, run: &mut ForwardRun) -> Step {
+        let closed = run.connections.len();
+        self.context.shared.log(
+            LogLevel::Info,
+            format!("back to standby on request; {closed} connection(s) closed"),
+        );
+        run.close_connections().await;
+        Step::SleepRequested
     }
 
     fn serve_held(&self, run: &mut ForwardRun, session: &Arc<SshSession>) {
@@ -777,7 +795,7 @@ fn interrupt_for(
         None | Some(TunnelCommand::Terminate) => Some(Interrupt::Terminate),
         Some(TunnelCommand::Stop) => Some(Interrupt::Stop),
         Some(TunnelCommand::Restart) => Some(Interrupt::Restart),
-        Some(TunnelCommand::Start | TunnelCommand::PortObserved(_)) => None,
+        Some(TunnelCommand::Start | TunnelCommand::PortObserved(_) | TunnelCommand::Sleep) => None,
         Some(TunnelCommand::CheckTarget(reply)) => {
             let _ = reply.send(Err(EngineError::TunnelNotActive(definition.id)));
             None

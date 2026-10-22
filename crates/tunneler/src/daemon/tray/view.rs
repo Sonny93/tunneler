@@ -53,6 +53,9 @@ pub(crate) struct TrayView {
     pub(crate) summary_line: String,
     /// One entry per tag, in menu order.
     pub(crate) tags: Vec<TagEntry>,
+    /// Whether a tunnel is woken from standby, so that the menu can send it
+    /// back.
+    pub(crate) has_awake_tunnels: bool,
 }
 
 /// How many tunnels are in each situation.
@@ -177,6 +180,7 @@ pub(crate) fn tray_view(snapshot: &EngineSnapshot) -> TrayView {
         tooltip: format!("{TOOLTIP_PREFIX}{summary}"),
         summary_line: capitalize_first_letter(&summary),
         tags: tag_entries(&snapshot.tunnels),
+        has_awake_tunnels: snapshot.tunnels.iter().any(|tunnel| tunnel.is_awake),
     }
 }
 
@@ -206,6 +210,7 @@ mod tests {
             state,
             health,
             metrics: TunnelMetrics::default(),
+            is_awake: false,
             is_temporary: false,
         }
     }
@@ -448,6 +453,37 @@ mod tests {
         let tunnels = vec![tunnel(reconnecting(), TargetHealth::Unknown, &["dev"])];
 
         assert!(view_of(tunnels).tags[0].is_checked);
+    }
+
+    #[test]
+    fn should_count_a_standby_tunnel_as_running_for_its_tag() {
+        let tunnels = vec![
+            tunnel(
+                TunnelState::Standby { last_failure: None },
+                TargetHealth::Unknown,
+                &["dev"],
+            ),
+            active(&["dev"]),
+        ];
+
+        let tag = view_of(tunnels).tags.remove(0);
+
+        assert_eq!((tag.running, tag.is_checked), (2, true));
+    }
+
+    #[test]
+    fn should_have_no_awake_tunnel_when_none_is_woken() {
+        assert!(!view_of(vec![active(&[])]).has_awake_tunnels);
+    }
+
+    #[test]
+    fn should_have_an_awake_tunnel_when_one_is_woken() {
+        let awake = TunnelSnapshot {
+            is_awake: true,
+            ..active(&[])
+        };
+
+        assert!(view_of(vec![active(&[]), awake]).has_awake_tunnels);
     }
 
     #[test]

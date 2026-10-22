@@ -308,6 +308,36 @@ impl IpcClient {
         .await
     }
 
+    /// Sends a tunnel woken from standby back to standby.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. The daemon answers
+    /// `invalid_state` when the tunnel is not awake.
+    pub async fn standby_tunnel(&self, id: &str) -> Result<(), ClientError> {
+        self.call_without_result(Request::TunnelStandby(tunnel_id(id)))
+            .await
+    }
+
+    /// Sends every awake tunnel carrying a tag back to standby.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn standby_tag(&self, tag: &str) -> Result<(), ClientError> {
+        self.call_without_result(Request::TagStandby(tag_params(tag)))
+            .await
+    }
+
+    /// Sends every awake tunnel back to standby.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn standby_all(&self) -> Result<(), ClientError> {
+        self.call_without_result(Request::TunnelsStandby {}).await
+    }
+
     /// Starts every tunnel carrying a tag.
     ///
     /// # Errors
