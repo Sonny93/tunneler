@@ -138,6 +138,44 @@ describe('Sidebar', () => {
 		expect(gateway.stopTag).toHaveBeenCalledWith('dev');
 	});
 
+	it('should show the tag switch on and stop the tag when every tunnel is in standby', async () => {
+		useDaemonStore.setState({
+			tunnels: [
+				buildTunnel({ tags: ['dev'], state: { kind: 'standby' } }),
+				buildTunnel({ id: 'b', tags: ['dev'], state: { kind: 'standby' } }),
+			],
+		});
+		const { gateway } = renderWithGateway(<Sidebar />);
+		const tagSwitch = screen.getByRole('switch', {
+			name: 'Tous les tunnels du tag dev',
+		});
+
+		await userEvent.click(tagSwitch);
+
+		expect(tagSwitch).toBeChecked();
+		expect(gateway.stopTag).toHaveBeenCalledWith('dev');
+		expect(gateway.startTag).not.toHaveBeenCalled();
+	});
+
+	it('should show the tag switch off and start the tag when standby tunnels are mixed with stopped ones', async () => {
+		useDaemonStore.setState({
+			tunnels: [
+				buildTunnel({ tags: ['dev'], state: { kind: 'standby' } }),
+				buildTunnel({ id: 'b', tags: ['dev'] }),
+			],
+		});
+		const { gateway } = renderWithGateway(<Sidebar />);
+		const tagSwitch = screen.getByRole('switch', {
+			name: 'Tous les tunnels du tag dev',
+		});
+
+		await userEvent.click(tagSwitch);
+
+		expect(tagSwitch).not.toBeChecked();
+		expect(gateway.startTag).toHaveBeenCalledWith('dev');
+		expect(gateway.stopTag).not.toHaveBeenCalled();
+	});
+
 	it('should push an error toast when starting a tag fails', async () => {
 		seedTunnels();
 		const gateway = createFakeGateway();

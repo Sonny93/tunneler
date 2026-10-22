@@ -14,7 +14,7 @@ type TagFilterRowProps = {
 };
 
 export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
-	const { tag, running, total } = summary;
+	const { tag, started, total } = summary;
 	const descriptionId = useId();
 	const filter = useResolvedFilter();
 	const setFilter = useUiStore((state) => state.setFilter);
@@ -23,7 +23,7 @@ export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
 	const openTagRename = useUiStore((state) => state.openTagRename);
 	const runDaemonAction = useDaemonAction();
 	const deleteTag = useDeleteTag();
-	const isEveryTunnelRunning = total > 0 && running === total;
+	const isEveryTunnelStarted = total > 0 && started === total;
 	const isActive = filter.kind === 'tag' && filter.tag === tag;
 
 	useEffect(() => {
@@ -39,7 +39,7 @@ export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
 	const handleDelete = () => void deleteTag(tag);
 
 	const handleToggle = () => {
-		if (isEveryTunnelRunning) {
+		if (isEveryTunnelStarted) {
 			void runDaemonAction(
 				(gateway) => gateway.stopTag(tag),
 				'Arrêt impossible'
@@ -61,10 +61,10 @@ export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
 				Supprimer le tag…
 			</MenuItem>
 			<MenuItem
-				icon={isEveryTunnelRunning ? 'i-mdi-stop' : 'i-mdi-play'}
+				icon={isEveryTunnelStarted ? 'i-mdi-stop' : 'i-mdi-play'}
 				onClick={handleToggle}
 			>
-				{isEveryTunnelRunning ? 'Arrêter le tag' : 'Démarrer le tag'}
+				{isEveryTunnelStarted ? 'Arrêter le tag' : 'Démarrer le tag'}
 			</MenuItem>
 		</>
 	);
@@ -85,7 +85,7 @@ export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
 				<Switch
 					aria-label={`Tous les tunnels du tag ${tag}`}
 					aria-describedby={descriptionId}
-					checked={isEveryTunnelRunning}
+					checked={isEveryTunnelStarted}
 					onChange={handleToggle}
 					wrapperClassName="shrink-0"
 				/>

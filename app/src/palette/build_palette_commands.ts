@@ -128,9 +128,9 @@ function buildTunnelCommands(
 function buildTagCommands(
 	tunnels: readonly Readonly<TunnelDto>[]
 ): PaletteCommand[] {
-	return summarizeTags(tunnels).flatMap(({ tag, running, total }) => {
+	return summarizeTags(tunnels).flatMap(({ tag, started, total }) => {
 		const commands: PaletteCommand[] = [];
-		if (running < total) {
+		if (started < total) {
 			commands.push({
 				id: `tag:${tag}:start`,
 				label: `Démarrer le tag ${tag}`,
@@ -138,7 +138,7 @@ function buildTagCommands(
 				action: { kind: 'startTag', tag },
 			});
 		}
-		if (running > 0) {
+		if (started > 0) {
 			commands.push({
 				id: `tag:${tag}:stop`,
 				label: `Arrêter le tag ${tag}`,

@@ -131,6 +131,34 @@ describe('buildPaletteCommands', () => {
 		expect(labels).not.toContain('Arrêter le tag dev');
 	});
 
+	it('should only offer to stop a tag whose tunnels are all in standby', () => {
+		const labels = labelsOf(
+			build([
+				buildTunnel({ tags: ['dev'], state: { kind: 'standby' } }),
+				buildTunnel({
+					id: 'tunnel-2',
+					tags: ['dev'],
+					state: { kind: 'standby' },
+				}),
+			])
+		);
+
+		expect(labels).toContain('Arrêter le tag dev');
+		expect(labels).not.toContain('Démarrer le tag dev');
+	});
+
+	it('should offer both for a tag mixing standby and stopped tunnels', () => {
+		const labels = labelsOf(
+			build([
+				buildTunnel({ tags: ['dev'], state: { kind: 'standby' } }),
+				buildTunnel({ id: 'tunnel-2', tags: ['dev'] }),
+			])
+		);
+
+		expect(labels).toContain('Arrêter le tag dev');
+		expect(labels).toContain('Démarrer le tag dev');
+	});
+
 	it('should offer to stop a tag with an active tunnel', () => {
 		const labels = labelsOf(
 			build([
