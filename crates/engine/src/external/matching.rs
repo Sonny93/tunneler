@@ -260,7 +260,10 @@ mod tests {
 
     #[test]
     fn should_not_overlap_public_listener_when_configured_is_localhost() {
-        assert!(!address_overlaps_listener("localhost", address("198.51.100.10")));
+        assert!(!address_overlaps_listener(
+            "localhost",
+            address("198.51.100.10")
+        ));
     }
 
     #[test]
@@ -280,17 +283,26 @@ mod tests {
 
     #[test]
     fn should_overlap_when_listener_is_unspecified() {
-        assert!(address_overlaps_listener("198.51.100.10", address("0.0.0.0")));
+        assert!(address_overlaps_listener(
+            "198.51.100.10",
+            address("0.0.0.0")
+        ));
     }
 
     #[test]
     fn should_overlap_when_addresses_are_equal() {
-        assert!(address_overlaps_listener("198.51.100.10", address("198.51.100.10")));
+        assert!(address_overlaps_listener(
+            "198.51.100.10",
+            address("198.51.100.10")
+        ));
     }
 
     #[test]
     fn should_not_overlap_when_addresses_differ() {
-        assert!(!address_overlaps_listener("198.51.100.10", address("198.51.100.20")));
+        assert!(!address_overlaps_listener(
+            "198.51.100.10",
+            address("198.51.100.20")
+        ));
     }
 
     #[test]

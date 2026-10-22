@@ -138,9 +138,13 @@ mod tests {
 
     #[test]
     fn should_resolve_the_host_name_when_the_alias_is_configured() {
-        let (_directory, resolver) = resolver_for("Host web\n  HostName 198.51.100.10\n  Port 2200\n");
+        let (_directory, resolver) =
+            resolver_for("Host web\n  HostName 198.51.100.10\n  Port 2200\n");
         let config = resolver.resolve("web").unwrap();
-        assert_eq!((config.hostname.as_str(), config.port), ("198.51.100.10", 2200));
+        assert_eq!(
+            (config.hostname.as_str(), config.port),
+            ("198.51.100.10", 2200)
+        );
     }
 
     #[test]

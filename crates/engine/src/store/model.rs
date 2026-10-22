@@ -418,7 +418,10 @@ mod tests {
             ..tunnel(TunnelKind::Remote)
         };
 
-        assert_eq!(definition.effective_listen_address(&settings), "198.51.100.10");
+        assert_eq!(
+            definition.effective_listen_address(&settings),
+            "198.51.100.10"
+        );
     }
 
     #[test]
