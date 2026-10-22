@@ -10,6 +10,9 @@ hero:
     alt: Logo de Tunneler
   actions:
     - theme: brand
+      text: Prise en main
+      link: /fr/guide/getting-started
+    - theme: alt
       text: Feuille de route
       link: /fr/roadmap/
     - theme: alt

@@ -5,13 +5,37 @@ const REPOSITORY_URL = 'https://github.com/Sonny93/tunneler'
 
 function englishNav(): DefaultTheme.NavItem[] {
 	return [
+		{ text: 'Guide', link: '/guide/getting-started', activeMatch: '/guide/' },
+		{ text: 'Reference', link: '/reference/configuration', activeMatch: '/reference/' },
 		{ text: 'Roadmap', link: '/roadmap/', activeMatch: '/roadmap/' },
-		{ text: 'Contributing', link: '/contributing/accessibility', activeMatch: '/contributing/' },
+		{ text: 'Contributing', link: '/contributing/development', activeMatch: '/contributing/' },
 	]
 }
 
 function englishSidebar(): DefaultTheme.Sidebar {
 	return {
+		'/guide/': [
+			{
+				text: 'Guide',
+				items: [
+					{ text: 'Getting started', link: '/guide/getting-started' },
+					{ text: 'Tunnels', link: '/guide/tunnels' },
+					{ text: 'Opening tunnels with an application', link: '/guide/applications' },
+					{ text: 'X11 forwarding', link: '/guide/x11' },
+					{ text: 'Tunnels started outside Tunneler', link: '/guide/external-tunnels' },
+					{ text: 'Updates and uninstall', link: '/guide/updates-and-uninstall' },
+				],
+			},
+		],
+		'/reference/': [
+			{
+				text: 'Reference',
+				items: [
+					{ text: 'Configuration', link: '/reference/configuration' },
+					{ text: 'Command line', link: '/reference/cli' },
+				],
+			},
+		],
 		'/roadmap/': [
 			{
 				text: 'Roadmap',
@@ -24,7 +48,10 @@ function englishSidebar(): DefaultTheme.Sidebar {
 		'/contributing/': [
 			{
 				text: 'Contributing',
-				items: [{ text: 'Accessibility', link: '/contributing/accessibility' }],
+				items: [
+					{ text: 'Development', link: '/contributing/development' },
+					{ text: 'Accessibility', link: '/contributing/accessibility' },
+				],
 			},
 		],
 	}
@@ -32,10 +59,12 @@ function englishSidebar(): DefaultTheme.Sidebar {
 
 function frenchNav(): DefaultTheme.NavItem[] {
 	return [
+		{ text: 'Guide', link: '/fr/guide/getting-started', activeMatch: '/fr/guide/' },
+		{ text: 'Référence', link: '/fr/reference/configuration', activeMatch: '/fr/reference/' },
 		{ text: 'Feuille de route', link: '/fr/roadmap/', activeMatch: '/fr/roadmap/' },
 		{
 			text: 'Contribuer',
-			link: '/fr/contributing/accessibility',
+			link: '/fr/contributing/development',
 			activeMatch: '/fr/contributing/',
 		},
 	]
@@ -43,6 +72,28 @@ function frenchNav(): DefaultTheme.NavItem[] {
 
 function frenchSidebar(): DefaultTheme.Sidebar {
 	return {
+		'/fr/guide/': [
+			{
+				text: 'Guide',
+				items: [
+					{ text: 'Prise en main', link: '/fr/guide/getting-started' },
+					{ text: 'Tunnels', link: '/fr/guide/tunnels' },
+					{ text: 'Ouvrir un tunnel avec une application', link: '/fr/guide/applications' },
+					{ text: 'Transfert X11', link: '/fr/guide/x11' },
+					{ text: 'Tunnels lancés hors de Tunneler', link: '/fr/guide/external-tunnels' },
+					{ text: 'Mises à jour et désinstallation', link: '/fr/guide/updates-and-uninstall' },
+				],
+			},
+		],
+		'/fr/reference/': [
+			{
+				text: 'Référence',
+				items: [
+					{ text: 'Configuration', link: '/fr/reference/configuration' },
+					{ text: 'Ligne de commande', link: '/fr/reference/cli' },
+				],
+			},
+		],
 		'/fr/roadmap/': [
 			{
 				text: 'Feuille de route',
@@ -55,7 +106,10 @@ function frenchSidebar(): DefaultTheme.Sidebar {
 		'/fr/contributing/': [
 			{
 				text: 'Contribuer',
-				items: [{ text: 'Accessibilité', link: '/fr/contributing/accessibility' }],
+				items: [
+					{ text: 'Développement', link: '/fr/contributing/development' },
+					{ text: 'Accessibilité', link: '/fr/contributing/accessibility' },
+				],
 			},
 		],
 	}

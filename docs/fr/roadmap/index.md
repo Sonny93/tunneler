@@ -31,7 +31,8 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 - Fenêtre à la demande : le processus s'arrête à la fermeture de la fenêtre, les tunnels continuent dans le daemon.
 - Liste de tunnels groupée par hôte, avec tags, sélection multiple, menus contextuels et palette de commandes (Ctrl+K).
 - Panneau de détails avec journaux et métriques en direct, import depuis `ssh_config` et depuis des scripts `ssh -L` collés, écran de réglages.
-- Ouverture d'un tunnel dans le navigateur ou dans une application choisie d'après le port cible (VNC, RDP, toute commande que vous ajoutez).
+- Ouverture d'un tunnel dans le navigateur ou dans une application choisie d'après le port cible (VNC, RDP, toute commande que vous ajoutez). Une application détectée peut être personnalisée, par exemple pour pointer vers une copie portable.
+- Cette documentation, en anglais et en français, ouverte depuis l'application avec F1.
 - Thèmes clair et sombre qui suivent le système.
 - Anglais et français, pour la fenêtre, l'icône de la zone de notification et les notifications. La langue suit le système ou se choisit dans les réglages.
 
@@ -48,7 +49,6 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 
 ## Prochainement
 
-- **Cette documentation** : un guide (installation, premier tunnel, tags, veille, ouverture des tunnels, X11) et une référence (`tunnels.toml`, ligne de commande, réglages, codes de sortie).
 - Ce que la section [À tester](#a-tester) fera ressortir.
 
 ## À tester

@@ -31,7 +31,8 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 - On-demand window: the process exits when the window closes, the tunnels keep running in the daemon.
 - Tunnel list grouped by host, with tags, multi-selection, context menus and a command palette (Ctrl+K).
 - Detail drawer with live logs and metrics, an import from `ssh_config` and from pasted `ssh -L` scripts, a settings screen.
-- Open a tunnel in the browser or in an application picked from the target port (VNC, RDP, any command you add).
+- Open a tunnel in the browser or in an application picked from the target port (VNC, RDP, any command you add). A detected application can be customized, for example to point at a portable copy.
+- This documentation, in English and French, opened from the app with F1.
 - Dark and light themes that follow the system.
 - English and French, for the window, the tray and the notifications. The language follows the system or is picked in the settings.
 
@@ -48,7 +49,6 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 
 ## Next
 
-- **This documentation**: a guide (install, first tunnel, tags, standby, opening tunnels, X11) and a reference (`tunnels.toml`, command line, settings, exit codes).
 - Whatever the [Needs testing](#needs-testing) section turns up.
 
 ## Needs testing

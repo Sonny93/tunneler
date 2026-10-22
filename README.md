@@ -1,173 +1,27 @@
 # Tunneler
 
-Portable SSH tunnel manager (Windows + Linux; macOS is not maintained): a light headless daemon with an embedded SSH client and a tray icon, plus an on-demand Tauri UI.
+SSH tunnel manager for Windows and Linux: a light daemon with an embedded SSH client and a tray icon, plus a window you open when you need it.
 
-> Status: early development. Documentation and roadmap: <https://sonny93.github.io/tunneler/>.
+Status: early development.
 
 ## Install
 
-Packages are published as GitHub releases (and as artifacts of the `release` workflow runs). The binaries are not signed.
+Download from the [releases page](https://github.com/Sonny93/tunneler/releases). The binaries are not signed.
 
-### Windows
+- Windows: installer (`-setup.exe`) or portable zip. [Details](https://sonny93.github.io/tunneler/guide/getting-started#windows)
+- Debian and Ubuntu: `sudo apt install ./tunneler_<version>_amd64.deb`
+- Other Linux: `tar.gz` archive or AppImage. [Details](https://sonny93.github.io/tunneler/guide/getting-started#linux)
 
-Two forms, both unsigned (Windows SmartScreen warns: choose "More info", then "Run anyway").
+## Documentation
 
-**Installer** (`tunneler-<version>-windows-x86_64-setup.exe`). The installer is in French, like the app. It asks whether to install for the current user (`%LOCALAPPDATA%\Programs\Tunneler`) or for all users (`Program Files`). The installer asks for administrator rights (UAC) even for the current-user choice; a standard account without rights installs for itself without a prompt. A per-machine install needs the elevation again at every update, and its uninstaller only cleans the data of the user who runs it (the data is per user). It installs `tunneler-ui.exe` and `tunneler.exe` side by side, adds `tunneler` to the Start menu (untick the checkbox of the Start menu page for no shortcut) and offers a desktop shortcut on the last page. Installing over a running Tunneler stops its daemon first; the tunnels wanted at that time restart at the next launch when `restore_on_launch` is on.
-
-**Zip** (`tunneler-<version>-windows-x86_64.zip`, [portable mode](#portable-mode)). Extract it anywhere and run `tunneler-ui.exe` (or `tunneler.exe` for the command line). Keep the two executables side by side: the daemon looks for `tunneler-ui` next to itself, then on `PATH`, or at the path in `TUNNELER_UI_BINARY`.
-
-### Linux
-
-**Debian and Ubuntu** (`tunneler_<version>_amd64.deb`, built on Ubuntu 22.04). Installs `/usr/bin/tunneler`, `/usr/bin/tunneler-ui` and a menu entry, and pulls in WebKitGTK 4.1 and GTK 3:
-
-```sh
-sudo apt install ./tunneler_<version>_amd64.deb
-```
-
-**Archive** (`tunneler-<version>-linux-x86_64.tar.gz`, [portable mode](#portable-mode)). Extract it and run `./tunneler-ui` (or `./tunneler` for the command line). The binaries are built on Ubuntu 22.04 (glibc 2.35 or newer). The daemon only needs libc; the UI needs WebKitGTK 4.1 and GTK 3. On Debian and Ubuntu:
-
-```sh
-sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0
-```
-
-These packages pull in the rest of the UI's shared libraries (`libsoup-3.0-0`, `libjavascriptcoregtk-4.1-0`, `libgdk-pixbuf-2.0-0`, `libcairo2`, `libglib2.0-0`, `libdbus-1-3`...). The tray icon and the keyring talk D-Bus directly, so no appindicator library is needed.
-
-**AppImage** (`tunneler-ui-<version>-x86_64.AppImage`). When `libwebkit2gtk-4.1` cannot be installed, use this one instead, which bundles its libraries. It contains the UI only: put it next to `tunneler` under the name `tunneler-ui`, or point `TUNNELER_UI_BINARY` at it.
-
-### Portable mode
-
-The Windows zip and the Linux tar.gz contain an empty file named `portable` next to the executables. While it is there, Tunneler keeps its files in the folder of the executables instead of the user's directories:
-
-| File | Portable | Installed (Linux) |
-|---|---|---|
-| `tunnels.toml` | next to the executables | `~/.config/tunneler/` |
-| `state.toml` | `data/` | `~/.local/state/tunneler/` |
-| Logs | `data/logs/` | `~/.local/share/tunneler/logs/` |
-| Webview data (UI) | `data/webview/` | `~/.local/share/com.minimalstuff.tunneler/` |
-
-Delete the `portable` file to go back to the user's directories (the files already written are not moved). `--config` and `--state` (or `TUNNELER_CONFIG` and `TUNNELER_STATE`) still win over both. The launch-at-login entry and the passphrases stored in the OS keyring stay outside the folder by nature; `tunneler purge` removes them.
-
-### macOS
-
-Not maintained: no package and no CI. The code may still build from source (see [Development](#development)).
-
-### Memory use
-
-| Platform | Daemon idle | Daemon, 10 tunnels | UI open |
-|---|---|---|---|
-| Linux | 16.5 MiB | 19.4 MiB | ~410 MiB |
-| Windows | 25.2 MiB (9.7 MiB private) | 25.1 MiB (9.5 MiB private), 8 tunnels | 227–428 MiB |
-
-The daemon figures are its resident set size (RSS), tray included; the 10 tunnels share one SSH session and carried a little traffic. The UI figure is the proportional set size (PSS, shared libraries counted once) of `tunneler-ui` plus its WebKit (Linux) or WebView2 (Windows) child processes, with the window open; the UI process exits when the window is closed. Linux: release build 0.1.0, Debian 13, WebKitGTK 2.54, UI under Xvfb with software rendering (likely an overestimate of a desktop with a GPU). Windows: release build 0.1.0, daemon working set (the RSS equivalent; Task Manager shows the private figure), the same with no tunnel and with 8 tunnels (within noise); the UI figure ranges from the private memory to the summed working sets of `tunneler-ui` and its six `msedgewebview2` processes (Windows has no PSS), `tunneler-ui` itself being 5.6 MiB private.
-
-## Updates
-
-When the window opens, the UI looks once for a newer release (it asks GitHub for `latest.json`). A failed check (offline, repository not public yet) is only logged: nothing is shown. A newer version shows a banner with its release notes and a « Voir la version » link to the release page; « Masquer » hides it until the window is reopened.
-
-| Form | What the banner offers |
-|---|---|
-| Windows installer | « Installer et redémarrer »: asks for confirmation when tunnels run (they stop, and restart afterwards when « Rétablir les tunnels actifs au lancement » is on), downloads the installer with a textual progress, checks its signature, stops the daemon and runs the installer in passive mode, which relaunches Tunneler |
-| Windows zip, Linux tar.gz, `.deb`, AppImage | the link only: download and replace by hand (`apt install ./tunneler_<version>_amd64.deb` for the package). The AppImage never updates itself because it does not contain the daemon |
-
-Turn the check off with « Vérifier les mises à jour à l'ouverture » in the settings, or `check_for_updates = false` under `[settings]` in `tunnels.toml`. Nothing else contacts the network on its own.
-
-Updates are signed with a minisign key whose public half is in `app/src-tauri/tauri.conf.json` (`plugins.updater.pubkey`) and whose private half and password live in the `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` repository secrets. Keep a copy of both outside GitHub: an installed program only accepts updates signed with the key it shipped with, so losing the key means every installed copy must be reinstalled by hand.
-
-## Uninstall
-
-`tunneler purge` removes what Tunneler left on the machine, except the programs: it stops the daemon, then removes the launch-at-login entry, the logs, the webview data, `tunnels.toml`, `state.toml` and the keyring passphrases listed in `state.toml`, and the `tunneler` directories left empty. It never touches the executables, the `portable` marker, the install directory or `~/.ssh`, nor a file given with `--config` or `--state`.
-
-```sh
-tunneler purge --dry-run      # list what would be removed, remove nothing
-tunneler purge                # list, ask for a confirmation, remove
-tunneler purge --yes          # no question (required without a terminal, otherwise exit code 5)
-tunneler purge --keep-config  # keep tunnels.toml, state.toml and the passphrases, to find them again after a reinstall
-```
-
-- **Windows installer**: Settings, Apps, Tunneler, Uninstall. The confirmation page has a checkbox, "Supprimer aussi mes tunnels, réglages et passphrases mémorisées". Ticked, the uninstaller runs `tunneler purge --yes` (everything goes). Unticked, it runs `tunneler purge --yes --keep-config` (tunnels, settings and passphrases stay for a later reinstall; the rest is cleaned). Updates never purge.
-- **Debian**: run `tunneler purge` first, then `sudo apt remove tunneler`. apt never touches the home directory, so the package cannot clean the user's files itself.
-- **Portable** (zip, tar.gz): run `tunneler purge`, then delete the folder.
-
-## Layout
-
-| Path | Role |
-|---|---|
-| `crates/ssh-config` | `ssh_config` parser and resolver (OpenSSH semantics) |
-| `crates/known-hosts` | `known_hosts` reader/writer |
-| `crates/engine` | Sessions, auth, forwards, states, metrics, store |
-| `crates/ipc` | Daemon ↔ clients protocol, client and server |
-| `crates/tunneler` | `tunneler` binary: daemon, CLI, tray |
-| `crates/test-support` | In-process SSH server and fixtures shared by the integration tests |
-| `app/` | `tunneler-ui`: Tauri 2 (`src-tauri`) + React 19 (`src`) |
-
-## Prerequisites
-
-- Rust toolchain pinned by `rust-toolchain.toml` (installed automatically by `rustup`).
-- Node and pnpm versions pinned by `.mise.toml` (`mise install`).
-- To build the UI on Linux, the Tauri 2 system dependencies:
-
-  ```sh
-  sudo apt install build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
-  ```
-
-The daemon crates do not need these: `app/src-tauri` is excluded from the workspace `default-members`.
+<https://sonny93.github.io/tunneler/>
 
 ## Development
 
 ```sh
-# Rust (daemon crates)
-cargo fmt --all --check
-cargo clippy --all-targets --locked -- -D warnings
-cargo test --locked
-
-# Front end
-cd app
-pnpm install
-pnpm check      # oxlint + oxfmt --check + tsc
-pnpm test       # Vitest + Testing Library + axe
-pnpm tauri dev  # run the UI (needs the Linux deps above)
-
-# UI Rust crate (after `pnpm build`, which produces app/dist)
-cargo clippy -p tunneler-ui --all-targets --locked -- -D warnings
+cargo test --locked          # Rust crates
+cd app && pnpm check         # front end
+cd docs && pnpm build        # documentation site
 ```
 
-### Releasing
-
-Releases are cut with [release-it](https://github.com/release-it/release-it) from `app/`:
-
-```sh
-cd app
-GITHUB_TOKEN=$(gh auth token) pnpm release              # interactive, recommended bump
-GITHUB_TOKEN=$(gh auth token) pnpm release --dry-run    # preview only
-GITHUB_TOKEN=$(gh auth token) pnpm release minor        # or `patch`, or an explicit version
-```
-
-The bump comes from the Conventional Commits since the last tag and stays in 0.x: a breaking change bumps the minor version, everything else bumps the patch version. release-it then:
-
-1. bumps the version in the root `Cargo.toml` (`[workspace.package]`), `app/src-tauri/tauri.conf.json` and `app/package.json`, and refreshes `Cargo.lock`;
-2. writes `CHANGELOG.md`;
-3. commits `chore(release): vX.Y.Z`, tags it and pushes;
-4. creates a draft GitHub release with the changelog as notes.
-
-The tag triggers the `release` workflow, which checks that the three versions and the tag agree, builds the Windows installer and zip, the Linux .deb, tar.gz and AppImage, writes `latest.json` (the update manifest, with the signatures of the installer and the AppImage), attaches everything with a `SHA256SUMS` to the draft release and publishes it. The build is signed with the repository secrets above; without them `pnpm tauri build` fails, because `bundle.createUpdaterArtifacts` is on. A manual run (`workflow_dispatch`) builds the same packages as run artifacts without releasing.
-
-For the first release, tag the existing 0.1.0 as is: `GITHUB_TOKEN=$(gh auth token) pnpm release --no-increment`.
-
-## Usage
-
-```sh
-tunneler                 # start the daemon (or ask the running one to show its window)
-tunneler up dev          # start every tunnel tagged "dev" (starts the daemon if needed)
-tunneler up 3333         # start the tunnel listening on port 3333
-tunneler up nova:3333    # same, picking the host when several tunnels share the port
-tunneler up nova -L 5000 # temporary tunnel: never saved, removed by `tunneler down` or when the daemon quits
-tunneler status          # runtime state, one tunnel per line (--json for scripts)
-tunneler open 3333       # open a local tunnel in the browser, starting it when stopped (exit code 8 when it cannot be opened, 9 for an unknown --with)
-tunneler open 5999 --with browser  # force the browser; by default a tunnel opens with its saved application or the one suggested for its target port (VNC, RDP...); exit code 9 for an unknown id
-tunneler check 3333      # try the target of a running tunnel once (exit code 7 when it does not answer)
-tunneler down --all
-tunneler quit            # asks for confirmation when tunnels are active (--yes to skip)
-tunneler purge --dry-run # list everything Tunneler left on the machine (see "Uninstall")
-```
-
-Tunnels live in `tunnels.toml` (`~/.config/tunneler/` on Linux, `%APPDATA%\tunneler\` on Windows), reloaded on change. Tunnels have no name: tags group them, and the CLI selects them by port, `host:port` or tag. `tunneler --help` lists every command, the environment variables and the exit codes.
+See [Development](https://sonny93.github.io/tunneler/contributing/development) for the rest.
