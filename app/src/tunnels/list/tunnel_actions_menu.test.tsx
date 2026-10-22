@@ -46,6 +46,19 @@ describe('TunnelActionsMenu', () => {
 		]);
 	});
 
+	it('should name the group of control items', async () => {
+		renderMenu({ state: { kind: 'active' } });
+
+		await openMenu();
+
+		const group = screen.getByRole('group', { name: 'Contrôle' });
+		expect(
+			within(group)
+				.getAllByRole('menuitem')
+				.map((item) => item.textContent)
+		).toEqual(['Modifier', 'Redémarrer', 'Supprimer']);
+	});
+
 	it('should not offer the browser for a remote forward', async () => {
 		renderMenu({ kind: 'remote' });
 

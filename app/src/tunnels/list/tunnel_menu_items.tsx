@@ -1,4 +1,4 @@
-import { MenuItem } from '@minimalstuff/ui';
+import { MenuGroup, MenuItem } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
@@ -40,27 +40,29 @@ export function TunnelMenuItems({ tunnel }: Readonly<TunnelMenuItemsProps>) {
 				<OpenWithMenuItems choices={alternatives} onChoose={openWith} />
 			)}
 			<ExternalMenuItems tunnel={tunnel} />
-			{tunnel.isTemporary ? (
-				<MenuItem icon="i-mdi-content-save-outline" onClick={persist}>
-					Enregistrer le tunnel
+			<MenuGroup label="Contrôle">
+				{tunnel.isTemporary ? (
+					<MenuItem icon="i-mdi-content-save-outline" onClick={persist}>
+						Enregistrer le tunnel
+					</MenuItem>
+				) : (
+					<MenuItem icon="i-mdi-pencil-outline" onClick={handleEdit}>
+						Modifier
+					</MenuItem>
+				)}
+				<MenuItem icon="i-mdi-restart" disabled={!isRunning} onClick={restart}>
+					Redémarrer
 				</MenuItem>
-			) : (
-				<MenuItem icon="i-mdi-pencil-outline" onClick={handleEdit}>
-					Modifier
-				</MenuItem>
-			)}
-			<MenuItem icon="i-mdi-restart" disabled={!isRunning} onClick={restart}>
-				Redémarrer
-			</MenuItem>
-			{tunnel.isTemporary ? (
-				<MenuItem icon="i-mdi-stop" danger onClick={stopAndRemove}>
-					Arrêter et retirer
-				</MenuItem>
-			) : (
-				<MenuItem icon="i-mdi-delete-outline" danger onClick={handleRemove}>
-					Supprimer
-				</MenuItem>
-			)}
+				{tunnel.isTemporary ? (
+					<MenuItem icon="i-mdi-stop" danger onClick={stopAndRemove}>
+						Arrêter et retirer
+					</MenuItem>
+				) : (
+					<MenuItem icon="i-mdi-delete-outline" danger onClick={handleRemove}>
+						Supprimer
+					</MenuItem>
+				)}
+			</MenuGroup>
 		</>
 	);
 }
