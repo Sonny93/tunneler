@@ -1,4 +1,5 @@
 import { Button } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { useLaunchX11 } from '#/x11/use_launch_x11';
 import type { X11LauncherDto } from '#/daemon/protocol';
@@ -8,7 +9,9 @@ type X11LauncherItemProps = {
 };
 
 export function X11LauncherItem({ launcher }: Readonly<X11LauncherItemProps>) {
+	const { t } = useLingui();
 	const launch = useLaunchX11();
+	const { name, host } = launcher;
 
 	const handleLaunch = () => void launch(launcher);
 
@@ -23,10 +26,10 @@ export function X11LauncherItem({ launcher }: Readonly<X11LauncherItemProps>) {
 			<Button
 				size="sm"
 				startIcon="i-mdi-rocket-launch-outline"
-				aria-label={`Lancer ${launcher.name} sur ${launcher.host}`}
+				aria-label={t`Launch ${name} on ${host}`}
 				onClick={handleLaunch}
 			>
-				Lancer
+				{t`Launch`}
 			</Button>
 		</li>
 	);

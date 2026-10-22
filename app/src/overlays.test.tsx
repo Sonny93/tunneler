@@ -34,7 +34,7 @@ describe('Overlays', () => {
 		await userEvent.keyboard('n');
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Nouveau tunnel' })
+			await screen.findByRole('dialog', { name: 'New tunnel' })
 		).toBeInTheDocument();
 	});
 
@@ -54,7 +54,7 @@ describe('Overlays', () => {
 		await userEvent.keyboard('?');
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Raccourcis clavier' })
+			await screen.findByRole('dialog', { name: 'Keyboard shortcuts' })
 		).toBeInTheDocument();
 	});
 
@@ -75,7 +75,7 @@ describe('Overlays', () => {
 		);
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Mot de passe' })
+			await screen.findByRole('dialog', { name: 'Password' })
 		).toBeInTheDocument();
 	});
 
@@ -94,7 +94,7 @@ describe('Overlays', () => {
 		await userEvent.keyboard('i');
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Importer des tunnels' })
+			await screen.findByRole('dialog', { name: 'Import tunnels' })
 		).toBeInTheDocument();
 	});
 
@@ -115,7 +115,7 @@ describe('Overlays', () => {
 		act(() => useUiStore.getState().openHostConfig('nova'));
 
 		expect(
-			screen.getByRole('dialog', { name: 'Configuration de nova' })
+			screen.getByRole('dialog', { name: 'Configuration of nova' })
 		).toBeInTheDocument();
 	});
 
@@ -125,7 +125,7 @@ describe('Overlays', () => {
 		await userEvent.keyboard('{Control>}k{/Control}');
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Palette de commandes' })
+			await screen.findByRole('dialog', { name: 'Command palette' })
 		).toBeInTheDocument();
 	});
 });

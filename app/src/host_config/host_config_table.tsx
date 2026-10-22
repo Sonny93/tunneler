@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro';
+
 import type { ResolvedHostOptionDto } from '#/daemon/protocol';
 
 type HostConfigTableProps = {
@@ -10,18 +12,19 @@ export function HostConfigTable({
 	host,
 	options,
 }: Readonly<HostConfigTableProps>) {
+	const { t } = useLingui();
 	if (options.length === 0) return null;
 
 	return (
 		<table className="w-full table-fixed border-collapse text-left text-sm">
-			<caption className="sr-only">Options effectives de {host}</caption>
+			<caption className="sr-only">{t`Effective options of ${host}`}</caption>
 			<thead>
 				<tr className="border-b border-tn-divider">
 					<th scope="col" className="w-2/5 py-1 pr-2 font-semibold">
-						Option
+						{t`Option`}
 					</th>
 					<th scope="col" className="py-1 font-semibold">
-						Valeur
+						{t`Value`}
 					</th>
 				</tr>
 			</thead>

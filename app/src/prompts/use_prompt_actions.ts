@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
+import { i18n } from '@lingui/core';
+import { t } from '@lingui/core/macro';
 
 import { useDaemonStore } from '#/state/daemon_store';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import type { CredentialAnswer } from '#/daemon/daemon_gateway';
+import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import type { HostKeyDecisionDto, RememberDto } from '#/daemon/protocol';
 
@@ -32,9 +35,11 @@ async function respondAndDismiss(
 	} catch (rejection) {
 		const error = toDaemonCommandError(rejection);
 		if (error.code !== PROMPT_NOT_PENDING_CODE) {
+			const failureMessage = t`Couldn't send the answer`;
+			const errorMessage = describeDaemonError(error, i18n);
 			useToastStore.getState().pushToast({
 				tone: 'error',
-				message: `Réponse impossible : ${error.message}`,
+				message: t`${failureMessage}: ${errorMessage}`,
 			});
 		}
 	} finally {

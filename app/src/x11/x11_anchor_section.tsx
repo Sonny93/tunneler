@@ -1,4 +1,5 @@
 import { Button } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { useX11State } from '#/x11/use_x11_state';
 import { X11StateBadge } from '#/x11/x11_state_badge';
@@ -10,6 +11,7 @@ type X11AnchorSectionProps = {
 };
 
 export function X11AnchorSection({ host }: Readonly<X11AnchorSectionProps>) {
+	const { t } = useLingui();
 	const state = useX11State(host);
 	const { start, stop } = useX11AnchorActions(host);
 	const detail = getX11StateDetail(state);
@@ -20,7 +22,7 @@ export function X11AnchorSection({ host }: Readonly<X11AnchorSectionProps>) {
 
 	return (
 		<section className="flex flex-col gap-2">
-			<h3 className="m-0 text-sm font-semibold">Ancre X11</h3>
+			<h3 className="m-0 text-sm font-semibold">{t`X11 anchor`}</h3>
 			<div className="flex flex-wrap items-center gap-2">
 				<X11StateBadge state={state} />
 				{state.kind === 'failed' && detail !== null && (
@@ -30,7 +32,7 @@ export function X11AnchorSection({ host }: Readonly<X11AnchorSectionProps>) {
 			<div>
 				{isStartable ? (
 					<Button startIcon="i-mdi-play" onClick={handleStart}>
-						Démarrer X11
+						{t`Start X11`}
 					</Button>
 				) : (
 					<Button
@@ -39,7 +41,7 @@ export function X11AnchorSection({ host }: Readonly<X11AnchorSectionProps>) {
 						color="neutral"
 						onClick={handleStop}
 					>
-						Arrêter X11
+						{t`Stop X11`}
 					</Button>
 				)}
 			</div>

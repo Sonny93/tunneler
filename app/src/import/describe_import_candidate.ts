@@ -1,28 +1,36 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+
 import type { ImportCandidateDto } from '#/daemon/protocol';
 import { getTunnelAccessibleEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
-const UNKNOWN_HOST_LABEL = 'hôte à choisir';
 const PARTS_SEPARATOR = ' · ';
 
-/** The endpoint of a candidate in words, which stands for its name: `3333 vers nova:3333`. */
+/** The endpoint of a candidate in words, which stands for its name: `3333 to nova:3333`. */
 export function describeImportCandidateLabel(
 	candidate: Readonly<ImportCandidateDto>,
-	fallbackHost: string
+	fallbackHost: string,
+	i18n: I18n
 ): string {
-	return getTunnelAccessibleEndpointLabel({
-		...candidate,
-		host: candidate.host ?? (fallbackHost || UNKNOWN_HOST_LABEL),
-	});
+	return getTunnelAccessibleEndpointLabel(
+		{
+			...candidate,
+			host: candidate.host ?? (fallbackHost || t(i18n)`host to choose`),
+		},
+		i18n
+	);
 }
 
 /** The comment, the source line and the conflict note of a candidate, as one line of text. */
 export function describeImportCandidateDetails(
 	candidate: Readonly<ImportCandidateDto>,
-	conflictNote: string | null
+	conflictNote: string | null,
+	i18n: I18n
 ): string {
+	const { line } = candidate;
 	const parts = [
 		candidate.comment ?? null,
-		candidate.line === undefined ? null : `ligne ${candidate.line}`,
+		line === undefined ? null : t(i18n)`line ${line}`,
 		conflictNote,
 	];
 	return parts.filter((part) => part !== null).join(PARTS_SEPARATOR);

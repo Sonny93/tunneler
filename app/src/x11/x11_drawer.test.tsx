@@ -41,36 +41,36 @@ describe('X11Drawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('dialog', { name: 'X11 : nova' })
+			screen.getByRole('dialog', { name: 'X11: nova' })
 		).toBeInTheDocument();
 	});
 
 	it('should show the security warning as a visible note', () => {
 		renderDrawer();
 
-		expect(screen.getByRole('note', { name: 'Sécurité' })).toHaveTextContent(
-			'hôtes de confiance'
+		expect(screen.getByRole('note', { name: 'Security' })).toHaveTextContent(
+			'trusted hosts'
 		);
 	});
 
 	it('should show a stopped anchor with a start button', () => {
 		renderDrawer();
 
-		expect(screen.getByText('Arrêté')).toBeInTheDocument();
+		expect(screen.getByText('Stopped')).toBeInTheDocument();
 		expect(
-			screen.getByRole('button', { name: 'Démarrer X11' })
+			screen.getByRole('button', { name: 'Start X11' })
 		).toBeInTheDocument();
 	});
 
 	it('should show the message of a failed anchor', () => {
 		useDaemonStore.setState({
 			x11Anchors: [
-				buildX11Anchor({ state: { kind: 'failed', message: 'refusé' } }),
+				buildX11Anchor({ state: { kind: 'failed', message: 'refused' } }),
 			],
 		});
 		renderDrawer();
 
-		expect(screen.getByText('refusé')).toBeInTheDocument();
+		expect(screen.getByText('refused')).toBeInTheDocument();
 	});
 
 	it('should show the attempt of a reconnecting anchor', () => {
@@ -83,18 +83,18 @@ describe('X11Drawer', () => {
 		});
 		renderDrawer();
 
-		expect(screen.getByText('Reconnexion (tentative 2)')).toBeInTheDocument();
+		expect(screen.getByText('Reconnecting (attempt 2)')).toBeInTheDocument();
 	});
 
 	it('should ask for confirmation before the first start', async () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('button', { name: 'Démarrer X11' }));
+		await user.click(screen.getByRole('button', { name: 'Start X11' }));
 
 		expect(
 			await screen.findByRole('alertdialog', {
-				name: 'Activer X11 pour nova ?',
+				name: 'Enable X11 for nova?',
 			})
 		).toBeInTheDocument();
 		expect(gateway.startX11).not.toHaveBeenCalled();
@@ -104,10 +104,8 @@ describe('X11Drawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('button', { name: 'Démarrer X11' }));
-		await user.click(
-			await screen.findByRole('button', { name: 'Activer X11' })
-		);
+		await user.click(screen.getByRole('button', { name: 'Start X11' }));
+		await user.click(await screen.findByRole('button', { name: 'Enable X11' }));
 
 		await waitFor(() => expect(gateway.startX11).toHaveBeenCalledWith('nova'));
 	});
@@ -116,8 +114,8 @@ describe('X11Drawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('button', { name: 'Démarrer X11' }));
-		await user.click(await screen.findByRole('button', { name: 'Annuler' }));
+		await user.click(screen.getByRole('button', { name: 'Start X11' }));
+		await user.click(await screen.findByRole('button', { name: 'Cancel' }));
 
 		expect(gateway.startX11).not.toHaveBeenCalled();
 	});
@@ -127,27 +125,25 @@ describe('X11Drawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('button', { name: 'Démarrer X11' }));
+		await user.click(screen.getByRole('button', { name: 'Start X11' }));
 
 		await waitFor(() => expect(gateway.startX11).toHaveBeenCalledWith('nova'));
-		expect(
-			screen.queryByText('Activer X11 pour nova ?')
-		).not.toBeInTheDocument();
+		expect(screen.queryByText('Enable X11 for nova?')).not.toBeInTheDocument();
 	});
 
 	it('should toast a start failure', async () => {
 		useUiStore.getState().confirmX11Host('nova');
 		const gateway = createFakeGateway();
 		gateway.startX11.mockRejectedValueOnce(
-			new DaemonCommandError('x11_unreachable', 'injoignable')
+			new DaemonCommandError('x11_unreachable', 'unreachable')
 		);
 		renderDrawer(gateway);
 
-		await userEvent.click(screen.getByRole('button', { name: 'Démarrer X11' }));
+		await userEvent.click(screen.getByRole('button', { name: 'Start X11' }));
 
 		await waitFor(() =>
 			expect(toastMessages()).toEqual([
-				'Démarrage de X11 pour nova impossible: injoignable',
+				"Couldn't start X11 for nova: unreachable",
 			])
 		);
 	});
@@ -156,7 +152,7 @@ describe('X11Drawer', () => {
 		useDaemonStore.setState({ x11Anchors: [buildX11Anchor()] });
 		const { gateway } = renderDrawer();
 
-		await userEvent.click(screen.getByRole('button', { name: 'Arrêter X11' }));
+		await userEvent.click(screen.getByRole('button', { name: 'Stop X11' }));
 
 		await waitFor(() => expect(gateway.stopX11).toHaveBeenCalledWith('nova'));
 	});
@@ -175,12 +171,12 @@ describe('X11Drawer', () => {
 
 		await user.click(
 			screen.getByRole('button', {
-				name: 'Copier export DISPLAY=localhost:10.0',
+				name: 'Copy export DISPLAY=localhost:10.0',
 			})
 		);
 
 		expect(writeText).toHaveBeenCalledWith('export DISPLAY=localhost:10.0');
-		expect(toastMessages()).toEqual(['Commande copiée']);
+		expect(toastMessages()).toEqual(['Command copied']);
 	});
 
 	it('should toast an error when the copy fails', async () => {
@@ -191,7 +187,7 @@ describe('X11Drawer', () => {
 			new Error('no')
 		);
 
-		await user.click(screen.getByRole('button', { name: /^Copier export/ }));
+		await user.click(screen.getByRole('button', { name: /^Copy export/ }));
 
 		expect(useToastStore.getState().toasts[0]?.tone).toBe('error');
 	});
@@ -214,14 +210,14 @@ describe('X11Drawer', () => {
 		const { gateway } = renderDrawer();
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Lancer VS Code sur nova' })
+			screen.getByRole('button', { name: 'Launch VS Code on nova' })
 		);
 
 		await waitFor(() =>
 			expect(gateway.launchX11).toHaveBeenCalledWith('nova', 'VS Code')
 		);
 		await waitFor(() =>
-			expect(toastMessages()).toEqual(['VS Code lancé sur nova'])
+			expect(toastMessages()).toEqual(['VS Code launched on nova'])
 		);
 	});
 
@@ -229,17 +225,17 @@ describe('X11Drawer', () => {
 		useDaemonStore.setState({ x11Launchers: [buildX11Launcher()] });
 		const gateway = createFakeGateway();
 		gateway.launchX11.mockRejectedValueOnce(
-			new DaemonCommandError('not_found', 'lanceur inconnu')
+			new DaemonCommandError('not_found', 'unknown launcher')
 		);
 		renderDrawer(gateway);
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Lancer VS Code sur nova' })
+			screen.getByRole('button', { name: 'Launch VS Code on nova' })
 		);
 
 		await waitFor(() =>
 			expect(toastMessages()).toEqual([
-				'Lancement de VS Code sur nova impossible: lanceur inconnu',
+				"Couldn't launch VS Code on nova: unknown launcher",
 			])
 		);
 	});

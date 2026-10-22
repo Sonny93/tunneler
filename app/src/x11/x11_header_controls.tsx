@@ -1,4 +1,5 @@
 import { IconButton } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { useUiStore } from '#/state/ui_store';
 import { useX11State } from '#/x11/use_x11_state';
@@ -10,8 +11,9 @@ type X11HeaderControlsProps = {
 
 /** The X11 button of a host group header, with the anchor status when it is not stopped. */
 export function X11HeaderControls({ host }: Readonly<X11HeaderControlsProps>) {
+	const { t, i18n } = useLingui();
 	const openX11 = useUiStore((state) => state.openX11);
-	const status = getX11HeaderStatus(useX11State(host));
+	const status = getX11HeaderStatus(useX11State(host), i18n);
 
 	const handleOpen = () => openX11(host);
 
@@ -25,7 +27,7 @@ export function X11HeaderControls({ host }: Readonly<X11HeaderControlsProps>) {
 			)}
 			<IconButton
 				icon="i-mdi-monitor-share"
-				aria-label={`X11 pour ${host}`}
+				aria-label={t`X11 for ${host}`}
 				tooltip
 				variant="ghost"
 				color="neutral"

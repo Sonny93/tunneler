@@ -1,4 +1,7 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
 import { ConfirmModal } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { useUiStore } from '#/state/ui_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
@@ -8,13 +11,15 @@ type UseX11AnchorActionsReturn = {
 	stop: () => Promise<void>;
 };
 
-async function confirmRisk(host: string): Promise<boolean> {
+async function confirmRisk(host: string, i18n: I18n): Promise<boolean> {
 	const { confirmedX11Hosts, confirmX11Host } = useUiStore.getState();
 	if (confirmedX11Hosts.includes(host)) return true;
 	const isConfirmed = await ConfirmModal.call({
-		title: `Activer X11 pour ${host} ?`,
-		children: `Le serveur ${host} aura un accès complet à votre affichage local (capture du clavier et de l'écran possible). N'activez X11 que pour un hôte de confiance.`,
-		confirmLabel: 'Activer X11',
+		title: t(i18n)`Enable X11 for ${host}?`,
+		children: t(
+			i18n
+		)`The server ${host} will have full access to your local display (it can capture the keyboard and the screen). Only enable X11 for a trusted host.`,
+		confirmLabel: t(i18n)`Enable X11`,
 		confirmColor: 'danger',
 	});
 	if (isConfirmed) confirmX11Host(host);
@@ -23,19 +28,20 @@ async function confirmRisk(host: string): Promise<boolean> {
 
 /** Starting asks for confirmation the first time per host in the UI session; stopping never does. */
 export function useX11AnchorActions(host: string): UseX11AnchorActionsReturn {
+	const { i18n } = useLingui();
 	const runDaemonAction = useDaemonAction();
 
 	const start = async () => {
-		if (!(await confirmRisk(host))) return;
+		if (!(await confirmRisk(host, i18n))) return;
 		await runDaemonAction(
 			(gateway) => gateway.startX11(host),
-			`Démarrage de X11 pour ${host} impossible`
+			t(i18n)`Couldn't start X11 for ${host}`
 		);
 	};
 	const stop = async () => {
 		await runDaemonAction(
 			(gateway) => gateway.stopX11(host),
-			`Arrêt de X11 pour ${host} impossible`
+			t(i18n)`Couldn't stop X11 for ${host}`
 		);
 	};
 

@@ -1,10 +1,11 @@
 import { axe } from 'vitest-axe';
 import userEvent from '@testing-library/user-event';
-import { act, render, screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastRegion } from '#/shared/toasts/toast_region';
 import { useToastStore } from '#/shared/toasts/toast_store';
+import { renderWithI18n } from '#/testing/render_with_i18n';
 import { TOAST_AUTO_DISMISS_DELAY_MS } from '#/shared/toasts/use_auto_dismiss';
 
 const pushToast = (
@@ -21,37 +22,37 @@ describe('ToastRegion', () => {
 	});
 
 	it('should render the message of a pushed toast', () => {
-		render(<ToastRegion />);
+		renderWithI18n(<ToastRegion />);
 
-		pushToast({ tone: 'info', message: 'Configuration rechargée' });
+		pushToast({ tone: 'info', message: 'Configuration reloaded' });
 
 		expect(screen.getByRole('status')).toHaveTextContent(
-			'Configuration rechargée'
+			'Configuration reloaded'
 		);
 	});
 
 	it('should render an error toast as an alert', () => {
-		render(<ToastRegion />);
+		renderWithI18n(<ToastRegion />);
 
-		pushToast({ tone: 'error', message: 'Échec' });
+		pushToast({ tone: 'error', message: 'Failure' });
 
-		expect(screen.getByRole('alert')).toHaveTextContent('Échec');
+		expect(screen.getByRole('alert')).toHaveTextContent('Failure');
 	});
 
 	it('should dismiss a toast with its close button', async () => {
 		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-		render(<ToastRegion />);
-		pushToast({ tone: 'error', message: 'Échec' });
+		renderWithI18n(<ToastRegion />);
+		pushToast({ tone: 'error', message: 'Failure' });
 
 		await user.click(
-			screen.getByRole('button', { name: 'Fermer la notification' })
+			screen.getByRole('button', { name: 'Close notification' })
 		);
 
 		expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 	});
 
 	it('should auto dismiss an info toast after 5 seconds', () => {
-		render(<ToastRegion />);
+		renderWithI18n(<ToastRegion />);
 		pushToast({ tone: 'info', message: 'Info' });
 
 		void act(() => vi.advanceTimersByTime(TOAST_AUTO_DISMISS_DELAY_MS));
@@ -60,7 +61,7 @@ describe('ToastRegion', () => {
 	});
 
 	it('should auto dismiss a success toast after 5 seconds', () => {
-		render(<ToastRegion />);
+		renderWithI18n(<ToastRegion />);
 		pushToast({ tone: 'success', message: 'Ok' });
 
 		void act(() => vi.advanceTimersByTime(TOAST_AUTO_DISMISS_DELAY_MS));
@@ -69,8 +70,8 @@ describe('ToastRegion', () => {
 	});
 
 	it('should keep an error toast until it is dismissed', () => {
-		render(<ToastRegion />);
-		pushToast({ tone: 'error', message: 'Échec' });
+		renderWithI18n(<ToastRegion />);
+		pushToast({ tone: 'error', message: 'Failure' });
 
 		void act(() => vi.advanceTimersByTime(TOAST_AUTO_DISMISS_DELAY_MS * 10));
 
@@ -79,7 +80,7 @@ describe('ToastRegion', () => {
 
 	it('should pause the timer while the toast is hovered', async () => {
 		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-		render(<ToastRegion />);
+		renderWithI18n(<ToastRegion />);
 		pushToast({ tone: 'info', message: 'Info' });
 
 		await user.hover(screen.getByRole('status'));
@@ -90,7 +91,7 @@ describe('ToastRegion', () => {
 
 	it('should pause the timer while the toast has focus', async () => {
 		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-		render(<ToastRegion />);
+		renderWithI18n(<ToastRegion />);
 		pushToast({ tone: 'info', message: 'Info' });
 
 		await user.tab();
@@ -101,7 +102,7 @@ describe('ToastRegion', () => {
 
 	it('should dismiss again after the pointer leaves', async () => {
 		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-		render(<ToastRegion />);
+		renderWithI18n(<ToastRegion />);
 		pushToast({ tone: 'info', message: 'Info' });
 		await user.hover(screen.getByRole('status'));
 
@@ -112,10 +113,10 @@ describe('ToastRegion', () => {
 	});
 
 	it('should have no axe violations with toasts of each tone', async () => {
-		const { container } = render(<ToastRegion />);
+		const { container } = renderWithI18n(<ToastRegion />);
 		pushToast({ tone: 'info', message: 'Info' });
 		pushToast({ tone: 'success', message: 'Ok' });
-		pushToast({ tone: 'error', message: 'Échec' });
+		pushToast({ tone: 'error', message: 'Failure' });
 
 		expect(await axe(container)).toHaveNoViolations();
 	});

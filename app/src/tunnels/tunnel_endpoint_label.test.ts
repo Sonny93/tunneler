@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
 import { buildTunnel } from '#/testing/factories';
@@ -57,8 +58,8 @@ describe('getTunnelEndpointLabel for a remote tunnel', () => {
 	});
 
 	it('should say it in words', () => {
-		expect(getTunnelAccessibleEndpointLabel(remote)).toBe(
-			'port 8080 du serveur nova vers 127.0.0.1:3000'
+		expect(getTunnelAccessibleEndpointLabel(remote, i18n)).toBe(
+			'port 8080 of server nova to 127.0.0.1:3000'
 		);
 	});
 });
@@ -71,24 +72,25 @@ describe('getTunnelEndpointLabel for a dynamic tunnel', () => {
 	});
 
 	it('should say it in words', () => {
-		expect(getTunnelAccessibleEndpointLabel(dynamic)).toBe(
-			'proxy SOCKS sur le port 1080 via nova'
+		expect(getTunnelAccessibleEndpointLabel(dynamic, i18n)).toBe(
+			'SOCKS proxy on port 1080 via nova'
 		);
 	});
 });
 
 describe('getTunnelAccessibleEndpointLabel', () => {
-	it('should use vers instead of the arrow', () => {
-		expect(getTunnelAccessibleEndpointLabel(buildTunnel())).toBe(
-			'3333 vers nova:3333'
+	it('should use to instead of the arrow', () => {
+		expect(getTunnelAccessibleEndpointLabel(buildTunnel(), i18n)).toBe(
+			'3333 to nova:3333'
 		);
 	});
 
 	it('should keep the via part for a remote target', () => {
 		expect(
 			getTunnelAccessibleEndpointLabel(
-				buildTunnel({ targetHost: 'db', targetPort: 1 })
+				buildTunnel({ targetHost: 'db', targetPort: 1 }),
+				i18n
 			)
-		).toBe('3333 vers db:1 via nova');
+		).toBe('3333 to db:1 via nova');
 	});
 });

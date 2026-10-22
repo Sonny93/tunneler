@@ -1,8 +1,9 @@
 import { Kbd } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import {
-	GLOBAL_SHORTCUTS,
-	LIST_SHORTCUTS,
+	getGlobalShortcuts,
+	getListShortcuts,
 	type ShortcutDefinition,
 } from '#/shortcuts/shortcut_definitions';
 
@@ -32,12 +33,22 @@ const ShortcutGroup = ({ title, shortcuts }: Readonly<ShortcutGroupProps>) => (
 	</section>
 );
 
-export const ShortcutsHelpContent = () => (
-	<>
-		<ShortcutGroup title="Partout" shortcuts={GLOBAL_SHORTCUTS} />
-		<ShortcutGroup title="Liste des tunnels" shortcuts={LIST_SHORTCUTS} />
-		<p className="text-sm text-tn-muted">
-			Toutes ces actions sont aussi disponibles avec les boutons.
-		</p>
-	</>
-);
+export function ShortcutsHelpContent() {
+	const { t, i18n } = useLingui();
+
+	return (
+		<>
+			<ShortcutGroup
+				title={t`Everywhere`}
+				shortcuts={getGlobalShortcuts(i18n)}
+			/>
+			<ShortcutGroup
+				title={t`Tunnel list`}
+				shortcuts={getListShortcuts(i18n)}
+			/>
+			<p className="text-sm text-tn-muted">
+				{t`All these actions are also available with the buttons.`}
+			</p>
+		</>
+	);
+}

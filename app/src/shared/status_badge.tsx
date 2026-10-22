@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro';
+
 import { cn } from '#/shared/cn';
 import { BadgeDetail } from '#/shared/badge_detail';
 import type { TunnelStateDto } from '#/daemon/protocol';
@@ -54,8 +56,9 @@ export const TunnelStatusBadge = ({
 	isDetailTruncated = false,
 	className,
 }: Readonly<TunnelStatusBadgeProps>) => {
+	const { i18n } = useLingui();
 	const { icon, toneClassName } = STATE_APPEARANCES[state.kind];
-	const detail = getTunnelStateDetail(state);
+	const detail = getTunnelStateDetail(state, i18n);
 
 	return (
 		<span
@@ -66,7 +69,7 @@ export const TunnelStatusBadge = ({
 			)}
 		>
 			<span aria-hidden="true" className={cn(icon, 'size-4 shrink-0')} />
-			<span className="shrink-0">{getTunnelStateLabel(state)}</span>
+			<span className="shrink-0">{getTunnelStateLabel(state, i18n)}</span>
 			{detail !== null && (
 				<BadgeDetail
 					text={detail}

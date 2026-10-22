@@ -1,3 +1,4 @@
+import { msg } from '@lingui/core/macro';
 import { describe, expect, it } from 'vitest';
 
 import { EMPTY_TUNNEL_FORM_VALUES } from '#/tunnel_form/tunnel_form_values';
@@ -22,8 +23,8 @@ describe('validateTunnelForm', () => {
 	});
 
 	it('should require a host', () => {
-		expect(validateTunnelForm({ ...valid, host: '' }).host).toBe(
-			"L'hôte est obligatoire."
+		expect(validateTunnelForm({ ...valid, host: '' }).host).toEqual(
+			msg`The host is required.`
 		);
 	});
 
@@ -42,7 +43,7 @@ describe('validateTunnelForm', () => {
 	it('should reject a listen port out of range', () => {
 		expect(
 			validateTunnelForm({ ...valid, listenPort: '70000' }).listenPort
-		).toBe('Le port doit être un entier entre 1 et 65535.');
+		).toEqual(msg`The port must be a whole number between 1 and 65535.`);
 	});
 
 	it('should not validate the target port while linked', () => {
@@ -58,8 +59,8 @@ describe('validateTunnelForm', () => {
 			isTargetPortLinked: false,
 		});
 
-		expect(errors.targetPort).toBe(
-			'Le port doit être un entier entre 1 et 65535.'
+		expect(errors.targetPort).toEqual(
+			msg`The port must be a whole number between 1 and 65535.`
 		);
 	});
 
@@ -77,7 +78,9 @@ describe('validateTunnelForm', () => {
 
 describe('getFirstInvalidField', () => {
 	it('should return the first invalid field in form order', () => {
-		expect(getFirstInvalidField({ listenPort: 'x', host: 'y' })).toBe('host');
+		expect(getFirstInvalidField({ listenPort: msg`x`, host: msg`y` })).toBe(
+			'host'
+		);
 	});
 
 	it('should return null without errors', () => {
@@ -85,9 +88,9 @@ describe('getFirstInvalidField', () => {
 	});
 
 	it('should reject an invalid open path of a local tunnel', () => {
-		expect(validateTunnelForm({ ...valid, openPath: 'admin' }).openPath).toBe(
-			'Le chemin doit commencer par « / ».'
-		);
+		expect(
+			validateTunnelForm({ ...valid, openPath: 'admin' }).openPath
+		).toEqual(msg`The path must start with "/".`);
 	});
 
 	it('should ignore the open path of a remote tunnel', () => {

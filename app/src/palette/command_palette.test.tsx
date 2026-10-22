@@ -19,7 +19,7 @@ function renderPalette() {
 	});
 	return renderWithGateway(
 		<>
-			<button>Déclencheur</button>
+			<button>Trigger</button>
 			<ModalProvider />
 			<Overlays />
 		</>,
@@ -29,11 +29,11 @@ function renderPalette() {
 
 async function openPalette(user: ReturnType<typeof userEvent.setup>) {
 	await user.keyboard('{Control>}k{/Control}');
-	return screen.findByRole('dialog', { name: 'Palette de commandes' });
+	return screen.findByRole('dialog', { name: 'Command palette' });
 }
 
 const getInput = () =>
-	screen.getByRole('combobox', { name: 'Rechercher une commande' });
+	screen.getByRole('combobox', { name: 'Search a command' });
 
 describe('CommandPalette', () => {
 	it('should render nothing while closed', () => {
@@ -59,7 +59,7 @@ describe('CommandPalette', () => {
 		await user.keyboard('{Meta>}k{/Meta}');
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Palette de commandes' })
+			await screen.findByRole('dialog', { name: 'Command palette' })
 		).toBeInTheDocument();
 	});
 
@@ -69,7 +69,7 @@ describe('CommandPalette', () => {
 		useUiStore.getState().setPaletteOpen(true);
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Palette de commandes' })
+			await screen.findByRole('dialog', { name: 'Command palette' })
 		).toBeInTheDocument();
 	});
 
@@ -88,7 +88,7 @@ describe('CommandPalette', () => {
 		renderPalette();
 		await openPalette(user);
 
-		const listbox = screen.getByRole('listbox', { name: 'Commandes' });
+		const listbox = screen.getByRole('listbox', { name: 'Commands' });
 		const [firstOption] = screen.getAllByRole('option');
 		expect(getInput()).toHaveAttribute('aria-expanded', 'true');
 		expect(getInput()).toHaveAttribute('aria-controls', listbox.id);
@@ -105,10 +105,10 @@ describe('CommandPalette', () => {
 		await openPalette(user);
 
 		const option = screen.getByRole('option', {
-			name: /Nouveau tunnel(?! temporaire)/,
+			name: /New tunnel(?! temporary)/,
 		});
 
-		expect(option).toHaveTextContent('Général');
+		expect(option).toHaveTextContent('General');
 	});
 
 	it('should open the temporary tunnel form from the palette', async () => {
@@ -116,11 +116,11 @@ describe('CommandPalette', () => {
 		renderPalette();
 		await openPalette(user);
 
-		await user.type(getInput(), 'temporaire');
+		await user.type(getInput(), 'temporary');
 		await user.keyboard('{Enter}');
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Nouveau tunnel temporaire' })
+			await screen.findByRole('dialog', { name: 'New temporary tunnel' })
 		).toBeInTheDocument();
 	});
 
@@ -131,7 +131,7 @@ describe('CommandPalette', () => {
 
 		await user.type(getInput(), '3333');
 
-		expect(screen.getByRole('status')).toHaveTextContent('4 commandes');
+		expect(screen.getByRole('status')).toHaveTextContent('4 commands');
 	});
 
 	it('should filter ignoring case and accents', async () => {
@@ -139,11 +139,11 @@ describe('CommandPalette', () => {
 		renderPalette();
 		await openPalette(user);
 
-		await user.type(getInput(), 'PARAMETRES');
+		await user.type(getInput(), 'SETTINGS');
 
 		expect(screen.getAllByRole('option')).toHaveLength(1);
 		expect(
-			screen.getByRole('option', { name: /Ouvrir les paramètres/ })
+			screen.getByRole('option', { name: /Open settings/ })
 		).toBeInTheDocument();
 	});
 
@@ -154,7 +154,7 @@ describe('CommandPalette', () => {
 
 		await user.type(getInput(), 'zzzz');
 
-		expect(screen.getByRole('status')).toHaveTextContent('Aucune commande');
+		expect(screen.getByRole('status')).toHaveTextContent('No commands');
 		expect(screen.queryByRole('option')).not.toBeInTheDocument();
 		expect(getInput()).toHaveAttribute('aria-expanded', 'false');
 	});
@@ -208,9 +208,7 @@ describe('CommandPalette', () => {
 		renderPalette();
 		await openPalette(user);
 
-		await user.click(
-			screen.getByRole('option', { name: /Importer des tunnels/ })
-		);
+		await user.click(screen.getByRole('option', { name: /Import tunnels/ }));
 
 		await waitFor(() =>
 			expect(useUiStore.getState().panel).toEqual({ kind: 'import' })
@@ -222,7 +220,7 @@ describe('CommandPalette', () => {
 		const { gateway } = renderPalette();
 		await openPalette(user);
 
-		await user.type(getInput(), 'Démarrer 3333 → nova:3333{Enter}');
+		await user.type(getInput(), 'Start 3333 → nova:3333{Enter}');
 
 		await waitFor(() =>
 			expect(gateway.startTunnel).toHaveBeenCalledWith('tunnel-1')
@@ -235,7 +233,7 @@ describe('CommandPalette', () => {
 		useDaemonStore.setState({ tunnels: [buildTunnel({ isAwake: true })] });
 		await openPalette(user);
 
-		await user.type(getInput(), 'Mettre en veille 3333 → nova:3333{Enter}');
+		await user.type(getInput(), 'Send 3333 → nova:3333 to standby{Enter}');
 
 		await waitFor(() =>
 			expect(gateway.standbyTunnel).toHaveBeenCalledWith('tunnel-1')
@@ -248,10 +246,10 @@ describe('CommandPalette', () => {
 		useDaemonStore.setState({ tunnels: [buildTunnel({ tags: ['dev'] })] });
 		await openPalette(user);
 
-		await user.type(getInput(), 'Supprimer le tag dev{Enter}');
+		await user.type(getInput(), 'Delete tag dev{Enter}');
 
 		expect(
-			await screen.findByRole('alertdialog', { name: 'Supprimer le tag dev ?' })
+			await screen.findByRole('alertdialog', { name: 'Delete tag dev?' })
 		).toBeInTheDocument();
 		expect(gateway.deleteTag).not.toHaveBeenCalled();
 	});
@@ -261,7 +259,7 @@ describe('CommandPalette', () => {
 		renderPalette();
 		await openPalette(user);
 
-		await user.type(getInput(), 'Configuration de nova{Enter}');
+		await user.type(getInput(), 'Configuration of nova{Enter}');
 
 		await waitFor(() =>
 			expect(useUiStore.getState().panel).toEqual({
@@ -274,7 +272,7 @@ describe('CommandPalette', () => {
 	it('should close on Escape and give the focus back', async () => {
 		const user = userEvent.setup();
 		renderPalette();
-		screen.getByRole('button', { name: 'Déclencheur' }).focus();
+		screen.getByRole('button', { name: 'Trigger' }).focus();
 		await openPalette(user);
 
 		await user.keyboard('{Escape}');
@@ -283,6 +281,6 @@ describe('CommandPalette', () => {
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 		);
 		expect(useUiStore.getState().isPaletteOpen).toBe(false);
-		expect(screen.getByRole('button', { name: 'Déclencheur' })).toHaveFocus();
+		expect(screen.getByRole('button', { name: 'Trigger' })).toHaveFocus();
 	});
 });

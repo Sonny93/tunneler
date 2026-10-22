@@ -1,17 +1,22 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
 import { describeImportWarning } from '#/import/describe_import_warning';
 
+const describeWarning = (
+	warning: Parameters<typeof describeImportWarning>[0]
+) => describeImportWarning(warning, i18n);
+
 describe('describeImportWarning', () => {
 	it('should describe a malformed forward with its line', () => {
 		expect(
-			describeImportWarning({
+			describeWarning({
 				kind: 'malformedForward',
 				line: 4,
 				text: '-L nope',
 			})
 		).toEqual({
-			before: 'Ligne 4 : option ignorée, illisible : ',
+			before: 'Line 4: option ignored, unreadable: ',
 			raw: '-L nope',
 			after: '',
 		});
@@ -19,7 +24,7 @@ describe('describeImportWarning', () => {
 
 	it('should describe an unsupported forward with line and host', () => {
 		expect(
-			describeImportWarning({
+			describeWarning({
 				kind: 'unsupportedForward',
 				line: 7,
 				host: 'nova',
@@ -27,7 +32,7 @@ describe('describeImportWarning', () => {
 			})
 		).toEqual({
 			before:
-				'Ligne 7 : nova : forward non pris en charge (socket Unix ou SOCKS distant) : ',
+				'Line 7: nova: unsupported forward (Unix socket or remote SOCKS): ',
 			raw: '-L /tmp/a.sock:x:1',
 			after: '',
 		});
@@ -35,9 +40,9 @@ describe('describeImportWarning', () => {
 
 	it('should leave out the line and host of an unsupported forward when absent', () => {
 		expect(
-			describeImportWarning({ kind: 'unsupportedForward', text: '-R 1080' })
+			describeWarning({ kind: 'unsupportedForward', text: '-R 1080' })
 		).toEqual({
-			before: 'forward non pris en charge (socket Unix ou SOCKS distant) : ',
+			before: 'Unsupported forward (Unix socket or remote SOCKS): ',
 			raw: '-R 1080',
 			after: '',
 		});
@@ -45,26 +50,26 @@ describe('describeImportWarning', () => {
 
 	it('should describe an unknown destination', () => {
 		expect(
-			describeImportWarning({
+			describeWarning({
 				kind: 'unknownDestination',
 				destination: 'user@198.51.100.10',
 			})
 		).toEqual({
-			before: 'Aucun alias ssh_config ne correspond à ',
+			before: 'No ssh_config alias matches ',
 			raw: 'user@198.51.100.10',
-			after: " : choisissez l'hôte ci-dessous.",
+			after: ': choose the host below.',
 		});
 	});
 
 	it('should describe a host resolution failure', () => {
 		expect(
-			describeImportWarning({
+			describeWarning({
 				kind: 'hostResolutionFailed',
 				host: 'nova',
 				message: 'bad config',
 			})
 		).toEqual({
-			before: 'Lecture de nova impossible : ',
+			before: "Couldn't read nova: ",
 			raw: 'bad config',
 			after: '',
 		});

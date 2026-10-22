@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { useContext, useId, type ChangeEvent } from 'react';
 import { Checkbox, ContextMenu, Switch } from '@minimalstuff/ui';
 
@@ -37,6 +38,7 @@ function isShiftChange(
 }
 
 export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
+	const { t, i18n } = useLingui();
 	const { toggleRunning } = useTunnelActions(tunnel);
 	const { selectedIds, selectedTunnels, toggle, selectRange } = useContext(
 		TunnelSelectionContext
@@ -46,7 +48,8 @@ export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 		isSelected && selectedTunnels.length >= MULTI_SELECTION_MINIMUM;
 	const isRunning = isTunnelRunning(tunnel.state);
 	const problemsId = useId();
-	const problems = describeTunnelProblems(tunnel);
+	const endpoint = getTunnelAccessibleEndpointLabel(tunnel, i18n);
+	const problems = describeTunnelProblems(tunnel, i18n);
 
 	const handleSelectionChange = (event: ChangeEvent<HTMLInputElement>) => {
 		if (isShiftChange(event)) selectRange(tunnel.id);
@@ -63,14 +66,14 @@ export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 		<li {...{ [ROVING_ROW_ATTRIBUTE]: tunnel.id }}>
 			<ContextMenu
 				items={menuItems}
-				aria-label={`Actions pour ${getTunnelAccessibleEndpointLabel(tunnel)}`}
+				aria-label={t`Actions for ${endpoint}`}
 				className={cn(
 					'flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 hover:bg-tn-surface-raised',
 					isSelected && 'bg-tn-selected'
 				)}
 			>
 				<Checkbox
-					aria-label={`Sélectionner ${getTunnelAccessibleEndpointLabel(tunnel)}`}
+					aria-label={t`Select ${endpoint}`}
 					checked={isSelected}
 					onChange={handleSelectionChange}
 					tabIndex={isActiveRow ? 0 : -1}
@@ -78,7 +81,7 @@ export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 					{...{ [ROVING_CONTROL_ATTRIBUTE]: 'select' }}
 				/>
 				<Switch
-					aria-label={getTunnelAccessibleName(tunnel)}
+					aria-label={getTunnelAccessibleName(tunnel, i18n)}
 					aria-describedby={problems === null ? undefined : problemsId}
 					checked={isRunning}
 					onChange={toggleRunning}

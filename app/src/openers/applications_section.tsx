@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { Button } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { OpenerForm } from '#/openers/opener_form';
 import type { AvailableOpenerDto } from '#/daemon/protocol';
@@ -45,8 +46,47 @@ function OpenerList({
 	);
 }
 
+type UserOpenerActionsProps = {
+	opener: Readonly<AvailableOpenerDto>;
+	onEdit: (id: string) => void;
+	onRemove: (opener: Readonly<AvailableOpenerDto>) => Promise<void>;
+};
+
+function UserOpenerActions({
+	opener,
+	onEdit,
+	onRemove,
+}: Readonly<UserOpenerActionsProps>) {
+	const { t } = useLingui();
+	const { name } = opener;
+
+	return (
+		<div className="flex gap-1">
+			<Button
+				size="xs"
+				variant="outline"
+				color="neutral"
+				aria-label={t`Edit ${name}`}
+				onClick={() => onEdit(opener.id)}
+			>
+				{t`Edit`}
+			</Button>
+			<Button
+				size="xs"
+				variant="outline"
+				color="danger"
+				aria-label={t`Delete ${name}`}
+				onClick={() => void onRemove(opener)}
+			>
+				{t`Delete`}
+			</Button>
+		</div>
+	);
+}
+
 /** The "Applications" section of the settings: detected ones read-only, the user's ones editable. */
 export function ApplicationsSection() {
+	const { t } = useLingui();
 	const headingId = useId();
 	const detectedId = useId();
 	const userId = useId();
@@ -63,19 +103,18 @@ export function ApplicationsSection() {
 	return (
 		<section aria-labelledby={headingId} className="mt-6 flex flex-col gap-4">
 			<h3 id={headingId} className="m-0 text-sm font-semibold">
-				Applications
+				{t`Applications`}
 			</h3>
 			<p className="m-0 text-xs text-tn-muted">
-				Elles ouvrent un tunnel à la place du navigateur. Les commandes sont
-				lancées sans shell, avec les arguments tels quels.
+				{t`They open a tunnel instead of the browser. Commands run without a shell, with the arguments as is.`}
 			</p>
 			<div className="flex flex-col gap-2">
 				<h4 id={detectedId} className="m-0 text-xs font-semibold">
-					Détectées sur ce poste
+					{t`Detected on this computer`}
 				</h4>
 				{editor.detectedOpeners.length === 0 ? (
 					<p className="m-0 text-xs text-tn-muted">
-						Aucune application détectée.
+						{t`No application detected.`}
 					</p>
 				) : (
 					<OpenerList headingId={detectedId} openers={editor.detectedOpeners} />
@@ -83,35 +122,20 @@ export function ApplicationsSection() {
 			</div>
 			<div className="flex flex-col gap-2">
 				<h4 id={userId} className="m-0 text-xs font-semibold">
-					Ajoutées
+					{t`Added`}
 				</h4>
 				{userOpeners.length === 0 ? (
 					<p className="m-0 text-xs text-tn-muted">
-						Aucune application ajoutée.
+						{t`No application added.`}
 					</p>
 				) : (
 					<OpenerList headingId={userId} openers={userOpeners}>
 						{(opener) => (
-							<div className="flex gap-1">
-								<Button
-									size="xs"
-									variant="outline"
-									color="neutral"
-									aria-label={`Modifier ${opener.name}`}
-									onClick={() => editor.startEditing(opener.id)}
-								>
-									Modifier
-								</Button>
-								<Button
-									size="xs"
-									variant="outline"
-									color="danger"
-									aria-label={`Supprimer ${opener.name}`}
-									onClick={() => void editor.remove(opener)}
-								>
-									Supprimer
-								</Button>
-							</div>
+							<UserOpenerActions
+								opener={opener}
+								onEdit={editor.startEditing}
+								onRemove={editor.remove}
+							/>
 						)}
 					</OpenerList>
 				)}
@@ -124,7 +148,7 @@ export function ApplicationsSection() {
 						color="neutral"
 						onClick={editor.startCreating}
 					>
-						Ajouter une application
+						{t`Add an application`}
 					</Button>
 				</div>
 			)}

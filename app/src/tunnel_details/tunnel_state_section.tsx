@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { useLingui } from '@lingui/react/macro';
 
 import type { TunnelDto } from '#/daemon/protocol';
 import { TemporaryBadge } from '#/shared/temporary_badge';
@@ -13,12 +14,13 @@ type TunnelStateSectionProps = {
 export function TunnelStateSection({
 	tunnel,
 }: Readonly<TunnelStateSectionProps>) {
+	const { t } = useLingui();
 	const headingId = useId();
 
 	return (
 		<section aria-labelledby={headingId} className="flex flex-col gap-2">
 			<h3 id={headingId} className="m-0 text-sm font-semibold">
-				État
+				{t`State`}
 			</h3>
 			<div className="flex flex-wrap gap-1">
 				{tunnel.isTemporary && <TemporaryBadge />}

@@ -4,6 +4,6 @@ import { formatShortcutTooltip } from '#/shared/shortcut_tooltip';
 
 describe('formatShortcutTooltip', () => {
 	it('should append the shortcut in parentheses after the label', () => {
-		expect(formatShortcutTooltip('Paramètres', ',')).toBe('Paramètres (,)');
+		expect(formatShortcutTooltip('Settings', ',')).toBe('Settings (,)');
 	});
 });

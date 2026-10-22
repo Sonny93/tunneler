@@ -1,3 +1,4 @@
+import type { DaemonCommandError } from '#/daemon/daemon_command_error';
 import type {
 	AvailableOpenerDto,
 	CredentialRequestDto,
@@ -13,7 +14,7 @@ import type {
 export type ConnectionState =
 	| { status: 'connecting' }
 	| { status: 'connected' }
-	| { status: 'disconnected'; message: string };
+	| { status: 'disconnected'; error: DaemonCommandError };
 
 export type PendingPrompt =
 	| {

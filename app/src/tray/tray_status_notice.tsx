@@ -1,5 +1,6 @@
 import { Button } from '@minimalstuff/ui';
 import { useId, type MouseEvent } from 'react';
+import { useLingui } from '@lingui/react/macro';
 
 import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
@@ -9,6 +10,7 @@ import {
 } from '#/tray/tray_status_notice_text';
 
 export function TrayStatusNotice() {
+	const { t, i18n } = useLingui();
 	const status = useDaemonStore((state) => state.tray);
 	const dismissedProblem = useUiStore((state) => state.dismissedTrayProblem);
 	const dismissTrayProblem = useUiStore((state) => state.dismissTrayProblem);
@@ -16,7 +18,7 @@ export function TrayStatusNotice() {
 
 	if (!isTrayProblem(status) || status.kind === dismissedProblem) return null;
 
-	const { heading, body } = describeTrayProblem(status);
+	const { heading, body } = describeTrayProblem(status, i18n);
 
 	const handleHide = (event: MouseEvent<HTMLButtonElement>) => {
 		event.currentTarget.closest('main')?.focus();
@@ -43,7 +45,7 @@ export function TrayStatusNotice() {
 					color="neutral"
 					onClick={handleHide}
 				>
-					Masquer
+					{t`Hide`}
 				</Button>
 			</div>
 		</section>

@@ -1,8 +1,11 @@
+import { msg } from '@lingui/core/macro';
+import type { MessageDescriptor } from '@lingui/core';
+
 import type { LogLevelDto } from '#/daemon/protocol';
 
 type LogLevelAppearance = {
 	icon: string;
-	label: string;
+	label: MessageDescriptor;
 	toneClassName: string;
 };
 
@@ -11,17 +14,17 @@ export const LOG_LEVEL_APPEARANCES: Readonly<
 > = {
 	info: {
 		icon: 'i-mdi-information-outline',
-		label: 'Info',
+		label: msg`Info`,
 		toneClassName: 'text-tn-info',
 	},
 	warn: {
 		icon: 'i-mdi-alert-outline',
-		label: 'Avertissement',
+		label: msg`Warning`,
 		toneClassName: 'text-tn-warning',
 	},
 	error: {
 		icon: 'i-mdi-alert-octagon-outline',
-		label: 'Erreur',
+		label: msg`Error`,
 		toneClassName: 'text-tn-danger',
 	},
 };

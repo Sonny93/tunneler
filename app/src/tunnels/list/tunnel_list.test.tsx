@@ -40,8 +40,8 @@ describe('TunnelList', () => {
 				.getAllByRole('switch')
 				.map((rowSwitch) => rowSwitch.getAttribute('aria-label'))
 		).toEqual([
-			'Tunnel 3000 vers nova:3000, arrêté',
-			'Tunnel 8080 vers nova:8080, arrêté',
+			'Tunnel 3000 to nova:3000, stopped',
+			'Tunnel 8080 to nova:8080, stopped',
 		]);
 	});
 
@@ -50,7 +50,7 @@ describe('TunnelList', () => {
 		renderWithGateway(<TunnelList />);
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Configuration de zeta' })
+			screen.getByRole('button', { name: 'Configuration of zeta' })
 		);
 
 		expect(useUiStore.getState().panel).toEqual({
@@ -64,13 +64,13 @@ describe('TunnelList', () => {
 		renderWithGateway(<TunnelList />);
 
 		expect(
-			screen.getByRole('heading', { level: 2, name: 'Tous les tunnels (3)' })
+			screen.getByRole('heading', { level: 2, name: 'All tunnels (3)' })
 		).toBeInTheDocument();
 		expect(
-			screen.queryByRole('button', { name: 'Renommer le tag' })
+			screen.queryByRole('button', { name: 'Rename tag' })
 		).not.toBeInTheDocument();
 		expect(
-			screen.queryByRole('button', { name: 'Supprimer le tag' })
+			screen.queryByRole('button', { name: 'Delete tag' })
 		).not.toBeInTheDocument();
 	});
 
@@ -104,9 +104,9 @@ describe('TunnelList', () => {
 	it('should offer to create a tunnel when none is configured', async () => {
 		renderWithGateway(<TunnelList />);
 
-		expect(screen.getByText('Aucun tunnel configuré.')).toBeInTheDocument();
+		expect(screen.getByText('No tunnels yet.')).toBeInTheDocument();
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Créer un tunnel' })
+			screen.getByRole('button', { name: 'Create a tunnel' })
 		);
 
 		expect(useUiStore.getState().panel).toEqual({
@@ -133,9 +133,7 @@ describe('TunnelList', () => {
 		useUiStore.getState().setFilter({ kind: 'tag', tag: 'dev' });
 		renderWithGateway(<TunnelList />);
 
-		await userEvent.click(
-			screen.getByRole('button', { name: 'Renommer le tag' })
-		);
+		await userEvent.click(screen.getByRole('button', { name: 'Rename tag' }));
 
 		expect(useUiStore.getState().tagRename).toEqual({
 			tag: 'dev',
@@ -153,12 +151,10 @@ describe('TunnelList', () => {
 			</>
 		);
 
-		await userEvent.click(
-			screen.getByRole('button', { name: 'Supprimer le tag' })
-		);
+		await userEvent.click(screen.getByRole('button', { name: 'Delete tag' }));
 
 		expect(
-			await screen.findByRole('alertdialog', { name: 'Supprimer le tag dev ?' })
+			await screen.findByRole('alertdialog', { name: 'Delete tag dev?' })
 		).toBeInTheDocument();
 		expect(gateway.deleteTag).not.toHaveBeenCalled();
 	});

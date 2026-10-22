@@ -1,18 +1,19 @@
 import { axe } from 'vitest-axe';
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 
 import { AppLayout } from '#/app_layout';
+import { renderWithI18n } from '#/testing/render_with_i18n';
 
 const renderLayout = (isSidebarCollapsed = false) =>
-	render(
+	renderWithI18n(
 		<AppLayout
 			sidebar={<nav aria-label="Tags">Tags</nav>}
-			sidebarToggle={<button>Panneau</button>}
+			sidebarToggle={<button>Sidebar</button>}
 			isSidebarCollapsed={isSidebarCollapsed}
-			actions={<button>Créer</button>}
+			actions={<button>Create</button>}
 		>
-			<p>Contenu</p>
+			<p>Content</p>
 		</AppLayout>
 	);
 
@@ -29,7 +30,7 @@ describe('AppLayout', () => {
 		renderLayout();
 
 		expect(screen.getByRole('banner')).toContainElement(
-			screen.getByRole('button', { name: 'Créer' })
+			screen.getByRole('button', { name: 'Create' })
 		);
 	});
 
@@ -45,7 +46,7 @@ describe('AppLayout', () => {
 		renderLayout();
 
 		expect(screen.getByRole('banner')).toContainElement(
-			screen.getByRole('button', { name: 'Panneau' })
+			screen.getByRole('button', { name: 'Sidebar' })
 		);
 	});
 
@@ -60,14 +61,14 @@ describe('AppLayout', () => {
 	it('should render the children in the main landmark', () => {
 		renderLayout();
 
-		expect(screen.getByRole('main')).toHaveTextContent('Contenu');
+		expect(screen.getByRole('main')).toHaveTextContent('Content');
 	});
 
 	it('should offer a skip link to the main region', () => {
 		renderLayout();
 
 		const skipLink = screen.getByRole('link', {
-			name: 'Aller à la liste des tunnels',
+			name: 'Skip to the tunnel list',
 		});
 		expect(skipLink).toHaveAttribute('href', `#${screen.getByRole('main').id}`);
 	});

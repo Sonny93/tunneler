@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import {
 	Button,
 	IconButton,
@@ -11,6 +12,7 @@ import { QuitButton } from '#/quit/quit_button';
 import { formatShortcutTooltip } from '#/shared/shortcut_tooltip';
 
 export function HeaderActions() {
+	const { t } = useLingui();
 	const openTunnelEditor = useUiStore((state) => state.openTunnelEditor);
 	const openTemporaryTunnelEditor = useUiStore(
 		(state) => state.openTemporaryTunnelEditor
@@ -32,21 +34,21 @@ export function HeaderActions() {
 					className="relative rounded-r-none focus-visible:z-10"
 					onClick={handleNewTunnel}
 				>
-					Nouveau tunnel
+					{t`New tunnel`}
 				</Button>
 				<Menu
 					align="end"
 					trigger={
 						<IconButton
 							icon="i-mdi-chevron-down"
-							aria-label="Autres façons de créer un tunnel"
+							aria-label={t`Other ways to create a tunnel`}
 							tooltip
 							className="relative rounded-l-none border-l border-l-white/40 focus-visible:z-10"
 						/>
 					}
 				>
 					<MenuItem icon="i-mdi-timer-sand" onClick={openTemporaryTunnelEditor}>
-						Tunnel temporaire…
+						{t`Temporary tunnel…`}
 					</MenuItem>
 				</Menu>
 			</div>
@@ -56,13 +58,13 @@ export function HeaderActions() {
 				color="neutral"
 				onClick={openImport}
 			>
-				Importer
+				{t`Import`}
 			</Button>
 			<IconButton
 				icon="i-mdi-console-line"
-				aria-label="Palette de commandes"
+				aria-label={t`Command palette`}
 				tooltip={{
-					content: formatShortcutTooltip('Palette de commandes', 'Ctrl+K'),
+					content: formatShortcutTooltip(t`Command palette`, 'Ctrl+K'),
 				}}
 				aria-keyshortcuts="Control+K"
 				variant="ghost"
@@ -71,8 +73,8 @@ export function HeaderActions() {
 			/>
 			<IconButton
 				icon="i-mdi-cog-outline"
-				aria-label="Paramètres"
-				tooltip={{ content: formatShortcutTooltip('Paramètres', ',') }}
+				aria-label={t`Settings`}
+				tooltip={{ content: formatShortcutTooltip(t`Settings`, ',') }}
 				variant="ghost"
 				color="neutral"
 				onClick={openSettings}
@@ -80,8 +82,10 @@ export function HeaderActions() {
 			<ThemeToggle variant="ghost" tooltip />
 			<IconButton
 				icon="i-mdi-keyboard-outline"
-				aria-label="Raccourcis clavier"
-				tooltip={{ content: formatShortcutTooltip('Raccourcis clavier', '?') }}
+				aria-label={t`Keyboard shortcuts`}
+				tooltip={{
+					content: formatShortcutTooltip(t`Keyboard shortcuts`, '?'),
+				}}
 				variant="ghost"
 				color="neutral"
 				onClick={handleOpenHelp}

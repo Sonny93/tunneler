@@ -45,7 +45,7 @@ describe('useStandbyRequestListener', () => {
 		act(() => useDaemonStore.setState({ isStandbyRequested: true }));
 
 		expect(await screen.findByRole('alertdialog')).toHaveTextContent(
-			'2 connexions ouvertes seront coupées.'
+			'2 open connections will be cut.'
 		);
 		expect(useDaemonStore.getState().isStandbyRequested).toBe(false);
 		expect(gateway.standbyAll).not.toHaveBeenCalled();

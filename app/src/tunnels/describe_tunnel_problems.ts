@@ -1,3 +1,5 @@
+import type { I18n } from '@lingui/core';
+
 import type { TunnelDto } from '#/daemon/protocol';
 import { getTargetHealthError } from '#/tunnels/target_health_label';
 import { getTunnelStateDetail } from '#/tunnels/tunnel_state_detail';
@@ -10,10 +12,11 @@ const PROBLEM_SEPARATOR = '. ';
  * tunnel has no problem to explain.
  */
 export function describeTunnelProblems(
-	tunnel: Readonly<Pick<TunnelDto, 'state' | 'health'>>
+	tunnel: Readonly<Pick<TunnelDto, 'state' | 'health'>>,
+	i18n: I18n
 ): string | null {
 	const problems = [
-		getTunnelStateDetail(tunnel.state),
+		getTunnelStateDetail(tunnel.state, i18n),
 		getTargetHealthError(tunnel.health),
 	].filter((problem) => problem !== null);
 	return problems.length === 0 ? null : problems.join(PROBLEM_SEPARATOR);

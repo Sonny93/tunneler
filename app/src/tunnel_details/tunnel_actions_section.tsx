@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { useLingui } from '@lingui/react/macro';
 import { Button, Menu, MenuItem } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
@@ -18,6 +19,7 @@ type TunnelActionsSectionProps = {
 export function TunnelActionsSection({
 	tunnel,
 }: Readonly<TunnelActionsSectionProps>) {
+	const { t } = useLingui();
 	const headingId = useId();
 	const commandId = useId();
 	const runningReasonId = useId();
@@ -32,14 +34,14 @@ export function TunnelActionsSection({
 	const hasTarget = tunnel.kind !== 'dynamic';
 	const command = buildSshCommand(tunnel);
 
-	const handleCopy = () => void copyTextWithToast(command, 'Commande copiée');
+	const handleCopy = () => void copyTextWithToast(command, t`Command copied`);
 	const handleEdit = () => openTunnelEditor(tunnel.id);
 	const handleStandby = () => void sendTunnel(tunnel);
 
 	return (
 		<section aria-labelledby={headingId} className="flex flex-col gap-3">
 			<h3 id={headingId} className="m-0 text-sm font-semibold">
-				Actions
+				{t`Actions`}
 			</h3>
 			{hasTarget && (
 				<div className="flex flex-col gap-1">
@@ -62,7 +64,7 @@ export function TunnelActionsSection({
 										variant="outline"
 										color="neutral"
 									>
-										Ouvrir avec…
+										{t`Open with…`}
 									</Button>
 								}
 							>
@@ -82,12 +84,12 @@ export function TunnelActionsSection({
 							aria-describedby={isRunning ? undefined : runningReasonId}
 							onClick={check}
 						>
-							Tester la cible
+							{t`Check the target`}
 						</Button>
 					</div>
 					{!isRunning && (
 						<p id={runningReasonId} className="m-0 text-xs text-tn-muted">
-							Disponible quand le tunnel est démarré.
+							{t`Available when the tunnel is started.`}
 						</p>
 					)}
 				</div>
@@ -101,7 +103,7 @@ export function TunnelActionsSection({
 						aria-describedby={commandId}
 						onClick={handleCopy}
 					>
-						Copier la commande ssh
+						{t`Copy the ssh command`}
 					</Button>
 				</div>
 				<code
@@ -121,7 +123,7 @@ export function TunnelActionsSection({
 						aria-describedby={isRunning ? undefined : restartReasonId}
 						onClick={restart}
 					>
-						Redémarrer
+						{t`Restart`}
 					</Button>
 					{tunnel.isAwake && (
 						<Button
@@ -130,7 +132,7 @@ export function TunnelActionsSection({
 							color="neutral"
 							onClick={handleStandby}
 						>
-							Mettre en veille
+							{t`Send to standby`}
 						</Button>
 					)}
 					{tunnel.isTemporary ? (
@@ -141,7 +143,7 @@ export function TunnelActionsSection({
 								color="neutral"
 								onClick={persist}
 							>
-								Enregistrer le tunnel
+								{t`Save tunnel`}
 							</Button>
 							<Button
 								startIcon="i-mdi-stop"
@@ -149,7 +151,7 @@ export function TunnelActionsSection({
 								color="danger"
 								onClick={stopAndRemove}
 							>
-								Arrêter et retirer
+								{t`Stop and remove`}
 							</Button>
 						</>
 					) : (
@@ -159,13 +161,13 @@ export function TunnelActionsSection({
 							color="neutral"
 							onClick={handleEdit}
 						>
-							Modifier
+							{t`Edit`}
 						</Button>
 					)}
 				</div>
 				{!isRunning && (
 					<p id={restartReasonId} className="m-0 text-xs text-tn-muted">
-						Redémarrage possible quand le tunnel est démarré.
+						{t`Restarting is possible when the tunnel is started.`}
 					</p>
 				)}
 			</div>

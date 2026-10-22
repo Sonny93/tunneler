@@ -1,4 +1,7 @@
 import { useCallback } from 'react';
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+import { useLingui } from '@lingui/react/macro';
 
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUpdateStore } from '#/updates/update_store';
@@ -7,23 +10,25 @@ import { confirmTunnelsStop } from '#/quit/confirm_tunnels_stop';
 import { countRunningSessions } from '#/quit/count_running_sessions';
 import { createProgressAnnouncer } from '#/updates/create_progress_announcer';
 
-const INSTALL_FAILURE_MESSAGE = 'Mise à jour impossible';
-const RESTORED_AFTER_UPDATE =
-	'Ils redémarreront après la mise à jour, car les tunnels actifs sont rétablis au lancement.';
-const NOT_RESTORED_AFTER_UPDATE =
-	'Ils ne redémarreront pas après la mise à jour : « Rétablir les tunnels actifs au lancement » est désactivé dans les paramètres.';
+function describeConsequence(isRestoredOnLaunch: boolean, i18n: I18n): string {
+	return isRestoredOnLaunch
+		? t(
+				i18n
+			)`They will restart after the update, because active tunnels are restored on launch.`
+		: t(
+				i18n
+			)`They will not restart after the update: "Restore active tunnels on launch" is turned off in the settings.`;
+}
 
-async function confirmStoppingTunnels(): Promise<boolean> {
+async function confirmStoppingTunnels(i18n: I18n): Promise<boolean> {
 	const { tunnels, x11Anchors, settings } = useDaemonStore.getState();
 	const runningCount = countRunningSessions(tunnels, x11Anchors);
 	if (runningCount === 0) return true;
 	return confirmTunnelsStop({
-		title: 'Installer la mise à jour ?',
-		confirmLabel: 'Tout arrêter et installer',
+		title: t(i18n)`Install the update?`,
+		confirmLabel: t(i18n)`Stop everything and install`,
 		runningCount,
-		consequence: settings?.restoreOnLaunch
-			? RESTORED_AFTER_UPDATE
-			: NOT_RESTORED_AFTER_UPDATE,
+		consequence: describeConsequence(settings?.restoreOnLaunch ?? false, i18n),
 	});
 }
 
@@ -33,13 +38,14 @@ async function confirmStoppingTunnels(): Promise<boolean> {
  * error toast. On success the native side exits the app.
  */
 export function useInstallUpdate(): () => Promise<void> {
+	const { i18n } = useLingui();
 	const run = useDaemonAction();
 
 	return useCallback(async () => {
-		if (!(await confirmStoppingTunnels())) return;
+		if (!(await confirmStoppingTunnels(i18n))) return;
 		const { startInstallation, reportProgress, endInstallation } =
 			useUpdateStore.getState();
-		const announcer = createProgressAnnouncer();
+		const announcer = createProgressAnnouncer(i18n);
 		startInstallation();
 		announcer.start();
 		const isInstalled = await run(
@@ -48,8 +54,8 @@ export function useInstallUpdate(): () => Promise<void> {
 					reportProgress(progress);
 					announcer.report(progress);
 				}),
-			INSTALL_FAILURE_MESSAGE
+			t(i18n)`Couldn't install the update`
 		);
 		if (!isInstalled) endInstallation();
-	}, [run]);
+	}, [run, i18n]);
 }

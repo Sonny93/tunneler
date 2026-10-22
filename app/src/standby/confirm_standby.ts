@@ -1,3 +1,5 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
 import { ConfirmModal } from '@minimalstuff/ui';
 
 import type { TunnelDto } from '#/daemon/protocol';
@@ -10,13 +12,14 @@ import { describeCutConnections } from '#/standby/describe_cut_connections';
  */
 export async function confirmStandby(
 	title: string,
-	tunnels: readonly Readonly<TunnelDto>[]
+	tunnels: readonly Readonly<TunnelDto>[],
+	i18n: I18n
 ): Promise<boolean> {
 	const openConnectionCount = countOpenConnections(tunnels);
 	if (openConnectionCount === 0) return true;
 	return ConfirmModal.call({
 		title,
-		children: describeCutConnections(openConnectionCount),
-		confirmLabel: 'Mettre en veille',
+		children: describeCutConnections(openConnectionCount, i18n),
+		confirmLabel: t(i18n)`Send to standby`,
 	});
 }

@@ -2,9 +2,7 @@ import { RadioOptions } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
 
 import type { OpenHostDto } from '#/daemon/protocol';
-import { OPEN_HOST_OPTIONS } from '#/shared/open_host_options';
-
-const OPTIONS = OPEN_HOST_OPTIONS.map((option) => ({ ...option }));
+import { getOpenHostOptions } from '#/shared/open_host_options';
 
 type SettingsOpenFieldsetProps = {
 	value: OpenHostDto;
@@ -15,9 +13,10 @@ export function SettingsOpenFieldset({
 	value,
 	onChange,
 }: Readonly<SettingsOpenFieldsetProps>) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
+	const options = getOpenHostOptions(i18n);
 	const handleChange = (selected: string) => {
-		const option = OPTIONS.find((candidate) => candidate.value === selected);
+		const option = options.find((candidate) => candidate.value === selected);
 		if (option) onChange(option.value);
 	};
 
@@ -27,7 +26,7 @@ export function SettingsOpenFieldset({
 			<RadioOptions
 				name="openHost"
 				label={t`Host to open`}
-				options={OPTIONS}
+				options={options}
 				value={value}
 				onChange={handleChange}
 			/>

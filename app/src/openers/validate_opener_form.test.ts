@@ -1,3 +1,5 @@
+import { i18n } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -19,46 +21,49 @@ describe('validateOpenerForm', () => {
 	});
 
 	it('should require a name', () => {
-		expect(validateOpenerForm({ ...valid, name: ' ' }, []).name).toBe(
-			'Le nom est obligatoire.'
+		expect(validateOpenerForm({ ...valid, name: ' ' }, []).name).toEqual(
+			msg`The name is required.`
 		);
 	});
 
 	it('should require a command', () => {
-		expect(validateOpenerForm({ ...valid, command: '' }, []).command).toBe(
-			'La commande est obligatoire.'
+		expect(validateOpenerForm({ ...valid, command: '' }, []).command).toEqual(
+			msg`The command is required.`
 		);
 	});
 
 	it('should require an identifier', () => {
-		expect(validateOpenerForm({ ...valid, id: '' }, []).id).toBe(
-			"L'identifiant est obligatoire."
+		expect(validateOpenerForm({ ...valid, id: '' }, []).id).toEqual(
+			msg`The identifier is required.`
 		);
 	});
 
 	it('should refuse an identifier with uppercase letters', () => {
-		expect(validateOpenerForm({ ...valid, id: 'DBeaver' }, []).id).toBe(
-			"L'identifiant ne peut contenir que des minuscules, des chiffres et des tirets."
+		expect(validateOpenerForm({ ...valid, id: 'DBeaver' }, []).id).toEqual(
+			msg`The identifier can only contain lowercase letters, digits and dashes.`
 		);
 	});
 
 	it('should refuse the reserved browser identifier', () => {
-		expect(validateOpenerForm({ ...valid, id: 'browser' }, []).id).toBe(
-			'« browser » est réservé au navigateur.'
+		expect(validateOpenerForm({ ...valid, id: 'browser' }, []).id).toEqual(
+			msg`"browser" is reserved for the browser.`
 		);
 	});
 
 	it('should refuse an identifier already taken', () => {
-		expect(validateOpenerForm(valid, ['dbeaver']).id).toBe(
-			'Cet identifiant est déjà utilisé par une de vos applications.'
+		expect(validateOpenerForm(valid, ['dbeaver']).id).toEqual(
+			msg`This identifier is already used by one of your applications.`
 		);
 	});
 
 	it('should refuse an unknown placeholder', () => {
-		expect(
-			validateOpenerForm({ ...valid, args: '--db={database}' }, []).args
-		).toBe(
-			'Paramètre inconnu : {database}. Seuls {host}, {port} et {url} existent.'
+		const { args } = validateOpenerForm(
+			{ ...valid, args: '--db={database}' },
+			[]
+		);
+
+		expect(args && i18n._(args)).toBe(
+			'Unknown parameter: {database}. Only {host}, {port} and {url} exist.'
 		);
 	});
 
@@ -69,14 +74,16 @@ describe('validateOpenerForm', () => {
 	});
 
 	it('should refuse a port out of range', () => {
-		expect(validateOpenerForm({ ...valid, ports: '70000' }, []).ports).toBe(
-			'Les ports doivent être des entiers entre 1 et 65535, séparés par des virgules.'
+		expect(validateOpenerForm({ ...valid, ports: '70000' }, []).ports).toEqual(
+			msg`The ports must be whole numbers between 1 and 65535, separated by commas.`
 		);
 	});
 
 	it('should refuse a port that is not a number', () => {
-		expect(validateOpenerForm({ ...valid, ports: '80, web' }, []).ports).toBe(
-			'Les ports doivent être des entiers entre 1 et 65535, séparés par des virgules.'
+		expect(
+			validateOpenerForm({ ...valid, ports: '80, web' }, []).ports
+		).toEqual(
+			msg`The ports must be whole numbers between 1 and 65535, separated by commas.`
 		);
 	});
 

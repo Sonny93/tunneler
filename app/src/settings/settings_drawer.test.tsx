@@ -161,7 +161,7 @@ describe('SettingsDrawer', () => {
 		openSettings(buildSettings({ openHost: 'ip' }));
 		renderDrawer();
 
-		expect(screen.getByRole('radio', { name: /^Adresse IP/ })).toBeChecked();
+		expect(screen.getByRole('radio', { name: /^IP address/ })).toBeChecked();
 	});
 
 	it('should offer the standby switch and delay in a labelled section', () => {
@@ -302,7 +302,7 @@ describe('SettingsDrawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('radio', { name: /^Adresse IP/ }));
+		await user.click(screen.getByRole('radio', { name: /^IP address/ }));
 		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
@@ -536,7 +536,7 @@ describe('SettingsDrawer', () => {
 			await clickForget(user);
 
 			const dialog = await screen.findByRole('alertdialog');
-			await user.click(within(dialog).getByRole('button', { name: 'Annuler' }));
+			await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
 
 			expect(gateway.forgetSecrets).not.toHaveBeenCalled();
 		});

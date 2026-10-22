@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
 import { buildTunnel } from '#/testing/factories';
@@ -8,8 +9,8 @@ const active = (id: string, listenPort: number) =>
 
 describe('buildStateAnnouncement', () => {
 	it('should announce the endpoint and the state of a single change', () => {
-		expect(buildStateAnnouncement([active('a', 3333)])).toBe(
-			'3333 vers nova:3333 : Actif'
+		expect(buildStateAnnouncement([active('a', 3333)], i18n)).toBe(
+			'3333 to nova:3333: Active'
 		);
 	});
 
@@ -21,16 +22,16 @@ describe('buildStateAnnouncement', () => {
 			},
 		});
 
-		expect(buildStateAnnouncement([failed])).toBe(
-			'3333 vers nova:3333 : Échec, Connexion SSH impossible : timeout'
+		expect(buildStateAnnouncement([failed], i18n)).toBe(
+			'3333 to nova:3333: Failed, SSH connection failed: timeout'
 		);
 	});
 
 	it('should announce a tunnel going to standby', () => {
 		const standby = buildTunnel({ state: { kind: 'standby' } });
 
-		expect(buildStateAnnouncement([standby])).toBe(
-			'3333 vers nova:3333 : Veille'
+		expect(buildStateAnnouncement([standby], i18n)).toBe(
+			'3333 to nova:3333: Standby'
 		);
 	});
 
@@ -39,14 +40,16 @@ describe('buildStateAnnouncement', () => {
 			state: { kind: 'external', owner: { pid: 4242, process: 'ssh' } },
 		});
 
-		expect(buildStateAnnouncement([external])).toBe(
-			'3333 vers nova:3333 : Externe, fourni par ssh (pid 4242)'
+		expect(buildStateAnnouncement([external], i18n)).toBe(
+			'3333 to nova:3333: External, provided by ssh (pid 4242)'
 		);
 	});
 
 	it('should count and detail up to three changes', () => {
-		expect(buildStateAnnouncement([active('a', 3001), active('b', 3002)])).toBe(
-			"2 tunnels ont changé d'état. 3001 vers nova:3001 : Actif. 3002 vers nova:3002 : Actif"
+		expect(
+			buildStateAnnouncement([active('a', 3001), active('b', 3002)], i18n)
+		).toBe(
+			'2 tunnels changed state. 3001 to nova:3001: Active. 3002 to nova:3002: Active'
 		);
 	});
 
@@ -55,10 +58,12 @@ describe('buildStateAnnouncement', () => {
 			active(id, 3000 + index)
 		);
 
-		expect(buildStateAnnouncement(tunnels)).toBe("4 tunnels ont changé d'état");
+		expect(buildStateAnnouncement(tunnels, i18n)).toBe(
+			'4 tunnels changed state'
+		);
 	});
 
 	it('should return an empty message without changes', () => {
-		expect(buildStateAnnouncement([])).toBe('');
+		expect(buildStateAnnouncement([], i18n)).toBe('');
 	});
 });

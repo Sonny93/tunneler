@@ -1,3 +1,6 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+
 import type { TrayStatusDto } from '#/daemon/protocol';
 import type { TrayProblemKind } from '#/state/ui_store';
 
@@ -12,16 +15,22 @@ export function isTrayProblem(
 }
 
 export function describeTrayProblem(
-	problem: Readonly<TrayProblem>
+	problem: Readonly<TrayProblem>,
+	i18n: I18n
 ): TrayStatusNoticeText {
 	if (problem.kind === 'missingHost') {
 		return {
-			heading: 'Aucune zone de notification détectée',
-			body: 'Tunneler continue de tourner quand vous fermez cette fenêtre. Pour la rouvrir, relancez « tunneler ». Sous GNOME, installez l’extension « AppIndicator and KStatusNotifierItem Support » pour afficher l’icône.',
+			heading: t(i18n)`No notification area detected`,
+			body: t(
+				i18n
+			)`Tunneler keeps running when you close this window. To reopen it, run “tunneler” again. On GNOME, install the “AppIndicator and KStatusNotifierItem Support” extension to show the icon.`,
 		};
 	}
+	const { message } = problem;
 	return {
-		heading: 'Icône de notification indisponible',
-		body: `L’icône n’a pas pu être créée : ${problem.message}. Tunneler continue de tourner quand vous fermez cette fenêtre ; relancez « tunneler » pour la rouvrir.`,
+		heading: t(i18n)`Notification icon unavailable`,
+		body: t(
+			i18n
+		)`The icon could not be created: ${message}. Tunneler keeps running when you close this window; run “tunneler” again to reopen it.`,
 	};
 }

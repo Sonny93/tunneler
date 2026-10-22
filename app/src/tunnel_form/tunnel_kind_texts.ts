@@ -1,48 +1,51 @@
+import { msg } from '@lingui/core/macro';
+import type { MessageDescriptor } from '@lingui/core';
+
 import type { TunnelKindDto } from '#/daemon/protocol';
 
 export const TUNNEL_KIND_OPTIONS = [
 	{
 		value: 'local',
-		label: 'Local (-L)',
-		description: 'Écoute sur ce poste, cible vue depuis le serveur',
+		label: msg`Local (-L)`,
+		description: msg`Listens on this computer, target reached from the server`,
 	},
 	{
 		value: 'remote',
-		label: 'Distant (-R)',
-		description: 'Écoute sur le serveur, cible vue depuis ce poste',
+		label: msg`Remote (-R)`,
+		description: msg`Listens on the server, target reached from this computer`,
 	},
 	{
 		value: 'dynamic',
-		label: 'Dynamique (-D, SOCKS)',
-		description: 'Proxy SOCKS sur ce poste',
+		label: msg`Dynamic (-D, SOCKS)`,
+		description: msg`SOCKS proxy on this computer`,
 	},
 ] as const satisfies readonly {
 	value: TunnelKindDto;
-	label: string;
-	description: string;
+	label: MessageDescriptor;
+	description: MessageDescriptor;
 }[];
 
 type TunnelKindFieldTexts = {
-	listenPortLabel: string;
-	targetHostLabel: string;
-	targetHostHint: string;
+	listenPortLabel: MessageDescriptor;
+	targetHostLabel: MessageDescriptor | null;
+	targetHostHint: MessageDescriptor | null;
 };
 
 const FIELD_TEXTS: Readonly<Record<TunnelKindDto, TunnelKindFieldTexts>> = {
 	local: {
-		listenPortLabel: "Port d'écoute",
-		targetHostLabel: 'Hôte cible',
-		targetHostHint: 'Vu depuis le serveur SSH',
+		listenPortLabel: msg`Listen port`,
+		targetHostLabel: msg`Target host`,
+		targetHostHint: msg`Seen from the SSH server`,
 	},
 	remote: {
-		listenPortLabel: "Port d'écoute sur le serveur",
-		targetHostLabel: 'Hôte cible (depuis ce poste)',
-		targetHostHint: 'Atteint depuis ce poste',
+		listenPortLabel: msg`Listen port on the server`,
+		targetHostLabel: msg`Target host (from this computer)`,
+		targetHostHint: msg`Reached from this computer`,
 	},
 	dynamic: {
-		listenPortLabel: "Port d'écoute",
-		targetHostLabel: '',
-		targetHostHint: '',
+		listenPortLabel: msg`Listen port`,
+		targetHostLabel: null,
+		targetHostHint: null,
 	},
 };
 

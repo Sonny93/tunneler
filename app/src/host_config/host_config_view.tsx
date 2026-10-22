@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { Button, Input } from '@minimalstuff/ui';
 import { useState, type ChangeEvent } from 'react';
 
@@ -16,6 +17,7 @@ type HostConfigViewProps = {
 export function HostConfigView({
 	resolvedHost,
 }: Readonly<HostConfigViewProps>) {
+	const { t, i18n } = useLingui();
 	const [query, setQuery] = useState('');
 	const shownOptions = filterOptions(resolvedHost.options, query);
 
@@ -24,20 +26,20 @@ export function HostConfigView({
 	const handleCopy = () =>
 		void copyTextWithToast(
 			formatConfigLines(resolvedHost.options),
-			'Configuration copiée'
+			t`Configuration copied`
 		);
 
 	return (
 		<>
 			<HostConfigWarnings warnings={resolvedHost.warnings} />
 			<Input
-				label="Filtrer les options"
+				label={t`Filter options`}
 				value={query}
 				onChange={handleQueryChange}
 				autoComplete="off"
 			/>
 			<output className="block text-xs text-tn-muted">
-				{describeOptionCount(shownOptions.length)}
+				{describeOptionCount(shownOptions.length, i18n)}
 			</output>
 			<HostConfigTable host={resolvedHost.host} options={shownOptions} />
 			<div>
@@ -47,7 +49,7 @@ export function HostConfigView({
 					color="neutral"
 					onClick={handleCopy}
 				>
-					Copier la configuration
+					{t`Copy the configuration`}
 				</Button>
 			</div>
 		</>

@@ -13,9 +13,7 @@ describe('X11HeaderControls', () => {
 	it('should open the X11 drawer of the host from a named button', async () => {
 		renderWithGateway(<X11HeaderControls host="nova" />);
 
-		await userEvent.click(
-			screen.getByRole('button', { name: 'X11 pour nova' })
-		);
+		await userEvent.click(screen.getByRole('button', { name: 'X11 for nova' }));
 
 		expect(useUiStore.getState().panel).toEqual({ kind: 'x11', host: 'nova' });
 	});
@@ -23,14 +21,14 @@ describe('X11HeaderControls', () => {
 	it('should show no status while the anchor is stopped', () => {
 		renderWithGateway(<X11HeaderControls host="nova" />);
 
-		expect(screen.queryByText(/^X11 (actif|:)/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/^X11 (active|:)/)).not.toBeInTheDocument();
 	});
 
 	it('should show the display when the anchor is active', () => {
 		useDaemonStore.setState({ x11Anchors: [buildX11Anchor()] });
 		renderWithGateway(<X11HeaderControls host="nova" />);
 
-		expect(screen.getByText('X11 actif : localhost:10.0')).toBeInTheDocument();
+		expect(screen.getByText('X11 active: localhost:10.0')).toBeInTheDocument();
 	});
 
 	it('should ignore the anchors of other hosts', () => {

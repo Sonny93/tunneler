@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -7,11 +8,11 @@ import {
 
 describe('getTargetHealthLabel', () => {
 	it.each([
-		[{ kind: 'unknown' }, 'Santé inconnue'],
-		[{ kind: 'reachable' }, 'Cible joignable'],
-		[{ kind: 'unreachable', since: 0, error: 'refused' }, 'Cible injoignable'],
+		[{ kind: 'unknown' }, 'Health unknown'],
+		[{ kind: 'reachable' }, 'Target reachable'],
+		[{ kind: 'unreachable', since: 0, error: 'refused' }, 'Target unreachable'],
 	] as const)('should label %j as %s', (health, label) => {
-		expect(getTargetHealthLabel(health)).toBe(label);
+		expect(getTargetHealthLabel(health, i18n)).toBe(label);
 	});
 });
 

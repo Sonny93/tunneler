@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useLingui } from '@lingui/react/macro';
 
 import type { TunnelDto } from '#/daemon/protocol';
 import { useDaemonStore } from '#/state/daemon_store';
@@ -28,13 +29,18 @@ function findChangedTunnels(
  * Tunnels that were not known before (the initial snapshot) are never announced.
  */
 export function useTunnelStateAnnouncements(): void {
+	const { i18n } = useLingui();
+
 	useEffect(() => {
 		const pendingChanges = new Map<string, TunnelDto>();
 		let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
 		const flush = () => {
 			timeoutId = undefined;
-			const message = buildStateAnnouncement([...pendingChanges.values()]);
+			const message = buildStateAnnouncement(
+				[...pendingChanges.values()],
+				i18n
+			);
 			pendingChanges.clear();
 			useAnnouncerStore.getState().announce(message, 'polite');
 		};
@@ -55,5 +61,5 @@ export function useTunnelStateAnnouncements(): void {
 			unsubscribe();
 			clearTimeout(timeoutId);
 		};
-	}, []);
+	}, [i18n]);
 }

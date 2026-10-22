@@ -1,5 +1,6 @@
 /* oxlint-disable jsx-a11y/prefer-tag-over-role, jsx-a11y/no-noninteractive-element-to-interactive-role -- ARIA combobox pattern: a custom palette cannot use a native <select> or <datalist> */
 import { Input } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 import { useId, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 
 import { useDaemonStore } from '#/state/daemon_store';
@@ -30,13 +31,14 @@ function getOptionId(listboxId: string, index: number): string {
 
 /** The ARIA combobox pattern: the input keeps the focus, the active option is referenced by id. */
 export function PaletteContent({ onRun }: Readonly<PaletteContentProps>) {
+	const { t, i18n } = useLingui();
 	const listboxId = useId();
 	const tunnels = useDaemonStore((state) => state.tunnels);
 	const hosts = useDaemonStore((state) => state.hosts);
 	const openers = useDaemonStore((state) => state.openers);
 	const [query, setQuery] = useState('');
 	const [activeIndex, setActiveIndex] = useState(0);
-	const commands = buildPaletteCommands({ tunnels, hosts, openers });
+	const commands = buildPaletteCommands({ tunnels, hosts, openers }, i18n);
 	const results = filterPaletteCommands(commands, query);
 	const activeCommand = results[activeIndex];
 
@@ -63,14 +65,14 @@ export function PaletteContent({ onRun }: Readonly<PaletteContentProps>) {
 		<div className="flex flex-col gap-2">
 			<Input
 				role="combobox"
-				aria-label="Rechercher une commande"
+				aria-label={t`Search a command`}
 				aria-expanded={results.length > 0}
 				aria-controls={listboxId}
 				aria-autocomplete="list"
 				aria-activedescendant={
 					activeCommand ? getOptionId(listboxId, activeIndex) : undefined
 				}
-				placeholder="Rechercher une commande"
+				placeholder={t`Search a command`}
 				value={query}
 				onChange={handleQueryChange}
 				onKeyDown={handleKeyDown}
@@ -78,12 +80,12 @@ export function PaletteContent({ onRun }: Readonly<PaletteContentProps>) {
 				spellCheck={false}
 			/>
 			<output className="block text-xs text-tn-muted">
-				{describeCommandCount(results.length)}
+				{describeCommandCount(results.length, i18n)}
 			</output>
 			<ul
 				id={listboxId}
 				role="listbox"
-				aria-label="Commandes"
+				aria-label={t`Commands`}
 				className="m-0 flex max-h-80 list-none flex-col overflow-y-auto p-0"
 			>
 				{results.map((command, index) => (

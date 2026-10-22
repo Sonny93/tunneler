@@ -1,16 +1,31 @@
-import { formatTunnelCount } from '#/tunnels/selection/describe_selection_count';
+import type { I18n } from '@lingui/core';
+import { plural, t } from '@lingui/core/macro';
 
-/** « Le tag sera retiré de 3 tunnels. Les tunnels sont conservés. », plus the launch tags when the tag is one of them. */
+/** "The tag will be removed from 3 tunnels. The tunnels are kept.", plus the launch tags when the tag is one of them. */
 export function describeTagDeletionWarning(
 	tunnelCount: number,
-	isLaunchTag: boolean
+	isLaunchTag: boolean,
+	i18n: I18n
 ): string {
-	const warning = `Le tag sera retiré de ${formatTunnelCount(tunnelCount)}. Les tunnels sont conservés.`;
+	const warning = t(i18n)`${plural(tunnelCount, {
+		one: 'The tag will be removed from # tunnel. The tunnels are kept.',
+		other: 'The tag will be removed from # tunnels. The tunnels are kept.',
+	})}`;
 	if (!isLaunchTag) return warning;
-	return `${warning} Il sera aussi retiré des « Tags démarrés au lancement ».`;
+	const launchNote = t(
+		i18n
+	)`It will also be removed from the "Tags to start on launch".`;
+	return `${warning} ${launchNote}`;
 }
 
-/** « Tag dev retiré de 3 tunnels ». */
-export function describeTagDeletion(tag: string, removedCount: number): string {
-	return `Tag ${tag} retiré de ${formatTunnelCount(removedCount)}`;
+/** "Tag dev removed from 3 tunnels". */
+export function describeTagDeletion(
+	tag: string,
+	removedCount: number,
+	i18n: I18n
+): string {
+	return t(i18n)`${plural(removedCount, {
+		one: `Tag ${tag} removed from # tunnel`,
+		other: `Tag ${tag} removed from # tunnels`,
+	})}`;
 }

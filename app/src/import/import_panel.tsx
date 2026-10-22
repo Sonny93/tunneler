@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Tabs } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { Drawer } from '#/shared/drawer';
 import { useUiStore } from '#/state/ui_store';
@@ -16,6 +17,7 @@ type ImportPanelProps = {
 };
 
 export function ImportPanel({ title, settings }: Readonly<ImportPanelProps>) {
+	const { t } = useLingui();
 	const closePanel = useUiStore((state) => state.closePanel);
 	const [scriptText, setScriptText] = useState('');
 	const { analysis, isAnalyzing, summary, analyzeScript, analyzeSshConfig } =
@@ -23,7 +25,7 @@ export function ImportPanel({ title, settings }: Readonly<ImportPanelProps>) {
 
 	const tabs = [
 		{
-			title: 'Coller un script',
+			title: t`Paste a script`,
 			content: (
 				<ImportScriptTab
 					text={scriptText}
@@ -34,7 +36,7 @@ export function ImportPanel({ title, settings }: Readonly<ImportPanelProps>) {
 			),
 		},
 		{
-			title: 'Depuis ~/.ssh/config',
+			title: t`From ~/.ssh/config`,
 			content: (
 				<ImportConfigTab
 					isAnalyzing={isAnalyzing}
@@ -50,7 +52,7 @@ export function ImportPanel({ title, settings }: Readonly<ImportPanelProps>) {
 				<Tabs items={tabs} />
 				<FormErrorSummary
 					messages={summary.messages}
-					title="Analyse impossible :"
+					title={t`Analysis failed:`}
 					attach={summary.attachSummary}
 				/>
 				{analysis !== null && (

@@ -1,8 +1,10 @@
 import { Button } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { useQuitFlow } from '#/quit/use_quit_flow';
 
 export function QuitButton() {
+	const { t } = useLingui();
 	const { quit } = useQuitFlow();
 
 	const handleClick = () => void quit();
@@ -14,7 +16,7 @@ export function QuitButton() {
 			startIcon="i-mdi-power"
 			onClick={handleClick}
 		>
-			Quitter Tunneler
+			{t`Quit Tunneler`}
 		</Button>
 	);
 }

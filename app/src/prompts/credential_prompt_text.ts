@@ -1,3 +1,6 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+
 import type { CredentialRequestDto, RememberDto } from '#/daemon/protocol';
 
 export type CredentialField = {
@@ -7,42 +10,51 @@ export type CredentialField = {
 };
 
 export function getCredentialTitle(
-	request: Readonly<CredentialRequestDto>
+	request: Readonly<CredentialRequestDto>,
+	i18n: I18n
 ): string {
 	switch (request.kind) {
 		case 'passphrase':
-			return 'Phrase de passe';
+			return t(i18n)`Passphrase`;
 		case 'password':
-			return 'Mot de passe';
-		case 'keyboardInteractive':
+			return t(i18n)`Password`;
+		case 'keyboardInteractive': {
+			const { alias } = request;
 			return request.name === ''
-				? `Authentification ${request.alias}`
+				? t(i18n)`Authentication for ${alias}`
 				: request.name;
+		}
 	}
 }
 
 /** The explanation shown above the inputs; empty when there is nothing to add. */
 export function getCredentialDescription(
-	request: Readonly<CredentialRequestDto>
+	request: Readonly<CredentialRequestDto>,
+	i18n: I18n
 ): string {
 	switch (request.kind) {
-		case 'passphrase':
-			return `La clé ${request.keyPath} est chiffrée (connexion à ${request.alias}).`;
-		case 'password':
-			return `Mot de passe de ${request.user}@${request.host} (${request.alias}).`;
+		case 'passphrase': {
+			const { keyPath, alias } = request;
+			return t(i18n)`The key ${keyPath} is encrypted (connecting to ${alias}).`;
+		}
+		case 'password': {
+			const { user, host, alias } = request;
+			return t(i18n)`Password for ${user}@${host} (${alias}).`;
+		}
 		case 'keyboardInteractive':
 			return request.instructions;
 	}
 }
 
 export function getCredentialFields(
-	request: Readonly<CredentialRequestDto>
+	request: Readonly<CredentialRequestDto>,
+	i18n: I18n
 ): CredentialField[] {
 	switch (request.kind) {
 		case 'passphrase':
-			return [{ id: 'secret', label: 'Phrase de passe', isSecret: true }];
+			return [{ id: 'secret', label: t(i18n)`Passphrase`, isSecret: true }];
 		case 'password':
-			return [{ id: 'secret', label: 'Mot de passe', isSecret: true }];
+			return [{ id: 'secret', label: t(i18n)`Password`, isSecret: true }];
 		case 'keyboardInteractive':
 			return request.prompts.map((prompt, position) => ({
 				id: `prompt-${position}`,
@@ -53,11 +65,12 @@ export function getCredentialFields(
 }
 
 export function getCredentialSubmitLabel(
-	request: Readonly<CredentialRequestDto>
+	request: Readonly<CredentialRequestDto>,
+	i18n: I18n
 ): string {
 	const isWithoutInput =
 		request.kind === 'keyboardInteractive' && request.prompts.length === 0;
-	return isWithoutInput ? 'Continuer' : 'Valider';
+	return isWithoutInput ? t(i18n)`Continue` : t(i18n)`Submit`;
 }
 
 /** A string for single-secret requests, the answers in prompt order for keyboard-interactive. */
@@ -82,16 +95,17 @@ export function canRemember(request: Readonly<CredentialRequestDto>): boolean {
 
 /** The system keyring option is offered only when the settings enable it. */
 export function getRememberOptions(
-	isKeyringEnabled: boolean
+	isKeyringEnabled: boolean,
+	i18n: I18n
 ): RememberOption[] {
 	const options: RememberOption[] = [
-		{ value: 'none', label: 'Ne pas mémoriser' },
-		{ value: 'session', label: "Jusqu'à la fermeture de Tunneler" },
+		{ value: 'none', label: t(i18n)`Don't remember` },
+		{ value: 'session', label: t(i18n)`Until Tunneler closes` },
 	];
 	if (!isKeyringEnabled) return options;
 	return [
 		...options,
-		{ value: 'keyring', label: 'Dans le trousseau du système' },
+		{ value: 'keyring', label: t(i18n)`In the system keyring` },
 	];
 }
 

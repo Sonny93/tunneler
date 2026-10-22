@@ -1,4 +1,6 @@
 import { useContext } from 'react';
+import { plural } from '@lingui/core/macro';
+import { useLingui } from '@lingui/react/macro';
 import { ConfirmModal, Modal } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
@@ -13,10 +15,9 @@ import { TunnelLabelList } from '#/tunnels/selection/tunnel_label_list';
 import { BulkTagsContent } from '#/tunnels/selection/bulk_tags_content';
 import { runBulkOperation } from '#/tunnels/selection/run_bulk_operation';
 import { RemovalFocusContext } from '#/tunnels/list/removal_focus_context';
-import { formatTunnelCount } from '#/tunnels/selection/describe_selection_count';
 import {
 	describeBulkOutcome,
-	type BulkParticiple,
+	type BulkVerb,
 } from '#/tunnels/selection/describe_bulk_outcome';
 import {
 	findTunnelsToRetag,
@@ -41,22 +42,6 @@ export type BulkAction = {
 	perform: () => void;
 };
 
-const STARTED: BulkParticiple = { singular: 'démarré', plural: 'démarrés' };
-const STOPPED: BulkParticiple = { singular: 'arrêté', plural: 'arrêtés' };
-const RESTARTED: BulkParticiple = {
-	singular: 'redémarré',
-	plural: 'redémarrés',
-};
-const SENT_TO_STANDBY: BulkParticiple = {
-	singular: 'mis en veille',
-	plural: 'mis en veille',
-};
-const REMOVED: BulkParticiple = { singular: 'supprimé', plural: 'supprimés' };
-const UPDATED: BulkParticiple = {
-	singular: 'mis à jour',
-	plural: 'mis à jour',
-};
-
 function listKnownTags(tunnels: readonly TunnelDto[]): string[] {
 	return [...new Set(tunnels.flatMap(({ tags }) => tags))].sort();
 }
@@ -70,6 +55,7 @@ function listKnownTags(tunnels: readonly TunnelDto[]): string[] {
 export function useBulkTunnelActions(
 	tunnels: readonly TunnelDto[]
 ): readonly BulkAction[] {
+	const { t, i18n } = useLingui();
 	const gateway = useDaemonGateway();
 	const requestFocusAfterRemoval = useContext(RemovalFocusContext);
 	const clearTunnelSelection = useUiStore(
@@ -88,12 +74,12 @@ export function useBulkTunnelActions(
 	const runOn = async (
 		targets: readonly TunnelDto[],
 		perform: (tunnel: TunnelDto) => Promise<unknown>,
-		participle: BulkParticiple
+		verb: BulkVerb
 	) => {
-		const outcome = await runBulkOperation(targets, perform);
+		const outcome = await runBulkOperation(targets, perform, i18n);
 		useToastStore
 			.getState()
-			.pushToast(describeBulkOutcome(outcome, participle));
+			.pushToast(describeBulkOutcome(outcome, verb, i18n));
 		return outcome;
 	};
 
@@ -101,7 +87,7 @@ export function useBulkTunnelActions(
 		const { succeededIds } = await runOn(
 			stoppableTunnels,
 			({ id }) => gateway.stopTunnel(id),
-			STOPPED
+			'stop'
 		);
 		const removedIds = stoppableTunnels
 			.filter(({ id, isTemporary }) => isTemporary && succeededIds.includes(id))
@@ -110,30 +96,35 @@ export function useBulkTunnelActions(
 	};
 
 	const confirmAndSendToStandby = async () => {
+		const awakeCount = awakeTunnels.length;
 		const isConfirmed = await confirmStandby(
-			`Mettre en veille ${formatTunnelCount(awakeTunnels.length)} ?`,
-			awakeTunnels
+			t`${plural(awakeCount, {
+				one: 'Send # tunnel to standby?',
+				other: 'Send # tunnels to standby?',
+			})}`,
+			awakeTunnels,
+			i18n
 		);
 		if (!isConfirmed) return;
-		await runOn(
-			awakeTunnels,
-			({ id }) => gateway.standbyTunnel(id),
-			SENT_TO_STANDBY
-		);
+		await runOn(awakeTunnels, ({ id }) => gateway.standbyTunnel(id), 'standby');
 	};
 
 	const confirmRemoval = async () => {
+		const tunnelCount = tunnels.length;
 		const isConfirmed = await ConfirmModal.call({
-			title: `Supprimer ${formatTunnelCount(tunnels.length)} ?`,
+			title: t`${plural(tunnelCount, {
+				one: 'Delete # tunnel?',
+				other: 'Delete # tunnels?',
+			})}`,
 			children: <TunnelLabelList tunnels={tunnels} />,
-			confirmLabel: 'Supprimer',
+			confirmLabel: t`Delete`,
 			confirmColor: 'danger',
 		});
 		if (!isConfirmed) return;
 		const { succeededIds } = await runOn(
 			tunnels,
 			({ id }) => gateway.deleteTunnel(id),
-			REMOVED
+			'remove'
 		);
 		clearTunnelSelection();
 		if (succeededIds.length > 0) requestFocusAfterRemoval(succeededIds);
@@ -141,8 +132,12 @@ export function useBulkTunnelActions(
 
 	const askTagChange = async (): Promise<TagChange | null> => {
 		const answer: { change: TagChange | null } = { change: null };
+		const tunnelCount = tunnels.length;
 		await Modal.call({
-			title: `Tags de ${formatTunnelCount(tunnels.length)}`,
+			title: t`${plural(tunnelCount, {
+				one: 'Tags for # tunnel',
+				other: 'Tags for # tunnels',
+			})}`,
 			size: 'sm',
 			children: (close) => (
 				<BulkTagsContent
@@ -166,29 +161,29 @@ export function useBulkTunnelActions(
 		if (targets.length === 0) {
 			useToastStore
 				.getState()
-				.pushToast({ tone: 'info', message: 'Aucun tunnel à modifier' });
+				.pushToast({ tone: 'info', message: t`No tunnels to update` });
 			return;
 		}
 		await runOn(
 			targets,
 			(tunnel) => gateway.updateTunnel(toRetaggedDefinition(tunnel, change)),
-			UPDATED
+			'update'
 		);
 	};
 
 	return [
 		{
 			key: 'start',
-			label: 'Démarrer',
+			label: t`Start`,
 			icon: 'i-mdi-play',
 			isDanger: false,
 			isDisabled: idleTunnels.length === 0,
 			perform: () =>
-				void runOn(idleTunnels, ({ id }) => gateway.startTunnel(id), STARTED),
+				void runOn(idleTunnels, ({ id }) => gateway.startTunnel(id), 'start'),
 		},
 		{
 			key: 'stop',
-			label: 'Arrêter',
+			label: t`Stop`,
 			icon: 'i-mdi-stop',
 			isDanger: false,
 			isDisabled: stoppableTunnels.length === 0,
@@ -196,7 +191,7 @@ export function useBulkTunnelActions(
 		},
 		{
 			key: 'restart',
-			label: 'Redémarrer',
+			label: t`Restart`,
 			icon: 'i-mdi-restart',
 			isDanger: false,
 			isDisabled: runningTunnels.length === 0,
@@ -204,12 +199,12 @@ export function useBulkTunnelActions(
 				void runOn(
 					runningTunnels,
 					({ id }) => gateway.restartTunnel(id),
-					RESTARTED
+					'restart'
 				),
 		},
 		{
 			key: 'standby',
-			label: 'Mettre en veille',
+			label: t`Send to standby`,
 			icon: 'i-mdi-sleep',
 			isDanger: false,
 			isDisabled: awakeTunnels.length === 0,
@@ -217,7 +212,7 @@ export function useBulkTunnelActions(
 		},
 		{
 			key: 'tags',
-			label: 'Tags…',
+			label: t`Tags…`,
 			icon: 'i-mdi-tag-multiple-outline',
 			isDanger: false,
 			isDisabled: hasOnlyTemporaryTunnels,
@@ -225,7 +220,7 @@ export function useBulkTunnelActions(
 		},
 		{
 			key: 'remove',
-			label: 'Supprimer',
+			label: t`Delete`,
 			icon: 'i-mdi-delete-outline',
 			isDanger: true,
 			isDisabled: false,

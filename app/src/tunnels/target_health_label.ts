@@ -1,15 +1,19 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+
 import type { TargetHealthDto } from '#/daemon/protocol';
 
 export function getTargetHealthLabel(
-	health: Readonly<TargetHealthDto>
+	health: Readonly<TargetHealthDto>,
+	i18n: I18n
 ): string {
 	switch (health.kind) {
 		case 'unknown':
-			return 'Santé inconnue';
+			return t(i18n)`Health unknown`;
 		case 'reachable':
-			return 'Cible joignable';
+			return t(i18n)`Target reachable`;
 		case 'unreachable':
-			return 'Cible injoignable';
+			return t(i18n)`Target unreachable`;
 	}
 }
 

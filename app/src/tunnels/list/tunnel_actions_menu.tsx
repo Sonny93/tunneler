@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { Menu, IconButton } from '@minimalstuff/ui';
 
 import type { TunnelDto } from '#/daemon/protocol';
@@ -14,10 +15,12 @@ export function TunnelActionsMenu({
 	tunnel,
 	isActiveRow,
 }: Readonly<TunnelActionsMenuProps>) {
+	const { t, i18n } = useLingui();
+	const endpoint = getTunnelAccessibleEndpointLabel(tunnel, i18n);
 	const trigger = (
 		<IconButton
 			icon="i-mdi-dots-vertical"
-			aria-label={`Actions pour ${getTunnelAccessibleEndpointLabel(tunnel)}`}
+			aria-label={t`Actions for ${endpoint}`}
 			tooltip
 			variant="ghost"
 			color="neutral"

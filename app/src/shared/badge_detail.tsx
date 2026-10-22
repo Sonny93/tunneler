@@ -9,7 +9,7 @@ type BadgeDetailProps = {
 /**
  * The reason shown after a badge label. When truncated it stays on one line
  * with an ellipsis: the DOM text stays whole, the row exposes it to screen
- * readers through the switch description and the Détails drawer shows it in full.
+ * readers through the switch description and the Details drawer shows it in full.
  */
 export function BadgeDetail({
 	text,

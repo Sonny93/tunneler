@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro';
+
 import { cn } from '#/shared/cn';
 import { BadgeDetail } from '#/shared/badge_detail';
 import type { TargetHealthDto } from '#/daemon/protocol';
@@ -32,6 +34,7 @@ export function TargetHealthBadge({
 	isDetailTruncated = false,
 	className,
 }: Readonly<TargetHealthBadgeProps>) {
+	const { i18n } = useLingui();
 	if (health.kind === 'unknown') return null;
 	const { icon, toneClassName } = HEALTH_APPEARANCES[health.kind];
 	const error = getTargetHealthError(health);
@@ -45,7 +48,7 @@ export function TargetHealthBadge({
 			)}
 		>
 			<span aria-hidden="true" className={cn(icon, 'size-4 shrink-0')} />
-			<span className="shrink-0">{getTargetHealthLabel(health)}</span>
+			<span className="shrink-0">{getTargetHealthLabel(health, i18n)}</span>
 			{error && (
 				<BadgeDetail
 					text={error}

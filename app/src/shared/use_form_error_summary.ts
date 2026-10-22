@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLingui } from '@lingui/react/macro';
 
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import { getSubmissionErrorMessages } from '#/shared/submission_error_messages';
@@ -14,6 +15,7 @@ type UseFormErrorSummaryReturn = {
 
 /** Holds the failure messages of a submission and moves the focus to the summary when they change. */
 export function useFormErrorSummary(): UseFormErrorSummaryReturn {
+	const { i18n } = useLingui();
 	const [messages, setMessages] = useState<readonly string[]>([]);
 	const [summary, attachSummary] = useState<HTMLDivElement | null>(null);
 
@@ -22,7 +24,9 @@ export function useFormErrorSummary(): UseFormErrorSummaryReturn {
 	}, [messages, summary]);
 
 	const reportFailure = (rejection: unknown) =>
-		setMessages(getSubmissionErrorMessages(toDaemonCommandError(rejection)));
+		setMessages(
+			getSubmissionErrorMessages(toDaemonCommandError(rejection), i18n)
+		);
 	const reportMessages = (failureMessages: readonly string[]) =>
 		setMessages(failureMessages);
 	const clearFailure = () => setMessages([]);

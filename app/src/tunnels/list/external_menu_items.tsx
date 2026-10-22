@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { MenuItem, MenuSeparator } from '@minimalstuff/ui';
 
 import type { TunnelDto } from '#/daemon/protocol';
@@ -11,6 +12,7 @@ type ExternalMenuItemsProps = {
 export function ExternalMenuItems({
 	tunnel,
 }: Readonly<ExternalMenuItemsProps>) {
+	const { t } = useLingui();
 	const { adopt, confirmKill, ignore } = useExternalActions(tunnel);
 	const { state } = tunnel;
 
@@ -21,17 +23,17 @@ export function ExternalMenuItems({
 		return (
 			<>
 				<MenuItem icon="i-mdi-download-circle-outline" onClick={adopt}>
-					Adopter
+					{t`Adopt`}
 				</MenuItem>
 				<MenuItem
 					icon="i-mdi-close-octagon-outline"
 					danger
 					onClick={handleKill}
 				>
-					Arrêter le processus externe…
+					{t`Stop the external process…`}
 				</MenuItem>
 				<MenuItem icon="i-mdi-eye-off-outline" onClick={handleIgnore}>
-					Ignorer
+					{t`Ignore`}
 				</MenuItem>
 				<MenuSeparator />
 			</>
@@ -45,7 +47,7 @@ export function ExternalMenuItems({
 					danger
 					onClick={handleKill}
 				>
-					Arrêter le processus…
+					{t`Stop the process…`}
 				</MenuItem>
 				<MenuSeparator />
 			</>

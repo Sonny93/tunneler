@@ -9,7 +9,7 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 - One SSH session per host, shared by all its tunnels and closed shortly after the last one stops.
 - Automatic reconnection with exponential backoff and jitter. A lost link puts the tunnels in a reconnecting state instead of failing them.
 - Per-tunnel state, byte counters, active connections and a live log.
-- A passive health mark: a refused connection to the target marks it unreachable. A one-off check on request (`tunneler check`, or "Test the target" in the UI).
+- A passive health mark: a refused connection to the target marks it unreachable. A one-off check on request (`tunneler check`, or "Check the target" in the UI).
 - Temporary tunnels, started from the CLI with OpenSSH syntax (`tunneler up <host> -L 3333`), kept only while the daemon runs and savable into the config.
 - Standby: a tunnel holds its local port and opens the SSH session on the first connection, then goes back to standby after a quiet period. Optional notification or sound when it wakes or fails to wake. Awake tunnels can be sent back to standby by hand, one at a time, by tag or all at once.
 - X11 forwarding without the `xauth` binary, with an anchor per host and saved launchers.
@@ -33,6 +33,7 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 - Detail drawer with live logs and metrics, an import from `ssh_config` and from pasted `ssh -L` scripts, a settings screen.
 - Open a tunnel in the browser or in an application picked from the target port (VNC, RDP, any command you add).
 - Dark and light themes that follow the system.
+- English and French, for the window, the tray and the notifications. The language follows the system or is picked in the settings.
 
 ### Command line
 - `tunneler up`, `down`, `status`, `list`, `open`, `check`, `quit` and `purge`, with `--json` output and documented exit codes.
@@ -47,7 +48,6 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 
 ## Next
 
-- **English UI with a French translation**, and a language setting. The interface is currently French only.
 - **This documentation**: a guide (install, first tunnel, tags, standby, opening tunnels, X11) and a reference (`tunnels.toml`, command line, settings, exit codes).
 - Whatever the [Needs testing](#needs-testing) section turns up.
 
@@ -102,6 +102,7 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 - A `tunnels.toml` with CRLF line endings is not guaranteed to be rewritten identically outside the lines Tunneler changes.
 - The borders of some controls from the component library are below 3:1 contrast (WCAG 1.4.11). This is accepted for now.
 - WebKitGTK exposes the actions menu button as a combo box.
+- The "English" and "Français" choices of the language setting are not marked with their language for screen readers: the component library cannot set `lang` on an option yet.
 - Windows toasts carry the name Tunneler but no icon.
 - Binaries and installers are not signed: Windows SmartScreen warns on first run.
 - macOS is not maintained: no package, no CI, no tray.

@@ -16,7 +16,7 @@ import { DaemonCommandError } from '#/daemon/daemon_command_error';
 
 function Trigger() {
 	const deleteTag = useDeleteTag();
-	return <button onClick={() => void deleteTag('dev')}>Déclencheur</button>;
+	return <button onClick={() => void deleteTag('dev')}>Trigger</button>;
 }
 
 function renderHook(
@@ -42,8 +42,8 @@ function renderHook(
 }
 
 async function openConfirmation(user: ReturnType<typeof userEvent.setup>) {
-	await user.click(screen.getByRole('button', { name: 'Déclencheur' }));
-	return screen.findByRole('alertdialog', { name: 'Supprimer le tag dev ?' });
+	await user.click(screen.getByRole('button', { name: 'Trigger' }));
+	return screen.findByRole('alertdialog', { name: 'Delete tag dev?' });
 }
 
 describe('useDeleteTag', () => {
@@ -54,7 +54,7 @@ describe('useDeleteTag', () => {
 		const dialog = await openConfirmation(user);
 
 		expect(dialog).toHaveTextContent(
-			'Le tag sera retiré de 2 tunnels. Les tunnels sont conservés.'
+			'The tag will be removed from 2 tunnels. The tunnels are kept.'
 		);
 		expect(gateway.deleteTag).not.toHaveBeenCalled();
 	});
@@ -66,7 +66,7 @@ describe('useDeleteTag', () => {
 		const dialog = await openConfirmation(user);
 
 		expect(dialog).toHaveTextContent(
-			'Il sera aussi retiré des « Tags démarrés au lancement ».'
+			'It will also be removed from the "Tags to start on launch".'
 		);
 	});
 
@@ -76,7 +76,7 @@ describe('useDeleteTag', () => {
 
 		const dialog = await openConfirmation(user);
 
-		expect(dialog).not.toHaveTextContent('Tags démarrés au lancement');
+		expect(dialog).not.toHaveTextContent('Tags to start on launch');
 	});
 
 	it('should have no accessibility violation while asking', async () => {
@@ -93,13 +93,13 @@ describe('useDeleteTag', () => {
 		const { gateway } = renderHook();
 		const dialog = await openConfirmation(user);
 
-		await user.click(within(dialog).getByRole('button', { name: 'Annuler' }));
+		await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
 
 		await waitFor(() =>
 			expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 		);
 		expect(gateway.deleteTag).not.toHaveBeenCalled();
-		expect(screen.getByRole('button', { name: 'Déclencheur' })).toHaveFocus();
+		expect(screen.getByRole('button', { name: 'Trigger' })).toHaveFocus();
 	});
 
 	it('should delete the tag once when confirmed', async () => {
@@ -108,7 +108,7 @@ describe('useDeleteTag', () => {
 		const dialog = await openConfirmation(user);
 
 		await user.click(
-			within(dialog).getByRole('button', { name: 'Supprimer le tag' })
+			within(dialog).getByRole('button', { name: 'Delete the tag' })
 		);
 
 		await waitFor(() => expect(gateway.deleteTag).toHaveBeenCalledTimes(1));
@@ -123,14 +123,14 @@ describe('useDeleteTag', () => {
 		const dialog = await openConfirmation(user);
 
 		await user.click(
-			within(dialog).getByRole('button', { name: 'Supprimer le tag' })
+			within(dialog).getByRole('button', { name: 'Delete the tag' })
 		);
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts).toEqual([
 				expect.objectContaining({
 					tone: 'success',
-					message: 'Tag dev retiré de 3 tunnels',
+					message: 'Tag dev removed from 3 tunnels',
 				}),
 			])
 		);
@@ -143,7 +143,7 @@ describe('useDeleteTag', () => {
 		const dialog = await openConfirmation(user);
 
 		await user.click(
-			within(dialog).getByRole('button', { name: 'Supprimer le tag' })
+			within(dialog).getByRole('button', { name: 'Delete the tag' })
 		);
 
 		await waitFor(() =>
@@ -158,7 +158,7 @@ describe('useDeleteTag', () => {
 		const dialog = await openConfirmation(user);
 
 		await user.click(
-			within(dialog).getByRole('button', { name: 'Supprimer le tag' })
+			within(dialog).getByRole('button', { name: 'Delete the tag' })
 		);
 
 		await waitFor(() => expect(gateway.deleteTag).toHaveBeenCalled());
@@ -171,13 +171,11 @@ describe('useDeleteTag', () => {
 		const dialog = await openConfirmation(user);
 
 		await user.click(
-			within(dialog).getByRole('button', { name: 'Supprimer le tag' })
+			within(dialog).getByRole('button', { name: 'Delete the tag' })
 		);
 
 		await waitFor(() =>
-			expect(
-				screen.getByRole('button', { name: /Tous les tunnels/ })
-			).toHaveFocus()
+			expect(screen.getByRole('button', { name: /All tunnels/ })).toHaveFocus()
 		);
 	});
 
@@ -185,22 +183,21 @@ describe('useDeleteTag', () => {
 		const user = userEvent.setup();
 		const gateway = createFakeGateway();
 		gateway.deleteTag.mockRejectedValue(
-			new DaemonCommandError('not_found', 'Aucun tunnel ne porte ce tag')
+			new DaemonCommandError('not_found', 'No tunnel has this tag')
 		);
 		renderHook(gateway);
 		useUiStore.getState().setFilter({ kind: 'tag', tag: 'dev' });
 		const dialog = await openConfirmation(user);
 
 		await user.click(
-			within(dialog).getByRole('button', { name: 'Supprimer le tag' })
+			within(dialog).getByRole('button', { name: 'Delete the tag' })
 		);
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts).toEqual([
 				expect.objectContaining({
 					tone: 'error',
-					message:
-						'Suppression du tag impossible: Aucun tunnel ne porte ce tag',
+					message: "Couldn't delete the tag: No tunnel has this tag",
 				}),
 			])
 		);

@@ -1,8 +1,10 @@
+import type { I18n } from '@lingui/core';
+
 import type { UpdateProgressDto } from '#/daemon/protocol';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 import {
 	describeUpdateProgress,
-	DOWNLOAD_START_TEXT,
+	getDownloadStartText,
 } from '#/updates/describe_update_progress';
 
 export const DOWNLOAD_ANNOUNCEMENT_THROTTLE_MS = 5000;
@@ -17,6 +19,7 @@ type ProgressAnnouncer = {
  * at once, the download progress at most once per throttle window.
  */
 export function createProgressAnnouncer(
+	i18n: I18n,
 	now: () => number = Date.now
 ): ProgressAnnouncer {
 	let lastDownloadAnnouncementAt = Number.NEGATIVE_INFINITY;
@@ -24,10 +27,10 @@ export function createProgressAnnouncer(
 		useAnnouncerStore.getState().announce(message, 'polite');
 
 	return {
-		start: () => announce(DOWNLOAD_START_TEXT),
+		start: () => announce(getDownloadStartText(i18n)),
 		report: (progress) => {
 			if (progress.kind === 'installing') {
-				announce(describeUpdateProgress(progress).text);
+				announce(describeUpdateProgress(progress, i18n).text);
 				return;
 			}
 			const currentTime = now();
@@ -37,7 +40,7 @@ export function createProgressAnnouncer(
 			)
 				return;
 			lastDownloadAnnouncementAt = currentTime;
-			announce(describeUpdateProgress(progress).text);
+			announce(describeUpdateProgress(progress, i18n).text);
 		},
 	};
 }

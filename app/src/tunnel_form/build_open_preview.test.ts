@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
 import { buildOpener, buildSettings } from '#/testing/factories';
@@ -11,105 +12,97 @@ const values = {
 };
 const settings = buildSettings({ defaultBindAddress: '127.0.0.1' });
 
+const preview = (
+	formValues: Parameters<typeof buildOpenPreview>[0],
+	generalSettings: Parameters<typeof buildOpenPreview>[1],
+	openers: Parameters<typeof buildOpenPreview>[2] = []
+) => buildOpenPreview(formValues, generalSettings, openers, i18n);
+
 describe('buildOpenPreview', () => {
 	it('should preview http on localhost with the root path by default', () => {
-		expect(buildOpenPreview(values, settings)).toBe(
-			'Ouvre http://localhost:3333/'
-		);
+		expect(preview(values, settings)).toBe('Opens http://localhost:3333/');
 	});
 
 	it('should give nothing while the listen port is invalid', () => {
-		expect(
-			buildOpenPreview({ ...values, listenPort: 'abc' }, settings)
-		).toBeNull();
+		expect(preview({ ...values, listenPort: 'abc' }, settings)).toBeNull();
 	});
 
 	it('should use the scheme and path of the form', () => {
 		expect(
-			buildOpenPreview(
-				{ ...values, openScheme: 'https', openPath: '/admin' },
-				settings
-			)
-		).toBe('Ouvre https://localhost:3333/admin');
+			preview({ ...values, openScheme: 'https', openPath: '/admin' }, settings)
+		).toBe('Opens https://localhost:3333/admin');
 	});
 
 	it('should follow the general setting when the host is inherited', () => {
-		expect(buildOpenPreview(values, buildSettings({ openHost: 'ip' }))).toBe(
-			'Ouvre http://127.0.0.1:3333/'
+		expect(preview(values, buildSettings({ openHost: 'ip' }))).toBe(
+			'Opens http://127.0.0.1:3333/'
 		);
 	});
 
 	it('should prefer the host of the form over the general setting', () => {
 		expect(
-			buildOpenPreview(
+			preview(
 				{ ...values, openHost: 'localhost' },
 				buildSettings({ openHost: 'ip' })
 			)
-		).toBe('Ouvre http://localhost:3333/');
+		).toBe('Opens http://localhost:3333/');
 	});
 
 	it('should use the ipv6 loopback when the tunnel listens on ipv6', () => {
 		expect(
-			buildOpenPreview(
-				{ ...values, openHost: 'ip', listenAddress: '::1' },
-				settings
-			)
-		).toBe('Ouvre http://[::1]:3333/');
+			preview({ ...values, openHost: 'ip', listenAddress: '::1' }, settings)
+		).toBe('Opens http://[::1]:3333/');
 	});
 
 	it('should open a specific ip as is', () => {
-		expect(
-			buildOpenPreview({ ...values, listenAddress: '192.0.2.120' }, settings)
-		).toBe('Ouvre http://192.0.2.120:3333/');
+		expect(preview({ ...values, listenAddress: '192.0.2.120' }, settings)).toBe(
+			'Opens http://192.0.2.120:3333/'
+		);
 	});
 
 	it('should open a wildcard listen address through the preferred loopback', () => {
-		expect(
-			buildOpenPreview({ ...values, listenAddress: '0.0.0.0' }, settings)
-		).toBe('Ouvre http://localhost:3333/');
+		expect(preview({ ...values, listenAddress: '0.0.0.0' }, settings)).toBe(
+			'Opens http://localhost:3333/'
+		);
 	});
 
 	it('should say a host name cannot be opened', () => {
-		expect(
-			buildOpenPreview({ ...values, listenAddress: 'example.com' }, settings)
-		).toBe(
-			"L'adresse d'écoute est un nom d'hôte : le tunnel ne peut pas être ouvert."
+		expect(preview({ ...values, listenAddress: 'example.com' }, settings)).toBe(
+			"The listen address is a host name: the tunnel can't be opened."
 		);
 	});
 
 	it('should preview the command line of the application chosen', () => {
 		expect(
-			buildOpenPreview({ ...values, openWith: 'remmina-vnc' }, settings, [
-				buildOpener(),
-			])
-		).toBe('Lance remmina -c vnc://localhost:3333');
+			preview({ ...values, openWith: 'remmina-vnc' }, settings, [buildOpener()])
+		).toBe('Runs remmina -c vnc://localhost:3333');
 	});
 
 	it('should preview the suggested application when the choice is automatic', () => {
-		expect(
-			buildOpenPreview(values, settings, [buildOpener({ ports: [3333] })])
-		).toBe('Lance remmina -c vnc://localhost:3333');
+		expect(preview(values, settings, [buildOpener({ ports: [3333] })])).toBe(
+			'Runs remmina -c vnc://localhost:3333'
+		);
 	});
 
 	it('should preview the url when the browser is chosen although an application matches', () => {
 		expect(
-			buildOpenPreview({ ...values, openWith: 'browser' }, settings, [
+			preview({ ...values, openWith: 'browser' }, settings, [
 				buildOpener({ ports: [3333] }),
 			])
-		).toBe('Ouvre http://localhost:3333/');
+		).toBe('Opens http://localhost:3333/');
 	});
 
 	it('should preview the url when the chosen application is not available', () => {
-		expect(
-			buildOpenPreview({ ...values, openWith: 'gone' }, settings, [])
-		).toBe('Ouvre http://localhost:3333/');
+		expect(preview({ ...values, openWith: 'gone' }, settings, [])).toBe(
+			'Opens http://localhost:3333/'
+		);
 	});
 
 	it('should quote an argument that holds spaces', () => {
 		expect(
-			buildOpenPreview({ ...values, openWith: 'x' }, settings, [
+			preview({ ...values, openWith: 'x' }, settings, [
 				buildOpener({ id: 'x', args: ['--title', 'my {host}'] }),
 			])
-		).toBe('Lance remmina --title "my localhost"');
+		).toBe('Runs remmina --title "my localhost"');
 	});
 });

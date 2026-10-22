@@ -1,28 +1,29 @@
 import { axe } from 'vitest-axe';
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 
 import type { TunnelStateDto } from '#/daemon/protocol';
 import { TunnelStatusBadge } from '#/shared/status_badge';
+import { renderWithI18n } from '#/testing/render_with_i18n';
 
 const STATES: readonly [TunnelStateDto, string][] = [
-	[{ kind: 'stopped' }, 'Arrêté'],
-	[{ kind: 'standby' }, 'Veille'],
-	[{ kind: 'starting' }, 'Démarrage…'],
-	[{ kind: 'active' }, 'Actif'],
+	[{ kind: 'stopped' }, 'Stopped'],
+	[{ kind: 'standby' }, 'Standby'],
+	[{ kind: 'starting' }, 'Starting…'],
+	[{ kind: 'active' }, 'Active'],
 	[
 		{ kind: 'reconnecting', attempt: 2, nextRetryAt: 0 },
-		'Reconnexion (tentative 2)',
+		'Reconnecting (attempt 2)',
 	],
 	[
 		{
 			kind: 'failed',
 			reason: { kind: 'portInUse', address: '127.0.0.1:3333' },
 		},
-		'Échec',
+		'Failed',
 	],
-	[{ kind: 'external', owner: { pid: 4242, process: 'ssh' } }, 'Externe'],
-	[{ kind: 'conflict' }, 'Conflit'],
+	[{ kind: 'external', owner: { pid: 4242, process: 'ssh' } }, 'External'],
+	[{ kind: 'conflict' }, 'Conflict'],
 ];
 
 const iconClassOf = (container: HTMLElement) =>
@@ -30,13 +31,13 @@ const iconClassOf = (container: HTMLElement) =>
 
 describe('TunnelStatusBadge', () => {
 	it.each(STATES)('should show the text of state %j', (state, label) => {
-		render(<TunnelStatusBadge state={state} />);
+		renderWithI18n(<TunnelStatusBadge state={state} />);
 
 		expect(screen.getByText(label)).toBeInTheDocument();
 	});
 
 	it('should show the failure reason as visible text', () => {
-		render(
+		renderWithI18n(
 			<TunnelStatusBadge
 				state={{
 					kind: 'failed',
@@ -46,39 +47,39 @@ describe('TunnelStatusBadge', () => {
 		);
 
 		expect(
-			screen.getByText('Port déjà utilisé (127.0.0.1:3333)')
+			screen.getByText('Port already in use (127.0.0.1:3333)')
 		).toBeVisible();
 	});
 
 	it('should show the last wake-up failure of a standby tunnel as visible text', () => {
-		render(
+		renderWithI18n(
 			<TunnelStatusBadge
 				state={{
 					kind: 'standby',
-					lastFailure: { kind: 'connect', message: 'authentification refusée' },
+					lastFailure: { kind: 'connect', message: 'authentication refused' },
 				}}
 			/>
 		);
 
 		expect(
 			screen.getByText(
-				/dernier réveil en échec : Connexion SSH impossible : authentification refusée/
+				/last wake-up failed: SSH connection failed: authentication refused/
 			)
 		).toBeVisible();
 	});
 
 	it('should show the owner of an external tunnel as visible text', () => {
-		render(
+		renderWithI18n(
 			<TunnelStatusBadge
 				state={{ kind: 'external', owner: { pid: 4242, process: 'ssh' } }}
 			/>
 		);
 
-		expect(screen.getByText('fourni par ssh (pid 4242)')).toBeVisible();
+		expect(screen.getByText('provided by ssh (pid 4242)')).toBeVisible();
 	});
 
 	it('should show the holder of the port on a conflict', () => {
-		render(
+		renderWithI18n(
 			<TunnelStatusBadge
 				state={{
 					kind: 'conflict',
@@ -88,12 +89,12 @@ describe('TunnelStatusBadge', () => {
 		);
 
 		expect(
-			screen.getByText('port occupé par node.exe (pid 4242)')
+			screen.getByText('port in use by node.exe (pid 4242)')
 		).toBeVisible();
 	});
 
 	it('should hide the icon from assistive technologies', () => {
-		const { container } = render(
+		const { container } = renderWithI18n(
 			<TunnelStatusBadge state={{ kind: 'active' }} />
 		);
 
@@ -102,7 +103,7 @@ describe('TunnelStatusBadge', () => {
 
 	it('should use a distinct icon for every state', () => {
 		const icons = STATES.map(([state]) => {
-			const { container, unmount } = render(
+			const { container, unmount } = renderWithI18n(
 				<TunnelStatusBadge state={state} />
 			);
 			const icon = iconClassOf(container);
@@ -114,7 +115,7 @@ describe('TunnelStatusBadge', () => {
 	});
 
 	it.each(STATES)('should have no axe violations for %j', async (state) => {
-		const { container } = render(<TunnelStatusBadge state={state} />);
+		const { container } = renderWithI18n(<TunnelStatusBadge state={state} />);
 
 		expect(await axe(container)).toHaveNoViolations();
 	});

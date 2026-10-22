@@ -1,5 +1,12 @@
 import type { OpenerSpecDto } from '#/daemon/protocol';
 
+/** The parameters of an argument, replaced by the daemon when it runs the application. */
+export const PLACEHOLDER_TEXTS = {
+	hostPlaceholder: '{host}',
+	portPlaceholder: '{port}',
+	urlPlaceholder: '{url}',
+} as const;
+
 const ARGUMENT_SEPARATOR = '\n';
 const PORT_SEPARATOR = ', ';
 const NON_SLUG_PATTERN = /[^a-z0-9]+/gu;

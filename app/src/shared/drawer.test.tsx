@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { axe } from 'vitest-axe';
+import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { render, screen } from '@testing-library/react';
 import { useGlobalHotkeysStore } from '@minimalstuff/ui';
 
 import { Drawer } from '#/shared/drawer';
+import { renderWithI18n } from '#/testing/render_with_i18n';
 
 function DrawerHarness({
 	hasInputs = true,
@@ -19,7 +20,7 @@ function DrawerHarness({
 			<button onClick={open}>Ouvrir</button>
 			<Drawer
 				isOpen={isOpen}
-				title="Éditer"
+				title="Edit"
 				onClose={close}
 				footer={<button>Enregistrer</button>}
 			>
@@ -31,15 +32,15 @@ function DrawerHarness({
 
 const openDrawer = async (hasInputs = true) => {
 	const user = userEvent.setup();
-	render(<DrawerHarness hasInputs={hasInputs} />);
+	renderWithI18n(<DrawerHarness hasInputs={hasInputs} />);
 	await user.click(screen.getByRole('button', { name: 'Ouvrir' }));
 	return user;
 };
 
 describe('Drawer', () => {
 	it('should render nothing when closed', () => {
-		render(
-			<Drawer isOpen={false} title="Éditer" onClose={vi.fn()}>
+		renderWithI18n(
+			<Drawer isOpen={false} title="Edit" onClose={vi.fn()}>
 				x
 			</Drawer>
 		);
@@ -50,7 +51,7 @@ describe('Drawer', () => {
 	it('should be a modal dialog labelled by its title', async () => {
 		await openDrawer();
 
-		const dialog = screen.getByRole('dialog', { name: 'Éditer' });
+		const dialog = screen.getByRole('dialog', { name: 'Edit' });
 		expect(dialog).toHaveAttribute('aria-modal', 'true');
 	});
 
@@ -58,7 +59,7 @@ describe('Drawer', () => {
 		await openDrawer();
 
 		expect(
-			screen.getByRole('heading', { name: 'Éditer', level: 2 })
+			screen.getByRole('heading', { name: 'Edit', level: 2 })
 		).toBeInTheDocument();
 	});
 
@@ -97,7 +98,7 @@ describe('Drawer', () => {
 	it('should close with the close button', async () => {
 		const user = await openDrawer();
 
-		await user.click(screen.getByRole('button', { name: 'Fermer' }));
+		await user.click(screen.getByRole('button', { name: 'Close' }));
 
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 	});
@@ -116,12 +117,12 @@ describe('Drawer', () => {
 
 		await user.tab();
 
-		expect(screen.getByRole('button', { name: 'Fermer' })).toHaveFocus();
+		expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
 	});
 
 	it('should wrap Shift+Tab from the first focusable element to the last', async () => {
 		const user = await openDrawer();
-		screen.getByRole('button', { name: 'Fermer' }).focus();
+		screen.getByRole('button', { name: 'Close' }).focus();
 
 		await user.tab({ shift: true });
 

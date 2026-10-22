@@ -1,4 +1,5 @@
 import { useContext } from 'react';
+import { useLingui } from '@lingui/react/macro';
 import { ConfirmModal } from '@minimalstuff/ui';
 
 import type { TunnelDto } from '#/daemon/protocol';
@@ -22,6 +23,7 @@ type UseTunnelActionsReturn = {
 export function useTunnelActions(
 	tunnel: Readonly<TunnelDto>
 ): UseTunnelActionsReturn {
+	const { t } = useLingui();
 	const runDaemonAction = useDaemonAction();
 	const requestFocusAfterRemoval = useContext(RemovalFocusContext);
 	const { id } = tunnel;
@@ -31,12 +33,12 @@ export function useTunnelActions(
 		void (async () => {
 			const isStopped = await runDaemonAction(
 				(gateway) => gateway.stopTunnel(id),
-				'Arrêt impossible'
+				t`Couldn't stop the tunnel`
 			);
 			if (!isStopped) return;
 			useAnnouncerStore
 				.getState()
-				.announce(`Tunnel temporaire ${label} arrêté et retiré`, 'polite');
+				.announce(t`Temporary tunnel ${label} stopped and removed`, 'polite');
 			requestFocusAfterRemoval([id]);
 		})();
 	};
@@ -45,12 +47,12 @@ export function useTunnelActions(
 		void (async () => {
 			const isSaved = await runDaemonAction(
 				(gateway) => gateway.persistTunnel(id),
-				'Enregistrement impossible'
+				t`Couldn't save the tunnel`
 			);
 			if (!isSaved) return;
 			useToastStore
 				.getState()
-				.pushToast({ tone: 'success', message: `Tunnel ${label} enregistré` });
+				.pushToast({ tone: 'success', message: t`Tunnel ${label} saved` });
 		})();
 	};
 
@@ -63,40 +65,39 @@ export function useTunnelActions(
 		if (isRunning) {
 			void runDaemonAction(
 				(gateway) => gateway.stopTunnel(id),
-				'Arrêt impossible'
+				t`Couldn't stop the tunnel`
 			);
 			return;
 		}
 		void runDaemonAction(
 			(gateway) => gateway.startTunnel(id),
-			'Démarrage impossible'
+			t`Couldn't start the tunnel`
 		);
 	};
 
 	const restart = () => {
 		void runDaemonAction(
 			(gateway) => gateway.restartTunnel(id),
-			'Redémarrage impossible'
+			t`Couldn't restart the tunnel`
 		);
 	};
 
 	const confirmRemoval = async () => {
 		const isConfirmed = await ConfirmModal.call({
-			title: `Supprimer le tunnel ${label} ?`,
-			children:
-				'Le tunnel est retiré de la configuration, et arrêté s’il est en cours.',
-			confirmLabel: 'Supprimer',
+			title: t`Delete tunnel ${label}?`,
+			children: t`The tunnel is removed from the configuration, and stopped if it is running.`,
+			confirmLabel: t`Delete`,
 			confirmColor: 'danger',
 		});
 		if (!isConfirmed) return;
 		const isDeleted = await runDaemonAction(
 			(gateway) => gateway.deleteTunnel(id),
-			'Suppression impossible'
+			t`Couldn't delete the tunnel`
 		);
 		if (!isDeleted) return;
 		useToastStore
 			.getState()
-			.pushToast({ tone: 'success', message: `Tunnel ${label} supprimé` });
+			.pushToast({ tone: 'success', message: t`Tunnel ${label} deleted` });
 		requestFocusAfterRemoval([id]);
 	};
 

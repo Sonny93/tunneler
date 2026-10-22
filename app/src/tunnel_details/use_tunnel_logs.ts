@@ -2,25 +2,28 @@ import { useEffect, useReducer } from 'react';
 
 import type { LogEntryDto } from '#/daemon/protocol';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import { appendLogEntry, mergeLogEntries } from '#/tunnel_details/log_entries';
+import {
+	toDaemonCommandError,
+	type DaemonCommandError,
+} from '#/daemon/daemon_command_error';
 
 export type TunnelLogsState = {
 	status: 'loading' | 'ready' | 'error';
 	entries: readonly LogEntryDto[];
-	errorMessage: string | null;
+	error: DaemonCommandError | null;
 };
 
 type TunnelLogsAction =
 	| { type: 'fetchStarted' }
 	| { type: 'fetchSucceeded'; fetched: readonly LogEntryDto[] }
-	| { type: 'fetchFailed'; message: string }
+	| { type: 'fetchFailed'; error: DaemonCommandError }
 	| { type: 'entryReceived'; entry: LogEntryDto };
 
 const INITIAL_STATE: TunnelLogsState = {
 	status: 'loading',
 	entries: [],
-	errorMessage: null,
+	error: null,
 };
 
 function reduceTunnelLogs(
@@ -29,15 +32,15 @@ function reduceTunnelLogs(
 ): TunnelLogsState {
 	switch (action.type) {
 		case 'fetchStarted':
-			return { ...state, status: 'loading', errorMessage: null };
+			return { ...state, status: 'loading', error: null };
 		case 'fetchSucceeded':
 			return {
 				status: 'ready',
 				entries: mergeLogEntries(action.fetched, state.entries),
-				errorMessage: null,
+				error: null,
 			};
 		case 'fetchFailed':
-			return { ...state, status: 'error', errorMessage: action.message };
+			return { ...state, status: 'error', error: action.error };
 		case 'entryReceived':
 			return {
 				...state,
@@ -74,8 +77,10 @@ export function useTunnelLogs(tunnelId: string): UseTunnelLogsReturn {
 			},
 			(rejection: unknown) => {
 				if (isCancelled) return;
-				const { message } = toDaemonCommandError(rejection);
-				dispatch({ type: 'fetchFailed', message });
+				dispatch({
+					type: 'fetchFailed',
+					error: toDaemonCommandError(rejection),
+				});
 			}
 		);
 		return () => {

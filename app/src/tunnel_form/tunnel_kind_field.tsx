@@ -1,4 +1,5 @@
 import { RadioOptions } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import type { TunnelKindDto } from '#/daemon/protocol';
 import { TUNNEL_KIND_OPTIONS } from '#/tunnel_form/tunnel_kind_texts';
@@ -8,22 +9,27 @@ type TunnelKindFieldProps = {
 	onChange: (kind: TunnelKindDto) => void;
 };
 
-const OPTIONS = TUNNEL_KIND_OPTIONS.map((option) => ({ ...option }));
-
 export function TunnelKindField({
 	value,
 	onChange,
 }: Readonly<TunnelKindFieldProps>) {
+	const { t, i18n } = useLingui();
+	const options = TUNNEL_KIND_OPTIONS.map((option) => ({
+		value: option.value,
+		label: i18n._(option.label),
+		description: i18n._(option.description),
+	}));
+
 	const handleChange = (selected: string) => {
-		const option = OPTIONS.find(({ value: kind }) => kind === selected);
+		const option = options.find(({ value: kind }) => kind === selected);
 		if (option) onChange(option.value);
 	};
 
 	return (
 		<RadioOptions
 			name="kind"
-			label="Type de tunnel"
-			options={OPTIONS}
+			label={t`Tunnel type`}
+			options={options}
 			value={value}
 			onChange={handleChange}
 		/>

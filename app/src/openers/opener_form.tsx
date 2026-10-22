@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { Button, Input, Textarea } from '@minimalstuff/ui';
 import { useId, useState, type ChangeEvent, type FormEvent } from 'react';
 
@@ -11,16 +12,12 @@ import {
 } from '#/openers/validate_opener_form';
 import {
 	EMPTY_OPENER_FORM_VALUES,
+	PLACEHOLDER_TEXTS,
 	slugifyName,
 	toOpenerFormValues,
 	toOpenerSpec,
 	type OpenerFormValues,
 } from '#/openers/opener_form_values';
-
-const ARGUMENTS_HINT =
-	'Un argument par ligne, transmis tels quels : aucun shell n’interprète les guillemets ni les espaces. {host}, {port} et {url} sont remplacés.';
-const PORTS_HINT =
-	'Séparés par des virgules. Le tunnel dont le port cible en fait partie propose cette application par défaut.';
 
 type OpenerFormProps = {
 	/** The application being edited, or `null` to add one. */
@@ -42,8 +39,13 @@ export function OpenerForm({
 	onSubmit,
 	onCancel,
 }: Readonly<OpenerFormProps>) {
+	const { t, i18n } = useLingui();
 	const formId = useId();
+	const { hostPlaceholder, portPlaceholder, urlPlaceholder } =
+		PLACEHOLDER_TEXTS;
 	const isCreation = opener === null;
+	const openerName = opener?.name ?? '';
+	const formLabel = isCreation ? t`Add an application` : t`Edit ${openerName}`;
 	const [values, setValues] = useState<OpenerFormValues>(
 		opener ? toOpenerFormValues(opener) : EMPTY_OPENER_FORM_VALUES
 	);
@@ -94,9 +96,7 @@ export function OpenerForm({
 			id={formId}
 			noValidate
 			onSubmit={submit}
-			aria-label={
-				isCreation ? 'Ajouter une application' : `Modifier ${opener.name}`
-			}
+			aria-label={formLabel}
 			className="flex flex-col gap-4 rounded-md border border-tn-border p-3"
 		>
 			<FormErrorSummary
@@ -105,23 +105,23 @@ export function OpenerForm({
 			/>
 			<Input
 				name="name"
-				label="Nom"
+				label={t`Name`}
 				value={values.name}
 				onChange={handleName}
-				error={errors.name}
+				error={errors.name && i18n._(errors.name)}
 				required
 				autoComplete="off"
 			/>
 			<Input
 				name="id"
-				label="Identifiant"
+				label={t`Identifier`}
 				value={values.id}
 				onChange={handleId}
-				error={errors.id}
+				error={errors.id && i18n._(errors.id)}
 				description={
 					isCreation
-						? 'Minuscules, chiffres et tirets. Non modifiable après la création.'
-						: 'Non modifiable : les tunnels le désignent par cet identifiant.'
+						? t`Lowercase letters, digits and dashes. Cannot be changed after creation.`
+						: t`Cannot be changed: tunnels refer to it by this identifier.`
 				}
 				readOnly={!isCreation}
 				required
@@ -129,39 +129,39 @@ export function OpenerForm({
 			/>
 			<Input
 				name="command"
-				label="Commande"
+				label={t`Command`}
 				value={values.command}
 				onChange={handleText('command')}
-				error={errors.command}
-				description="Le programme à lancer, sans ses arguments."
+				error={errors.command && i18n._(errors.command)}
+				description={t`The program to run, without its arguments.`}
 				required
 				autoComplete="off"
 			/>
 			<Textarea
 				name="args"
-				label="Arguments"
+				label={t`Arguments`}
 				value={values.args}
 				onChange={handleArguments}
-				error={errors.args}
-				description={ARGUMENTS_HINT}
+				error={errors.args && i18n._(errors.args)}
+				description={t`One argument per line, passed as is: no shell interprets quotes or spaces. ${hostPlaceholder}, ${portPlaceholder} and ${urlPlaceholder} are replaced.`}
 				rows={4}
 			/>
 			<Input
 				name="ports"
-				label="Ports suggérés"
+				label={t`Suggested ports`}
 				value={values.ports}
 				onChange={handleText('ports')}
-				error={errors.ports}
-				description={PORTS_HINT}
+				error={errors.ports && i18n._(errors.ports)}
+				description={t`Separated by commas. A tunnel whose target port is one of them offers this application by default.`}
 				inputMode="numeric"
 				autoComplete="off"
 			/>
 			<div className="flex justify-end gap-2">
 				<Button variant="outline" color="neutral" onClick={onCancel}>
-					Annuler
+					{t`Cancel`}
 				</Button>
 				<Button type="submit" loading={isSaving}>
-					{isCreation ? 'Ajouter' : 'Enregistrer'}
+					{isCreation ? t`Add` : t`Save`}
 				</Button>
 			</div>
 		</form>

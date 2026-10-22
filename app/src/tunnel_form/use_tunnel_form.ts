@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { useReducer, useState, type FormEvent } from 'react';
 
 import { useUiStore } from '#/state/ui_store';
@@ -48,6 +49,7 @@ export function useTunnelForm(
 	draft: Readonly<TunnelSpecDto> | null = null,
 	mode: TunnelFormMode = 'saved'
 ): UseTunnelFormReturn {
+	const { t } = useLingui();
 	const source = tunnel ?? draft;
 	const gateway = useDaemonGateway();
 	const [values, dispatchToReducer] = useReducer(
@@ -75,8 +77,9 @@ export function useTunnelForm(
 
 	const describeOutcome = (spec: TunnelSpecDto): string => {
 		const label = getTunnelEndpointLabel(spec);
-		if (mode === 'temporary') return `Tunnel temporaire ${label} démarré`;
-		return `Tunnel ${label} ${tunnel ? 'enregistré' : 'créé'}`;
+		if (mode === 'temporary') return t`Temporary tunnel ${label} started`;
+		if (tunnel) return t`Tunnel ${label} saved`;
+		return t`Tunnel ${label} created`;
 	};
 
 	const save = async () => {

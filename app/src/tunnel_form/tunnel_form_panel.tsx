@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { Button } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { Drawer } from '#/shared/drawer';
 import { useUiStore } from '#/state/ui_store';
@@ -18,24 +19,12 @@ type TunnelFormPanelProps = {
 	mode?: TunnelFormMode;
 };
 
-const TEMPORARY_NOTE =
-	"Non enregistré : disparaît quand on l'arrête ou quand Tunneler quitte.";
-
-function getTitle(
-	tunnel: Readonly<TunnelDefinitionDto> | null,
-	draft: Readonly<TunnelSpecDto> | undefined,
-	mode: TunnelFormMode
-): string {
-	if (mode === 'temporary') return 'Nouveau tunnel temporaire';
-	if (tunnel) return `Modifier ${getTunnelEndpointLabel(tunnel)}`;
-	return draft ? 'Importer un tunnel' : 'Nouveau tunnel';
-}
-
 export function TunnelFormPanel({
 	tunnel,
 	draft,
 	mode = 'saved',
 }: Readonly<TunnelFormPanelProps>) {
+	const { t } = useLingui();
 	const formId = useId();
 	const closePanel = useUiStore((state) => state.closePanel);
 	const { values, errors, isSaving, summary, dispatch, submit } = useTunnelForm(
@@ -44,33 +33,37 @@ export function TunnelFormPanel({
 		mode
 	);
 	const isTemporary = mode === 'temporary';
-	const submitLabel = tunnel ? 'Enregistrer' : 'Créer';
+	const submitLabel = tunnel ? t`Save` : t`Create`;
+
+	const getTitle = (): string => {
+		if (mode === 'temporary') return t`New temporary tunnel`;
+		if (tunnel) {
+			const endpointLabel = getTunnelEndpointLabel(tunnel);
+			return t`Edit ${endpointLabel}`;
+		}
+		return draft ? t`Import a tunnel` : t`New tunnel`;
+	};
 
 	const footer = (
 		<div className="flex justify-end gap-2">
 			<Button variant="outline" color="neutral" onClick={closePanel}>
-				Annuler
+				{t`Cancel`}
 			</Button>
 			<Button type="submit" form={formId} loading={isSaving}>
-				{isTemporary ? 'Démarrer' : submitLabel}
+				{isTemporary ? t`Start` : submitLabel}
 			</Button>
 		</div>
 	);
 
 	return (
-		<Drawer
-			isOpen
-			title={getTitle(tunnel, draft, mode)}
-			onClose={closePanel}
-			footer={footer}
-		>
+		<Drawer isOpen title={getTitle()} onClose={closePanel} footer={footer}>
 			<form id={formId} noValidate onSubmit={submit}>
 				<FormErrorSummary
 					messages={summary.messages}
 					attach={summary.attachSummary}
 				/>
 				{isTemporary && (
-					<p className="mt-0 mb-4 text-sm text-tn-muted">{TEMPORARY_NOTE}</p>
+					<p className="mt-0 mb-4 text-sm text-tn-muted">{t`Not saved: it disappears when it is stopped or when Tunneler quits.`}</p>
 				)}
 				<TunnelFormFields
 					values={values}

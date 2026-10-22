@@ -1,4 +1,5 @@
 import { axe } from 'vitest-axe';
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { screen, waitFor, within } from '@testing-library/react';
@@ -30,7 +31,7 @@ const renderDrawer = (gateway = createFakeGateway()) =>
 async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
 	await user.type(screen.getByRole('combobox', { name: /^Host/ }), 'nova');
 	await user.type(
-		screen.getByRole('textbox', { name: /^Port d'écoute/ }),
+		screen.getByRole('textbox', { name: /^Listen port/ }),
 		'3333'
 	);
 }
@@ -42,12 +43,12 @@ describe('TunnelFormDrawer', () => {
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 	});
 
-	it('should be titled "Nouveau tunnel" when creating', () => {
+	it('should be titled "New tunnel" when creating', () => {
 		openEditor();
 		renderDrawer();
 
 		expect(
-			screen.getByRole('dialog', { name: 'Nouveau tunnel' })
+			screen.getByRole('dialog', { name: 'New tunnel' })
 		).toBeInTheDocument();
 	});
 
@@ -60,12 +61,12 @@ describe('TunnelFormDrawer', () => {
 			});
 		};
 
-		it('should be titled "Nouveau tunnel temporaire"', () => {
+		it('should be titled "New temporary tunnel"', () => {
 			openTemporaryEditor();
 			renderDrawer();
 
 			expect(
-				screen.getByRole('dialog', { name: 'Nouveau tunnel temporaire' })
+				screen.getByRole('dialog', { name: 'New temporary tunnel' })
 			).toBeInTheDocument();
 		});
 
@@ -75,7 +76,7 @@ describe('TunnelFormDrawer', () => {
 
 			expect(
 				screen.getByText(
-					"Non enregistré : disparaît quand on l'arrête ou quand Tunneler quitte."
+					'Not saved: it disappears when it is stopped or when Tunneler quits.'
 				)
 			).toBeInTheDocument();
 		});
@@ -85,7 +86,7 @@ describe('TunnelFormDrawer', () => {
 			renderDrawer();
 
 			expect(
-				screen.queryByRole('group', { name: 'Veille' })
+				screen.queryByRole('group', { name: 'Standby' })
 			).not.toBeInTheDocument();
 		});
 
@@ -111,7 +112,7 @@ describe('TunnelFormDrawer', () => {
 			const { gateway } = renderDrawer();
 			await fillRequiredFields(user);
 
-			await user.click(screen.getByRole('button', { name: 'Démarrer' }));
+			await user.click(screen.getByRole('button', { name: 'Start' }));
 
 			await waitFor(() =>
 				expect(useUiStore.getState().panel.kind).toBe('none')
@@ -133,12 +134,12 @@ describe('TunnelFormDrawer', () => {
 			renderDrawer();
 			await fillRequiredFields(user);
 
-			await user.click(screen.getByRole('button', { name: 'Démarrer' }));
+			await user.click(screen.getByRole('button', { name: 'Start' }));
 
 			await waitFor(() =>
 				expect(useToastStore.getState().toasts).toEqual([
 					expect.objectContaining({
-						message: 'Tunnel temporaire 3333 → nova:3333 démarré',
+						message: 'Temporary tunnel 3333 → nova:3333 started',
 					}),
 				])
 			);
@@ -149,14 +150,14 @@ describe('TunnelFormDrawer', () => {
 			const user = userEvent.setup();
 			const gateway = createFakeGateway();
 			gateway.startTemporaryTunnel.mockRejectedValue(
-				new DaemonCommandError('io_error', 'Port invalide')
+				new DaemonCommandError('io_error', 'Invalid port')
 			);
 			renderDrawer(gateway);
 			await fillRequiredFields(user);
 
-			await user.click(screen.getByRole('button', { name: 'Démarrer' }));
+			await user.click(screen.getByRole('button', { name: 'Start' }));
 
-			expect(await screen.findByText(/Port invalide/)).toBeInTheDocument();
+			expect(await screen.findByText(/Invalid port/)).toBeInTheDocument();
 			expect(useUiStore.getState().panel.kind).toBe('temporaryTunnelEditor');
 		});
 	});
@@ -189,7 +190,7 @@ describe('TunnelFormDrawer', () => {
 		const { gateway } = renderDrawer();
 		await fillRequiredFields(user);
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		expect(gateway.createTunnel).toHaveBeenCalledWith({
 			host: 'nova',
@@ -208,13 +209,13 @@ describe('TunnelFormDrawer', () => {
 		renderDrawer();
 		await fillRequiredFields(user);
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		await waitFor(() => expect(useUiStore.getState().panel.kind).toBe('none'));
 		expect(useToastStore.getState().toasts).toEqual([
 			expect.objectContaining({
 				tone: 'success',
-				message: 'Tunnel 3333 → nova:3333 créé',
+				message: 'Tunnel 3333 → nova:3333 created',
 			}),
 		]);
 	});
@@ -223,7 +224,7 @@ describe('TunnelFormDrawer', () => {
 		openEditor();
 		renderDrawer();
 
-		expect(screen.getByRole('button', { name: 'Créer' })).toHaveAttribute(
+		expect(screen.getByRole('button', { name: 'Create' })).toHaveAttribute(
 			'form',
 			document.querySelector('form')?.id
 		);
@@ -235,14 +236,14 @@ describe('TunnelFormDrawer', () => {
 		renderDrawer();
 
 		await user.type(
-			screen.getByRole('textbox', { name: /^Port d'écoute/ }),
+			screen.getByRole('textbox', { name: /^Listen port/ }),
 			'8080'
 		);
 
-		expect(screen.getByRole('textbox', { name: /^Port cible/ })).toHaveValue(
+		expect(screen.getByRole('textbox', { name: /^Target port/ })).toHaveValue(
 			'8080'
 		);
-		expect(screen.getByText("Suit le port d'écoute")).toBeInTheDocument();
+		expect(screen.getByText('Follows the listen port')).toBeInTheDocument();
 	});
 
 	it('should unlink the target port when it is edited and send it', async () => {
@@ -250,11 +251,11 @@ describe('TunnelFormDrawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 		await fillRequiredFields(user);
-		const targetPort = screen.getByRole('textbox', { name: /^Port cible/ });
+		const targetPort = screen.getByRole('textbox', { name: /^Target port/ });
 
 		await user.clear(targetPort);
 		await user.type(targetPort, '5432');
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		expect(gateway.createTunnel).toHaveBeenCalledWith(
 			expect.objectContaining({ listenPort: 3333, targetPort: 5432 })
@@ -266,19 +267,19 @@ describe('TunnelFormDrawer', () => {
 		const user = userEvent.setup();
 		renderDrawer();
 		await user.type(
-			screen.getByRole('textbox', { name: /^Port d'écoute/ }),
+			screen.getByRole('textbox', { name: /^Listen port/ }),
 			'3333'
 		);
-		const targetPort = screen.getByRole('textbox', { name: /^Port cible/ });
+		const targetPort = screen.getByRole('textbox', { name: /^Target port/ });
 		await user.clear(targetPort);
 		await user.type(targetPort, '22');
 
 		await user.click(
-			screen.getByRole('button', { name: "Lier au port d'écoute" })
+			screen.getByRole('button', { name: 'Link to the listen port' })
 		);
 
 		expect(targetPort).toHaveValue('3333');
-		expect(screen.getByText("Suit le port d'écoute")).toBeInTheDocument();
+		expect(screen.getByText('Follows the listen port')).toBeInTheDocument();
 	});
 
 	it('should parse the tags', async () => {
@@ -288,10 +289,10 @@ describe('TunnelFormDrawer', () => {
 		await fillRequiredFields(user);
 
 		await user.type(
-			screen.getByRole('textbox', { name: 'Tags séparés par des virgules' }),
+			screen.getByRole('textbox', { name: 'Tags, separated by commas' }),
 			' db, prod ,db,,'
 		);
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		expect(gateway.createTunnel).toHaveBeenCalledWith(
 			expect.objectContaining({ tags: ['db', 'prod'] })
@@ -303,13 +304,13 @@ describe('TunnelFormDrawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		const host = screen.getByRole('combobox', { name: /^Host/ });
 		expect(host).toHaveFocus();
 		expect(host).toBeInvalid();
 		expect(host).toHaveAccessibleDescription(
-			expect.stringContaining("L'hôte est obligatoire.")
+			expect.stringContaining('The host is required.')
 		);
 		expect(gateway.createTunnel).not.toHaveBeenCalled();
 	});
@@ -319,14 +320,14 @@ describe('TunnelFormDrawer', () => {
 		const user = userEvent.setup();
 		renderDrawer();
 		await fillRequiredFields(user);
-		const listenPort = screen.getByRole('textbox', { name: /^Port d'écoute/ });
+		const listenPort = screen.getByRole('textbox', { name: /^Listen port/ });
 		await user.clear(listenPort);
 		await user.type(listenPort, '70000');
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		expect(listenPort).toHaveAccessibleDescription(
-			'Le port doit être un entier entre 1 et 65535.'
+			'The port must be a whole number between 1 and 65535.'
 		);
 	});
 
@@ -336,18 +337,18 @@ describe('TunnelFormDrawer', () => {
 		const gateway = createFakeGateway();
 		gateway.createTunnel.mockRejectedValueOnce(
 			new DaemonCommandError('validation_failed', 'invalide', [
-				'Le port 3333 est déjà utilisé.',
-				'Hôte inconnu.',
+				'Port 3333 is already in use.',
+				'Unknown host.',
 			])
 		);
 		renderDrawer(gateway);
 		await fillRequiredFields(user);
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		const alert = await screen.findByRole('alert');
-		expect(alert).toHaveTextContent('Le port 3333 est déjà utilisé.');
-		expect(alert).toHaveTextContent('Hôte inconnu.');
+		expect(alert).toHaveTextContent('Port 3333 is already in use.');
+		expect(alert).toHaveTextContent('Unknown host.');
 		expect(alert).toHaveFocus();
 		expect(useUiStore.getState().panel.kind).toBe('tunnelEditor');
 	});
@@ -362,7 +363,7 @@ describe('TunnelFormDrawer', () => {
 		renderDrawer(gateway);
 		await fillRequiredFields(user);
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		expect(await screen.findByRole('alert')).toHaveTextContent('Disque plein');
 	});
@@ -372,7 +373,7 @@ describe('TunnelFormDrawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('button', { name: 'Annuler' }));
+		await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
 		expect(useUiStore.getState().panel.kind).toBe('none');
 		expect(gateway.createTunnel).not.toHaveBeenCalled();
@@ -382,12 +383,12 @@ describe('TunnelFormDrawer', () => {
 describe('TunnelFormDrawer kind selector', () => {
 	const kindRadio = (name: RegExp) => screen.getByRole('radio', { name });
 
-	it('should offer the three kinds in a group named "Type de tunnel"', () => {
+	it('should offer the three kinds in a group named "Tunnel type"', () => {
 		openEditor();
 		renderDrawer();
 
 		expect(
-			within(screen.getByRole('group', { name: 'Type de tunnel' }))
+			within(screen.getByRole('group', { name: 'Tunnel type' }))
 				.getAllByRole('radio')
 				.map((radio) => radio.getAttribute('value'))
 		).toEqual(['local', 'remote', 'dynamic']);
@@ -405,12 +406,12 @@ describe('TunnelFormDrawer kind selector', () => {
 		renderDrawer();
 
 		expect(
-			[/Local/, /Distant/, /Dynamique/].map((name) =>
+			[/Local/, /Remote/, /Dynamic/].map((name) =>
 				kindRadio(name).getAttribute('aria-describedby')
 			)
 		).not.toContain(null);
-		expect(kindRadio(/Distant/)).toHaveAccessibleDescription(
-			'Écoute sur le serveur, cible vue depuis ce poste'
+		expect(kindRadio(/Remote/)).toHaveAccessibleDescription(
+			'Listens on the server, target reached from this computer'
 		);
 	});
 
@@ -422,7 +423,7 @@ describe('TunnelFormDrawer kind selector', () => {
 
 		await user.keyboard('{ArrowDown}');
 
-		expect(kindRadio(/Distant/)).toBeChecked();
+		expect(kindRadio(/Remote/)).toBeChecked();
 	});
 
 	it('should say where things are for a remote tunnel', async () => {
@@ -430,13 +431,15 @@ describe('TunnelFormDrawer kind selector', () => {
 		const user = userEvent.setup();
 		renderDrawer();
 
-		await user.click(kindRadio(/Distant/));
+		await user.click(kindRadio(/Remote/));
 
 		expect(
-			screen.getByRole('textbox', { name: /^Port d'écoute sur le serveur/ })
+			screen.getByRole('textbox', { name: /^Listen port on the server/ })
 		).toBeInTheDocument();
 		expect(
-			screen.getByRole('textbox', { name: /^Hôte cible \(depuis ce poste\)/ })
+			screen.getByRole('textbox', {
+				name: /^Target host \(from this computer\)/,
+			})
 		).toBeInTheDocument();
 	});
 
@@ -451,10 +454,10 @@ describe('TunnelFormDrawer kind selector', () => {
 		const user = userEvent.setup();
 		renderDrawer();
 
-		await user.click(kindRadio(/Distant/));
+		await user.click(kindRadio(/Remote/));
 
 		expect(
-			screen.getByRole('textbox', { name: /^Adresse d'écoute/ })
+			screen.getByRole('textbox', { name: /^Listen address/ })
 		).toHaveAccessibleDescription(/0\.0\.0\.0/);
 	});
 
@@ -463,15 +466,15 @@ describe('TunnelFormDrawer kind selector', () => {
 		const user = userEvent.setup();
 		renderDrawer();
 
-		await user.click(kindRadio(/Dynamique/));
+		await user.click(kindRadio(/Dynamic/));
 
 		expect(
-			screen.queryByRole('textbox', { name: /^Port cible/ })
+			screen.queryByRole('textbox', { name: /^Target port/ })
 		).not.toBeInTheDocument();
 		expect(
-			screen.queryByRole('textbox', { name: /^Hôte cible/ })
+			screen.queryByRole('textbox', { name: /^Target host/ })
 		).not.toBeInTheDocument();
-		expect(kindRadio(/Dynamique/)).toHaveFocus();
+		expect(kindRadio(/Dynamic/)).toHaveFocus();
 		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
@@ -480,10 +483,13 @@ describe('TunnelFormDrawer kind selector', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 		await fillRequiredFields(user);
-		await user.type(screen.getByRole('textbox', { name: /^Hôte cible/ }), 'db');
-		await user.click(kindRadio(/Dynamique/));
+		await user.type(
+			screen.getByRole('textbox', { name: /^Target host/ }),
+			'db'
+		);
+		await user.click(kindRadio(/Dynamic/));
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		await waitFor(() =>
 			expect(gateway.createTunnel).toHaveBeenCalledWith(
@@ -500,12 +506,15 @@ describe('TunnelFormDrawer kind selector', () => {
 		openEditor();
 		const user = userEvent.setup();
 		renderDrawer();
-		await user.type(screen.getByRole('textbox', { name: /^Hôte cible/ }), 'db');
-		await user.click(kindRadio(/Dynamique/));
+		await user.type(
+			screen.getByRole('textbox', { name: /^Target host/ }),
+			'db'
+		);
+		await user.click(kindRadio(/Dynamic/));
 
 		await user.click(kindRadio(/Local/));
 
-		expect(screen.getByRole('textbox', { name: /^Hôte cible/ })).toHaveValue(
+		expect(screen.getByRole('textbox', { name: /^Target host/ })).toHaveValue(
 			'db'
 		);
 	});
@@ -515,10 +524,13 @@ describe('TunnelFormDrawer kind selector', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 		await fillRequiredFields(user);
-		await user.type(screen.getByRole('textbox', { name: /^Hôte cible/ }), 'db');
-		await user.click(kindRadio(/Distant/));
+		await user.type(
+			screen.getByRole('textbox', { name: /^Target host/ }),
+			'db'
+		);
+		await user.click(kindRadio(/Remote/));
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		await waitFor(() =>
 			expect(gateway.createTunnel).toHaveBeenCalledWith(
@@ -533,9 +545,7 @@ describe('TunnelFormDrawer opening options', () => {
 		openEditor();
 		renderDrawer();
 
-		expect(
-			screen.getByRole('group', { name: 'Ouverture' })
-		).toBeInTheDocument();
+		expect(screen.getByRole('group', { name: 'Opening' })).toBeInTheDocument();
 	});
 
 	it('should hide the opening fieldset and the standby choice for a remote tunnel', async () => {
@@ -543,13 +553,13 @@ describe('TunnelFormDrawer opening options', () => {
 		const user = userEvent.setup();
 		renderDrawer();
 
-		await user.click(screen.getByRole('radio', { name: /Distant/ }));
+		await user.click(screen.getByRole('radio', { name: /Remote/ }));
 
 		expect(
-			screen.queryByRole('group', { name: 'Ouverture' })
+			screen.queryByRole('group', { name: 'Opening' })
 		).not.toBeInTheDocument();
 		expect(
-			screen.queryByRole('group', { name: 'Veille' })
+			screen.queryByRole('group', { name: 'Standby' })
 		).not.toBeInTheDocument();
 	});
 
@@ -558,7 +568,7 @@ describe('TunnelFormDrawer opening options', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('radio', { name: 'Réglage général (localhost)' })
+			screen.getByRole('radio', { name: 'General setting (localhost)' })
 		).toBeChecked();
 	});
 
@@ -567,7 +577,7 @@ describe('TunnelFormDrawer opening options', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('radio', { name: 'Réglage général (non)' })
+			screen.getByRole('radio', { name: 'General setting (no)' })
 		).toBeChecked();
 	});
 
@@ -576,8 +586,8 @@ describe('TunnelFormDrawer opening options', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('group', { name: 'Veille' })
-		).toHaveAccessibleDescription(/Prend effet au prochain démarrage/);
+			screen.getByRole('group', { name: 'Standby' })
+		).toHaveAccessibleDescription(/Takes effect on the next start/);
 	});
 
 	it('should keep the standby choice for a dynamic tunnel', async () => {
@@ -585,9 +595,9 @@ describe('TunnelFormDrawer opening options', () => {
 		const user = userEvent.setup();
 		renderDrawer();
 
-		await user.click(screen.getByRole('radio', { name: /Dynamique/ }));
+		await user.click(screen.getByRole('radio', { name: /Dynamic/ }));
 
-		expect(screen.getByRole('group', { name: 'Veille' })).toBeInTheDocument();
+		expect(screen.getByRole('group', { name: 'Standby' })).toBeInTheDocument();
 	});
 
 	it('should send the chosen standby when creating', async () => {
@@ -595,9 +605,9 @@ describe('TunnelFormDrawer opening options', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 		await fillRequiredFields(user);
-		await user.click(screen.getByRole('radio', { name: 'Oui' }));
+		await user.click(screen.getByRole('radio', { name: 'Yes' }));
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		expect(gateway.createTunnel).toHaveBeenCalledWith(
 			expect.objectContaining({ standby: true })
@@ -611,10 +621,10 @@ describe('TunnelFormDrawer opening options', () => {
 		await fillRequiredFields(user);
 
 		await user.click(screen.getByRole('radio', { name: /^https/ }));
-		await user.type(screen.getByRole('textbox', { name: /^Chemin/ }), '/admin');
+		await user.type(screen.getByRole('textbox', { name: /^Path/ }), '/admin');
 
 		expect(
-			screen.getByText('Ouvre https://localhost:3333/admin')
+			screen.getByText('Opens https://localhost:3333/admin')
 		).toBeInTheDocument();
 	});
 
@@ -624,10 +634,10 @@ describe('TunnelFormDrawer opening options', () => {
 		const { gateway } = renderDrawer();
 		await fillRequiredFields(user);
 		await user.click(screen.getByRole('radio', { name: /^https/ }));
-		await user.type(screen.getByRole('textbox', { name: /^Chemin/ }), '/admin');
-		await user.click(screen.getByRole('radio', { name: /^Adresse IP/ }));
+		await user.type(screen.getByRole('textbox', { name: /^Path/ }), '/admin');
+		await user.click(screen.getByRole('radio', { name: /^IP address/ }));
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		expect(gateway.createTunnel).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -641,14 +651,14 @@ describe('TunnelFormDrawer opening options', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 		await fillRequiredFields(user);
-		await user.type(screen.getByRole('textbox', { name: /^Chemin/ }), 'admin');
+		await user.type(screen.getByRole('textbox', { name: /^Path/ }), 'admin');
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
-		const path = screen.getByRole('textbox', { name: /^Chemin/ });
+		const path = screen.getByRole('textbox', { name: /^Path/ });
 		expect(path).toBeInvalid();
 		expect(path).toHaveAccessibleDescription(
-			expect.stringContaining('Le chemin doit commencer par « / ».')
+			expect.stringContaining('The path must start with "/".')
 		);
 		expect(gateway.createTunnel).not.toHaveBeenCalled();
 	});
@@ -676,7 +686,7 @@ describe('TunnelFormDrawer application choice', () => {
 
 		expect(
 			within(applicationSelect()).getByRole('option', {
-				name: 'Automatique (Remmina (VNC))',
+				name: 'Automatic (Remmina (VNC))',
 			})
 		).toBeInTheDocument();
 	});
@@ -687,7 +697,7 @@ describe('TunnelFormDrawer application choice', () => {
 
 		expect(
 			within(applicationSelect()).getByRole('option', {
-				name: 'Automatique (Navigateur)',
+				name: 'Automatic (Browser)',
 			})
 		).toBeInTheDocument();
 	});
@@ -701,7 +711,7 @@ describe('TunnelFormDrawer application choice', () => {
 			within(applicationSelect())
 				.getAllByRole('option')
 				.map((option) => option.textContent)
-		).toEqual(['Automatique (Navigateur)', 'Navigateur', 'Remmina (VNC)']);
+		).toEqual(['Automatic (Browser)', 'Browser', 'Remmina (VNC)']);
 		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
@@ -713,7 +723,7 @@ describe('TunnelFormDrawer application choice', () => {
 		await fillRequiredFields(user);
 		await user.selectOptions(applicationSelect(), 'remmina-vnc');
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		expect(gateway.createTunnel).toHaveBeenCalledWith(
 			expect.objectContaining({ open: { with: 'remmina-vnc' } })
@@ -730,7 +740,7 @@ describe('TunnelFormDrawer application choice', () => {
 		await user.selectOptions(applicationSelect(), 'remmina-vnc');
 
 		expect(
-			screen.getByText('Lance remmina -c vnc://localhost:3333')
+			screen.getByText('Runs remmina -c vnc://localhost:3333')
 		).toBeInTheDocument();
 	});
 
@@ -743,7 +753,7 @@ describe('TunnelFormDrawer application choice', () => {
 
 		expect(
 			within(applicationSelect()).getByRole('option', {
-				name: 'gone (indisponible)',
+				name: 'gone (unavailable)',
 			})
 		).toBeInTheDocument();
 	});
@@ -769,7 +779,7 @@ describe('TunnelFormDrawer when editing', () => {
 
 		expect(
 			screen.getByRole('dialog', {
-				name: 'Modifier nova:5433 → db.internal:5433',
+				name: 'Edit nova:5433 → db.internal:5433',
 			})
 		).toBeInTheDocument();
 	});
@@ -780,8 +790,8 @@ describe('TunnelFormDrawer when editing', () => {
 
 		expect([
 			screen.getByRole('combobox', { name: /^Host/ }),
-			screen.getByRole('textbox', { name: /^Port d'écoute/ }),
-			screen.getByRole('textbox', { name: /^Hôte cible/ }),
+			screen.getByRole('textbox', { name: /^Listen port/ }),
+			screen.getByRole('textbox', { name: /^Target host/ }),
 			screen.getByRole('textbox', { name: /^Tags/ }),
 		]).toEqual([
 			expect.objectContaining({ value: 'nova' }),
@@ -795,18 +805,18 @@ describe('TunnelFormDrawer when editing', () => {
 		storeTunnel();
 		renderDrawer();
 
-		expect(screen.getByText("Suit le port d'écoute")).toBeInTheDocument();
+		expect(screen.getByText('Follows the listen port')).toBeInTheDocument();
 	});
 
 	it('should not link the target port when the tunnel has one', () => {
 		storeTunnel({ targetPort: 5432 });
 		renderDrawer();
 
-		expect(screen.getByRole('textbox', { name: /^Port cible/ })).toHaveValue(
+		expect(screen.getByRole('textbox', { name: /^Target port/ })).toHaveValue(
 			'5432'
 		);
 		expect(
-			screen.getByRole('button', { name: "Lier au port d'écoute" })
+			screen.getByRole('button', { name: 'Link to the listen port' })
 		).toBeInTheDocument();
 	});
 
@@ -814,7 +824,7 @@ describe('TunnelFormDrawer when editing', () => {
 		storeTunnel();
 		renderDrawer();
 
-		expect(screen.getByRole('radio', { name: /Distant/ })).toBeChecked();
+		expect(screen.getByRole('radio', { name: /Remote/ })).toBeChecked();
 	});
 
 	it('should update the tunnel keeping its kind', async () => {
@@ -822,7 +832,7 @@ describe('TunnelFormDrawer when editing', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateTunnel).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -833,16 +843,16 @@ describe('TunnelFormDrawer when editing', () => {
 		);
 	});
 
-	it('should toast "enregistré" after updating', async () => {
+	it('should toast "saved" after updating', async () => {
 		storeTunnel();
 		const user = userEvent.setup();
 		renderDrawer();
 
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts[0]?.message).toBe(
-				'Tunnel nova:5433 → db.internal:5433 enregistré'
+				'Tunnel nova:5433 → db.internal:5433 saved'
 			)
 		);
 	});
@@ -862,22 +872,20 @@ describe('TunnelFormDrawer field errors', () => {
 		const user = userEvent.setup();
 		renderDrawer();
 
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
-		expect(screen.getByText("L'hôte est obligatoire.")).toBeInTheDocument();
+		expect(screen.getByText('The host is required.')).toBeInTheDocument();
 	});
 
 	it('should clear the host error when the user types a host', async () => {
 		openEditor();
 		const user = userEvent.setup();
 		renderDrawer();
-		await user.click(screen.getByRole('button', { name: 'Créer' }));
+		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		await user.type(screen.getByRole('combobox', { name: /^Host/ }), 'b');
 
-		expect(
-			screen.queryByText("L'hôte est obligatoire.")
-		).not.toBeInTheDocument();
+		expect(screen.queryByText('The host is required.')).not.toBeInTheDocument();
 	});
 
 	it.each([
@@ -891,13 +899,13 @@ describe('TunnelFormDrawer field errors', () => {
 			const { gateway } = renderDrawer();
 			await fillRequiredFields(user);
 			const tags = screen.getByRole('textbox', {
-				name: 'Tags séparés par des virgules',
+				name: 'Tags, separated by commas',
 			});
 
 			await user.type(tags, tag);
-			await user.click(screen.getByRole('button', { name: 'Créer' }));
+			await user.click(screen.getByRole('button', { name: 'Create' }));
 
-			expect(tags).toHaveAccessibleDescription(message);
+			expect(tags).toHaveAccessibleDescription(i18n._(message));
 			expect(gateway.createTunnel).not.toHaveBeenCalled();
 		}
 	);

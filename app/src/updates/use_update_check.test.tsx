@@ -29,7 +29,7 @@ describe('useUpdateCheck', () => {
 		renderWithGateway(<App />, gateway);
 
 		expect(
-			await screen.findByRole('region', { name: 'Version 0.2.0 disponible' })
+			await screen.findByRole('region', { name: 'Version 0.2.0 available' })
 		).toBeInTheDocument();
 		expect(gateway.checkForUpdate).toHaveBeenCalledOnce();
 	});
@@ -39,7 +39,7 @@ describe('useUpdateCheck', () => {
 
 		renderWithGateway(<App />, gateway);
 
-		await screen.findByRole('navigation', { name: 'Filtres des tunnels' });
+		await screen.findByRole('navigation', { name: 'Tunnel filters' });
 		await waitFor(() =>
 			expect(useUpdateStore.getState().hasChecked).toBe(true)
 		);
@@ -54,19 +54,19 @@ describe('useUpdateCheck', () => {
 
 		await waitFor(() => expect(gateway.checkForUpdate).toHaveBeenCalled());
 		expect(
-			screen.queryByRole('region', { name: /disponible/ })
+			screen.queryByRole('region', { name: /available/ })
 		).not.toBeInTheDocument();
 	});
 
 	it('should show no message when the check itself fails', async () => {
 		const gateway = buildGateway(true);
-		gateway.checkForUpdate.mockRejectedValue(new Error('hors ligne'));
+		gateway.checkForUpdate.mockRejectedValue(new Error('offline'));
 
 		renderWithGateway(<App />, gateway);
 
 		await waitFor(() => expect(gateway.checkForUpdate).toHaveBeenCalled());
 		expect(
-			screen.queryByRole('region', { name: /disponible/ })
+			screen.queryByRole('region', { name: /available/ })
 		).not.toBeInTheDocument();
 		expect(screen.queryByRole('alert', { name: /./ })).not.toBeInTheDocument();
 	});

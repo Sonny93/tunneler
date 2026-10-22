@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { Button, ModalFooter } from '@minimalstuff/ui';
 
 import type { PendingPrompt } from '#/state/daemon_state';
@@ -17,12 +18,18 @@ export function HostKeyAlertContent({
 	alert,
 	onAcknowledge,
 }: Readonly<HostKeyAlertContentProps>) {
-	const facts = getHostKeyAlertFacts(alert.reason, alert.presentedFingerprint);
-	const advice = getHostKeyAlertAdvice(alert.reason);
+	const { t, i18n } = useLingui();
+	const { alias } = alert;
+	const facts = getHostKeyAlertFacts(
+		alert.reason,
+		alert.presentedFingerprint,
+		i18n
+	);
+	const advice = getHostKeyAlertAdvice(alert.reason, i18n);
 
 	return (
 		<>
-			<p className="mb-3">Connexion à {alert.alias} refusée.</p>
+			<p className="mb-3">{t`Connection to ${alias} refused.`}</p>
 			<dl className="mb-3 flex flex-col gap-2">
 				{facts.map((fact) => (
 					<div key={fact.label}>
@@ -33,7 +40,7 @@ export function HostKeyAlertContent({
 			</dl>
 			{advice && <p>{advice}</p>}
 			<ModalFooter>
-				<Button onClick={onAcknowledge}>J'ai compris</Button>
+				<Button onClick={onAcknowledge}>{t`Got it`}</Button>
 			</ModalFooter>
 		</>
 	);

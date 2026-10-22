@@ -55,7 +55,7 @@ const alertEvent: EventMessage = {
 };
 
 const findSecretInput = () =>
-	screen.findByLabelText('Phrase de passe', { selector: 'input' });
+	screen.findByLabelText('Passphrase', { selector: 'input' });
 
 function renderHost(gateway = createFakeGateway()) {
 	const rendered = renderWithGateway(
@@ -77,18 +77,18 @@ describe('PromptHost credential prompts', () => {
 		receive(credentialEvent('p1', passphraseRequest));
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Phrase de passe' })
+			await screen.findByRole('dialog', { name: 'Passphrase' })
 		).toHaveTextContent(
-			'La clé ~/.ssh/id_ed25519 est chiffrée (connexion à nova).'
+			'The key ~/.ssh/id_ed25519 is encrypted (connecting to nova).'
 		);
 		const secretInput = await findSecretInput();
 		expect(secretInput).toHaveFocus();
 		expect(secretInput).toHaveAttribute('type', 'password');
 		expect(
-			screen.getByRole('radio', { name: "Jusqu'à la fermeture de Tunneler" })
+			screen.getByRole('radio', { name: 'Until Tunneler closes' })
 		).toBeChecked();
 		expect(
-			screen.queryByRole('radio', { name: 'Dans le trousseau du système' })
+			screen.queryByRole('radio', { name: 'In the system keyring' })
 		).not.toBeInTheDocument();
 		expect(await axe(document.body)).toHaveNoViolations();
 	});
@@ -99,7 +99,7 @@ describe('PromptHost credential prompts', () => {
 		receive(credentialEvent('p1', passphraseRequest));
 
 		await user.type(await findSecretInput(), 's3cret');
-		await user.click(screen.getByRole('button', { name: 'Valider' }));
+		await user.click(screen.getByRole('button', { name: 'Submit' }));
 
 		await waitFor(() =>
 			expect(gateway.respondCredential).toHaveBeenCalledWith(
@@ -120,7 +120,7 @@ describe('PromptHost credential prompts', () => {
 		receive(credentialEvent('p1', passphraseRequest));
 
 		await user.type(await findSecretInput(), 'abc');
-		await user.click(screen.getByRole('button', { name: 'Valider' }));
+		await user.click(screen.getByRole('button', { name: 'Submit' }));
 
 		await waitFor(() =>
 			expect(gateway.respondCredential).toHaveBeenCalledWith(
@@ -136,7 +136,7 @@ describe('PromptHost credential prompts', () => {
 		const { receive, gateway } = renderHost();
 		receive(credentialEvent('p1', passphraseRequest));
 
-		await user.click(await screen.findByRole('button', { name: 'Annuler' }));
+		await user.click(await screen.findByRole('button', { name: 'Cancel' }));
 
 		await waitFor(() =>
 			expect(gateway.respondCredential).toHaveBeenCalledWith(
@@ -174,7 +174,7 @@ describe('PromptHost credential prompts', () => {
 		receive(credentialEvent('p1', passphraseRequest));
 
 		expect(
-			await screen.findByRole('radio', { name: 'Dans le trousseau du système' })
+			await screen.findByRole('radio', { name: 'In the system keyring' })
 		).toBeInTheDocument();
 	});
 
@@ -188,9 +188,9 @@ describe('PromptHost credential prompts', () => {
 
 		await user.type(await findSecretInput(), 'abc');
 		await user.click(
-			screen.getByRole('radio', { name: 'Dans le trousseau du système' })
+			screen.getByRole('radio', { name: 'In the system keyring' })
 		);
-		await user.click(screen.getByRole('button', { name: 'Valider' }));
+		await user.click(screen.getByRole('button', { name: 'Submit' }));
 
 		await waitFor(() =>
 			expect(gateway.respondCredential).toHaveBeenCalledWith(
@@ -207,8 +207,8 @@ describe('PromptHost credential prompts', () => {
 		receive(credentialEvent('p1', passphraseRequest));
 
 		await user.type(await findSecretInput(), 'abc');
-		await user.click(screen.getByRole('radio', { name: 'Ne pas mémoriser' }));
-		await user.click(screen.getByRole('button', { name: 'Valider' }));
+		await user.click(screen.getByRole('radio', { name: "Don't remember" }));
+		await user.click(screen.getByRole('button', { name: 'Submit' }));
 
 		await waitFor(() =>
 			expect(gateway.respondCredential).toHaveBeenCalledWith(
@@ -243,8 +243,8 @@ describe('PromptHost credential prompts', () => {
 		);
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Mot de passe' })
-		).toHaveTextContent('Mot de passe de jules@nova.example.com (nova).');
+			await screen.findByRole('dialog', { name: 'Password' })
+		).toHaveTextContent('Password for jules@nova.example.com (nova).');
 		expect(screen.queryByRole('radio')).not.toBeInTheDocument();
 	});
 
@@ -256,7 +256,7 @@ describe('PromptHost credential prompts', () => {
 				kind: 'keyboardInteractive',
 				alias: 'nova',
 				name: 'Duo',
-				instructions: 'Entrez vos codes',
+				instructions: 'Enter your codes',
 				prompts: [
 					{ text: 'Code', echo: true },
 					{ text: 'PIN', echo: false },
@@ -266,7 +266,7 @@ describe('PromptHost credential prompts', () => {
 
 		await user.type(await screen.findByLabelText('Code'), '123');
 		await user.type(screen.getByLabelText('PIN'), '9876');
-		await user.click(screen.getByRole('button', { name: 'Valider' }));
+		await user.click(screen.getByRole('button', { name: 'Submit' }));
 
 		await waitFor(() =>
 			expect(gateway.respondCredential).toHaveBeenCalledWith(
@@ -285,7 +285,7 @@ describe('PromptHost credential prompts', () => {
 				kind: 'keyboardInteractive',
 				alias: 'nova',
 				name: 'Duo',
-				instructions: 'Entrez vos codes',
+				instructions: 'Enter your codes',
 				prompts: [
 					{ text: 'Code', echo: true },
 					{ text: 'PIN', echo: false },
@@ -293,7 +293,7 @@ describe('PromptHost credential prompts', () => {
 			})
 		);
 
-		expect(await screen.findByText('Entrez vos codes')).toBeInTheDocument();
+		expect(await screen.findByText('Enter your codes')).toBeInTheDocument();
 		expect(screen.getByLabelText('Code')).toHaveAttribute('type', 'text');
 		expect(screen.getByLabelText('PIN')).toHaveAttribute('type', 'password');
 	});
@@ -312,9 +312,9 @@ describe('PromptHost credential prompts', () => {
 		);
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Authentification nova' })
+			await screen.findByRole('dialog', { name: 'Authentication for nova' })
 		).toBeInTheDocument();
-		await user.click(screen.getByRole('button', { name: 'Continuer' }));
+		await user.click(screen.getByRole('button', { name: 'Continue' }));
 
 		await waitFor(() =>
 			expect(gateway.respondCredential).toHaveBeenCalledWith(
@@ -335,7 +335,7 @@ describe('PromptHost credential prompts', () => {
 		receive(credentialEvent('p1', passphraseRequest));
 
 		await user.type(await findSecretInput(), 'x');
-		await user.click(screen.getByRole('button', { name: 'Valider' }));
+		await user.click(screen.getByRole('button', { name: 'Submit' }));
 
 		await waitFor(() => expect(useDaemonStore.getState().prompts).toEqual([]));
 		expect(useToastStore.getState().toasts).toEqual([]);
@@ -345,17 +345,17 @@ describe('PromptHost credential prompts', () => {
 		const user = userEvent.setup();
 		const gateway = createFakeGateway();
 		gateway.respondCredential.mockRejectedValueOnce(
-			new DaemonCommandError('io_error', 'canal fermé')
+			new DaemonCommandError('io_error', 'channel closed')
 		);
 		const { receive } = renderHost(gateway);
 		receive(credentialEvent('p1', passphraseRequest));
 
 		await user.type(await findSecretInput(), 'x');
-		await user.click(screen.getByRole('button', { name: 'Valider' }));
+		await user.click(screen.getByRole('button', { name: 'Submit' }));
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts[0]?.message).toBe(
-				'Réponse impossible : canal fermé'
+				"Couldn't send the answer: channel closed"
 			)
 		);
 		expect(useDaemonStore.getState().prompts).toEqual([]);
@@ -380,10 +380,10 @@ describe('PromptHost credential prompts', () => {
 		receive(credentialEvent('p1', passphraseRequest));
 		receive(hostKeyEvent('p2'));
 		await user.type(await findSecretInput(), 'x');
-		await user.click(screen.getByRole('button', { name: 'Valider' }));
+		await user.click(screen.getByRole('button', { name: 'Submit' }));
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Hôte inconnu' })
+			await screen.findByRole('dialog', { name: 'Unknown host' })
 		).toBeInTheDocument();
 	});
 
@@ -403,29 +403,29 @@ describe('PromptHost host key prompts', () => {
 
 		receive(hostKeyEvent('p1'));
 
-		const dialog = await screen.findByRole('dialog', { name: 'Hôte inconnu' });
+		const dialog = await screen.findByRole('dialog', { name: 'Unknown host' });
 		for (const text of [
 			'nova',
 			'[nova.example.com]:2222',
 			'ssh-ed25519',
 			'SHA256:abcdef',
-			"Vérifiez cette empreinte auprès de l'administrateur du serveur avant de l'accepter.",
+			'Check this fingerprint with the server administrator before accepting it.',
 		]) {
 			expect(dialog).toHaveTextContent(text, { normalizeWhitespace: true });
 		}
 		expect(
-			screen.getByRole('button', { name: "Copier l'empreinte" })
+			screen.getByRole('button', { name: 'Copy the fingerprint' })
 		).toBeInTheDocument();
 		await waitFor(() =>
-			expect(screen.getByRole('button', { name: 'Refuser' })).toHaveFocus()
+			expect(screen.getByRole('button', { name: 'Reject' })).toHaveFocus()
 		);
 		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
 	it.each([
-		['Accepter et enregistrer', 'acceptAndSave'],
-		['Accepter une fois', 'acceptOnce'],
-		['Refuser', 'reject'],
+		['Accept and save', 'acceptAndSave'],
+		['Accept once', 'acceptOnce'],
+		['Reject', 'reject'],
 	])('should send the decision of "%s"', async (label, decision) => {
 		const user = userEvent.setup();
 		const { receive, gateway } = renderHost();
@@ -460,20 +460,20 @@ describe('PromptHost host key alerts', () => {
 		receive(alertEvent);
 
 		const dialog = await screen.findByRole('alertdialog', {
-			name: "Clé d'hôte modifiée",
+			name: 'Host key changed',
 		});
 		for (const text of [
-			'Connexion à nova refusée.',
+			'Connection to nova refused.',
 			'SHA256:new',
 			'SHA256:known',
 			'/home/jules/.ssh/known_hosts:12',
-			'supprimez la ligne 12 de /home/jules/.ssh/known_hosts puis réessayez.',
+			'delete line 12 of /home/jules/.ssh/known_hosts and try again.',
 		]) {
 			expect(dialog).toHaveTextContent(text, { normalizeWhitespace: true });
 		}
 		expect(
 			screen.getAllByRole('button').map((button) => button.textContent)
-		).toEqual(["J'ai compris"]);
+		).toEqual(['Got it']);
 		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
@@ -494,9 +494,7 @@ describe('PromptHost host key alerts', () => {
 		const { receive, gateway } = renderHost();
 		receive(alertEvent);
 
-		await user.click(
-			await screen.findByRole('button', { name: "J'ai compris" })
-		);
+		await user.click(await screen.findByRole('button', { name: 'Got it' }));
 
 		await waitFor(() =>
 			expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()

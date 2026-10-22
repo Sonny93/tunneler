@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useDaemonStore } from '#/state/daemon_store';
+import { I18nTestProvider } from '#/testing/i18n_test_provider';
 import { buildSnapshot, buildTunnel } from '#/testing/factories';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 import {
@@ -33,6 +34,11 @@ const activate = (id: string) =>
 		})
 	);
 
+const renderTunnelStateAnnouncements = () =>
+	renderHook(() => useTunnelStateAnnouncements(), {
+		wrapper: I18nTestProvider,
+	});
+
 const politeMessage = () => useAnnouncerStore.getState().polite.message;
 
 describe('useTunnelStateAnnouncements', () => {
@@ -45,7 +51,7 @@ describe('useTunnelStateAnnouncements', () => {
 	});
 
 	it('should not announce the initial snapshot', () => {
-		renderHook(() => useTunnelStateAnnouncements());
+		renderTunnelStateAnnouncements();
 
 		loadTunnels('a', 'b');
 		void act(() => vi.advanceTimersByTime(ANNOUNCEMENT_THROTTLE_MS * 2));
@@ -55,17 +61,17 @@ describe('useTunnelStateAnnouncements', () => {
 
 	it('should announce a single change once the throttle window ends', () => {
 		loadTunnels('a');
-		renderHook(() => useTunnelStateAnnouncements());
+		renderTunnelStateAnnouncements();
 
 		activate('a');
 		void act(() => vi.advanceTimersByTime(ANNOUNCEMENT_THROTTLE_MS));
 
-		expect(politeMessage()).toBe('3001 vers nova:3001 : Actif');
+		expect(politeMessage()).toBe('3001 to nova:3001: Active');
 	});
 
 	it('should wait for the end of the window before announcing', () => {
 		loadTunnels('a');
-		renderHook(() => useTunnelStateAnnouncements());
+		renderTunnelStateAnnouncements();
 
 		activate('a');
 		void act(() => vi.advanceTimersByTime(ANNOUNCEMENT_THROTTLE_MS - 1));
@@ -75,20 +81,20 @@ describe('useTunnelStateAnnouncements', () => {
 
 	it('should group several changes in one announcement', () => {
 		loadTunnels('a', 'b');
-		renderHook(() => useTunnelStateAnnouncements());
+		renderTunnelStateAnnouncements();
 
 		activate('a');
 		activate('b');
 		void act(() => vi.advanceTimersByTime(ANNOUNCEMENT_THROTTLE_MS));
 
 		expect(politeMessage()).toBe(
-			"2 tunnels ont changé d'état. 3001 vers nova:3001 : Actif. 3002 vers nova:3002 : Actif"
+			'2 tunnels changed state. 3001 to nova:3001: Active. 3002 to nova:3002: Active'
 		);
 	});
 
 	it('should ignore changes of health only', () => {
 		loadTunnels('a');
-		renderHook(() => useTunnelStateAnnouncements());
+		renderTunnelStateAnnouncements();
 
 		act(() =>
 			useDaemonStore.getState().applyEvent({
@@ -108,7 +114,7 @@ describe('useTunnelStateAnnouncements', () => {
 
 	it('should stop announcing after unmount', () => {
 		loadTunnels('a');
-		const { unmount } = renderHook(() => useTunnelStateAnnouncements());
+		const { unmount } = renderTunnelStateAnnouncements();
 		activate('a');
 
 		unmount();

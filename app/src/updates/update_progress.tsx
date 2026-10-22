@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useLingui } from '@lingui/react/macro';
 
 import { useUpdateStore } from '#/updates/update_store';
 import { describeUpdateProgress } from '#/updates/describe_update_progress';
@@ -9,8 +10,9 @@ import { describeUpdateProgress } from '#/updates/describe_update_progress';
  * the installation is gone.
  */
 export function UpdateProgress() {
+	const { t, i18n } = useLingui();
 	const progress = useUpdateStore((state) => state.progress);
-	const { percent, text } = describeUpdateProgress(progress);
+	const { percent, text } = describeUpdateProgress(progress, i18n);
 	const containerRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => containerRef.current?.focus(), []);
@@ -22,7 +24,7 @@ export function UpdateProgress() {
 			className="flex w-full max-w-md flex-col gap-1"
 		>
 			<progress
-				aria-label="Progression de la mise à jour"
+				aria-label={t`Update progress`}
 				aria-valuetext={text}
 				max={100}
 				value={percent ?? undefined}

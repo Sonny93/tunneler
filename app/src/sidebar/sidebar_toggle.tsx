@@ -1,5 +1,6 @@
 import { useLayoutEffect } from 'react';
 import { IconButton } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { useUiStore } from '#/state/ui_store';
 import { formatShortcutTooltip } from '#/shared/shortcut_tooltip';
@@ -12,9 +13,10 @@ function isFocusInSidebar(): boolean {
 }
 
 export function SidebarToggle() {
+	const { t } = useLingui();
 	const isCollapsed = useUiStore((state) => state.isSidebarCollapsed);
 	const toggleSidebar = useUiStore((state) => state.toggleSidebar);
-	const label = isCollapsed ? 'Afficher le panneau' : 'Masquer le panneau';
+	const label = isCollapsed ? t`Show the sidebar` : t`Hide the sidebar`;
 
 	useLayoutEffect(() => {
 		if (isCollapsed && isFocusInSidebar())

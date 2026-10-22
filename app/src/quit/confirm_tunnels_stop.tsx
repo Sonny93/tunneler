@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { ConfirmModal } from '@minimalstuff/ui';
 
 import { describeTunnelsToStop } from '#/quit/describe_running_tunnels';
@@ -21,7 +22,7 @@ export function confirmTunnelsStop({
 		title,
 		children: (
 			<>
-				<p>{describeTunnelsToStop(runningCount)}</p>
+				<p>{describeTunnelsToStop(runningCount, i18n)}</p>
 				{consequence !== undefined && <p>{consequence}</p>}
 			</>
 		),

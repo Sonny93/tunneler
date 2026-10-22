@@ -1,9 +1,10 @@
-const SINGLE_CONNECTION_COUNT = 1;
+import type { I18n } from '@lingui/core';
+import { plural, t } from '@lingui/core/macro';
 
-/** « 1 connexion ouverte sera coupée. », « 2 connexions ouvertes seront coupées. » */
-export function describeCutConnections(count: number): string {
-	if (count === SINGLE_CONNECTION_COUNT) {
-		return '1 connexion ouverte sera coupée.';
-	}
-	return `${count} connexions ouvertes seront coupées.`;
+/** `1 open connection will be cut.`, `2 open connections will be cut.` */
+export function describeCutConnections(count: number, i18n: I18n): string {
+	return t(i18n)`${plural(count, {
+		one: '# open connection will be cut.',
+		other: '# open connections will be cut.',
+	})}`;
 }

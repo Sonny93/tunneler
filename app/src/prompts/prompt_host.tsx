@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro';
+
 import { getPromptId } from '#/state/prompt_id';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useModalCall } from '#/shared/use_modal_call';
@@ -12,6 +14,7 @@ import { buildPromptModalRequest } from '#/prompts/prompt_modal_request';
  */
 export function PromptHost(): null {
 	const firstPrompt = useDaemonStore((state) => state.prompts[0] ?? null);
+	const { i18n } = useLingui();
 	const actions = usePromptActions();
 
 	const handleDismissed = (dismissedId: string) => {
@@ -31,7 +34,8 @@ export function PromptHost(): null {
 		actions.acknowledgeAlert(dismissedId);
 	};
 
-	const request = firstPrompt && buildPromptModalRequest(firstPrompt, actions);
+	const request =
+		firstPrompt && buildPromptModalRequest(firstPrompt, actions, i18n);
 	useModalCall(request, handleDismissed);
 
 	return null;

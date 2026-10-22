@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { useEffect, useId, useRef } from 'react';
 import { ContextMenu, MenuItem, Switch } from '@minimalstuff/ui';
 
@@ -16,6 +17,7 @@ type TagFilterRowProps = {
 };
 
 export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
+	const { t, i18n } = useLingui();
 	const { tag, started, total } = summary;
 	const descriptionId = useId();
 	const filter = useResolvedFilter();
@@ -50,36 +52,36 @@ export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
 		if (isEveryTunnelStarted) {
 			void runDaemonAction(
 				(gateway) => gateway.stopTag(tag),
-				'Arrêt impossible'
+				t`Couldn't stop the tunnels`
 			);
 			return;
 		}
 		void runDaemonAction(
 			(gateway) => gateway.startTag(tag),
-			'Démarrage impossible'
+			t`Couldn't start the tunnels`
 		);
 	};
 
 	const menuItems = (
 		<>
 			<MenuItem icon="i-mdi-pencil-outline" onClick={handleRename}>
-				Renommer…
+				{t`Rename…`}
 			</MenuItem>
 			<MenuItem icon="i-mdi-tag-remove-outline" danger onClick={handleDelete}>
-				Supprimer le tag…
+				{t`Delete tag…`}
 			</MenuItem>
 			<MenuItem
 				icon={isEveryTunnelStarted ? 'i-mdi-stop' : 'i-mdi-play'}
 				onClick={handleToggle}
 			>
-				{isEveryTunnelStarted ? 'Arrêter le tag' : 'Démarrer le tag'}
+				{isEveryTunnelStarted ? t`Stop the tag` : t`Start the tag`}
 			</MenuItem>
 			<MenuItem
 				icon="i-mdi-sleep"
 				disabled={!hasAwakeTunnel}
 				onClick={handleStandby}
 			>
-				Mettre en veille le tag
+				{t`Send the tag to standby`}
 			</MenuItem>
 		</>
 	);
@@ -88,7 +90,7 @@ export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
 		<li ref={rowRef}>
 			<ContextMenu
 				items={menuItems}
-				aria-label={`Actions pour le tag ${tag}`}
+				aria-label={t`Actions for tag ${tag}`}
 				className="flex items-center gap-1"
 			>
 				<FilterButton
@@ -99,14 +101,14 @@ export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
 					onSelect={handleSelect}
 				/>
 				<Switch
-					aria-label={`Tous les tunnels du tag ${tag}`}
+					aria-label={t`All tunnels of tag ${tag}`}
 					aria-describedby={descriptionId}
 					checked={isEveryTunnelStarted}
 					onChange={handleToggle}
 					wrapperClassName="shrink-0"
 				/>
 				<span id={descriptionId} className="sr-only">
-					{describeActiveCount(summary)}
+					{describeActiveCount(summary, i18n)}
 				</span>
 			</ContextMenu>
 		</li>

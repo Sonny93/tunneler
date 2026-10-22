@@ -1,9 +1,13 @@
+import type { I18n } from '@lingui/core';
+import { msg, t } from '@lingui/core/macro';
+
 import type { TunnelDefinitionDto } from '#/daemon/protocol';
 
 const LOOPBACK_HOSTS: readonly string[] = ['127.0.0.1', 'localhost', '::1'];
 const DEFAULT_REMOTE_TARGET_HOST = '127.0.0.1';
 export const VISUAL_SEPARATOR = '→';
-export const SPOKEN_SEPARATOR = 'vers';
+/** Resolve with `i18n._(SPOKEN_SEPARATOR)`. */
+export const SPOKEN_SEPARATOR = msg`to`;
 
 type EndpointSource = Pick<
 	TunnelDefinitionDto,
@@ -47,14 +51,20 @@ export function getTunnelEndpointLabel(
 
 /** Same endpoint in words, which screen readers read consistently (no arrow). */
 export function getTunnelAccessibleEndpointLabel(
-	tunnel: Readonly<EndpointSource>
+	tunnel: Readonly<EndpointSource>,
+	i18n: I18n
 ): string {
 	switch (tunnel.kind) {
 		case 'local':
-			return buildLocalLabel(tunnel, SPOKEN_SEPARATOR);
-		case 'remote':
-			return `port ${tunnel.listenPort} du serveur ${tunnel.host} ${SPOKEN_SEPARATOR} ${buildRemoteTarget(tunnel)}`;
-		case 'dynamic':
-			return `proxy SOCKS sur le port ${tunnel.listenPort} via ${tunnel.host}`;
+			return buildLocalLabel(tunnel, i18n._(SPOKEN_SEPARATOR));
+		case 'remote': {
+			const { listenPort, host } = tunnel;
+			const target = buildRemoteTarget(tunnel);
+			return t(i18n)`port ${listenPort} of server ${host} to ${target}`;
+		}
+		case 'dynamic': {
+			const { listenPort, host } = tunnel;
+			return t(i18n)`SOCKS proxy on port ${listenPort} via ${host}`;
+		}
 	}
 }

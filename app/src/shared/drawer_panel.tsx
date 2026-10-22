@@ -1,5 +1,6 @@
 /* oxlint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/prefer-tag-over-role -- modal dialog: the focus trap needs a keydown handler and a native <dialog> cannot be a non-native-modal aria-modal portal panel */
 import { createPortal } from 'react-dom';
+import { useLingui } from '@lingui/react/macro';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { useDisableHotkeysWhileMounted, IconButton } from '@minimalstuff/ui';
 
@@ -19,6 +20,7 @@ export function DrawerPanel({
 	children,
 	footer,
 }: Readonly<DrawerPanelProps>) {
+	const { t } = useLingui();
 	const titleId = useId();
 	const panelRef = useRef<HTMLDivElement>(null);
 	const { handleKeyDown } = useDrawerFocus(panelRef);
@@ -55,7 +57,7 @@ export function DrawerPanel({
 					</h2>
 					<IconButton
 						icon="i-mdi-close"
-						aria-label="Fermer"
+						aria-label={t`Close`}
 						tooltip
 						variant="ghost"
 						color="neutral"

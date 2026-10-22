@@ -17,7 +17,7 @@ import {
 	buildTunnel,
 } from '#/testing/factories';
 
-const LOG_NAME = 'Journal du tunnel 3333 vers nova:3333';
+const LOG_NAME = 'Log of tunnel 3333 to nova:3333';
 
 function setUp(overrides: Parameters<typeof buildTunnel>[0] = {}) {
 	useDaemonStore.setState({
@@ -52,8 +52,8 @@ describe('TunnelDetailsDrawer', () => {
 		setUp({ state: { kind: 'active' } });
 		renderDrawer();
 
-		const section = screen.getByRole('region', { name: 'État' });
-		expect(within(section).getByText('Actif')).toBeInTheDocument();
+		const section = screen.getByRole('region', { name: 'State' });
+		expect(within(section).getByText('Active')).toBeInTheDocument();
 		expect(section).toHaveTextContent('3333');
 	});
 
@@ -68,12 +68,12 @@ describe('TunnelDetailsDrawer', () => {
 		});
 		renderDrawer();
 
-		const section = screen.getByRole('region', { name: 'Métriques' });
-		expect(within(section).getByText('Connexions actives')).toBeInTheDocument();
+		const section = screen.getByRole('region', { name: 'Metrics' });
+		expect(within(section).getByText('Active connections')).toBeInTheDocument();
 		expect(section).toHaveTextContent('7');
-		expect(section).toHaveTextContent('2 Ko');
-		expect(section).toHaveTextContent('512 o');
-		expect(section).toHaveTextContent('Aucune');
+		expect(section).toHaveTextContent('2 KB');
+		expect(section).toHaveTextContent('512 B');
+		expect(section).toHaveTextContent('None');
 	});
 
 	it('should update the metrics live', () => {
@@ -90,7 +90,7 @@ describe('TunnelDetailsDrawer', () => {
 			})
 		);
 
-		expect(screen.getByRole('region', { name: 'Métriques' })).toHaveTextContent(
+		expect(screen.getByRole('region', { name: 'Metrics' })).toHaveTextContent(
 			'42'
 		);
 	});
@@ -110,7 +110,7 @@ describe('TunnelDetailsDrawer', () => {
 		renderDrawer();
 
 		await user.click(
-			screen.getByRole('button', { name: /Copier la commande ssh/ })
+			screen.getByRole('button', { name: /Copy the ssh command/ })
 		);
 
 		expect(await navigator.clipboard.readText()).toBe(
@@ -118,7 +118,7 @@ describe('TunnelDetailsDrawer', () => {
 		);
 		expect(
 			useToastStore.getState().toasts.map((toast) => toast.message)
-		).toEqual(['Commande copiée']);
+		).toEqual(['Command copied']);
 	});
 
 	it('should ask the daemon to open a local forward', async () => {
@@ -126,7 +126,7 @@ describe('TunnelDetailsDrawer', () => {
 		const { gateway } = renderDrawer();
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Ouvrir dans le navigateur' })
+			screen.getByRole('button', { name: 'Open in the browser' })
 		);
 
 		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1', undefined);
@@ -137,7 +137,7 @@ describe('TunnelDetailsDrawer', () => {
 		const { gateway } = renderDrawer();
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Ouvrir dans le navigateur' })
+			screen.getByRole('button', { name: 'Open in the browser' })
 		);
 
 		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1', undefined);
@@ -146,15 +146,15 @@ describe('TunnelDetailsDrawer', () => {
 	it('should report an error toast when opening fails', async () => {
 		setUp();
 		const { gateway } = renderDrawer();
-		gateway.openTunnel.mockRejectedValue(new Error('pas de navigateur'));
+		gateway.openTunnel.mockRejectedValue(new Error('no browser'));
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Ouvrir dans le navigateur' })
+			screen.getByRole('button', { name: 'Open in the browser' })
 		);
 
 		expect(
 			useToastStore.getState().toasts.map((toast) => toast.message)
-		).toEqual(['Ouverture impossible: pas de navigateur']);
+		).toEqual(["Couldn't open the tunnel: no browser"]);
 	});
 
 	it('should disable restart with a visible reason when stopped', () => {
@@ -162,11 +162,11 @@ describe('TunnelDetailsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('button', { name: /Ouvrir dans le navigateur/ })
+			screen.getByRole('button', { name: /Open in the browser/ })
 		).toBeEnabled();
-		expect(screen.getByRole('button', { name: /Redémarrer/ })).toBeDisabled();
+		expect(screen.getByRole('button', { name: /Restart/ })).toBeDisabled();
 		expect(
-			screen.getByText('Disponible quand le tunnel est démarré.')
+			screen.getByText('Available when the tunnel is started.')
 		).toBeInTheDocument();
 	});
 
@@ -175,7 +175,7 @@ describe('TunnelDetailsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.queryByRole('button', { name: /Ouvrir dans le navigateur/ })
+			screen.queryByRole('button', { name: /Open in the browser/ })
 		).not.toBeInTheDocument();
 	});
 
@@ -184,7 +184,7 @@ describe('TunnelDetailsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.queryByRole('button', { name: /Tester la cible/ })
+			screen.queryByRole('button', { name: /Check the target/ })
 		).not.toBeInTheDocument();
 	});
 
@@ -193,7 +193,7 @@ describe('TunnelDetailsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('button', { name: 'Tester la cible' })
+			screen.getByRole('button', { name: 'Check the target' })
 		).toBeEnabled();
 	});
 
@@ -202,10 +202,10 @@ describe('TunnelDetailsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('button', { name: /Tester la cible/ })
-		).toHaveAccessibleDescription('Disponible quand le tunnel est démarré.');
+			screen.getByRole('button', { name: /Check the target/ })
+		).toHaveAccessibleDescription('Available when the tunnel is started.');
 		expect(
-			screen.getByRole('button', { name: /Tester la cible/ })
+			screen.getByRole('button', { name: /Check the target/ })
 		).toBeDisabled();
 	});
 
@@ -214,14 +214,14 @@ describe('TunnelDetailsDrawer', () => {
 		const { gateway } = renderDrawer();
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Tester la cible' })
+			screen.getByRole('button', { name: 'Check the target' })
 		);
 
 		expect(gateway.checkTarget).toHaveBeenCalledWith('tunnel-1');
 		await waitFor(() =>
 			expect(
 				useToastStore.getState().toasts.map((toast) => toast.message)
-			).toEqual(['Cible joignable'])
+			).toEqual(['Target reachable'])
 		);
 	});
 
@@ -236,13 +236,13 @@ describe('TunnelDetailsDrawer', () => {
 		renderDrawer(gateway);
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Tester la cible' })
+			screen.getByRole('button', { name: 'Check the target' })
 		);
 
 		await waitFor(() =>
 			expect(
 				useToastStore.getState().toasts.map((toast) => toast.message)
-			).toEqual(['Cible injoignable : connection refused'])
+			).toEqual(['Target unreachable: connection refused'])
 		);
 	});
 
@@ -250,18 +250,18 @@ describe('TunnelDetailsDrawer', () => {
 		setUp({ state: { kind: 'active' } });
 		const gateway = createFakeGateway();
 		gateway.checkTarget.mockRejectedValue(
-			new DaemonCommandError('invalid_state', 'le tunnel est arrêté')
+			new DaemonCommandError('invalid_state', 'the tunnel is stopped')
 		);
 		renderDrawer(gateway);
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Tester la cible' })
+			screen.getByRole('button', { name: 'Check the target' })
 		);
 
 		await waitFor(() =>
 			expect(
 				useToastStore.getState().toasts.map((toast) => toast.message)
-			).toEqual(['Test de la cible impossible : le tunnel est arrêté'])
+			).toEqual(["Couldn't check the target: the tunnel is stopped"])
 		);
 	});
 
@@ -269,7 +269,7 @@ describe('TunnelDetailsDrawer', () => {
 		setUp({ state: { kind: 'active' } });
 		const { gateway } = renderDrawer();
 
-		await userEvent.click(screen.getByRole('button', { name: /Redémarrer/ }));
+		await userEvent.click(screen.getByRole('button', { name: /Restart/ }));
 
 		expect(gateway.restartTunnel).toHaveBeenCalledWith('tunnel-1');
 	});
@@ -279,7 +279,7 @@ describe('TunnelDetailsDrawer', () => {
 		const { gateway } = renderDrawer();
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Mettre en veille' })
+			screen.getByRole('button', { name: 'Send to standby' })
 		);
 
 		await waitFor(() =>
@@ -292,7 +292,7 @@ describe('TunnelDetailsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.queryByRole('button', { name: 'Mettre en veille' })
+			screen.queryByRole('button', { name: 'Send to standby' })
 		).not.toBeInTheDocument();
 	});
 
@@ -300,7 +300,7 @@ describe('TunnelDetailsDrawer', () => {
 		setUp();
 		renderDrawer();
 
-		await userEvent.click(screen.getByRole('button', { name: /Modifier/ }));
+		await userEvent.click(screen.getByRole('button', { name: /Edit/ }));
 
 		expect(useUiStore.getState().panel).toEqual({
 			kind: 'tunnelEditor',
@@ -324,9 +324,7 @@ describe('TunnelDetailsDrawer', () => {
 			setUp();
 			renderDrawer();
 
-			expect(
-				await screen.findByText('Aucun événement enregistré')
-			).toBeInTheDocument();
+			expect(await screen.findByText('No events recorded')).toBeInTheDocument();
 		});
 
 		it('should show the fetched entries with level text and time', async () => {
@@ -339,7 +337,7 @@ describe('TunnelDetailsDrawer', () => {
 
 			const log = await screen.findByRole('log', { name: LOG_NAME });
 			expect(gateway.tunnelLogs).toHaveBeenCalledWith('tunnel-1');
-			expect(within(log).getByText('Avertissement')).toBeInTheDocument();
+			expect(within(log).getByText('Warning')).toBeInTheDocument();
 			expect(within(log).getByText('retrying')).toHaveAttribute('lang', 'en');
 		});
 
@@ -404,14 +402,14 @@ describe('TunnelDetailsDrawer', () => {
 			setUp();
 			const gateway = createFakeGateway();
 			gateway.tunnelLogs.mockRejectedValueOnce(
-				new DaemonCommandError('not_found', 'tunnel introuvable')
+				new DaemonCommandError('not_found', 'tunnel not found')
 			);
 			renderDrawer(gateway);
 
 			expect(await screen.findByRole('alert')).toHaveTextContent(
-				'Journal indisponible : tunnel introuvable'
+				'Log unavailable: tunnel not found'
 			);
-			await userEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+			await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
 			expect(
 				await screen.findByRole('log', { name: LOG_NAME })
@@ -439,15 +437,15 @@ describe('TunnelDetailsDrawer for a temporary tunnel', () => {
 		renderDrawer();
 
 		const actions = screen.getByRole('region', { name: 'Actions' });
-		expect(screen.getAllByText('Temporaire')).toHaveLength(1);
+		expect(screen.getAllByText('Temporary')).toHaveLength(1);
 		expect(
-			within(actions).queryByRole('button', { name: 'Modifier' })
+			within(actions).queryByRole('button', { name: 'Edit' })
 		).not.toBeInTheDocument();
 		expect(
-			within(actions).getByRole('button', { name: 'Enregistrer le tunnel' })
+			within(actions).getByRole('button', { name: 'Save tunnel' })
 		).toBeInTheDocument();
 		expect(
-			within(actions).getByRole('button', { name: 'Arrêter et retirer' })
+			within(actions).getByRole('button', { name: 'Stop and remove' })
 		).toBeInTheDocument();
 	});
 
@@ -455,9 +453,7 @@ describe('TunnelDetailsDrawer for a temporary tunnel', () => {
 		setUp({ isTemporary: true });
 		const { gateway } = renderDrawer();
 
-		await userEvent.click(
-			screen.getByRole('button', { name: 'Enregistrer le tunnel' })
-		);
+		await userEvent.click(screen.getByRole('button', { name: 'Save tunnel' }));
 
 		expect(gateway.persistTunnel).toHaveBeenCalledWith('tunnel-1');
 	});
@@ -478,18 +474,16 @@ describe('TunnelDetailsDrawer for a temporary tunnel', () => {
 			renderDrawer();
 
 			expect(
-				screen.getByRole('button', { name: 'Ouvrir avec Remmina (VNC)' })
+				screen.getByRole('button', { name: 'Open with Remmina (VNC)' })
 			).toBeInTheDocument();
 		});
 
-		it('should offer the other choices in an "Ouvrir avec…" menu', async () => {
+		it('should offer the other choices in an "Open with…" menu', async () => {
 			useDaemonStore.setState({ openers: [vnc] });
 			setUp();
 			const { gateway } = renderDrawer();
 
-			await userEvent.click(
-				screen.getByRole('button', { name: /Ouvrir avec…/ })
-			);
+			await userEvent.click(screen.getByRole('button', { name: /Open with…/ }));
 			await userEvent.click(
 				screen.getByRole('menuitem', { name: 'Remmina (VNC)' })
 			);
@@ -505,7 +499,7 @@ describe('TunnelDetailsDrawer for a temporary tunnel', () => {
 			renderDrawer();
 
 			expect(
-				screen.queryByRole('button', { name: /Ouvrir avec…/ })
+				screen.queryByRole('button', { name: /Open with…/ })
 			).not.toBeInTheDocument();
 		});
 
@@ -513,9 +507,7 @@ describe('TunnelDetailsDrawer for a temporary tunnel', () => {
 			useDaemonStore.setState({ openers: [vnc] });
 			setUp();
 			renderDrawer();
-			await userEvent.click(
-				screen.getByRole('button', { name: /Ouvrir avec…/ })
-			);
+			await userEvent.click(screen.getByRole('button', { name: /Open with…/ }));
 
 			expect(await axe(screen.getByRole('menu'))).toHaveNoViolations();
 		});

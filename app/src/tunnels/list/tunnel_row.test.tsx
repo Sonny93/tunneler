@@ -28,7 +28,7 @@ describe('TunnelRow', () => {
 
 		expect(
 			screen.getByRole('switch', {
-				name: 'Tunnel 3333 vers nova:3333, actif',
+				name: 'Tunnel 3333 to nova:3333, active',
 			})
 		).toBeChecked();
 	});
@@ -43,7 +43,7 @@ describe('TunnelRow', () => {
 		renderRow({ tags: ['dev'] });
 
 		expect(screen.getByText('3333 → nova:3333')).toBeInTheDocument();
-		expect(screen.getByText('Arrêté')).toBeInTheDocument();
+		expect(screen.getByText('Stopped')).toBeInTheDocument();
 		expect(screen.getByText('dev')).toBeInTheDocument();
 	});
 
@@ -51,7 +51,7 @@ describe('TunnelRow', () => {
 		renderRow();
 
 		expect(
-			screen.getByRole('checkbox', { name: 'Sélectionner 3333 vers nova:3333' })
+			screen.getByRole('checkbox', { name: 'Select 3333 to nova:3333' })
 		).not.toBeChecked();
 	});
 
@@ -72,7 +72,7 @@ describe('TunnelRow', () => {
 		);
 
 		expect(
-			screen.getByRole('checkbox', { name: 'Sélectionner 3333 vers nova:3333' })
+			screen.getByRole('checkbox', { name: 'Select 3333 to nova:3333' })
 		).toBeChecked();
 	});
 
@@ -110,7 +110,7 @@ describe('TunnelRow', () => {
 		await userEvent.click(screen.getByRole('switch'));
 
 		expect(useToastStore.getState().toasts[0]?.message).toContain(
-			'Démarrage impossible'
+			"Couldn't start the tunnel"
 		);
 	});
 
@@ -122,7 +122,7 @@ describe('TunnelRow', () => {
 		await userEvent.click(screen.getByRole('switch'));
 
 		expect(useToastStore.getState().toasts[0]?.message).toContain(
-			'Arrêt impossible'
+			"Couldn't stop the tunnel"
 		);
 	});
 
@@ -137,22 +137,20 @@ describe('TunnelRow', () => {
 		});
 
 		expect(
-			screen.getByText(/2 connexions, .* reçus, .* envoyés/)
+			screen.getByText(/2 connections, .* received, .* sent/)
 		).toBeInTheDocument();
 	});
 
 	it('should not show traffic for a stopped tunnel', () => {
 		renderRow();
 
-		expect(screen.queryByText(/connexion/)).not.toBeInTheDocument();
+		expect(screen.queryByText(/connection/)).not.toBeInTheDocument();
 	});
 
-	it('should read the endpoint with vers instead of the arrow', () => {
+	it('should read the endpoint with to instead of the arrow', () => {
 		renderRow();
 
-		expect(screen.getAllByText('3333 vers nova:3333').length).toBeGreaterThan(
-			0
-		);
+		expect(screen.getAllByText('3333 to nova:3333').length).toBeGreaterThan(0);
 	});
 
 	it('should describe the failure reason on the switch when the tunnel failed', () => {
@@ -161,7 +159,7 @@ describe('TunnelRow', () => {
 		});
 
 		expect(screen.getByRole('switch')).toHaveAccessibleDescription(
-			'Connexion SSH impossible : boom'
+			'SSH connection failed: boom'
 		);
 	});
 
@@ -203,7 +201,7 @@ describe('TunnelRow', () => {
 		});
 
 		expect(screen.getByRole('switch')).toHaveAccessibleDescription(
-			'fourni par ssh (pid 4242)'
+			'provided by ssh (pid 4242)'
 		);
 	});
 
@@ -211,7 +209,7 @@ describe('TunnelRow', () => {
 		renderRow({ state: { kind: 'conflict' } });
 
 		expect(screen.getByRole('switch')).toHaveAccessibleDescription(
-			'port occupé par un processus inconnu'
+			'port in use by an unknown process'
 		);
 	});
 

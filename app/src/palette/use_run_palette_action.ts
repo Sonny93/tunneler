@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro';
+
 import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useDeleteTag } from '#/tag_delete/use_delete_tag';
@@ -9,6 +11,7 @@ type RunPaletteAction = (action: PaletteAction) => void;
 
 /** Runs a palette action with the same effects as the matching buttons and menu items. */
 export function useRunPaletteAction(): RunPaletteAction {
+	const { t } = useLingui();
 	const runDaemonAction = useDaemonAction();
 	const deleteTag = useDeleteTag();
 	const { sendTunnel, sendTag, sendAll } = useSendToStandby();
@@ -35,7 +38,7 @@ export function useRunPaletteAction(): RunPaletteAction {
 			case 'revealConfig':
 				return void runDaemonAction(
 					(gateway) => gateway.revealConfig(),
-					'Ouverture impossible'
+					t`Couldn't open the folder`
 				);
 			case 'renameTag':
 				return ui.openTagRename(action.tag, 'palette');
@@ -56,12 +59,12 @@ export function useRunPaletteAction(): RunPaletteAction {
 			case 'startTunnel':
 				return void runDaemonAction(
 					(gateway) => gateway.startTunnel(action.tunnelId),
-					'Démarrage impossible'
+					t`Couldn't start the tunnel`
 				);
 			case 'stopTunnel':
 				return void runDaemonAction(
 					(gateway) => gateway.stopTunnel(action.tunnelId),
-					'Arrêt impossible'
+					t`Couldn't stop the tunnel`
 				);
 			case 'standbyTunnel':
 				return void sendStandbyTunnel(action.tunnelId);
@@ -72,17 +75,17 @@ export function useRunPaletteAction(): RunPaletteAction {
 			case 'startTag':
 				return void runDaemonAction(
 					(gateway) => gateway.startTag(action.tag),
-					'Démarrage impossible'
+					t`Couldn't start the tunnels`
 				);
 			case 'stopTag':
 				return void runDaemonAction(
 					(gateway) => gateway.stopTag(action.tag),
-					'Arrêt impossible'
+					t`Couldn't stop the tunnels`
 				);
 			case 'openTunnel':
 				return void runDaemonAction(
 					(gateway) => gateway.openTunnel(action.id, action.opener),
-					'Ouverture impossible'
+					t`Couldn't open the tunnel`
 				);
 		}
 	};

@@ -1,7 +1,9 @@
-const SINGLE_TUNNEL = 1;
+import type { I18n } from '@lingui/core';
+import { plural, t } from '@lingui/core/macro';
 
-export function describeTunnelsToStop(count: number): string {
-	if (count === SINGLE_TUNNEL)
-		return '1 tunnel ou session X11 en cours sera arrêté.';
-	return `${count} tunnels ou sessions X11 en cours seront arrêtés.`;
+export function describeTunnelsToStop(count: number, i18n: I18n): string {
+	return t(i18n)`${plural(count, {
+		one: '# running tunnel or X11 session will be stopped.',
+		other: '# running tunnels or X11 sessions will be stopped.',
+	})}`;
 }

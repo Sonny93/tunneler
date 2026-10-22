@@ -20,9 +20,9 @@ function Harness() {
 
 	return (
 		<>
-			<button onClick={() => void sendTunnel(tunnel)}>Un tunnel</button>
-			<button onClick={() => void sendTag('dev')}>Un tag</button>
-			<button onClick={() => void sendAll()}>Tous</button>
+			<button onClick={() => void sendTunnel(tunnel)}>One tunnel</button>
+			<button onClick={() => void sendTag('dev')}>One tag</button>
+			<button onClick={() => void sendAll()}>All</button>
 		</>
 	);
 }
@@ -44,7 +44,7 @@ describe('useSendToStandby', () => {
 		});
 		const { gateway } = renderHarness();
 
-		await userEvent.click(screen.getByRole('button', { name: 'Un tunnel' }));
+		await userEvent.click(screen.getByRole('button', { name: 'One tunnel' }));
 
 		await waitFor(() =>
 			expect(gateway.standbyTunnel).toHaveBeenCalledWith('a')
@@ -58,12 +58,12 @@ describe('useSendToStandby', () => {
 		});
 		const { gateway } = renderHarness();
 
-		await userEvent.click(screen.getByRole('button', { name: 'Un tunnel' }));
+		await userEvent.click(screen.getByRole('button', { name: 'One tunnel' }));
 
 		const dialog = await screen.findByRole('alertdialog', {
-			name: 'Mettre en veille le tunnel 3333 → nova:3333 ?',
+			name: 'Send tunnel 3333 → nova:3333 to standby?',
 		});
-		expect(dialog).toHaveTextContent('2 connexions ouvertes seront coupées.');
+		expect(dialog).toHaveTextContent('2 open connections will be cut.');
 		expect(gateway.standbyTunnel).not.toHaveBeenCalled();
 	});
 
@@ -72,10 +72,10 @@ describe('useSendToStandby', () => {
 			tunnels: [buildTunnel({ id: 'a', isAwake: true, metrics: connected(1) })],
 		});
 		const { gateway } = renderHarness();
-		await userEvent.click(screen.getByRole('button', { name: 'Un tunnel' }));
+		await userEvent.click(screen.getByRole('button', { name: 'One tunnel' }));
 
 		await userEvent.click(
-			await screen.findByRole('button', { name: 'Mettre en veille' })
+			await screen.findByRole('button', { name: 'Send to standby' })
 		);
 
 		await waitFor(() =>
@@ -88,10 +88,10 @@ describe('useSendToStandby', () => {
 			tunnels: [buildTunnel({ id: 'a', isAwake: true, metrics: connected(1) })],
 		});
 		const { gateway } = renderHarness();
-		await userEvent.click(screen.getByRole('button', { name: 'Un tunnel' }));
+		await userEvent.click(screen.getByRole('button', { name: 'One tunnel' }));
 
 		await userEvent.click(
-			await screen.findByRole('button', { name: 'Annuler' })
+			await screen.findByRole('button', { name: 'Cancel' })
 		);
 
 		await waitFor(() =>
@@ -120,14 +120,14 @@ describe('useSendToStandby', () => {
 		});
 		const { gateway } = renderHarness();
 
-		await userEvent.click(screen.getByRole('button', { name: 'Un tag' }));
+		await userEvent.click(screen.getByRole('button', { name: 'One tag' }));
 
 		const dialog = await screen.findByRole('alertdialog', {
-			name: 'Mettre en veille le tag dev ?',
+			name: 'Send tag dev to standby?',
 		});
-		expect(dialog).toHaveTextContent('1 connexion ouverte sera coupée.');
+		expect(dialog).toHaveTextContent('1 open connection will be cut.');
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Mettre en veille' })
+			screen.getByRole('button', { name: 'Send to standby' })
 		);
 		await waitFor(() => expect(gateway.standbyTag).toHaveBeenCalledWith('dev'));
 	});
@@ -138,7 +138,7 @@ describe('useSendToStandby', () => {
 		});
 		const { gateway } = renderHarness();
 
-		await userEvent.click(screen.getByRole('button', { name: 'Tous' }));
+		await userEvent.click(screen.getByRole('button', { name: 'All' }));
 
 		await waitFor(() => expect(gateway.standbyAll).toHaveBeenCalledTimes(1));
 		expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -150,13 +150,13 @@ describe('useSendToStandby', () => {
 		});
 		const { gateway } = renderHarness();
 
-		await userEvent.click(screen.getByRole('button', { name: 'Tous' }));
+		await userEvent.click(screen.getByRole('button', { name: 'All' }));
 
 		expect(
 			await screen.findByRole('alertdialog', {
-				name: 'Mettre en veille les tunnels réveillés ?',
+				name: 'Send the awake tunnels to standby?',
 			})
-		).toHaveTextContent('3 connexions ouvertes seront coupées.');
+		).toHaveTextContent('3 open connections will be cut.');
 		expect(gateway.standbyAll).not.toHaveBeenCalled();
 	});
 
@@ -168,11 +168,11 @@ describe('useSendToStandby', () => {
 		);
 		renderHarness(gateway);
 
-		await userEvent.click(screen.getByRole('button', { name: 'Tous' }));
+		await userEvent.click(screen.getByRole('button', { name: 'All' }));
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts[0]?.message).toBe(
-				'Mise en veille impossible: boom'
+				"Couldn't send to standby: boom"
 			)
 		);
 	});

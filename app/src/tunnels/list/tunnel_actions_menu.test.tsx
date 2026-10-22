@@ -26,7 +26,7 @@ function renderMenu(
 }
 
 async function openMenu() {
-	await userEvent.click(screen.getByRole('button', { name: /^Actions pour / }));
+	await userEvent.click(screen.getByRole('button', { name: /^Actions for / }));
 }
 
 describe('TunnelActionsMenu', () => {
@@ -37,13 +37,7 @@ describe('TunnelActionsMenu', () => {
 
 		expect(
 			screen.getAllByRole('menuitem').map((item) => item.textContent)
-		).toEqual([
-			'Détails',
-			'Ouvrir dans le navigateur',
-			'Modifier',
-			'Redémarrer',
-			'Supprimer',
-		]);
+		).toEqual(['Details', 'Open in the browser', 'Edit', 'Restart', 'Delete']);
 	});
 
 	it('should name the group of control items', async () => {
@@ -51,12 +45,12 @@ describe('TunnelActionsMenu', () => {
 
 		await openMenu();
 
-		const group = screen.getByRole('group', { name: 'Contrôle' });
+		const group = screen.getByRole('group', { name: 'Control' });
 		expect(
 			within(group)
 				.getAllByRole('menuitem')
 				.map((item) => item.textContent)
-		).toEqual(['Modifier', 'Redémarrer', 'Supprimer']);
+		).toEqual(['Edit', 'Restart', 'Delete']);
 	});
 
 	it('should offer to put an awake tunnel back to standby after the restart', async () => {
@@ -64,12 +58,12 @@ describe('TunnelActionsMenu', () => {
 
 		await openMenu();
 
-		const group = screen.getByRole('group', { name: 'Contrôle' });
+		const group = screen.getByRole('group', { name: 'Control' });
 		expect(
 			within(group)
 				.getAllByRole('menuitem')
 				.map((item) => item.textContent)
-		).toEqual(['Modifier', 'Redémarrer', 'Mettre en veille', 'Supprimer']);
+		).toEqual(['Edit', 'Restart', 'Send to standby', 'Delete']);
 	});
 
 	it('should send the awake tunnel to standby from the menu', async () => {
@@ -80,7 +74,7 @@ describe('TunnelActionsMenu', () => {
 		await openMenu();
 
 		await userEvent.click(
-			screen.getByRole('menuitem', { name: 'Mettre en veille' })
+			screen.getByRole('menuitem', { name: 'Send to standby' })
 		);
 
 		await waitFor(() =>
@@ -94,7 +88,7 @@ describe('TunnelActionsMenu', () => {
 		await openMenu();
 
 		expect(
-			screen.queryByRole('menuitem', { name: 'Mettre en veille' })
+			screen.queryByRole('menuitem', { name: 'Send to standby' })
 		).not.toBeInTheDocument();
 	});
 
@@ -104,7 +98,7 @@ describe('TunnelActionsMenu', () => {
 		await openMenu();
 
 		expect(
-			screen.queryByRole('menuitem', { name: 'Ouvrir dans le navigateur' })
+			screen.queryByRole('menuitem', { name: 'Open in the browser' })
 		).not.toBeInTheDocument();
 	});
 
@@ -114,7 +108,7 @@ describe('TunnelActionsMenu', () => {
 		await openMenu();
 
 		expect(
-			screen.getByRole('menuitem', { name: 'Ouvrir dans le navigateur' })
+			screen.getByRole('menuitem', { name: 'Open in the browser' })
 		).toBeEnabled();
 	});
 
@@ -124,7 +118,7 @@ describe('TunnelActionsMenu', () => {
 		await openMenu();
 
 		await userEvent.click(
-			screen.getByRole('menuitem', { name: 'Ouvrir dans le navigateur' })
+			screen.getByRole('menuitem', { name: 'Open in the browser' })
 		);
 
 		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1', undefined);
@@ -134,7 +128,7 @@ describe('TunnelActionsMenu', () => {
 		renderMenu();
 		await openMenu();
 
-		await userEvent.click(screen.getByRole('menuitem', { name: 'Détails' }));
+		await userEvent.click(screen.getByRole('menuitem', { name: 'Details' }));
 
 		expect(useUiStore.getState().panel).toEqual({
 			kind: 'tunnelDetails',
@@ -146,7 +140,7 @@ describe('TunnelActionsMenu', () => {
 		renderMenu();
 		await openMenu();
 
-		await userEvent.click(screen.getByRole('menuitem', { name: 'Modifier' }));
+		await userEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
 
 		expect(useUiStore.getState().panel).toEqual({
 			kind: 'tunnelEditor',
@@ -159,14 +153,14 @@ describe('TunnelActionsMenu', () => {
 
 		await openMenu();
 
-		expect(screen.getByRole('menuitem', { name: 'Redémarrer' })).toBeDisabled();
+		expect(screen.getByRole('menuitem', { name: 'Restart' })).toBeDisabled();
 	});
 
 	it('should restart a running tunnel', async () => {
 		const { gateway } = renderMenu({ state: { kind: 'active' } });
 		await openMenu();
 
-		await userEvent.click(screen.getByRole('menuitem', { name: 'Redémarrer' }));
+		await userEvent.click(screen.getByRole('menuitem', { name: 'Restart' }));
 
 		expect(gateway.restartTunnel).toHaveBeenCalledWith('tunnel-1');
 	});
@@ -175,11 +169,11 @@ describe('TunnelActionsMenu', () => {
 		const { gateway } = renderMenu();
 		await openMenu();
 
-		await userEvent.click(screen.getByRole('menuitem', { name: 'Supprimer' }));
+		await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
 
 		expect(
 			await screen.findByRole('alertdialog', {
-				name: 'Supprimer le tunnel 3333 → nova:3333 ?',
+				name: 'Delete tunnel 3333 → nova:3333?',
 			})
 		).toBeInTheDocument();
 		expect(gateway.deleteTunnel).not.toHaveBeenCalled();
@@ -188,25 +182,25 @@ describe('TunnelActionsMenu', () => {
 	it('should delete the tunnel and confirm with a toast when confirmed', async () => {
 		const { gateway } = renderMenu();
 		await openMenu();
-		await userEvent.click(screen.getByRole('menuitem', { name: 'Supprimer' }));
+		await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
 
 		await userEvent.click(
-			await screen.findByRole('button', { name: 'Supprimer' })
+			await screen.findByRole('button', { name: 'Delete' })
 		);
 
 		expect(gateway.deleteTunnel).toHaveBeenCalledWith('tunnel-1');
 		expect(useToastStore.getState().toasts[0]?.message).toBe(
-			'Tunnel 3333 → nova:3333 supprimé'
+			'Tunnel 3333 → nova:3333 deleted'
 		);
 	});
 
 	it('should keep the tunnel when the deletion is cancelled', async () => {
 		const { gateway } = renderMenu();
 		await openMenu();
-		await userEvent.click(screen.getByRole('menuitem', { name: 'Supprimer' }));
+		await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
 
 		await userEvent.click(
-			await screen.findByRole('button', { name: 'Annuler' })
+			await screen.findByRole('button', { name: 'Cancel' })
 		);
 
 		expect(gateway.deleteTunnel).not.toHaveBeenCalled();
@@ -217,14 +211,14 @@ describe('TunnelActionsMenu', () => {
 		gateway.deleteTunnel.mockRejectedValue(new Error('boom'));
 		renderMenu({}, gateway);
 		await openMenu();
-		await userEvent.click(screen.getByRole('menuitem', { name: 'Supprimer' }));
+		await userEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
 
 		await userEvent.click(
-			await screen.findByRole('button', { name: 'Supprimer' })
+			await screen.findByRole('button', { name: 'Delete' })
 		);
 
 		expect(useToastStore.getState().toasts[0]?.message).toContain(
-			'Suppression impossible'
+			"Couldn't delete the tunnel"
 		);
 	});
 
@@ -248,14 +242,14 @@ describe('TunnelActionsMenu', () => {
 			expect(
 				screen.getAllByRole('menuitem').map((item) => item.textContent)
 			).toEqual([
-				'Détails',
-				'Ouvrir dans le navigateur',
-				'Adopter',
-				'Arrêter le processus externe…',
-				'Ignorer',
-				'Modifier',
-				'Redémarrer',
-				'Supprimer',
+				'Details',
+				'Open in the browser',
+				'Adopt',
+				'Stop the external process…',
+				'Ignore',
+				'Edit',
+				'Restart',
+				'Delete',
 			]);
 		});
 
@@ -264,12 +258,12 @@ describe('TunnelActionsMenu', () => {
 			gateway.adoptExternal.mockResolvedValue(['tunnel-1']);
 			await openMenu();
 
-			await userEvent.click(screen.getByRole('menuitem', { name: 'Adopter' }));
+			await userEvent.click(screen.getByRole('menuitem', { name: 'Adopt' }));
 
 			expect(gateway.adoptExternal).toHaveBeenCalledWith('tunnel-1');
 			await waitFor(() =>
 				expect(useToastStore.getState().toasts[0]?.message).toBe(
-					'Tunnel 3333 → nova:3333 adopté'
+					'Tunnel 3333 → nova:3333 adopted'
 				)
 			);
 		});
@@ -279,11 +273,11 @@ describe('TunnelActionsMenu', () => {
 			gateway.adoptExternal.mockResolvedValue(['a', 'b']);
 			await openMenu();
 
-			await userEvent.click(screen.getByRole('menuitem', { name: 'Adopter' }));
+			await userEvent.click(screen.getByRole('menuitem', { name: 'Adopt' }));
 
 			await waitFor(() =>
 				expect(useToastStore.getState().toasts[0]?.message).toBe(
-					'2 tunnels adoptés'
+					'2 tunnels adopted'
 				)
 			);
 		});
@@ -294,11 +288,11 @@ describe('TunnelActionsMenu', () => {
 			renderMenu(external, gateway);
 			await openMenu();
 
-			await userEvent.click(screen.getByRole('menuitem', { name: 'Adopter' }));
+			await userEvent.click(screen.getByRole('menuitem', { name: 'Adopt' }));
 
 			await waitFor(() =>
 				expect(useToastStore.getState().toasts[0]?.message).toContain(
-					'Adoption impossible'
+					"Couldn't adopt the tunnel"
 				)
 			);
 		});
@@ -308,12 +302,12 @@ describe('TunnelActionsMenu', () => {
 			await openMenu();
 
 			await userEvent.click(
-				screen.getByRole('menuitem', { name: 'Arrêter le processus externe…' })
+				screen.getByRole('menuitem', { name: 'Stop the external process…' })
 			);
 
 			expect(
 				await screen.findByRole('alertdialog', {
-					name: 'Arrêter ssh (pid 4242) ?',
+					name: 'Stop ssh (pid 4242)?',
 				})
 			).toBeInTheDocument();
 			expect(gateway.killExternal).not.toHaveBeenCalled();
@@ -323,11 +317,11 @@ describe('TunnelActionsMenu', () => {
 			const { gateway } = renderMenu(external);
 			await openMenu();
 			await userEvent.click(
-				screen.getByRole('menuitem', { name: 'Arrêter le processus externe…' })
+				screen.getByRole('menuitem', { name: 'Stop the external process…' })
 			);
 
 			await userEvent.click(
-				await screen.findByRole('button', { name: 'Arrêter le processus' })
+				await screen.findByRole('button', { name: 'Stop the process' })
 			);
 
 			expect(gateway.killExternal).toHaveBeenCalledWith(4242);
@@ -337,11 +331,11 @@ describe('TunnelActionsMenu', () => {
 			const { gateway } = renderMenu(external);
 			await openMenu();
 			await userEvent.click(
-				screen.getByRole('menuitem', { name: 'Arrêter le processus externe…' })
+				screen.getByRole('menuitem', { name: 'Stop the external process…' })
 			);
 
 			await userEvent.click(
-				await screen.findByRole('button', { name: 'Annuler' })
+				await screen.findByRole('button', { name: 'Cancel' })
 			);
 
 			expect(gateway.killExternal).not.toHaveBeenCalled();
@@ -353,16 +347,16 @@ describe('TunnelActionsMenu', () => {
 			renderMenu(external, gateway);
 			await openMenu();
 			await userEvent.click(
-				screen.getByRole('menuitem', { name: 'Arrêter le processus externe…' })
+				screen.getByRole('menuitem', { name: 'Stop the external process…' })
 			);
 
 			await userEvent.click(
-				await screen.findByRole('button', { name: 'Arrêter le processus' })
+				await screen.findByRole('button', { name: 'Stop the process' })
 			);
 
 			await waitFor(() =>
 				expect(useToastStore.getState().toasts[0]?.message).toContain(
-					'Arrêt du processus impossible'
+					"Couldn't stop the process"
 				)
 			);
 		});
@@ -371,7 +365,7 @@ describe('TunnelActionsMenu', () => {
 			const { gateway } = renderMenu(external);
 			await openMenu();
 
-			await userEvent.click(screen.getByRole('menuitem', { name: 'Ignorer' }));
+			await userEvent.click(screen.getByRole('menuitem', { name: 'Ignore' }));
 
 			expect(gateway.ignoreExternal).toHaveBeenCalledWith(4242);
 		});
@@ -395,12 +389,12 @@ describe('TunnelActionsMenu', () => {
 			expect(
 				screen.getAllByRole('menuitem').map((item) => item.textContent)
 			).toEqual([
-				'Détails',
-				'Ouvrir dans le navigateur',
-				'Arrêter le processus…',
-				'Modifier',
-				'Redémarrer',
-				'Supprimer',
+				'Details',
+				'Open in the browser',
+				'Stop the process…',
+				'Edit',
+				'Restart',
+				'Delete',
 			]);
 		});
 
@@ -410,11 +404,11 @@ describe('TunnelActionsMenu', () => {
 			});
 			await openMenu();
 			await userEvent.click(
-				screen.getByRole('menuitem', { name: 'Arrêter le processus…' })
+				screen.getByRole('menuitem', { name: 'Stop the process…' })
 			);
 
 			await userEvent.click(
-				await screen.findByRole('button', { name: 'Arrêter le processus' })
+				await screen.findByRole('button', { name: 'Stop the process' })
 			);
 
 			expect(gateway.killExternal).toHaveBeenCalledWith(99);
@@ -428,11 +422,11 @@ describe('TunnelActionsMenu', () => {
 			expect(
 				screen.getAllByRole('menuitem').map((item) => item.textContent)
 			).toEqual([
-				'Détails',
-				'Ouvrir dans le navigateur',
-				'Modifier',
-				'Redémarrer',
-				'Supprimer',
+				'Details',
+				'Open in the browser',
+				'Edit',
+				'Restart',
+				'Delete',
 			]);
 		});
 	});
@@ -450,11 +444,11 @@ describe('TunnelActionsMenu', () => {
 			await openMenu();
 
 			expect(
-				screen.getByRole('menuitem', { name: 'Ouvrir avec Remmina (VNC)' })
+				screen.getByRole('menuitem', { name: 'Open with Remmina (VNC)' })
 			).toBeInTheDocument();
-			const group = screen.getByRole('group', { name: 'Ouvrir avec' });
+			const group = screen.getByRole('group', { name: 'Open with' });
 			expect(
-				within(group).getByRole('menuitem', { name: 'Navigateur' })
+				within(group).getByRole('menuitem', { name: 'Browser' })
 			).toBeInTheDocument();
 			expect(await axe(screen.getByRole('menu'))).toHaveNoViolations();
 		});
@@ -464,9 +458,7 @@ describe('TunnelActionsMenu', () => {
 			const { gateway } = renderMenu(appTunnel);
 			await openMenu();
 
-			await userEvent.click(
-				screen.getByRole('menuitem', { name: 'Navigateur' })
-			);
+			await userEvent.click(screen.getByRole('menuitem', { name: 'Browser' }));
 
 			expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1', 'browser');
 		});
@@ -478,7 +470,7 @@ describe('TunnelActionsMenu', () => {
 			await openMenu();
 
 			expect(
-				within(screen.getByRole('group', { name: 'Ouvrir avec' })).getByRole(
+				within(screen.getByRole('group', { name: 'Open with' })).getByRole(
 					'menuitem',
 					{ name: 'Remmina (VNC)' }
 				)
@@ -491,7 +483,7 @@ describe('TunnelActionsMenu', () => {
 			await openMenu();
 
 			expect(
-				screen.queryByRole('group', { name: 'Ouvrir avec' })
+				screen.queryByRole('group', { name: 'Open with' })
 			).not.toBeInTheDocument();
 		});
 	});

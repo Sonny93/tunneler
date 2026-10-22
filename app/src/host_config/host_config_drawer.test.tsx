@@ -40,10 +40,10 @@ describe('HostConfigDrawer', () => {
 		renderDrawer();
 
 		const dialog = screen.getByRole('dialog', {
-			name: 'Configuration de nova',
+			name: 'Configuration of nova',
 		});
 		expect(dialog).toHaveTextContent(
-			'Configuration effective, équivalent de ssh -G nova.'
+			'Effective configuration, equivalent to ssh -G nova.'
 		);
 		await screen.findByRole('table');
 	});
@@ -51,9 +51,7 @@ describe('HostConfigDrawer', () => {
 	it('should show a busy state while loading', () => {
 		renderDrawer();
 
-		expect(
-			screen.getByText('Lecture de la configuration…')
-		).toBeInTheDocument();
+		expect(screen.getByText('Reading the configuration…')).toBeInTheDocument();
 	});
 
 	it('should resolve the host of the panel', async () => {
@@ -67,14 +65,14 @@ describe('HostConfigDrawer', () => {
 		renderDrawer();
 
 		const table = await screen.findByRole('table', {
-			name: 'Options effectives de nova',
+			name: 'Effective options of nova',
 		});
 		expect(within(table).getByText('nova.example.com')).toBeInTheDocument();
 		expect(
 			within(table).getByRole('columnheader', { name: 'Option' })
 		).toBeInTheDocument();
 		expect(
-			within(table).getByRole('columnheader', { name: 'Valeur' })
+			within(table).getByRole('columnheader', { name: 'Value' })
 		).toBeInTheDocument();
 	});
 
@@ -82,7 +80,7 @@ describe('HostConfigDrawer', () => {
 		renderDrawer();
 
 		expect(await screen.findByRole('status')).toHaveTextContent(
-			'3 options affichées'
+			'3 options shown'
 		);
 	});
 
@@ -91,9 +89,9 @@ describe('HostConfigDrawer', () => {
 		renderDrawer();
 		await screen.findByRole('table');
 
-		await user.type(screen.getByLabelText('Filtrer les options'), 'JULES');
+		await user.type(screen.getByLabelText('Filter options'), 'JULES');
 
-		expect(screen.getByRole('status')).toHaveTextContent('1 option affichée');
+		expect(screen.getByRole('status')).toHaveTextContent('1 option shown');
 		expect(screen.queryByText('nova.example.com')).not.toBeInTheDocument();
 	});
 
@@ -102,11 +100,9 @@ describe('HostConfigDrawer', () => {
 		renderDrawer();
 		await screen.findByRole('table');
 
-		await user.type(screen.getByLabelText('Filtrer les options'), 'zzz');
+		await user.type(screen.getByLabelText('Filter options'), 'zzz');
 
-		expect(screen.getByRole('status')).toHaveTextContent(
-			'Aucune option affichée'
-		);
+		expect(screen.getByRole('status')).toHaveTextContent('No options shown');
 		expect(screen.queryByRole('table')).not.toBeInTheDocument();
 	});
 
@@ -116,7 +112,7 @@ describe('HostConfigDrawer', () => {
 		await screen.findByRole('table');
 
 		await user.click(
-			screen.getByRole('button', { name: 'Copier la configuration' })
+			screen.getByRole('button', { name: 'Copy the configuration' })
 		);
 
 		expect(await navigator.clipboard.readText()).toBe(
@@ -124,14 +120,14 @@ describe('HostConfigDrawer', () => {
 		);
 		expect(
 			useToastStore.getState().toasts.map((toast) => toast.message)
-		).toEqual(['Configuration copiée']);
+		).toEqual(['Configuration copied']);
 	});
 
 	it('should list the warnings in English without axe violations', async () => {
 		renderDrawer({ ...RESOLVED_HOST, warnings: ['Include not found'] });
 
 		const section = await screen.findByRole('region', {
-			name: 'Avertissements',
+			name: 'Warnings',
 		});
 		expect(within(section).getByText('Include not found')).toBeInTheDocument();
 		expect(within(section).getByRole('list')).toHaveAttribute('lang', 'en');
@@ -144,15 +140,15 @@ describe('HostConfigDrawer', () => {
 		const gateway = createFakeGateway();
 		gateway.resolveHost.mockResolvedValue(RESOLVED_HOST);
 		gateway.resolveHost.mockRejectedValueOnce(
-			new DaemonCommandError('ssh_failed', 'ssh -G a échoué')
+			new DaemonCommandError('ssh_failed', 'ssh -G a failed')
 		);
 		useUiStore.getState().openHostConfig('nova');
 		renderWithGateway(<HostConfigDrawer />, gateway);
 
 		expect(await screen.findByRole('alert')).toHaveTextContent(
-			'Lecture impossible : ssh -G a échoué'
+			"Couldn't read the configuration: ssh -G a failed"
 		);
-		await user.click(screen.getByRole('button', { name: 'Réessayer' }));
+		await user.click(screen.getByRole('button', { name: 'Retry' }));
 
 		expect(await screen.findByRole('table')).toBeInTheDocument();
 		expect(gateway.resolveHost).toHaveBeenCalledTimes(2);

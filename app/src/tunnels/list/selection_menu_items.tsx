@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { MenuGroup, MenuItem } from '@minimalstuff/ui';
 
 import type { TunnelDto } from '#/daemon/protocol';
@@ -12,10 +13,11 @@ type SelectionMenuItemsProps = {
 export function SelectionMenuItems({
 	tunnels,
 }: Readonly<SelectionMenuItemsProps>) {
+	const { i18n } = useLingui();
 	const actions = useBulkTunnelActions(tunnels);
 
 	return (
-		<MenuGroup label={describeSelectionCount(tunnels.length)}>
+		<MenuGroup label={describeSelectionCount(tunnels.length, i18n)}>
 			{actions.map(({ key, label, icon, isDanger, isDisabled, perform }) => (
 				<MenuItem
 					key={key}

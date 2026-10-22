@@ -21,7 +21,7 @@ describe('HeaderActions', () => {
 		const user = userEvent.setup();
 		renderActions();
 
-		await user.click(screen.getByRole('button', { name: 'Nouveau tunnel' }));
+		await user.click(screen.getByRole('button', { name: 'New tunnel' }));
 
 		expect(useUiStore.getState().panel).toEqual({
 			kind: 'tunnelEditor',
@@ -37,7 +37,7 @@ describe('HeaderActions', () => {
 		await user.tab();
 
 		expect(
-			screen.getByRole('button', { name: 'Autres façons de créer un tunnel' })
+			screen.getByRole('button', { name: 'Other ways to create a tunnel' })
 		).toHaveFocus();
 	});
 
@@ -45,7 +45,7 @@ describe('HeaderActions', () => {
 		renderActions();
 
 		expect(
-			screen.getByRole('button', { name: 'Autres façons de créer un tunnel' })
+			screen.getByRole('button', { name: 'Other ways to create a tunnel' })
 		).toHaveAttribute('aria-haspopup');
 	});
 
@@ -55,13 +55,13 @@ describe('HeaderActions', () => {
 			const user = userEvent.setup();
 			renderActions();
 			screen
-				.getByRole('button', { name: 'Autres façons de créer un tunnel' })
+				.getByRole('button', { name: 'Other ways to create a tunnel' })
 				.focus();
 
 			await user.keyboard(key);
 
 			expect(
-				await screen.findByRole('menuitem', { name: 'Tunnel temporaire…' })
+				await screen.findByRole('menuitem', { name: 'Temporary tunnel…' })
 			).toBeInTheDocument();
 		}
 	);
@@ -71,10 +71,10 @@ describe('HeaderActions', () => {
 		renderActions();
 
 		await user.click(
-			screen.getByRole('button', { name: 'Autres façons de créer un tunnel' })
+			screen.getByRole('button', { name: 'Other ways to create a tunnel' })
 		);
 		await user.click(
-			await screen.findByRole('menuitem', { name: 'Tunnel temporaire…' })
+			await screen.findByRole('menuitem', { name: 'Temporary tunnel…' })
 		);
 
 		expect(useUiStore.getState().panel).toEqual({
@@ -86,9 +86,9 @@ describe('HeaderActions', () => {
 		const user = userEvent.setup();
 		const { container } = renderActions();
 		await user.click(
-			screen.getByRole('button', { name: 'Autres façons de créer un tunnel' })
+			screen.getByRole('button', { name: 'Other ways to create a tunnel' })
 		);
-		await screen.findByRole('menuitem', { name: 'Tunnel temporaire…' });
+		await screen.findByRole('menuitem', { name: 'Temporary tunnel…' });
 
 		expect(await axe(container)).toHaveNoViolations();
 	});
@@ -97,7 +97,7 @@ describe('HeaderActions', () => {
 		const user = userEvent.setup();
 		renderActions();
 
-		await user.click(screen.getByRole('button', { name: 'Importer' }));
+		await user.click(screen.getByRole('button', { name: 'Import' }));
 
 		expect(useUiStore.getState().panel).toEqual({ kind: 'import' });
 	});
@@ -105,7 +105,7 @@ describe('HeaderActions', () => {
 	it('should open the command palette and advertise its shortcut', async () => {
 		const user = userEvent.setup();
 		renderActions();
-		const button = screen.getByRole('button', { name: 'Palette de commandes' });
+		const button = screen.getByRole('button', { name: 'Command palette' });
 
 		await user.click(button);
 
@@ -117,12 +117,10 @@ describe('HeaderActions', () => {
 		const user = userEvent.setup();
 		renderActions();
 
-		await user.hover(
-			screen.getByRole('button', { name: 'Palette de commandes' })
-		);
+		await user.hover(screen.getByRole('button', { name: 'Command palette' }));
 
 		expect(await screen.findByRole('tooltip')).toHaveTextContent(
-			'Palette de commandes (Ctrl+K)'
+			'Command palette (Ctrl+K)'
 		);
 	});
 
@@ -130,10 +128,10 @@ describe('HeaderActions', () => {
 		const user = userEvent.setup();
 		renderActions();
 
-		await user.hover(screen.getByRole('button', { name: /^Thème : / }));
+		await user.hover(screen.getByRole('button', { name: /^Theme: / }));
 
 		expect(await screen.findByRole('tooltip')).toHaveTextContent(
-			/^Thème : .+, changer$/
+			/^Theme: .+, change$/
 		);
 	});
 
@@ -141,7 +139,7 @@ describe('HeaderActions', () => {
 		const user = userEvent.setup();
 		renderActions();
 
-		await user.click(screen.getByRole('button', { name: 'Paramètres' }));
+		await user.click(screen.getByRole('button', { name: 'Settings' }));
 
 		expect(useUiStore.getState().panel.kind).toBe('settings');
 	});
@@ -151,17 +149,17 @@ describe('HeaderActions', () => {
 		renderActions();
 
 		await user.click(
-			screen.getByRole('button', { name: 'Raccourcis clavier' })
+			screen.getByRole('button', { name: 'Keyboard shortcuts' })
 		);
 
 		expect(useUiStore.getState().isHelpOpen).toBe(true);
 	});
 
-	it('should name the theme toggle in French', () => {
+	it('should name the theme toggle after the current theme', () => {
 		renderActions();
 
 		expect(
-			screen.getByRole('button', { name: /^Thème : .+, changer$/ })
+			screen.getByRole('button', { name: /^Theme: .+, change$/ })
 		).toBeInTheDocument();
 	});
 
@@ -169,7 +167,7 @@ describe('HeaderActions', () => {
 		renderActions();
 
 		expect(
-			screen.getByRole('button', { name: 'Quitter Tunneler' })
+			screen.getByRole('button', { name: 'Quit Tunneler' })
 		).toBeInTheDocument();
 	});
 

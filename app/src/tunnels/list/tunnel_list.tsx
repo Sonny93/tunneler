@@ -1,5 +1,6 @@
 import { IconButton } from '@minimalstuff/ui';
 import { useId, useMemo, useRef } from 'react';
+import { useLingui } from '@lingui/react/macro';
 
 import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
@@ -22,6 +23,7 @@ import { TunnelSelectionContext } from '#/tunnels/selection/tunnel_selection_con
 import { useAnnounceSelectionCount } from '#/tunnels/selection/use_announce_selection_count';
 
 export function TunnelList() {
+	const { t, i18n } = useLingui();
 	const tunnels = useDaemonStore((state) => state.tunnels);
 	const filter = useResolvedFilter();
 	const hintId = useId();
@@ -79,12 +81,12 @@ export function TunnelList() {
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-wrap items-center gap-2">
 				<h2 className="text-base font-semibold">
-					{describeTunnelFilter(filter)} ({visibleTunnels.length})
+					{describeTunnelFilter(filter, i18n)} ({visibleTunnels.length})
 				</h2>
 				{filter.kind === 'tag' && (
 					<IconButton
 						icon="i-mdi-pencil-outline"
-						aria-label="Renommer le tag"
+						aria-label={t`Rename tag`}
 						tooltip
 						variant="ghost"
 						color="neutral"
@@ -94,7 +96,7 @@ export function TunnelList() {
 				{filter.kind === 'tag' && (
 					<IconButton
 						icon="i-mdi-tag-remove-outline"
-						aria-label="Supprimer le tag"
+						aria-label={t`Delete tag`}
 						tooltip
 						variant="ghost"
 						color="neutral"
@@ -107,7 +109,7 @@ export function TunnelList() {
 			) : (
 				<>
 					<p id={hintId} className="sr-only">
-						Utilisez les flèches haut et bas pour passer d’un tunnel à l’autre.
+						{t`Use the up and down arrow keys to move between tunnels.`}
 					</p>
 					<RemovalFocusContext value={requestFocusAfterRemoval}>
 						<TunnelSelectionContext value={selection}>

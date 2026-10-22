@@ -1,7 +1,6 @@
 import type { ChangeEvent } from 'react';
+import { useLingui } from '@lingui/react/macro';
 import { Button, Input } from '@minimalstuff/ui';
-
-const LINKED_HINT = "Suit le port d'écoute";
 
 type TargetPortFieldProps = {
 	value: string;
@@ -18,6 +17,7 @@ export function TargetPortField({
 	onChange,
 	onRelink,
 }: Readonly<TargetPortFieldProps>) {
+	const { t } = useLingui();
 	const handleChange = (event: ChangeEvent<HTMLInputElement>) =>
 		onChange(event.target.value);
 
@@ -25,18 +25,18 @@ export function TargetPortField({
 		<div>
 			<Input
 				name="targetPort"
-				label="Port cible"
+				label={t`Target port`}
 				value={value}
 				onChange={handleChange}
 				error={error}
 				required
 				inputMode="numeric"
 				autoComplete="off"
-				description={isLinked ? LINKED_HINT : undefined}
+				description={isLinked ? t`Follows the listen port` : undefined}
 			/>
 			{!isLinked && (
 				<Button variant="ghost" size="xs" type="button" onClick={onRelink}>
-					Lier au port d'écoute
+					{t`Link to the listen port`}
 				</Button>
 			)}
 		</div>

@@ -1,3 +1,6 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+import { useLingui } from '@lingui/react/macro';
 import { Button, Input, ModalFooter } from '@minimalstuff/ui';
 import {
 	useId,
@@ -13,6 +16,7 @@ import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { FormErrorSummary } from '#/shared/form_error_summary';
 import { validateTagName } from '#/tag_rename/validate_tag_name';
+import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { describeTagRename } from '#/tag_rename/describe_tag_rename';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import { getSubmissionErrorMessages } from '#/shared/submission_error_messages';
@@ -29,8 +33,8 @@ type TagRenameContentProps = {
 	isFocusingRow: boolean;
 };
 
-function describeMerge(name: string): string {
-	return `Le tag ${name} existe déjà : les deux seront fusionnés.`;
+function describeMerge(name: string, i18n: I18n): string {
+	return t(i18n)`The tag ${name} already exists: the two will be merged.`;
 }
 
 /** Content of the rename dialog: one text field prefilled with the current name. */
@@ -38,6 +42,7 @@ export function TagRenameContent({
 	tag,
 	isFocusingRow,
 }: Readonly<TagRenameContentProps>) {
+	const { i18n } = useLingui();
 	const formId = useId();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const gateway = useDaemonGateway();
@@ -67,7 +72,7 @@ export function TagRenameContent({
 		const ui = useUiStore.getState();
 		useToastStore.getState().pushToast({
 			tone: 'success',
-			message: describeTagRename(tag, trimmedName, renamedCount),
+			message: describeTagRename(tag, trimmedName, renamedCount, i18n),
 		});
 		if (ui.filter.kind === 'tag' && ui.filter.tag === tag) {
 			ui.setFilter({ kind: 'tag', tag: trimmedName });
@@ -78,12 +83,14 @@ export function TagRenameContent({
 
 	const reportFailure = (failure: Readonly<DaemonCommandError>) => {
 		if (failure.code === VALIDATION_FAILED_CODE) {
-			rejectName(getSubmissionErrorMessages(failure));
+			rejectName(getSubmissionErrorMessages(failure, i18n));
 			return;
 		}
+		const failureMessage = t(i18n)`Couldn't rename the tag`;
+		const errorMessage = describeDaemonError(failure, i18n);
 		useToastStore.getState().pushToast({
 			tone: 'error',
-			message: `Renommage impossible : ${failure.message}`,
+			message: t(i18n)`${failureMessage}: ${errorMessage}`,
 		});
 	};
 
@@ -105,7 +112,7 @@ export function TagRenameContent({
 		if (isSaving) return;
 		const validationError = validateTagName(name, tag);
 		if (validationError !== null) {
-			rejectName([validationError]);
+			rejectName([i18n._(validationError)]);
 			return;
 		}
 		void rename();
@@ -120,21 +127,21 @@ export function TagRenameContent({
 				/>
 				<Input
 					ref={inputRef}
-					label="Nouveau nom du tag"
+					label={t(i18n)`New tag name`}
 					value={name}
 					onChange={handleChange}
 					error={error}
-					description={isMerge ? describeMerge(trimmedName) : undefined}
+					description={isMerge ? describeMerge(trimmedName, i18n) : undefined}
 					autoComplete="off"
 					required
 				/>
 			</form>
 			<ModalFooter>
 				<Button variant="outline" color="neutral" onClick={handleCancel}>
-					Annuler
+					{t(i18n)`Cancel`}
 				</Button>
 				<Button type="submit" form={formId} loading={isSaving}>
-					Renommer
+					{t(i18n)`Rename`}
 				</Button>
 			</ModalFooter>
 		</>

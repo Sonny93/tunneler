@@ -21,8 +21,10 @@ async function connectAndLoad(gateway: DaemonGateway): Promise<void> {
 		await loadDaemonState(gateway);
 		setConnection({ status: 'connected' });
 	} catch (error) {
-		const { message } = toDaemonCommandError(error);
-		setConnection({ status: 'disconnected', message });
+		setConnection({
+			status: 'disconnected',
+			error: toDaemonCommandError(error),
+		});
 	}
 }
 
@@ -30,10 +32,10 @@ async function reloadAfterConfigChange(gateway: DaemonGateway): Promise<void> {
 	try {
 		await loadDaemonState(gateway);
 	} catch (error) {
-		const { message } = toDaemonCommandError(error);
-		useDaemonStore
-			.getState()
-			.setConnection({ status: 'disconnected', message });
+		useDaemonStore.getState().setConnection({
+			status: 'disconnected',
+			error: toDaemonCommandError(error),
+		});
 	}
 }
 
@@ -50,9 +52,10 @@ export function useDaemonConnection(): UseDaemonConnectionReturn {
 			useDaemonStore.getState().applyEvent(event);
 		};
 		const handleDisconnected = (message: string) =>
-			useDaemonStore
-				.getState()
-				.setConnection({ status: 'disconnected', message });
+			useDaemonStore.getState().setConnection({
+				status: 'disconnected',
+				error: toDaemonCommandError(message),
+			});
 
 		const subscriptions = Promise.all([
 			gateway.onEvent(handleEvent),

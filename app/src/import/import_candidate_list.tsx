@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { Button, Checkbox } from '@minimalstuff/ui';
 
 import type { ImportCandidateDto } from '#/daemon/protocol';
@@ -27,10 +28,13 @@ export function ImportCandidateList({
 	onSelectAll,
 	onSelectNone,
 }: Readonly<ImportCandidateListProps>) {
+	const { t, i18n } = useLingui();
+	const candidateCount = candidates.length;
+
 	return (
 		<fieldset className="m-0 flex flex-col gap-3 border-0 p-0">
 			<legend className="mb-2 text-sm font-semibold">
-				Tunnels détectés ({candidates.length})
+				{t`Detected tunnels (${candidateCount})`}
 			</legend>
 			<div className="flex flex-wrap gap-2">
 				<Button
@@ -39,7 +43,7 @@ export function ImportCandidateList({
 					color="neutral"
 					onClick={onSelectAll}
 				>
-					Tout sélectionner
+					{t`Select all`}
 				</Button>
 				<Button
 					size="sm"
@@ -47,21 +51,22 @@ export function ImportCandidateList({
 					color="neutral"
 					onClick={onSelectNone}
 				>
-					Tout désélectionner
+					{t`Deselect all`}
 				</Button>
 			</div>
 			{candidates.map((candidate, index) => {
 				const conflict = conflicts[index] ?? null;
 				const conflictNote =
-					conflict === null ? null : describeImportConflict(conflict);
+					conflict === null ? null : describeImportConflict(conflict, i18n);
 				return (
 					<Checkbox
 						// oxlint-disable-next-line react/no-array-index-key -- candidates have no identity beyond their position in the preview
 						key={index}
-						label={describeImportCandidateLabel(candidate, fallbackHost)}
+						label={describeImportCandidateLabel(candidate, fallbackHost, i18n)}
 						description={describeImportCandidateDetails(
 							candidate,
-							conflictNote
+							conflictNote,
+							i18n
 						)}
 						checked={selectedIndexes.has(index)}
 						onChange={() => onToggle(index)}

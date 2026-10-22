@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createFakeGateway } from '#/testing/fake_gateway';
@@ -21,7 +22,8 @@ describe('createImportedTunnels', () => {
 		await createImportedTunnels(
 			gateway,
 			[buildImportSpec(0), buildImportSpec(2)],
-			vi.fn()
+			vi.fn(),
+			i18n
 		);
 
 		expect(
@@ -35,7 +37,8 @@ describe('createImportedTunnels', () => {
 		const outcome = await createImportedTunnels(
 			createFakeGateway(),
 			[buildImportSpec(0), buildImportSpec(2)],
-			onProgress
+			onProgress,
+			i18n
 		);
 
 		expect(outcome).toEqual({ createdIndexes: [0, 2], failures: [] });
@@ -45,19 +48,20 @@ describe('createImportedTunnels', () => {
 	it('should keep going after a failure and report it with its messages', async () => {
 		const gateway = createFakeGateway();
 		gateway.createTunnel.mockRejectedValueOnce(
-			new DaemonCommandError('validation_failed', 'invalid', ['Port pris'])
+			new DaemonCommandError('validation_failed', 'invalid', ['Port in use'])
 		);
 
 		const outcome = await createImportedTunnels(
 			gateway,
 			[buildImportSpec(0), buildImportSpec(1)],
-			vi.fn()
+			vi.fn(),
+			i18n
 		);
 
 		expect(outcome).toEqual({
 			createdIndexes: [1],
 			failures: [
-				{ index: 0, label: '3000 → nova:3000', messages: ['Port pris'] },
+				{ index: 0, label: '3000 → nova:3000', messages: ['Port in use'] },
 			],
 		});
 	});

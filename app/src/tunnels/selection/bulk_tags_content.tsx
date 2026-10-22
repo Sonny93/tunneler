@@ -1,3 +1,6 @@
+import { msg } from '@lingui/core/macro';
+import { useLingui } from '@lingui/react/macro';
+import type { MessageDescriptor } from '@lingui/core';
 import {
 	useId,
 	useRef,
@@ -19,7 +22,7 @@ import type { TagChange } from '#/tunnels/selection/tag_change';
 
 type TagMode = 'add' | 'remove';
 
-const MISSING_TAG_ERROR = 'Saisissez un tag.';
+const MISSING_TAG_ERROR = msg`Enter a tag.`;
 
 type BulkTagsContentProps = {
 	/** The tags carried by at least one selected tunnel. */
@@ -41,18 +44,19 @@ export function BulkTagsContent({
 	onApply,
 	onCancel,
 }: Readonly<BulkTagsContentProps>) {
+	const { t, i18n } = useLingui();
 	const formId = useId();
 	const knownTagsId = useId();
 	const addInputRef = useRef<HTMLInputElement>(null);
 	const [mode, setMode] = useState<TagMode>('add');
 	const [tagText, setTagText] = useState('');
 	const [tagToRemove, setTagToRemove] = useState(presentTags[0] ?? '');
-	const [error, setError] = useState<string | undefined>();
+	const [error, setError] = useState<MessageDescriptor | undefined>();
 	const modeOptions = [
-		{ value: 'add', label: 'Ajouter un tag' },
+		{ value: 'add', label: t`Add a tag` },
 		{
 			value: 'remove',
-			label: 'Retirer un tag',
+			label: t`Remove a tag`,
 			disabled: presentTags.length === 0,
 		},
 	];
@@ -93,7 +97,7 @@ export function BulkTagsContent({
 			<form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-4">
 				<RadioOptions
 					name="tag-mode"
-					label="Action"
+					label={t`Action`}
 					options={modeOptions}
 					value={mode}
 					onChange={handleModeChange}
@@ -102,10 +106,10 @@ export function BulkTagsContent({
 					<>
 						<Input
 							ref={addInputRef}
-							label="Tag à ajouter"
+							label={t`Tag to add`}
 							value={tagText}
 							onChange={handleTextChange}
-							error={error}
+							error={error ? i18n._(error) : undefined}
 							list={knownTagsId}
 							autoComplete="off"
 						/>
@@ -119,7 +123,7 @@ export function BulkTagsContent({
 					</>
 				) : (
 					<Select
-						label="Tag à retirer"
+						label={t`Tag to remove`}
 						options={presentTags.map((tag) => ({ value: tag, label: tag }))}
 						value={tagToRemove}
 						onChange={handleRemovedTagChange}
@@ -128,10 +132,10 @@ export function BulkTagsContent({
 			</form>
 			<ModalFooter>
 				<Button variant="outline" color="neutral" onClick={onCancel}>
-					Annuler
+					{t`Cancel`}
 				</Button>
 				<Button type="submit" form={formId}>
-					Appliquer
+					{t`Apply`}
 				</Button>
 			</ModalFooter>
 		</>

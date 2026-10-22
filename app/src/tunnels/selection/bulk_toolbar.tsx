@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { Button, IconButton, Toolbar } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
@@ -11,6 +12,7 @@ type BulkToolbarProps = {
 
 /** The actions on the selected tunnels. A toolbar: one tab stop, arrow keys between buttons. */
 export function BulkToolbar({ selectedTunnels }: Readonly<BulkToolbarProps>) {
+	const { t, i18n } = useLingui();
 	const actions = useBulkTunnelActions(selectedTunnels);
 	const clearTunnelSelection = useUiStore(
 		(state) => state.clearTunnelSelection
@@ -18,13 +20,13 @@ export function BulkToolbar({ selectedTunnels }: Readonly<BulkToolbarProps>) {
 
 	return (
 		<Toolbar
-			aria-label="Actions sur la sélection"
+			aria-label={t`Actions on the selection`}
 			orientation="horizontal"
 			unstyled
 			className="flex flex-wrap items-center gap-2"
 		>
 			<span className="text-sm font-semibold">
-				{describeSelectionCount(selectedTunnels.length)}
+				{describeSelectionCount(selectedTunnels.length, i18n)}
 			</span>
 			{actions.map(({ key, label, icon, isDanger, isDisabled, perform }) => (
 				<Button
@@ -41,7 +43,7 @@ export function BulkToolbar({ selectedTunnels }: Readonly<BulkToolbarProps>) {
 			))}
 			<IconButton
 				icon="i-mdi-close"
-				aria-label="Tout désélectionner"
+				aria-label={t`Deselect all`}
 				tooltip
 				size="sm"
 				variant="ghost"

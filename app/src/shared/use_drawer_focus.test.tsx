@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { render, screen } from '@testing-library/react';
 
 import { Drawer } from '#/shared/drawer';
+import { renderWithI18n } from '#/testing/render_with_i18n';
 
 function Harness() {
 	const [isOpen, setIsOpen] = useState(false);
@@ -23,7 +24,7 @@ function Harness() {
 					</button>
 				)}
 			</main>
-			<Drawer isOpen={isOpen} title="Éditer" onClose={() => setIsOpen(false)}>
+			<Drawer isOpen={isOpen} title="Edit" onClose={() => setIsOpen(false)}>
 				<input aria-label="Nom" />
 			</Drawer>
 		</>
@@ -33,10 +34,10 @@ function Harness() {
 describe('useDrawerFocus', () => {
 	it('should focus the main landmark when the previously focused element is gone', async () => {
 		const user = userEvent.setup();
-		render(<Harness />);
+		renderWithI18n(<Harness />);
 		await user.click(screen.getByRole('button', { name: 'Ouvrir' }));
 
-		await user.click(screen.getByRole('button', { name: 'Fermer' }));
+		await user.click(screen.getByRole('button', { name: 'Close' }));
 
 		expect(screen.getByRole('main')).toHaveFocus();
 	});
@@ -48,19 +49,15 @@ describe('useDrawerFocus', () => {
 			return (
 				<>
 					<main tabIndex={-1} />
-					<Drawer
-						isOpen={isOpen}
-						title="Éditer"
-						onClose={() => setIsOpen(false)}
-					>
+					<Drawer isOpen={isOpen} title="Edit" onClose={() => setIsOpen(false)}>
 						<input aria-label="Nom" />
 					</Drawer>
 				</>
 			);
 		}
-		render(<BodyHarness />);
+		renderWithI18n(<BodyHarness />);
 
-		await user.click(screen.getByRole('button', { name: 'Fermer' }));
+		await user.click(screen.getByRole('button', { name: 'Close' }));
 
 		expect(screen.getByRole('main')).toHaveFocus();
 	});

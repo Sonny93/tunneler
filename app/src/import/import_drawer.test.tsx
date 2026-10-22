@@ -1,4 +1,5 @@
 import { axe } from 'vitest-axe';
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { act, screen, waitFor, within } from '@testing-library/react';
@@ -45,12 +46,12 @@ function renderDrawer(preview: ImportPreviewDto = buildPowerShellPreview()) {
 async function analyzeScript(user: ReturnType<typeof userEvent.setup>) {
 	await user.type(
 		screen.getByRole('textbox', {
-			name: /Script, liste de ports ou options -L\/-R\/-D/,
+			name: /Script, list of ports or -L\/-R\/-D options/,
 		}),
 		SCRIPT
 	);
-	await user.click(screen.getByRole('button', { name: 'Analyser' }));
-	await screen.findByRole('heading', { name: "Résultat de l'analyse" });
+	await user.click(screen.getByRole('button', { name: 'Analyze' }));
+	await screen.findByRole('heading', { name: 'Analysis result' });
 }
 
 describe('ImportDrawer', () => {
@@ -65,13 +66,13 @@ describe('ImportDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('dialog', { name: 'Importer des tunnels' })
+			screen.getByRole('dialog', { name: 'Import tunnels' })
 		).toBeInTheDocument();
 		expect(
-			screen.getByRole('tab', { name: 'Coller un script' })
+			screen.getByRole('tab', { name: 'Paste a script' })
 		).toBeInTheDocument();
 		expect(
-			screen.getByRole('tab', { name: 'Depuis ~/.ssh/config' })
+			screen.getByRole('tab', { name: 'From ~/.ssh/config' })
 		).toBeInTheDocument();
 	});
 
@@ -80,22 +81,22 @@ describe('ImportDrawer', () => {
 
 		expect(
 			screen.getByRole('textbox', {
-				name: /Script, liste de ports ou options -L\/-R\/-D/,
+				name: /Script, list of ports or -L\/-R\/-D options/,
 			})
-		).toHaveAccessibleDescription(/liste de ports \(3333, 5432\)/);
+		).toHaveAccessibleDescription(/list of ports \(3333, 5432\)/);
 	});
 
 	it('should link an error to the empty script field', async () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('button', { name: 'Analyser' }));
+		await user.click(screen.getByRole('button', { name: 'Analyze' }));
 
 		const field = screen.getByRole('textbox', {
-			name: /Script, liste de ports ou options -L\/-R\/-D/,
+			name: /Script, list of ports or -L\/-R\/-D options/,
 		});
 		expect(field).toBeInvalid();
-		expect(field).toHaveAccessibleDescription(/Collez un script/);
+		expect(field).toHaveAccessibleDescription(/Paste a script/);
 		expect(gateway.importScript).not.toHaveBeenCalled();
 	});
 
@@ -106,12 +107,12 @@ describe('ImportDrawer', () => {
 		await analyzeScript(user);
 
 		expect(gateway.importScript).toHaveBeenCalledWith(SCRIPT);
-		expect(screen.getByText('8 tunnels détectés')).toBeInTheDocument();
+		expect(screen.getByText('8 tunnels detected')).toBeInTheDocument();
 		expect(useAnnouncerStore.getState().polite.message).toBe(
-			'8 tunnels détectés'
+			'8 tunnels detected'
 		);
 		expect(
-			screen.getByRole('heading', { name: "Résultat de l'analyse" })
+			screen.getByRole('heading', { name: 'Analysis result' })
 		).toHaveFocus();
 	});
 
@@ -119,13 +120,13 @@ describe('ImportDrawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('tab', { name: 'Depuis ~/.ssh/config' }));
+		await user.click(screen.getByRole('tab', { name: 'From ~/.ssh/config' }));
 		await user.click(
-			screen.getByRole('button', { name: 'Lire ~/.ssh/config' })
+			screen.getByRole('button', { name: 'Read ~/.ssh/config' })
 		);
 
 		expect(
-			await screen.findByRole('group', { name: 'Tunnels détectés (8)' })
+			await screen.findByRole('group', { name: 'Detected tunnels (8)' })
 		).toBeInTheDocument();
 		expect(gateway.importSshConfig).toHaveBeenCalled();
 	});
@@ -138,10 +139,10 @@ describe('ImportDrawer', () => {
 		);
 
 		await user.type(screen.getByRole('textbox'), SCRIPT);
-		await user.click(screen.getByRole('button', { name: 'Analyser' }));
+		await user.click(screen.getByRole('button', { name: 'Analyze' }));
 
 		const alert = await screen.findByRole('alert');
-		expect(alert).toHaveTextContent('Analyse impossible :');
+		expect(alert).toHaveTextContent('Analysis failed:');
 		expect(alert).toHaveTextContent('script trop long');
 		expect(alert).toHaveFocus();
 	});
@@ -154,13 +155,13 @@ describe('ImportDrawer', () => {
 
 		expect(screen.getAllByRole('checkbox')).toHaveLength(8);
 		expect(
-			screen.getByRole('checkbox', { name: '3333 vers nova:3333' })
+			screen.getByRole('checkbox', { name: '3333 to nova:3333' })
 		).toBeChecked();
 		expect(
-			screen.getByRole('button', { name: 'Importer 8 tunnels' })
+			screen.getByRole('button', { name: 'Import 8 tunnels' })
 		).toBeEnabled();
 		expect(
-			screen.queryByRole('combobox', { name: /Hôte des tunnels/ })
+			screen.queryByRole('combobox', { name: /Host of the tunnels/ })
 		).not.toBeInTheDocument();
 	});
 
@@ -189,17 +190,17 @@ describe('ImportDrawer', () => {
 
 		await analyzeScript(user);
 
-		const section = screen.getByRole('region', { name: 'Avertissements' });
+		const section = screen.getByRole('region', { name: 'Warnings' });
 		expect(section).toHaveTextContent(
-			'Ligne 3 : option ignorée, illisible : -L nope'
+			'Line 3: option ignored, unreadable: -L nope'
 		);
 		expect(section).toHaveTextContent(
-			'Ligne 5 : nova : forward non pris en charge (socket Unix ou SOCKS distant) : -L /tmp/s:x:1'
+			'Line 5: nova: unsupported forward (Unix socket or remote SOCKS): -L /tmp/s:x:1'
 		);
 		expect(section).toHaveTextContent(
-			"Aucun alias ssh_config ne correspond à user@198.51.100.10 : choisissez l'hôte ci-dessous."
+			'No ssh_config alias matches user@198.51.100.10: choose the host below.'
 		);
-		expect(section).toHaveTextContent('Lecture de old impossible : bad config');
+		expect(section).toHaveTextContent("Couldn't read old: bad config");
 		expect(within(section).getByText('bad config')).toHaveAttribute(
 			'lang',
 			'en'
@@ -214,12 +215,12 @@ describe('ImportDrawer', () => {
 		await analyzeScript(user);
 
 		const conflicting = screen.getByRole('checkbox', {
-			name: '3333 vers nova:3333',
+			name: '3333 to nova:3333',
 		});
 		expect(conflicting).not.toBeChecked();
-		expect(conflicting).toHaveAccessibleDescription(/Déjà configuré/);
+		expect(conflicting).toHaveAccessibleDescription(/Already configured/);
 		expect(
-			screen.getByRole('button', { name: 'Importer 7 tunnels' })
+			screen.getByRole('button', { name: 'Import 7 tunnels' })
 		).toBeInTheDocument();
 	});
 
@@ -230,11 +231,11 @@ describe('ImportDrawer', () => {
 		await analyzeScript(user);
 
 		await user.click(
-			screen.getByRole('checkbox', { name: '3333 vers nova:3333' })
+			screen.getByRole('checkbox', { name: '3333 to nova:3333' })
 		);
 
 		expect(
-			screen.getByRole('button', { name: 'Importer 8 tunnels' })
+			screen.getByRole('button', { name: 'Import 8 tunnels' })
 		).toBeInTheDocument();
 	});
 
@@ -243,16 +244,14 @@ describe('ImportDrawer', () => {
 		renderDrawer();
 		await analyzeScript(user);
 
-		await user.click(
-			screen.getByRole('button', { name: 'Tout désélectionner' })
-		);
+		await user.click(screen.getByRole('button', { name: 'Deselect all' }));
 		expect(
-			screen.getByRole('button', { name: 'Importer 0 tunnels' })
+			screen.getByRole('button', { name: 'Import 0 tunnels' })
 		).toBeDisabled();
 
-		await user.click(screen.getByRole('button', { name: 'Tout sélectionner' }));
+		await user.click(screen.getByRole('button', { name: 'Select all' }));
 		expect(
-			screen.getByRole('button', { name: 'Importer 8 tunnels' })
+			screen.getByRole('button', { name: 'Import 8 tunnels' })
 		).toBeEnabled();
 	});
 
@@ -266,8 +265,8 @@ describe('ImportDrawer', () => {
 		await analyzeScript(user);
 
 		expect(
-			screen.getByRole('checkbox', { name: '3334 vers nova:3334' })
-		).toHaveAccessibleDescription(/Port déjà utilisé par 3334 → nova:80/);
+			screen.getByRole('checkbox', { name: '3334 to nova:3334' })
+		).toHaveAccessibleDescription(/Port already used by 3334 → nova:80/);
 	});
 
 	describe('candidates without a host', () => {
@@ -283,12 +282,10 @@ describe('ImportDrawer', () => {
 			const { gateway } = renderDrawer(hostlessPreview());
 			await analyzeScript(user);
 
-			await user.click(
-				screen.getByRole('button', { name: 'Importer 1 tunnel' })
-			);
+			await user.click(screen.getByRole('button', { name: 'Import 1 tunnel' }));
 
 			const select = screen.getByRole('combobox', {
-				name: /Hôte des tunnels sans destination/,
+				name: /Host of the tunnels without a destination/,
 			});
 			expect(select).toBeRequired();
 			expect(select).toBeInvalid();
@@ -303,13 +300,11 @@ describe('ImportDrawer', () => {
 
 			await user.selectOptions(
 				screen.getByRole('combobox', {
-					name: /Hôte des tunnels sans destination/,
+					name: /Host of the tunnels without a destination/,
 				}),
 				'other'
 			);
-			await user.click(
-				screen.getByRole('button', { name: 'Importer 1 tunnel' })
-			);
+			await user.click(screen.getByRole('button', { name: 'Import 1 tunnel' }));
 
 			await waitFor(() =>
 				expect(gateway.createTunnel).toHaveBeenCalledWith({
@@ -334,9 +329,9 @@ describe('ImportDrawer', () => {
 			renderDrawer();
 			await analyzeScript(user);
 
-			const field = screen.getByRole('combobox', { name: 'Tag à ajouter' });
+			const field = screen.getByRole('combobox', { name: 'Tag to add' });
 
-			expect(field).toHaveAccessibleDescription(/Optionnel/);
+			expect(field).toHaveAccessibleDescription(/Optional/);
 			expect(
 				Array.from((field as HTMLInputElement).list?.options ?? []).map(
 					(option) => option.value
@@ -351,9 +346,7 @@ describe('ImportDrawer', () => {
 			);
 			await analyzeScript(user);
 
-			await user.click(
-				screen.getByRole('button', { name: 'Importer 1 tunnel' })
-			);
+			await user.click(screen.getByRole('button', { name: 'Import 1 tunnel' }));
 
 			await waitFor(() =>
 				expect(gateway.createTunnel).toHaveBeenCalledWith(
@@ -370,12 +363,10 @@ describe('ImportDrawer', () => {
 			await analyzeScript(user);
 
 			await user.type(
-				screen.getByRole('combobox', { name: 'Tag à ajouter' }),
+				screen.getByRole('combobox', { name: 'Tag to add' }),
 				' dev , dev'
 			);
-			await user.click(
-				screen.getByRole('button', { name: 'Importer 1 tunnel' })
-			);
+			await user.click(screen.getByRole('button', { name: 'Import 1 tunnel' }));
 
 			await waitFor(() =>
 				expect(gateway.createTunnel).toHaveBeenCalledWith(
@@ -390,15 +381,13 @@ describe('ImportDrawer', () => {
 				buildImportPreview({ candidates: [buildImportCandidate()] })
 			);
 			await analyzeScript(user);
-			const field = screen.getByRole('combobox', { name: 'Tag à ajouter' });
+			const field = screen.getByRole('combobox', { name: 'Tag to add' });
 
 			await user.type(field, '3333');
-			await user.click(
-				screen.getByRole('button', { name: 'Importer 1 tunnel' })
-			);
+			await user.click(screen.getByRole('button', { name: 'Import 1 tunnel' }));
 
 			expect(field).toHaveAccessibleDescription(
-				expect.stringContaining(DIGITS_TAG_MESSAGE)
+				expect.stringContaining(i18n._(DIGITS_TAG_MESSAGE))
 			);
 			expect(field).toHaveFocus();
 			expect(gateway.createTunnel).not.toHaveBeenCalled();
@@ -418,12 +407,12 @@ describe('ImportDrawer', () => {
 
 			await user.type(
 				screen.getByRole('combobox', {
-					name: 'Tag à ajouter',
+					name: 'Tag to add',
 				}),
 				'dev, imported'
 			);
 			await user.click(
-				screen.getByRole('button', { name: 'Importer 2 tunnels' })
+				screen.getByRole('button', { name: 'Import 2 tunnels' })
 			);
 
 			await waitFor(() =>
@@ -452,7 +441,7 @@ describe('ImportDrawer', () => {
 			await analyzeScript(user);
 
 			await user.click(
-				screen.getByRole('button', { name: 'Importer 8 tunnels' })
+				screen.getByRole('button', { name: 'Import 8 tunnels' })
 			);
 
 			await waitFor(() =>
@@ -460,7 +449,7 @@ describe('ImportDrawer', () => {
 			);
 			expect(
 				useToastStore.getState().toasts.map((toast) => toast.message)
-			).toEqual(['8 tunnels importés']);
+			).toEqual(['8 tunnels imported']);
 		});
 
 		it('should keep the drawer, list the failures and unselect the created ones', async () => {
@@ -476,26 +465,26 @@ describe('ImportDrawer', () => {
 			gateway.createTunnel.mockResolvedValueOnce(buildTunnel());
 			gateway.createTunnel.mockRejectedValueOnce(
 				new DaemonCommandError('validation_failed', 'invalide', [
-					'Le port 4444 est déjà utilisé',
+					'Port 4444 is already in use',
 				])
 			);
 			await analyzeScript(user);
 
 			await user.click(
-				screen.getByRole('button', { name: 'Importer 2 tunnels' })
+				screen.getByRole('button', { name: 'Import 2 tunnels' })
 			);
 
 			const summary = await screen.findByRole('alert');
-			expect(summary).toHaveTextContent('1 tunnel importé, 1 en échec');
+			expect(summary).toHaveTextContent('1 tunnel imported, 1 failed');
 			expect(summary).toHaveTextContent(
-				'4444 → nova:4444 : Le port 4444 est déjà utilisé'
+				'4444 → nova:4444: Port 4444 is already in use'
 			);
 			expect(summary).toHaveFocus();
 			expect(
-				screen.getByRole('checkbox', { name: '3333 vers nova:3333' })
+				screen.getByRole('checkbox', { name: '3333 to nova:3333' })
 			).not.toBeChecked();
 			expect(
-				screen.getByRole('checkbox', { name: '4444 vers nova:4444' })
+				screen.getByRole('checkbox', { name: '4444 to nova:4444' })
 			).toBeChecked();
 			expect(useUiStore.getState().panel).toEqual({ kind: 'import' });
 		});
@@ -514,12 +503,10 @@ describe('ImportDrawer', () => {
 			);
 			await analyzeScript(user);
 
-			await user.click(
-				screen.getByRole('button', { name: 'Importer 1 tunnel' })
-			);
+			await user.click(screen.getByRole('button', { name: 'Import 1 tunnel' }));
 
 			expect(await screen.findByRole('status')).toHaveTextContent(
-				'Import en cours : 0 sur 1'
+				'Import in progress: 0 of 1'
 			);
 			act(() => finishCreation());
 			await waitFor(() =>

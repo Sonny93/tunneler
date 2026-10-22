@@ -1,14 +1,14 @@
 import { Button } from '@minimalstuff/ui';
 import { useId, type MouseEvent } from 'react';
+import { useLingui } from '@lingui/react/macro';
 
 import { useUpdateStore } from '#/updates/update_store';
 import { UpdateProgress } from '#/updates/update_progress';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { useInstallUpdate } from '#/updates/use_install_update';
 
-const RELEASE_LINK_FAILURE_MESSAGE = 'Ouverture impossible';
-
 export function UpdateNotice() {
+	const { t } = useLingui();
 	const offer = useUpdateStore((state) => state.offer);
 	const isHidden = useUpdateStore((state) => state.isHidden);
 	const isInstalling = useUpdateStore((state) => state.isInstalling);
@@ -18,6 +18,7 @@ export function UpdateNotice() {
 	const headingId = useId();
 
 	if (offer === null || isHidden) return null;
+	const { version } = offer;
 
 	const handleHide = (event: MouseEvent<HTMLButtonElement>) => {
 		event.currentTarget.closest('main')?.focus();
@@ -28,7 +29,7 @@ export function UpdateNotice() {
 		event.preventDefault();
 		void runDaemonAction(
 			(gateway) => gateway.openReleasePage(),
-			RELEASE_LINK_FAILURE_MESSAGE
+			t`Couldn't open the page`
 		);
 	};
 
@@ -43,11 +44,11 @@ export function UpdateNotice() {
 			/>
 			<div className="flex min-w-0 flex-1 flex-col items-start gap-2">
 				<h2 id={headingId} className="m-0 text-base font-semibold">
-					{`Version ${offer.version} disponible`}
+					{t`Version ${version} available`}
 				</h2>
 				{offer.notes !== undefined && (
 					<details className="text-sm">
-						<summary className="cursor-pointer">Notes de version</summary>
+						<summary className="cursor-pointer">{t`Release notes`}</summary>
 						<p className="m-0 mt-2 whitespace-pre-line break-words">
 							{offer.notes}
 						</p>
@@ -59,7 +60,7 @@ export function UpdateNotice() {
 					<div className="flex flex-wrap items-center gap-2">
 						{offer.action === 'installAndRestart' && (
 							<Button size="sm" onClick={() => void installUpdate()}>
-								Installer et redémarrer
+								{t`Install and restart`}
 							</Button>
 						)}
 						<a
@@ -67,7 +68,7 @@ export function UpdateNotice() {
 							onClick={handleOpenRelease}
 							className="inline-flex min-h-6 items-center text-sm underline"
 						>
-							Voir la version
+							{t`View release`}
 						</a>
 						<Button
 							size="sm"
@@ -75,7 +76,7 @@ export function UpdateNotice() {
 							color="neutral"
 							onClick={handleHide}
 						>
-							Masquer
+							{t`Hide`}
 						</Button>
 					</div>
 				)}

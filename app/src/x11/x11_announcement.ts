@@ -1,13 +1,17 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+
 import type { X11StateDto } from '#/daemon/protocol';
 import { getX11StateDetail, getX11StateLabel } from '#/x11/x11_state_label';
 
-/** "X11 nova : actif (localhost:10.0)". */
+/** "X11 nova: active (localhost:10.0)". */
 export function buildX11Announcement(
 	host: string,
-	state: Readonly<X11StateDto>
+	state: Readonly<X11StateDto>,
+	i18n: I18n
 ): string {
-	const label = getX11StateLabel(state).toLowerCase();
+	const label = getX11StateLabel(state, i18n).toLowerCase();
 	const detail = getX11StateDetail(state);
-	if (detail === null) return `X11 ${host} : ${label}`;
-	return `X11 ${host} : ${label} (${detail})`;
+	if (detail === null) return t(i18n)`X11 ${host}: ${label}`;
+	return t(i18n)`X11 ${host}: ${label} (${detail})`;
 }

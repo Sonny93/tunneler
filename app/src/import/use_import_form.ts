@@ -1,3 +1,6 @@
+import type { I18n } from '@lingui/core';
+import { msg, t } from '@lingui/core/macro';
+import { useLingui } from '@lingui/react/macro';
 import { useState, type FormEvent } from 'react';
 
 import { useUiStore } from '#/state/ui_store';
@@ -21,7 +24,7 @@ import {
 	type ImportOutcome,
 } from '#/import/create_imported_tunnels';
 
-const MISSING_HOST_ERROR = "Choisissez l'hôte des tunnels sans destination.";
+const MISSING_HOST_ERROR = msg`Choose the host of the tunnels without a destination.`;
 const HOST_FIELD_NAME = 'defaultHost';
 const TAGS_FIELD_NAME = 'tags';
 
@@ -42,22 +45,29 @@ type UseImportFormReturn = {
 	submit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
-function describeFailure({ label, messages }: Readonly<ImportFailure>): string {
-	return `${label} : ${messages.join(', ')}`;
+function describeFailure(
+	{ label, messages }: Readonly<ImportFailure>,
+	i18n: I18n
+): string {
+	const messageList = messages.join(', ');
+	return t(i18n)`${label}: ${messageList}`;
 }
 
 function describeSummaryTitle(
 	createdCount: number,
-	failedCount: number
+	failedCount: number,
+	i18n: I18n
 ): string {
-	if (createdCount === 0) return 'Import impossible :';
-	return `${describeImportedCount(createdCount)}, ${failedCount} en échec :`;
+	if (createdCount === 0) return t(i18n)`Import failed:`;
+	const importedText = describeImportedCount(createdCount, i18n);
+	return t(i18n)`${importedText}, ${failedCount} failed:`;
 }
 
 export function useImportForm(
 	preview: Readonly<ImportPreviewDto>,
 	settings: Readonly<SettingsDto>
 ): UseImportFormReturn {
+	const { i18n } = useLingui();
 	const gateway = useDaemonGateway();
 	const tunnels = useDaemonStore((state) => state.tunnels);
 	const { candidates } = preview;
@@ -104,10 +114,13 @@ export function useImportForm(
 		setSummaryTitle(
 			describeSummaryTitle(
 				outcome.createdIndexes.length,
-				outcome.failures.length
+				outcome.failures.length,
+				i18n
 			)
 		);
-		summary.reportMessages(outcome.failures.map(describeFailure));
+		summary.reportMessages(
+			outcome.failures.map((failure) => describeFailure(failure, i18n))
+		);
 	};
 
 	const importSelected = async () => {
@@ -123,7 +136,8 @@ export function useImportForm(
 		const outcome = await createImportedTunnels(
 			gateway,
 			importSpecs,
-			(doneCount) => setProgress({ doneCount, totalCount })
+			(doneCount) => setProgress({ doneCount, totalCount }),
+			i18n
 		);
 		setProgress(null);
 		if (outcome.failures.length > 0) {
@@ -132,7 +146,7 @@ export function useImportForm(
 		}
 		useToastStore.getState().pushToast({
 			tone: 'success',
-			message: describeImportedCount(outcome.createdIndexes.length),
+			message: describeImportedCount(outcome.createdIndexes.length, i18n),
 		});
 		useUiStore.getState().closePanel();
 	};
@@ -146,11 +160,13 @@ export function useImportForm(
 				(index) => candidates[index]?.host === undefined
 			);
 		if (isHostMissing) {
-			setHostError(MISSING_HOST_ERROR);
+			setHostError(i18n._(MISSING_HOST_ERROR));
 			focusField(event.currentTarget, HOST_FIELD_NAME);
 			return;
 		}
-		const foundTagsError = validateTags(tagsText) ?? undefined;
+		const tagsProblem = validateTags(tagsText);
+		const foundTagsError =
+			tagsProblem === null ? undefined : i18n._(tagsProblem);
 		setTagsError(foundTagsError);
 		if (foundTagsError !== undefined) {
 			focusField(event.currentTarget, TAGS_FIELD_NAME);

@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -8,28 +9,28 @@ import {
 
 describe('describeDetectedCount', () => {
 	it.each([
-		[0, 'Aucun tunnel détecté'],
-		[1, '1 tunnel détecté'],
-		[8, '8 tunnels détectés'],
+		[0, 'No tunnel detected'],
+		[1, '1 tunnel detected'],
+		[8, '8 tunnels detected'],
 	])('should describe %i detected tunnels', (count, expected) => {
-		expect(describeDetectedCount(count)).toBe(expected);
+		expect(describeDetectedCount(count, i18n)).toBe(expected);
 	});
 });
 
 describe('describeImportAction', () => {
 	it.each([
-		[1, 'Importer 1 tunnel'],
-		[3, 'Importer 3 tunnels'],
+		[1, 'Import 1 tunnel'],
+		[3, 'Import 3 tunnels'],
 	])('should label the action for %i tunnels', (count, expected) => {
-		expect(describeImportAction(count)).toBe(expected);
+		expect(describeImportAction(count, i18n)).toBe(expected);
 	});
 });
 
 describe('describeImportedCount', () => {
 	it.each([
-		[1, '1 tunnel importé'],
-		[3, '3 tunnels importés'],
+		[1, '1 tunnel imported'],
+		[3, '3 tunnels imported'],
 	])('should confirm %i imported tunnels', (count, expected) => {
-		expect(describeImportedCount(count)).toBe(expected);
+		expect(describeImportedCount(count, i18n)).toBe(expected);
 	});
 });

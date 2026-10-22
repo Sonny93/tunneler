@@ -63,4 +63,4 @@ CI (`.github/workflows/ci.yml`) runs the same commands on Linux and Windows (mac
 - Tests: Vitest + Testing Library, query by role/accessible name first, and an `axe` check (`vitest-axe`) for every component and screen.
 
 ### Language
-Code, comments, commits and these files are in English. User-facing UI strings are French (`<html lang="fr">`).
+Code, comments, commits and these files are in English. User-facing strings are written in English and translated to French: Lingui in `app/` (macros, catalogs in `app/src/locales/`, run `pnpm i18n:extract` and fill every French `msgstr` in the same change), a per-language `match` in the daemon for the tray and notifications. The CLI is English only. The display language is `settings.language` (`system` follows the OS).

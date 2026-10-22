@@ -43,23 +43,23 @@ describe('ApplicationsSection', () => {
 		useDaemonStore.setState({ openers: [preset] });
 		renderSection();
 
-		const list = screen.getByRole('list', { name: 'Détectées sur ce poste' });
+		const list = screen.getByRole('list', {
+			name: 'Detected on this computer',
+		});
 		expect(within(list).getByText('Remmina (VNC)')).toBeInTheDocument();
 		expect(
 			within(list).getByText('remmina -c vnc://{host}:{port}')
 		).toBeInTheDocument();
 		expect(
-			within(list).queryByRole('button', { name: /Modifier|Supprimer/ })
+			within(list).queryByRole('button', { name: /Edit|Delete/ })
 		).not.toBeInTheDocument();
 	});
 
 	it('should say when nothing is detected or added', () => {
 		renderSection();
 
-		expect(
-			screen.getByText('Aucune application détectée.')
-		).toBeInTheDocument();
-		expect(screen.getByText('Aucune application ajoutée.')).toBeInTheDocument();
+		expect(screen.getByText('No application detected.')).toBeInTheDocument();
+		expect(screen.getByText('No application added.')).toBeInTheDocument();
 	});
 
 	it('should list the applications of the user with edit and delete buttons', () => {
@@ -68,8 +68,8 @@ describe('ApplicationsSection', () => {
 
 		expect(
 			[
-				screen.getByRole('button', { name: 'Modifier DBeaver' }),
-				screen.getByRole('button', { name: 'Supprimer DBeaver' }),
+				screen.getByRole('button', { name: 'Edit DBeaver' }),
+				screen.getByRole('button', { name: 'Delete DBeaver' }),
 			].length
 		).toBe(2);
 	});
@@ -78,16 +78,16 @@ describe('ApplicationsSection', () => {
 		const user = userEvent.setup();
 		renderSection();
 		await user.click(
-			screen.getByRole('button', { name: 'Ajouter une application' })
+			screen.getByRole('button', { name: 'Add an application' })
 		);
 
 		await user.type(
-			screen.getByRole('textbox', { name: /^Nom/ }),
-			'Mon Client'
+			screen.getByRole('textbox', { name: /^Name/ }),
+			'My Client'
 		);
 
-		expect(screen.getByRole('textbox', { name: /^Identifiant/ })).toHaveValue(
-			'mon-client'
+		expect(screen.getByRole('textbox', { name: /^Identifier/ })).toHaveValue(
+			'my-client'
 		);
 	});
 
@@ -95,13 +95,13 @@ describe('ApplicationsSection', () => {
 		const user = userEvent.setup();
 		renderSection();
 		await user.click(
-			screen.getByRole('button', { name: 'Ajouter une application' })
+			screen.getByRole('button', { name: 'Add an application' })
 		);
-		await user.type(screen.getByRole('textbox', { name: /^Identifiant/ }), 'x');
+		await user.type(screen.getByRole('textbox', { name: /^Identifier/ }), 'x');
 
-		await user.type(screen.getByRole('textbox', { name: /^Nom/ }), 'Autre');
+		await user.type(screen.getByRole('textbox', { name: /^Name/ }), 'Other');
 
-		expect(screen.getByRole('textbox', { name: /^Identifiant/ })).toHaveValue(
+		expect(screen.getByRole('textbox', { name: /^Identifier/ })).toHaveValue(
 			'x'
 		);
 	});
@@ -110,12 +110,14 @@ describe('ApplicationsSection', () => {
 		const user = userEvent.setup();
 		renderSection();
 		await user.click(
-			screen.getByRole('button', { name: 'Ajouter une application' })
+			screen.getByRole('button', { name: 'Add an application' })
 		);
 
 		expect(
 			screen.getByRole('textbox', { name: 'Arguments' })
-		).toHaveAccessibleDescription(expect.stringContaining('aucun shell'));
+		).toHaveAccessibleDescription(
+			expect.stringContaining('no shell interprets')
+		);
 	});
 
 	it('should save the new application after the existing ones', async () => {
@@ -124,11 +126,11 @@ describe('ApplicationsSection', () => {
 		const gateway = createFakeGateway();
 		renderSection(gateway);
 		await user.click(
-			screen.getByRole('button', { name: 'Ajouter une application' })
+			screen.getByRole('button', { name: 'Add an application' })
 		);
-		await user.type(screen.getByRole('textbox', { name: /^Nom/ }), 'Viewer');
+		await user.type(screen.getByRole('textbox', { name: /^Name/ }), 'Viewer');
 		await user.type(
-			screen.getByRole('textbox', { name: /^Commande/ }),
+			screen.getByRole('textbox', { name: /^Command/ }),
 			'viewer'
 		);
 		await user.type(
@@ -136,11 +138,11 @@ describe('ApplicationsSection', () => {
 			'--host={{host}{enter}--port={{port}'
 		);
 		await user.type(
-			screen.getByRole('textbox', { name: /^Ports/ }),
+			screen.getByRole('textbox', { name: /^Suggested ports/ }),
 			'5900, 5901'
 		);
 
-		await user.click(screen.getByRole('button', { name: 'Ajouter' }));
+		await user.click(screen.getByRole('button', { name: 'Add' }));
 
 		expect(gateway.updateOpeners).toHaveBeenCalledWith([
 			MINE_SPEC,
@@ -158,23 +160,23 @@ describe('ApplicationsSection', () => {
 		const user = userEvent.setup();
 		renderSection();
 		await user.click(
-			screen.getByRole('button', { name: 'Ajouter une application' })
+			screen.getByRole('button', { name: 'Add an application' })
 		);
-		await user.type(screen.getByRole('textbox', { name: /^Nom/ }), 'Viewer');
+		await user.type(screen.getByRole('textbox', { name: /^Name/ }), 'Viewer');
 		await user.type(
-			screen.getByRole('textbox', { name: /^Commande/ }),
+			screen.getByRole('textbox', { name: /^Command/ }),
 			'viewer'
 		);
 
-		await user.click(screen.getByRole('button', { name: 'Ajouter' }));
+		await user.click(screen.getByRole('button', { name: 'Add' }));
 
 		await waitFor(() =>
 			expect(
 				useToastStore.getState().toasts.map((toast) => toast.message)
-			).toEqual(['Application Viewer ajoutée'])
+			).toEqual(['Application Viewer added'])
 		);
 		expect(
-			screen.getByRole('button', { name: 'Ajouter une application' })
+			screen.getByRole('button', { name: 'Add an application' })
 		).toBeInTheDocument();
 	});
 
@@ -183,13 +185,13 @@ describe('ApplicationsSection', () => {
 		const gateway = createFakeGateway();
 		renderSection(gateway);
 		await user.click(
-			screen.getByRole('button', { name: 'Ajouter une application' })
+			screen.getByRole('button', { name: 'Add an application' })
 		);
 
-		await user.click(screen.getByRole('button', { name: 'Ajouter' }));
+		await user.click(screen.getByRole('button', { name: 'Add' }));
 
-		expect(screen.getByRole('textbox', { name: /^Nom/ })).toBeInvalid();
-		expect(screen.getByRole('textbox', { name: /^Commande/ })).toBeInvalid();
+		expect(screen.getByRole('textbox', { name: /^Name/ })).toBeInvalid();
+		expect(screen.getByRole('textbox', { name: /^Command/ })).toBeInvalid();
 		expect(gateway.updateOpeners).not.toHaveBeenCalled();
 	});
 
@@ -198,16 +200,16 @@ describe('ApplicationsSection', () => {
 		const user = userEvent.setup();
 		renderSection();
 		await user.click(
-			screen.getByRole('button', { name: 'Ajouter une application' })
+			screen.getByRole('button', { name: 'Add an application' })
 		);
-		await user.type(screen.getByRole('textbox', { name: /^Nom/ }), 'DBeaver');
-		await user.type(screen.getByRole('textbox', { name: /^Commande/ }), 'x');
+		await user.type(screen.getByRole('textbox', { name: /^Name/ }), 'DBeaver');
+		await user.type(screen.getByRole('textbox', { name: /^Command/ }), 'x');
 
-		await user.click(screen.getByRole('button', { name: 'Ajouter' }));
+		await user.click(screen.getByRole('button', { name: 'Add' }));
 
 		expect(
 			screen.getByText(
-				'Cet identifiant est déjà utilisé par une de vos applications.'
+				'This identifier is already used by one of your applications.'
 			)
 		).toBeInTheDocument();
 	});
@@ -217,10 +219,10 @@ describe('ApplicationsSection', () => {
 		const user = userEvent.setup();
 		renderSection();
 
-		await user.click(screen.getByRole('button', { name: 'Modifier DBeaver' }));
+		await user.click(screen.getByRole('button', { name: 'Edit DBeaver' }));
 
 		expect(
-			screen.getByRole('textbox', { name: /^Identifiant/ })
+			screen.getByRole('textbox', { name: /^Identifier/ })
 		).toHaveAttribute('readonly');
 	});
 
@@ -229,12 +231,12 @@ describe('ApplicationsSection', () => {
 		const user = userEvent.setup();
 		const gateway = createFakeGateway();
 		renderSection(gateway);
-		await user.click(screen.getByRole('button', { name: 'Modifier DBeaver' }));
-		const command = screen.getByRole('textbox', { name: /^Commande/ });
+		await user.click(screen.getByRole('button', { name: 'Edit DBeaver' }));
+		const command = screen.getByRole('textbox', { name: /^Command/ });
 		await user.clear(command);
 		await user.type(command, '/opt/dbeaver');
 
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateOpeners).toHaveBeenCalledWith([
 			{ ...MINE_SPEC, command: '/opt/dbeaver' },
@@ -245,21 +247,21 @@ describe('ApplicationsSection', () => {
 		const user = userEvent.setup();
 		const gateway = createFakeGateway();
 		gateway.updateOpeners.mockRejectedValue(
-			new DaemonCommandError('validation_failed', 'invalide', ['commande vide'])
+			new DaemonCommandError('validation_failed', 'invalid', ['empty command'])
 		);
 		renderSection(gateway);
 		await user.click(
-			screen.getByRole('button', { name: 'Ajouter une application' })
+			screen.getByRole('button', { name: 'Add an application' })
 		);
-		await user.type(screen.getByRole('textbox', { name: /^Nom/ }), 'Viewer');
+		await user.type(screen.getByRole('textbox', { name: /^Name/ }), 'Viewer');
 		await user.type(
-			screen.getByRole('textbox', { name: /^Commande/ }),
+			screen.getByRole('textbox', { name: /^Command/ }),
 			'viewer'
 		);
 
-		await user.click(screen.getByRole('button', { name: 'Ajouter' }));
+		await user.click(screen.getByRole('button', { name: 'Add' }));
 
-		expect(await screen.findByRole('alert')).toHaveTextContent('commande vide');
+		expect(await screen.findByRole('alert')).toHaveTextContent('empty command');
 	});
 
 	it('should cancel without saving', async () => {
@@ -267,14 +269,14 @@ describe('ApplicationsSection', () => {
 		const gateway = createFakeGateway();
 		renderSection(gateway);
 		await user.click(
-			screen.getByRole('button', { name: 'Ajouter une application' })
+			screen.getByRole('button', { name: 'Add an application' })
 		);
 
-		await user.click(screen.getByRole('button', { name: 'Annuler' }));
+		await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
 		expect(gateway.updateOpeners).not.toHaveBeenCalled();
 		expect(
-			screen.queryByRole('form', { name: 'Ajouter une application' })
+			screen.queryByRole('form', { name: 'Add an application' })
 		).not.toBeInTheDocument();
 	});
 
@@ -286,7 +288,7 @@ describe('ApplicationsSection', () => {
 		const gateway = createFakeGateway();
 		renderSection(gateway);
 
-		await user.click(screen.getByRole('button', { name: 'Supprimer DBeaver' }));
+		await user.click(screen.getByRole('button', { name: 'Delete DBeaver' }));
 
 		await waitFor(() =>
 			expect(gateway.updateOpeners).toHaveBeenCalledWith([
@@ -307,12 +309,12 @@ describe('ApplicationsSection', () => {
 		const gateway = createFakeGateway();
 		renderSection(gateway);
 
-		await user.click(screen.getByRole('button', { name: 'Supprimer DBeaver' }));
+		await user.click(screen.getByRole('button', { name: 'Delete DBeaver' }));
 
 		const dialog = await screen.findByRole('alertdialog', {
-			name: /Supprimer l’application DBeaver/,
+			name: /Delete the application DBeaver/,
 		});
-		expect(dialog).toHaveTextContent('2 tunnels utilisent cette application');
+		expect(dialog).toHaveTextContent('2 tunnels use this application');
 		expect(gateway.updateOpeners).not.toHaveBeenCalled();
 	});
 
@@ -324,11 +326,11 @@ describe('ApplicationsSection', () => {
 		const user = userEvent.setup();
 		const gateway = createFakeGateway();
 		renderSection(gateway);
-		await user.click(screen.getByRole('button', { name: 'Supprimer DBeaver' }));
+		await user.click(screen.getByRole('button', { name: 'Delete DBeaver' }));
 
 		await user.click(
 			within(await screen.findByRole('alertdialog')).getByRole('button', {
-				name: 'Supprimer',
+				name: 'Delete',
 			})
 		);
 
@@ -343,11 +345,11 @@ describe('ApplicationsSection', () => {
 		const user = userEvent.setup();
 		const gateway = createFakeGateway();
 		renderSection(gateway);
-		await user.click(screen.getByRole('button', { name: 'Supprimer DBeaver' }));
+		await user.click(screen.getByRole('button', { name: 'Delete DBeaver' }));
 
 		await user.click(
 			within(await screen.findByRole('alertdialog')).getByRole('button', {
-				name: 'Annuler',
+				name: 'Cancel',
 			})
 		);
 
@@ -365,7 +367,7 @@ describe('ApplicationsSection', () => {
 		const user = userEvent.setup();
 		const { container } = renderSection();
 		await user.click(
-			screen.getByRole('button', { name: 'Ajouter une application' })
+			screen.getByRole('button', { name: 'Add an application' })
 		);
 
 		expect(await axe(container)).toHaveNoViolations();

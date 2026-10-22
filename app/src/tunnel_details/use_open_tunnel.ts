@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro';
+
 import type { TunnelDto } from '#/daemon/protocol';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
@@ -13,7 +15,7 @@ type UseOpenTunnelReturn = {
 	isOpenable: boolean;
 	/** Says what the primary action does: the browser or the default application. */
 	label: string;
-	/** The other ways to open the tunnel: "Ouvrir avec…". */
+	/** The other ways to open the tunnel: "Open with…". */
 	alternatives: readonly OpenChoice[];
 	/** Opens with the default action. */
 	open: () => void;
@@ -23,20 +25,24 @@ type UseOpenTunnelReturn = {
 export function useOpenTunnel(
 	tunnel: Readonly<TunnelDto>
 ): UseOpenTunnelReturn {
+	const { t, i18n } = useLingui();
 	const runDaemonAction = useDaemonAction();
 	const openers = useDaemonStore((state) => state.openers);
 
 	const run = (opener?: string) => {
 		void runDaemonAction(
 			(gateway) => gateway.openTunnel(tunnel.id, opener),
-			'Ouverture impossible'
+			t`Couldn't open the tunnel`
 		);
 	};
 
 	return {
 		isOpenable: tunnel.kind === 'local',
-		label: describeOpenAction(toDefaultChoice(tunnel.defaultOpener)),
-		alternatives: listAlternativeChoices(tunnel.defaultOpener, openers),
+		label: describeOpenAction(
+			toDefaultChoice(tunnel.defaultOpener, i18n),
+			i18n
+		),
+		alternatives: listAlternativeChoices(tunnel.defaultOpener, openers, i18n),
 		open: () => run(),
 		openWith: run,
 	};

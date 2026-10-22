@@ -1,3 +1,5 @@
+import type { I18n } from '@lingui/core';
+
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
 import type { ImportSpec } from '#/import/build_import_specs';
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
@@ -19,7 +21,8 @@ export type ImportOutcome = {
 export async function createImportedTunnels(
 	gateway: DaemonGateway,
 	importSpecs: readonly ImportSpec[],
-	onProgress: (doneCount: number) => void
+	onProgress: (doneCount: number) => void,
+	i18n: I18n
 ): Promise<ImportOutcome> {
 	const createdIndexes: number[] = [];
 	const failures: ImportFailure[] = [];
@@ -29,7 +32,8 @@ export async function createImportedTunnels(
 			createdIndexes.push(index);
 		} catch (rejection) {
 			const messages = getSubmissionErrorMessages(
-				toDaemonCommandError(rejection)
+				toDaemonCommandError(rejection),
+				i18n
 			);
 			failures.push({ index, label: getTunnelEndpointLabel(spec), messages });
 		}

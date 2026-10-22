@@ -1,4 +1,6 @@
 import { useId } from 'react';
+import { useLingui } from '@lingui/react/macro';
+import type { MessageDescriptor } from '@lingui/core';
 
 import { useDaemonStore } from '#/state/daemon_store';
 import type { TunnelKindDto } from '#/daemon/protocol';
@@ -38,16 +40,20 @@ export function TunnelFormFields({
 	hasOpenOptions = true,
 	hasStandby = true,
 }: Readonly<TunnelFormFieldsProps>) {
+	const { t, i18n } = useLingui();
 	const hosts = useDaemonStore((state) => state.hosts);
 	const defaultBindAddress = useDaemonStore((state) =>
 		values.kind === 'remote'
 			? state.settings?.defaultRemoteBindAddress
 			: state.settings?.defaultBindAddress
 	);
+	const defaultAddressText = defaultBindAddress ?? t`unknown`;
 	const texts = getTunnelKindFieldTexts(values.kind);
 	const hasTarget = values.kind !== 'dynamic';
 	const hostListId = useId();
 
+	const resolveError = (error: MessageDescriptor | undefined) =>
+		error && i18n._(error);
 	const changeText = (field: TunnelFormTextField, value: string) =>
 		dispatch({ type: 'textChanged', field, value });
 	const changeKind = (kind: TunnelKindDto) =>
@@ -63,11 +69,11 @@ export function TunnelFormFields({
 			<TunnelKindField value={values.kind} onChange={changeKind} />
 			<TunnelTextField
 				field="host"
-				label="Host"
+				label={t`Host`}
 				value={values.host}
 				onChange={changeText}
-				error={errors.host}
-				hint="Alias de ~/.ssh/config"
+				error={resolveError(errors.host)}
+				hint={t`Alias from ~/.ssh/config`}
 				isRequired
 				listId={hostListId}
 			/>
@@ -80,10 +86,10 @@ export function TunnelFormFields({
 			</datalist>
 			<TunnelTextField
 				field="listenPort"
-				label={texts.listenPortLabel}
+				label={i18n._(texts.listenPortLabel)}
 				value={values.listenPort}
 				onChange={changeText}
-				error={errors.listenPort}
+				error={resolveError(errors.listenPort)}
 				inputMode="numeric"
 				isRequired
 			/>
@@ -91,36 +97,36 @@ export function TunnelFormFields({
 				<TargetPortField
 					value={values.targetPort}
 					isLinked={values.isTargetPortLinked}
-					error={errors.targetPort}
+					error={resolveError(errors.targetPort)}
 					onChange={changeTargetPort}
 					onRelink={relinkTargetPort}
 				/>
 			)}
-			{hasTarget && (
+			{texts.targetHostLabel !== null && texts.targetHostHint !== null && (
 				<TunnelTextField
 					field="targetHost"
-					label={texts.targetHostLabel}
+					label={i18n._(texts.targetHostLabel)}
 					value={values.targetHost}
 					onChange={changeText}
 					placeholder="127.0.0.1"
-					hint={texts.targetHostHint}
+					hint={i18n._(texts.targetHostHint)}
 				/>
 			)}
 			<TunnelTextField
 				field="listenAddress"
-				label="Adresse d'écoute"
+				label={t`Listen address`}
 				value={values.listenAddress}
 				onChange={changeText}
 				placeholder={defaultBindAddress}
-				hint={`Laisser vide pour utiliser l'adresse par défaut (${defaultBindAddress ?? 'inconnue'})`}
+				hint={t`Leave empty to use the default address (${defaultAddressText})`}
 			/>
 			{hasTags && (
 				<TunnelTextField
 					field="tags"
-					label="Tags séparés par des virgules"
+					label={t`Tags, separated by commas`}
 					value={values.tags}
 					onChange={changeText}
-					error={errors.tags}
+					error={resolveError(errors.tags)}
 				/>
 			)}
 			{hasStandby && values.kind !== 'remote' && (

@@ -43,13 +43,13 @@ describe('ExternalSection', () => {
 		]);
 
 		expect(
-			screen.getByRole('region', { name: 'Externes non gérés (2)' })
+			screen.getByRole('region', { name: 'Unmanaged externals (2)' })
 		).toBeInTheDocument();
 		expect(
 			screen
 				.getAllByRole('heading', { level: 3 })
 				.map((item) => item.textContent)
-		).toEqual(['ssh vers nova (pid 4242)', 'ssh (pid 5)']);
+		).toEqual(['ssh to nova (pid 4242)', 'ssh (pid 5)']);
 	});
 
 	it('should list the forwards of a process', () => {
@@ -63,7 +63,7 @@ describe('ExternalSection', () => {
 		]);
 
 		expect(
-			screen.getByText('Redirection locale 3333 vers localhost:3333')
+			screen.getByText('Local forward 3333 to localhost:3333')
 		).toBeInTheDocument();
 		expect(screen.getByText('-D 1080')).toBeInTheDocument();
 	});
@@ -80,7 +80,7 @@ describe('ExternalSection', () => {
 		]);
 
 		expect(
-			screen.getAllByRole('button', { name: /^Importer comme tunnel/ })
+			screen.getAllByRole('button', { name: /^Import as a tunnel/ })
 		).toHaveLength(3);
 	});
 
@@ -91,10 +91,12 @@ describe('ExternalSection', () => {
 			}),
 		]);
 		await userEvent.click(
-			screen.getByRole('button', { name: /^Importer comme tunnel/ })
+			screen.getByRole('button', { name: /^Import as a tunnel/ })
 		);
 
-		await userEvent.click(await screen.findByRole('button', { name: 'Créer' }));
+		await userEvent.click(
+			await screen.findByRole('button', { name: 'Create' })
+		);
 
 		await waitFor(() =>
 			expect(gateway.createTunnel).toHaveBeenCalledWith(
@@ -122,10 +124,12 @@ describe('ExternalSection', () => {
 			}),
 		]);
 		await userEvent.click(
-			screen.getByRole('button', { name: /^Importer comme tunnel/ })
+			screen.getByRole('button', { name: /^Import as a tunnel/ })
 		);
 
-		await userEvent.click(await screen.findByRole('button', { name: 'Créer' }));
+		await userEvent.click(
+			await screen.findByRole('button', { name: 'Create' })
+		);
 
 		await waitFor(() =>
 			expect(gateway.createTunnel).toHaveBeenCalledWith(
@@ -144,7 +148,7 @@ describe('ExternalSection', () => {
 
 		await userEvent.click(
 			screen.getByRole('button', {
-				name: 'Importer comme tunnel : 3333 vers localhost:3333',
+				name: 'Import as a tunnel: 3333 to localhost:3333',
 			})
 		);
 
@@ -167,10 +171,12 @@ describe('ExternalSection', () => {
 			}),
 		]);
 		await userEvent.click(
-			screen.getByRole('button', { name: /^Importer comme tunnel/ })
+			screen.getByRole('button', { name: /^Import as a tunnel/ })
 		);
 
-		await userEvent.click(await screen.findByRole('button', { name: 'Créer' }));
+		await userEvent.click(
+			await screen.findByRole('button', { name: 'Create' })
+		);
 
 		await waitFor(() =>
 			expect(gateway.createTunnel).toHaveBeenCalledWith({
@@ -190,15 +196,15 @@ describe('ExternalSection', () => {
 		const { gateway } = renderSection();
 		await userEvent.click(
 			screen.getByRole('button', {
-				name: 'Arrêter le processus : ssh (pid 4242)',
+				name: 'Stop the process: ssh (pid 4242)',
 			})
 		);
 
 		const dialog = await screen.findByRole('alertdialog', {
-			name: 'Arrêter ssh (pid 4242) ?',
+			name: 'Stop ssh (pid 4242)?',
 		});
 		await userEvent.click(
-			within(dialog).getByRole('button', { name: 'Arrêter le processus' })
+			within(dialog).getByRole('button', { name: 'Stop the process' })
 		);
 
 		expect(gateway.killExternal).toHaveBeenCalledWith(4242);
@@ -208,12 +214,12 @@ describe('ExternalSection', () => {
 		const { gateway } = renderSection();
 		await userEvent.click(
 			screen.getByRole('button', {
-				name: 'Arrêter le processus : ssh (pid 4242)',
+				name: 'Stop the process: ssh (pid 4242)',
 			})
 		);
 
 		await userEvent.click(
-			await screen.findByRole('button', { name: 'Annuler' })
+			await screen.findByRole('button', { name: 'Cancel' })
 		);
 
 		expect(gateway.killExternal).not.toHaveBeenCalled();
@@ -223,13 +229,13 @@ describe('ExternalSection', () => {
 		const { gateway } = renderSection();
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Ignorer ssh (pid 4242)' })
+			screen.getByRole('button', { name: 'Ignore ssh (pid 4242)' })
 		);
 
 		expect(gateway.ignoreExternal).toHaveBeenCalledWith(4242);
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts[0]?.message).toBe(
-				'Processus ssh (pid 4242) ignoré'
+				'Process ssh (pid 4242) ignored'
 			)
 		);
 	});

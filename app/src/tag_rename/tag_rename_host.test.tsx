@@ -33,8 +33,7 @@ function renderHost(
 	);
 }
 
-const findField = () =>
-	screen.findByRole('textbox', { name: 'Nouveau nom du tag' });
+const findField = () => screen.findByRole('textbox', { name: 'New tag name' });
 
 async function submitName(
 	user: ReturnType<typeof userEvent.setup>,
@@ -43,7 +42,7 @@ async function submitName(
 	const field = await findField();
 	await user.clear(field);
 	if (name !== '') await user.type(field, name);
-	await user.click(screen.getByRole('button', { name: 'Renommer' }));
+	await user.click(screen.getByRole('button', { name: 'Rename' }));
 }
 
 describe('TagRenameHost', () => {
@@ -51,7 +50,7 @@ describe('TagRenameHost', () => {
 		renderHost();
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Renommer le tag dev' })
+			await screen.findByRole('dialog', { name: 'Rename tag dev' })
 		).toBeInTheDocument();
 		expect(await findField()).toHaveValue('dev');
 	});
@@ -71,7 +70,7 @@ describe('TagRenameHost', () => {
 			expect(useToastStore.getState().toasts).toEqual([
 				expect.objectContaining({
 					tone: 'success',
-					message: 'Tag dev renommé en staging (2 tunnels)',
+					message: 'Tag dev renamed to staging (2 tunnels)',
 				}),
 			])
 		);
@@ -126,9 +125,9 @@ describe('TagRenameHost', () => {
 	});
 
 	it.each([
-		['', 'Saisissez un nom de tag.'],
-		['a,b', 'Un seul tag, sans virgule.'],
-		['a b', "Le tag ne peut pas contenir d'espace."],
+		['', 'Enter a tag name.'],
+		['a,b', 'Only one tag, without a comma.'],
+		['a b', 'The tag cannot contain spaces.'],
 	])('should reject "%s" without calling the daemon', async (name, message) => {
 		const user = userEvent.setup();
 		const gateway = createFakeGateway();
@@ -150,7 +149,7 @@ describe('TagRenameHost', () => {
 		await user.type(field, 'prod');
 
 		expect(field).toHaveAccessibleDescription(
-			'Le tag prod existe déjà : les deux seront fusionnés.'
+			'The tag prod already exists: the two will be merged.'
 		);
 	});
 
@@ -158,14 +157,14 @@ describe('TagRenameHost', () => {
 		const user = userEvent.setup();
 		const gateway = createFakeGateway();
 		gateway.renameTag.mockRejectedValue(
-			new DaemonCommandError('validation_failed', 'invalide', ['Tag refusé'])
+			new DaemonCommandError('validation_failed', 'invalid', ['Tag rejected'])
 		);
 		renderHost(gateway);
 
 		await submitName(user, 'staging');
 
 		expect((await screen.findAllByRole('alert'))[0]).toHaveTextContent(
-			'Tag refusé'
+			'Tag rejected'
 		);
 		expect(useToastStore.getState().toasts).toEqual([]);
 	});
@@ -174,7 +173,7 @@ describe('TagRenameHost', () => {
 		const user = userEvent.setup();
 		const gateway = createFakeGateway();
 		gateway.renameTag.mockRejectedValue(
-			new DaemonCommandError('not_found', 'Aucun tunnel')
+			new DaemonCommandError('not_found', 'No tunnel')
 		);
 		renderHost(gateway);
 
@@ -184,7 +183,7 @@ describe('TagRenameHost', () => {
 			expect(useToastStore.getState().toasts).toEqual([
 				expect.objectContaining({
 					tone: 'error',
-					message: 'Renommage impossible : Aucun tunnel',
+					message: "Couldn't rename the tag: No tunnel",
 				}),
 			])
 		);
@@ -197,7 +196,7 @@ describe('TagRenameHost', () => {
 		renderHost(gateway);
 		await findField();
 
-		await user.click(screen.getByRole('button', { name: 'Annuler' }));
+		await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
 		await waitFor(() => expect(useUiStore.getState().tagRename).toBeNull());
 		expect(gateway.renameTag).not.toHaveBeenCalled();

@@ -1,24 +1,32 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+
 import type { TunnelStateDto } from '#/daemon/protocol';
 import { describeProcess } from '#/externals/describe_process';
 import { getFailureReasonLabel } from '#/tunnels/failure_reason_label';
 
 /** What explains a state beyond its label, or `null` when the label says it all. */
 export function getTunnelStateDetail(
-	state: Readonly<TunnelStateDto>
+	state: Readonly<TunnelStateDto>,
+	i18n: I18n
 ): string | null {
 	switch (state.kind) {
 		case 'failed':
-			return getFailureReasonLabel(state.reason);
-		case 'standby':
-			return state.lastFailure
-				? `dernier réveil en échec : ${getFailureReasonLabel(state.lastFailure)}`
-				: null;
-		case 'external':
-			return `fourni par ${describeProcess(state.owner)}`;
-		case 'conflict':
-			return state.owner
-				? `port occupé par ${describeProcess(state.owner)}`
-				: 'port occupé par un processus inconnu';
+			return getFailureReasonLabel(state.reason, i18n);
+		case 'standby': {
+			if (!state.lastFailure) return null;
+			const failure = getFailureReasonLabel(state.lastFailure, i18n);
+			return t(i18n)`last wake-up failed: ${failure}`;
+		}
+		case 'external': {
+			const owner = describeProcess(state.owner);
+			return t(i18n)`provided by ${owner}`;
+		}
+		case 'conflict': {
+			if (!state.owner) return t(i18n)`port in use by an unknown process`;
+			const owner = describeProcess(state.owner);
+			return t(i18n)`port in use by ${owner}`;
+		}
 		case 'stopped':
 		case 'starting':
 		case 'active':

@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
 import { buildTunnel } from '#/testing/factories';
@@ -10,7 +11,11 @@ const targets = [
 
 describe('runBulkOperation', () => {
 	it('should report every tunnel as succeeded when none fails', async () => {
-		const outcome = await runBulkOperation(targets, () => Promise.resolve());
+		const outcome = await runBulkOperation(
+			targets,
+			() => Promise.resolve(),
+			i18n
+		);
 
 		expect(outcome).toEqual({
 			total: 2,
@@ -20,8 +25,11 @@ describe('runBulkOperation', () => {
 	});
 
 	it('should keep going after a failure and report its message', async () => {
-		const outcome = await runBulkOperation(targets, ({ id }) =>
-			id === 'a' ? Promise.reject(new Error('boom')) : Promise.resolve()
+		const outcome = await runBulkOperation(
+			targets,
+			({ id }) =>
+				id === 'a' ? Promise.reject(new Error('boom')) : Promise.resolve(),
+			i18n
 		);
 
 		expect(outcome).toEqual({

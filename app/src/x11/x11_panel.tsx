@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro';
+
 import { Drawer } from '#/shared/drawer';
 import { useUiStore } from '#/state/ui_store';
 import { useX11State } from '#/x11/use_x11_state';
@@ -11,11 +13,12 @@ type X11PanelProps = {
 };
 
 export function X11Panel({ host }: Readonly<X11PanelProps>) {
+	const { t } = useLingui();
 	const closePanel = useUiStore((state) => state.closePanel);
 	const state = useX11State(host);
 
 	return (
-		<Drawer isOpen title={`X11 : ${host}`} onClose={closePanel}>
+		<Drawer isOpen title={t`X11: ${host}`} onClose={closePanel}>
 			<div className="flex flex-col gap-6">
 				<X11SecurityNote />
 				<X11AnchorSection host={host} />

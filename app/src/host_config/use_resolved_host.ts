@@ -2,11 +2,14 @@ import { useEffect, useReducer, useState } from 'react';
 
 import type { ResolvedHostDto } from '#/daemon/protocol';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { toDaemonCommandError } from '#/daemon/daemon_command_error';
+import {
+	toDaemonCommandError,
+	type DaemonCommandError,
+} from '#/daemon/daemon_command_error';
 
 export type ResolvedHostState =
 	| { status: 'loading' }
-	| { status: 'error'; message: string }
+	| { status: 'error'; error: DaemonCommandError }
 	| { status: 'ready'; resolvedHost: ResolvedHostDto };
 
 type SettledRequest = {
@@ -37,8 +40,8 @@ export function useResolvedHost(host: string): UseResolvedHostReturn {
 			},
 			(rejection: unknown) => {
 				if (isCancelled) return;
-				const { message } = toDaemonCommandError(rejection);
-				setSettled({ requestKey, state: { status: 'error', message } });
+				const error = toDaemonCommandError(rejection);
+				setSettled({ requestKey, state: { status: 'error', error } });
 			}
 		);
 		return () => {

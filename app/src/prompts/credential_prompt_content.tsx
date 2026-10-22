@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { useId, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Button, Input, ModalFooter, RadioOptions } from '@minimalstuff/ui';
 
@@ -28,10 +29,11 @@ export function CredentialPromptContent({
 	onSubmit,
 	onCancel,
 }: Readonly<CredentialPromptContentProps>) {
+	const { t, i18n } = useLingui();
 	const formId = useId();
-	const submitLabel = getCredentialSubmitLabel(request);
-	const fields = getCredentialFields(request);
-	const description = getCredentialDescription(request);
+	const submitLabel = getCredentialSubmitLabel(request, i18n);
+	const fields = getCredentialFields(request, i18n);
+	const description = getCredentialDescription(request, i18n);
 	const isKeyringEnabled = useDaemonStore(
 		(state) => state.settings?.useOsKeyring ?? false
 	);
@@ -49,7 +51,7 @@ export function CredentialPromptContent({
 					index === position ? event.target.value : answer
 				)
 			);
-	const rememberOptions = getRememberOptions(isKeyringEnabled);
+	const rememberOptions = getRememberOptions(isKeyringEnabled, i18n);
 	const changeRememberChoice = (selected: string) => {
 		const option = rememberOptions.find(({ value }) => value === selected);
 		if (option) setRememberChoice(option.value);
@@ -81,7 +83,7 @@ export function CredentialPromptContent({
 				{canRemember(request) && (
 					<RadioOptions
 						name="remember"
-						label="Mémoriser la passphrase"
+						label={t`Remember the passphrase`}
 						options={rememberOptions}
 						value={rememberChoice}
 						onChange={changeRememberChoice}
@@ -90,7 +92,7 @@ export function CredentialPromptContent({
 			</form>
 			<ModalFooter>
 				<Button variant="outline" color="neutral" onClick={onCancel}>
-					Annuler
+					{t`Cancel`}
 				</Button>
 				<Button type="submit" form={formId}>
 					{submitLabel}

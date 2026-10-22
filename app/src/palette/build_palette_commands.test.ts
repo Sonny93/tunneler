@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
 import { buildOpener, buildTunnel } from '#/testing/factories';
@@ -10,31 +11,31 @@ const build = (
 	tunnels: Parameters<typeof buildPaletteCommands>[0]['tunnels'] = [],
 	hosts: readonly string[] = [],
 	openers: Parameters<typeof buildPaletteCommands>[0]['openers'] = []
-) => buildPaletteCommands({ tunnels, hosts, openers });
+) => buildPaletteCommands({ tunnels, hosts, openers }, i18n);
 
 describe('buildPaletteCommands', () => {
 	it('should always offer the general commands first', () => {
 		expect(labelsOf(build())).toEqual([
-			'Nouveau tunnel',
-			'Nouveau tunnel temporaire…',
-			'Importer des tunnels',
-			'Ouvrir les paramètres',
-			'Ouvrir le dossier de configuration',
-			'Masquer ou afficher le panneau',
-			'Afficher les raccourcis clavier',
+			'New tunnel',
+			'New temporary tunnel…',
+			'Import tunnels',
+			'Open settings',
+			'Open the configuration folder',
+			'Hide or show the sidebar',
+			'Show keyboard shortcuts',
 		]);
 	});
 
-	it('should give the general commands the Général category', () => {
+	it('should give the general commands the General category', () => {
 		expect(new Set(build().map((command) => command.category))).toEqual(
-			new Set(['Général'])
+			new Set(['General'])
 		);
 	});
 
 	it('should offer to start a stopped tunnel', () => {
 		expect(build([buildTunnel()])).toContainEqual(
 			expect.objectContaining({
-				label: 'Démarrer 3333 → nova:3333',
+				label: 'Start 3333 → nova:3333',
 				category: 'Tunnel',
 				action: { kind: 'startTunnel', tunnelId: 'tunnel-1' },
 			})
@@ -46,8 +47,8 @@ describe('buildPaletteCommands', () => {
 			build([buildTunnel({ state: { kind: 'active' } })])
 		);
 
-		expect(labels).toContain('Arrêter 3333 → nova:3333');
-		expect(labels).not.toContain('Démarrer 3333 → nova:3333');
+		expect(labels).toContain('Stop 3333 → nova:3333');
+		expect(labels).not.toContain('Start 3333 → nova:3333');
 	});
 
 	it('should offer to put an awake tunnel back to standby', () => {
@@ -55,7 +56,7 @@ describe('buildPaletteCommands', () => {
 			build([buildTunnel({ state: { kind: 'active' }, isAwake: true })])
 		).toContainEqual(
 			expect.objectContaining({
-				label: 'Mettre en veille 3333 → nova:3333',
+				label: 'Send 3333 → nova:3333 to standby',
 				category: 'Tunnel',
 				action: { kind: 'standbyTunnel', tunnelId: 'tunnel-1' },
 			})
@@ -67,8 +68,8 @@ describe('buildPaletteCommands', () => {
 			build([buildTunnel({ state: { kind: 'active' } })])
 		);
 
-		expect(labels).not.toContain('Mettre en veille 3333 → nova:3333');
-		expect(labels).not.toContain('Mettre en veille les tunnels réveillés');
+		expect(labels).not.toContain('Send 3333 → nova:3333 to standby');
+		expect(labels).not.toContain('Send awake tunnels to standby');
 	});
 
 	it('should offer to put every awake tunnel back to standby when one is awake', () => {
@@ -76,8 +77,8 @@ describe('buildPaletteCommands', () => {
 			build([buildTunnel({ state: { kind: 'active' }, isAwake: true })])
 		).toContainEqual(
 			expect.objectContaining({
-				label: 'Mettre en veille les tunnels réveillés',
-				category: 'Général',
+				label: 'Send awake tunnels to standby',
+				category: 'General',
 				action: { kind: 'standbyAll' },
 			})
 		);
@@ -91,25 +92,25 @@ describe('buildPaletteCommands', () => {
 
 		expect(commands).toContainEqual(
 			expect.objectContaining({
-				label: 'Mettre en veille le tag dev',
+				label: 'Send tag dev to standby',
 				category: 'Tag',
 				action: { kind: 'standbyTag', tag: 'dev' },
 			})
 		);
-		expect(labelsOf(commands)).not.toContain('Mettre en veille le tag db');
+		expect(labelsOf(commands)).not.toContain('Send tag db to standby');
 	});
 
 	it('should offer details and edition for every tunnel', () => {
 		const labels = labelsOf(build([buildTunnel()]));
 
-		expect(labels).toContain('Détails de 3333 → nova:3333');
-		expect(labels).toContain('Modifier 3333 → nova:3333');
+		expect(labels).toContain('Details of 3333 → nova:3333');
+		expect(labels).toContain('Edit 3333 → nova:3333');
 	});
 
 	it('should offer to open a local tunnel whether it runs or not', () => {
 		expect(build([buildTunnel()])).toContainEqual(
 			expect.objectContaining({
-				label: 'Ouvrir 3333 → nova:3333 dans le navigateur',
+				label: 'Open 3333 → nova:3333 in the browser',
 				action: { kind: 'openTunnel', id: 'tunnel-1' },
 			})
 		);
@@ -120,7 +121,7 @@ describe('buildPaletteCommands', () => {
 
 		expect(commands).toContainEqual(
 			expect.objectContaining({
-				label: 'Ouvrir 3333 → nova:3333 avec Remmina (VNC)',
+				label: 'Open 3333 → nova:3333 with Remmina (VNC)',
 				action: { kind: 'openTunnel', id: 'tunnel-1', opener: 'remmina-vnc' },
 			})
 		);
@@ -142,14 +143,14 @@ describe('buildPaletteCommands', () => {
 				.filter(({ action }) => action.kind === 'openTunnel')
 				.map(({ label }) => label)
 		).toEqual([
-			'Ouvrir 3333 → nova:3333 avec Remmina (VNC)',
-			'Ouvrir 3333 → nova:3333 dans le navigateur',
+			'Open 3333 → nova:3333 with Remmina (VNC)',
+			'Open 3333 → nova:3333 in the browser',
 		]);
 	});
 
 	it('should not offer to open a remote tunnel', () => {
 		expect(labelsOf(build([buildTunnel({ kind: 'remote' })]))).not.toContain(
-			'Ouvrir 3333 → nova:3333 dans le navigateur'
+			'Open 3333 → nova:3333 in the browser'
 		);
 	});
 
@@ -162,22 +163,22 @@ describe('buildPaletteCommands', () => {
 		expect(
 			commands.filter(({ action }) => action.kind === 'renameTag')
 		).toEqual([
-			expect.objectContaining({ label: 'Renommer le tag db…' }),
-			expect.objectContaining({ label: 'Renommer le tag dev…' }),
+			expect.objectContaining({ label: 'Rename tag db…' }),
+			expect.objectContaining({ label: 'Rename tag dev…' }),
 		]);
 		expect(
 			commands.filter(({ action }) => action.kind === 'deleteTag')
 		).toEqual([
-			expect.objectContaining({ label: 'Supprimer le tag db…' }),
-			expect.objectContaining({ label: 'Supprimer le tag dev…' }),
+			expect.objectContaining({ label: 'Delete tag db…' }),
+			expect.objectContaining({ label: 'Delete tag dev…' }),
 		]);
 	});
 
 	it('should offer to start a tag that is not fully active', () => {
 		const labels = labelsOf(build([buildTunnel({ tags: ['dev'] })]));
 
-		expect(labels).toContain('Démarrer le tag dev');
-		expect(labels).not.toContain('Arrêter le tag dev');
+		expect(labels).toContain('Start tag dev');
+		expect(labels).not.toContain('Stop tag dev');
 	});
 
 	it('should only offer to stop a tag whose tunnels are all in standby', () => {
@@ -192,8 +193,8 @@ describe('buildPaletteCommands', () => {
 			])
 		);
 
-		expect(labels).toContain('Arrêter le tag dev');
-		expect(labels).not.toContain('Démarrer le tag dev');
+		expect(labels).toContain('Stop tag dev');
+		expect(labels).not.toContain('Start tag dev');
 	});
 
 	it('should offer both for a tag mixing standby and stopped tunnels', () => {
@@ -204,8 +205,8 @@ describe('buildPaletteCommands', () => {
 			])
 		);
 
-		expect(labels).toContain('Arrêter le tag dev');
-		expect(labels).toContain('Démarrer le tag dev');
+		expect(labels).toContain('Stop tag dev');
+		expect(labels).toContain('Start tag dev');
 	});
 
 	it('should offer to stop a tag with an active tunnel', () => {
@@ -216,8 +217,8 @@ describe('buildPaletteCommands', () => {
 			])
 		);
 
-		expect(labels).toContain('Arrêter le tag dev');
-		expect(labels).toContain('Démarrer le tag dev');
+		expect(labels).toContain('Stop tag dev');
+		expect(labels).toContain('Start tag dev');
 	});
 
 	it('should only offer to stop a fully active tag', () => {
@@ -225,8 +226,8 @@ describe('buildPaletteCommands', () => {
 			build([buildTunnel({ tags: ['dev'], state: { kind: 'active' } })])
 		);
 
-		expect(labels).toContain('Arrêter le tag dev');
-		expect(labels).not.toContain('Démarrer le tag dev');
+		expect(labels).toContain('Stop tag dev');
+		expect(labels).not.toContain('Start tag dev');
 	});
 
 	it('should offer the host commands for the known hosts and the tunnel hosts, sorted', () => {
@@ -235,19 +236,19 @@ describe('buildPaletteCommands', () => {
 		);
 
 		expect(
-			labels.filter((label) => label.includes('Configuration de'))
+			labels.filter((label) => label.includes('Configuration of'))
 		).toEqual([
-			'Configuration de Alpha',
-			'Configuration de nova',
-			'Configuration de zeta',
+			'Configuration of Alpha',
+			'Configuration of nova',
+			'Configuration of zeta',
 		]);
-		expect(labels).toContain('X11 pour zeta');
+		expect(labels).toContain('X11 for zeta');
 	});
 
 	it('should not repeat a host known twice', () => {
 		const labels = labelsOf(build([buildTunnel({ host: 'nova' })], ['nova']));
 
-		expect(labels.filter((label) => label === 'X11 pour nova')).toHaveLength(1);
+		expect(labels.filter((label) => label === 'X11 for nova')).toHaveLength(1);
 	});
 
 	it('should give every command a distinct id', () => {

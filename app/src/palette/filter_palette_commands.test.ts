@@ -17,10 +17,11 @@ const buildCommand = (
 });
 
 const COMMANDS = [
-	buildCommand('Démarrer Adonis'),
-	buildCommand('Arrêter Adonis'),
-	buildCommand('Configuration de nova', 'Hôte'),
-	buildCommand('Ouvrir les paramètres', 'Général'),
+	buildCommand('Start Adonis'),
+	buildCommand('Stop Adonis'),
+	buildCommand('Configuration of nova', 'Host'),
+	buildCommand('Open settings', 'General'),
+	buildCommand('Open café'),
 ];
 
 const labelsOf = (commands: readonly PaletteCommand[]) =>
@@ -33,36 +34,36 @@ describe('filterPaletteCommands', () => {
 
 	it('should ignore case', () => {
 		expect(labelsOf(filterPaletteCommands(COMMANDS, 'ADONIS'))).toEqual([
-			'Démarrer Adonis',
-			'Arrêter Adonis',
+			'Start Adonis',
+			'Stop Adonis',
 		]);
 	});
 
 	it('should ignore accents on both sides', () => {
-		expect(labelsOf(filterPaletteCommands(COMMANDS, 'demarrer'))).toEqual([
-			'Démarrer Adonis',
+		expect(labelsOf(filterPaletteCommands(COMMANDS, 'cafe'))).toEqual([
+			'Open café',
 		]);
-		expect(labelsOf(filterPaletteCommands(COMMANDS, 'ARRÊTER'))).toEqual([
-			'Arrêter Adonis',
+		expect(labelsOf(filterPaletteCommands(COMMANDS, 'CAFÉ'))).toEqual([
+			'Open café',
 		]);
 	});
 
 	it('should require every word', () => {
-		expect(labelsOf(filterPaletteCommands(COMMANDS, 'adonis arret'))).toEqual([
-			'Arrêter Adonis',
+		expect(labelsOf(filterPaletteCommands(COMMANDS, 'adonis stop'))).toEqual([
+			'Stop Adonis',
 		]);
 	});
 
 	it('should match the category too', () => {
-		expect(labelsOf(filterPaletteCommands(COMMANDS, 'hote'))).toEqual([
-			'Configuration de nova',
+		expect(labelsOf(filterPaletteCommands(COMMANDS, 'host'))).toEqual([
+			'Configuration of nova',
 		]);
 	});
 
 	it('should cap the number of results', () => {
 		const manyCommands = Array.from(
 			{ length: MAXIMUM_PALETTE_RESULTS + 10 },
-			(_, index) => buildCommand(`Commande ${index}`)
+			(_, index) => buildCommand(`Command ${index}`)
 		);
 
 		expect(filterPaletteCommands(manyCommands, '')).toHaveLength(

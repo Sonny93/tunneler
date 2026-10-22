@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro';
+
 import { cn } from '#/shared/cn';
 import type { TunnelDto } from '#/daemon/protocol';
 import {
@@ -10,13 +12,19 @@ type TunnelEndpointProps = {
 	className?: string;
 };
 
-/** Arrow for the eye, "vers" for assistive tech, so the arrow is never read. */
-export const TunnelEndpoint = ({
+/** Arrow for the eye, "to" for assistive tech, so the arrow is never read. */
+export function TunnelEndpoint({
 	tunnel,
 	className = 'text-sm text-tn-muted',
-}: Readonly<TunnelEndpointProps>) => (
-	<span className={cn('font-mono', className)}>
-		<span aria-hidden="true">{getTunnelEndpointLabel(tunnel)}</span>
-		<span className="sr-only">{getTunnelAccessibleEndpointLabel(tunnel)}</span>
-	</span>
-);
+}: Readonly<TunnelEndpointProps>) {
+	const { i18n } = useLingui();
+
+	return (
+		<span className={cn('font-mono', className)}>
+			<span aria-hidden="true">{getTunnelEndpointLabel(tunnel)}</span>
+			<span className="sr-only">
+				{getTunnelAccessibleEndpointLabel(tunnel, i18n)}
+			</span>
+		</span>
+	);
+}

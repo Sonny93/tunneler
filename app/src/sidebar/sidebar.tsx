@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { useEffect, useMemo, useRef } from 'react';
 import { ContextMenu, MenuItem } from '@minimalstuff/ui';
 
@@ -18,6 +19,7 @@ const SECTION_HEADING_CLASS_NAME =
 	'mb-1 px-2 text-xs font-semibold text-tn-muted';
 
 export function Sidebar() {
+	const { t } = useLingui();
 	const tunnels = useDaemonStore((state) => state.tunnels);
 	const filter = useResolvedFilter();
 	const setFilter = useUiStore((state) => state.setFilter);
@@ -45,7 +47,7 @@ export function Sidebar() {
 	return (
 		<nav
 			id={SIDEBAR_ID}
-			aria-label="Filtres des tunnels"
+			aria-label={t`Tunnel filters`}
 			className="flex flex-col gap-4"
 		>
 			<div ref={allFilterRef} className="flex">
@@ -56,14 +58,14 @@ export function Sidebar() {
 							disabled={!hasAwakeTunnel}
 							onClick={handleStandbyAll}
 						>
-							Mettre en veille les tunnels réveillés
+							{t`Send awake tunnels to standby`}
 						</MenuItem>
 					}
-					aria-label="Actions pour tous les tunnels"
+					aria-label={t`Actions for all tunnels`}
 					className="flex flex-1"
 				>
 					<FilterButton
-						label="Tous les tunnels"
+						label={t`All tunnels`}
 						count={countActiveTunnels(tunnels)}
 						icon="i-mdi-format-list-bulleted"
 						isActive={filter.kind === 'all'}
@@ -73,7 +75,7 @@ export function Sidebar() {
 			</div>
 			{hostSummaries.length > 0 && (
 				<section>
-					<h2 className={SECTION_HEADING_CLASS_NAME}>Hosts</h2>
+					<h2 className={SECTION_HEADING_CLASS_NAME}>{t`Hosts`}</h2>
 					<ul role="list" className="flex flex-col gap-0.5">
 						{hostSummaries.map((summary) => (
 							<HostFilterRow key={summary.host} summary={summary} />
@@ -83,7 +85,7 @@ export function Sidebar() {
 			)}
 			{tagSummaries.length > 0 && (
 				<section>
-					<h2 className={SECTION_HEADING_CLASS_NAME}>Tags</h2>
+					<h2 className={SECTION_HEADING_CLASS_NAME}>{t`Tags`}</h2>
 					<ul role="list" className="flex flex-col gap-0.5">
 						{tagSummaries.map((summary) => (
 							<TagFilterRow key={summary.tag} summary={summary} />

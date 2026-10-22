@@ -1,13 +1,15 @@
+import { msg } from '@lingui/core/macro';
+import type { MessageDescriptor } from '@lingui/core';
+
 const WHITESPACE_PATTERN = /\s/u;
 const CONTROL_CHARACTER_PATTERN = /\p{Cc}/u;
 
-const MISSING_SLASH_MESSAGE = 'Le chemin doit commencer par « / ».';
-const DOUBLE_SLASH_MESSAGE = 'Le chemin ne doit pas commencer par « // ».';
-const FORBIDDEN_CHARACTER_MESSAGE =
-	'Le chemin ne doit contenir ni espace ni caractère de contrôle.';
+const MISSING_SLASH_MESSAGE = msg`The path must start with "/".`;
+const DOUBLE_SLASH_MESSAGE = msg`The path must not start with "//".`;
+const FORBIDDEN_CHARACTER_MESSAGE = msg`The path must not contain spaces or control characters.`;
 
-/** The French error of an open path, or `null` when it is valid; blank means the default `/`. Same rules as the engine. */
-export function validateOpenPath(text: string): string | null {
+/** The error of an open path, or `null` when it is valid; blank means the default `/`. Same rules as the engine. */
+export function validateOpenPath(text: string): MessageDescriptor | null {
 	const path = text.trim();
 	if (path === '') return null;
 	if (!path.startsWith('/')) return MISSING_SLASH_MESSAGE;

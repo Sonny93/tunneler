@@ -30,29 +30,27 @@ describe('Sidebar', () => {
 		const { container } = renderWithGateway(<Sidebar />);
 
 		expect(
-			screen.getByRole('navigation', { name: 'Filtres des tunnels' })
+			screen.getByRole('navigation', { name: 'Tunnel filters' })
 		).toBeInTheDocument();
-		const allFilter = screen.getByRole('button', { name: /Tous les tunnels/ });
-		expect(allFilter).toHaveTextContent('2/3 actifs');
-		expect(allFilter).toHaveAccessibleName(
-			/^Tous les tunnels\s?2 sur 3 actifs$/
-		);
+		const allFilter = screen.getByRole('button', { name: /All tunnels/ });
+		expect(allFilter).toHaveTextContent('2/3 active');
+		expect(allFilter).toHaveAccessibleName(/^All tunnels\s?2 of 3 active$/);
 		expect(allFilter).toHaveAttribute('aria-current', 'true');
 		expect(
 			screen.getAllByRole('heading').map((heading) => heading.textContent)
 		).toEqual(['Hosts', 'Tags']);
 		expect(screen.getByRole('button', { name: /^nova/ })).toHaveTextContent(
-			'1/2 actifs'
+			'1/2 active'
 		);
 		const tagList = within(
 			screen.getByRole('heading', { name: 'Tags' }).parentElement as HTMLElement
 		);
 		expect(
 			tagList.getAllByRole('button').map((button) => button.textContent)
-		).toEqual(['Db0/1 actifs0 sur 1 actifs', 'dev1/2 actifs1 sur 2 actifs']);
+		).toEqual(['Db0/1 active0 of 1 active', 'dev1/2 active1 of 2 active']);
 		expect(
-			screen.getByRole('switch', { name: 'Tous les tunnels du tag dev' })
-		).toHaveAccessibleDescription('1 sur 2 actifs');
+			screen.getByRole('switch', { name: 'All tunnels of tag dev' })
+		).toHaveAccessibleDescription('1 of 2 active');
 		expect(await axe(container)).toHaveNoViolations();
 	});
 
@@ -95,9 +93,7 @@ describe('Sidebar', () => {
 		useUiStore.setState({ filter: { kind: 'host', host: 'zeta' } });
 		renderWithGateway(<Sidebar />);
 
-		await userEvent.click(
-			screen.getByRole('button', { name: /Tous les tunnels/ })
-		);
+		await userEvent.click(screen.getByRole('button', { name: /All tunnels/ }));
 
 		expect(useUiStore.getState().filter).toEqual({ kind: 'all' });
 	});
@@ -107,9 +103,10 @@ describe('Sidebar', () => {
 		useUiStore.setState({ filter: { kind: 'tag', tag: 'gone' } });
 		renderWithGateway(<Sidebar />);
 
-		expect(
-			screen.getByRole('button', { name: /Tous les tunnels/ })
-		).toHaveAttribute('aria-current', 'true');
+		expect(screen.getByRole('button', { name: /All tunnels/ })).toHaveAttribute(
+			'aria-current',
+			'true'
+		);
 	});
 
 	it('should start the whole tag when not every tunnel runs', async () => {
@@ -117,7 +114,7 @@ describe('Sidebar', () => {
 		const { gateway } = renderWithGateway(<Sidebar />);
 
 		await userEvent.click(
-			screen.getByRole('switch', { name: 'Tous les tunnels du tag dev' })
+			screen.getByRole('switch', { name: 'All tunnels of tag dev' })
 		);
 
 		expect(gateway.startTag).toHaveBeenCalledWith('dev');
@@ -129,7 +126,7 @@ describe('Sidebar', () => {
 		});
 		const { gateway } = renderWithGateway(<Sidebar />);
 		const tagSwitch = screen.getByRole('switch', {
-			name: 'Tous les tunnels du tag dev',
+			name: 'All tunnels of tag dev',
 		});
 
 		await userEvent.click(tagSwitch);
@@ -147,7 +144,7 @@ describe('Sidebar', () => {
 		});
 		const { gateway } = renderWithGateway(<Sidebar />);
 		const tagSwitch = screen.getByRole('switch', {
-			name: 'Tous les tunnels du tag dev',
+			name: 'All tunnels of tag dev',
 		});
 
 		await userEvent.click(tagSwitch);
@@ -166,7 +163,7 @@ describe('Sidebar', () => {
 		});
 		const { gateway } = renderWithGateway(<Sidebar />);
 		const tagSwitch = screen.getByRole('switch', {
-			name: 'Tous les tunnels du tag dev',
+			name: 'All tunnels of tag dev',
 		});
 
 		await userEvent.click(tagSwitch);
@@ -183,11 +180,11 @@ describe('Sidebar', () => {
 		renderWithGateway(<Sidebar />, gateway);
 
 		await userEvent.click(
-			screen.getByRole('switch', { name: 'Tous les tunnels du tag dev' })
+			screen.getByRole('switch', { name: 'All tunnels of tag dev' })
 		);
 
 		expect(useToastStore.getState().toasts[0]?.message).toContain(
-			'Démarrage impossible'
+			"Couldn't start the tunnels"
 		);
 	});
 
@@ -195,7 +192,7 @@ describe('Sidebar', () => {
 		const openAllMenu = (gateway = createFakeGateway()) => {
 			const rendered = renderWithGateway(<Sidebar />, gateway);
 			fireEvent.contextMenu(
-				screen.getByRole('button', { name: /Tous les tunnels/ })
+				screen.getByRole('button', { name: /All tunnels/ })
 			);
 			return rendered;
 		};
@@ -206,7 +203,7 @@ describe('Sidebar', () => {
 
 			await userEvent.click(
 				screen.getByRole('menuitem', {
-					name: 'Mettre en veille les tunnels réveillés',
+					name: 'Send awake tunnels to standby',
 				})
 			);
 
@@ -219,7 +216,7 @@ describe('Sidebar', () => {
 
 			expect(
 				screen.getByRole('menuitem', {
-					name: 'Mettre en veille les tunnels réveillés',
+					name: 'Send awake tunnels to standby',
 				})
 			).toBeDisabled();
 			expect(
@@ -233,9 +230,7 @@ describe('Sidebar', () => {
 
 			act(() => useUiStore.setState({ isAllFilterFocusPending: true }));
 
-			expect(
-				screen.getByRole('button', { name: /Tous les tunnels/ })
-			).toHaveFocus();
+			expect(screen.getByRole('button', { name: /All tunnels/ })).toHaveFocus();
 		});
 	});
 
@@ -248,7 +243,7 @@ describe('Sidebar', () => {
 			fireEvent.contextMenu(screen.getByRole('button', { name: /^dev/ }));
 
 			await userEvent.click(
-				screen.getByRole('menuitem', { name: 'Mettre en veille le tag' })
+				screen.getByRole('menuitem', { name: 'Send the tag to standby' })
 			);
 
 			expect(gateway.standbyTag).toHaveBeenCalledWith('dev');
@@ -261,7 +256,7 @@ describe('Sidebar', () => {
 			fireEvent.contextMenu(screen.getByRole('button', { name: /^dev/ }));
 
 			expect(
-				screen.getByRole('menuitem', { name: 'Mettre en veille le tag' })
+				screen.getByRole('menuitem', { name: 'Send the tag to standby' })
 			).toBeDisabled();
 		});
 
@@ -278,10 +273,10 @@ describe('Sidebar', () => {
 			expect(
 				screen.getAllByRole('menuitem').map((item) => item.textContent)
 			).toEqual([
-				'Renommer…',
-				'Supprimer le tag…',
-				'Démarrer le tag',
-				'Mettre en veille le tag',
+				'Rename…',
+				'Delete tag…',
+				'Start the tag',
+				'Send the tag to standby',
 			]);
 		});
 
@@ -294,7 +289,7 @@ describe('Sidebar', () => {
 			fireEvent.contextMenu(screen.getByRole('button', { name: /^dev/ }));
 
 			expect(
-				screen.getByRole('menuitem', { name: 'Arrêter le tag' })
+				screen.getByRole('menuitem', { name: 'Stop the tag' })
 			).toBeInTheDocument();
 		});
 
@@ -302,9 +297,7 @@ describe('Sidebar', () => {
 			const user = userEvent.setup();
 			const { gateway } = openTagMenu(/^dev/);
 
-			await user.click(
-				screen.getByRole('menuitem', { name: 'Démarrer le tag' })
-			);
+			await user.click(screen.getByRole('menuitem', { name: 'Start the tag' }));
 
 			expect(gateway.startTag).toHaveBeenCalledWith('dev');
 		});
@@ -313,7 +306,7 @@ describe('Sidebar', () => {
 			const user = userEvent.setup();
 			openTagMenu(/^dev/);
 
-			await user.click(screen.getByRole('menuitem', { name: 'Renommer…' }));
+			await user.click(screen.getByRole('menuitem', { name: 'Rename…' }));
 
 			expect(useUiStore.getState().tagRename).toEqual({
 				tag: 'dev',
@@ -332,13 +325,11 @@ describe('Sidebar', () => {
 			);
 			fireEvent.contextMenu(screen.getByRole('button', { name: /^dev/ }));
 
-			await user.click(
-				screen.getByRole('menuitem', { name: 'Supprimer le tag…' })
-			);
+			await user.click(screen.getByRole('menuitem', { name: 'Delete tag…' }));
 
 			expect(
 				await screen.findByRole('alertdialog', {
-					name: 'Supprimer le tag dev ?',
+					name: 'Delete tag dev?',
 				})
 			).toBeInTheDocument();
 			expect(gateway.deleteTag).not.toHaveBeenCalled();
@@ -361,9 +352,7 @@ describe('Sidebar', () => {
 
 		act(() => useUiStore.getState().focusAllFilter());
 
-		expect(
-			screen.getByRole('button', { name: /Tous les tunnels/ })
-		).toHaveFocus();
+		expect(screen.getByRole('button', { name: /All tunnels/ })).toHaveFocus();
 		expect(useUiStore.getState().isAllFilterFocusPending).toBe(false);
 	});
 });

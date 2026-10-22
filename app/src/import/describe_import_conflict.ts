@@ -1,14 +1,20 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+
 import type { ImportConflict } from '#/import/find_import_conflicts';
 
 export function describeImportConflict(
-	conflict: Readonly<ImportConflict>
+	conflict: Readonly<ImportConflict>,
+	i18n: I18n
 ): string {
 	switch (conflict.kind) {
 		case 'alreadyConfigured':
-			return 'Déjà configuré';
-		case 'listenConflict':
-			return `Port déjà utilisé par ${conflict.tunnelLabel}`;
+			return t(i18n)`Already configured`;
+		case 'listenConflict': {
+			const { tunnelLabel } = conflict;
+			return t(i18n)`Port already used by ${tunnelLabel}`;
+		}
 		case 'duplicateInImport':
-			return "Même port qu'un tunnel plus haut";
+			return t(i18n)`Same port as a tunnel above`;
 	}
 }

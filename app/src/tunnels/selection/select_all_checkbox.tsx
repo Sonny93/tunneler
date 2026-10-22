@@ -1,4 +1,5 @@
 import { Checkbox } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 type SelectAllCheckboxProps = {
 	visibleCount: number;
@@ -14,6 +15,7 @@ export function SelectAllCheckbox({
 	onSelectAll,
 	onClear,
 }: Readonly<SelectAllCheckboxProps>) {
+	const { t } = useLingui();
 	const isEverythingSelected = selectedCount === visibleCount;
 	const isPartial = selectedCount > 0 && !isEverythingSelected;
 
@@ -27,7 +29,7 @@ export function SelectAllCheckbox({
 
 	return (
 		<Checkbox
-			label="Tout sélectionner"
+			label={t`Select all`}
 			checked={selectedCount > 0 && isEverythingSelected}
 			indeterminate={isPartial}
 			onChange={handleChange}

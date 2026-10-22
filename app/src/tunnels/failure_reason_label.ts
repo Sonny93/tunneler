@@ -1,20 +1,38 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+
 import type { FailureReasonDto } from '#/daemon/protocol';
 
 const MILLISECONDS_PER_SECOND = 1000;
 
 export function getFailureReasonLabel(
-	reason: Readonly<FailureReasonDto>
+	reason: Readonly<FailureReasonDto>,
+	i18n: I18n
 ): string {
 	switch (reason.kind) {
-		case 'portInUse':
-			return `Port déjà utilisé (${reason.address})`;
-		case 'listenFailed':
-			return `Écoute impossible sur ${reason.address} : ${reason.message}`;
-		case 'connect':
-			return `Connexion SSH impossible : ${reason.message}`;
-		case 'remoteForwardRefused':
-			return `Le serveur refuse d'écouter sur ${reason.address}`;
-		case 'agentUnresponsive':
-			return `L'agent SSH ne répond pas (aucune réponse en ${Math.round(reason.timeoutMs / MILLISECONDS_PER_SECOND)} s) : attend-il une confirmation ?`;
+		case 'portInUse': {
+			const { address } = reason;
+			return t(i18n)`Port already in use (${address})`;
+		}
+		case 'listenFailed': {
+			const { address, message } = reason;
+			return t(i18n)`Cannot listen on ${address}: ${message}`;
+		}
+		case 'connect': {
+			const { message } = reason;
+			return t(i18n)`SSH connection failed: ${message}`;
+		}
+		case 'remoteForwardRefused': {
+			const { address } = reason;
+			return t(i18n)`The server refuses to listen on ${address}`;
+		}
+		case 'agentUnresponsive': {
+			const timeoutSeconds = Math.round(
+				reason.timeoutMs / MILLISECONDS_PER_SECOND
+			);
+			return t(
+				i18n
+			)`The SSH agent is not responding (no answer in ${timeoutSeconds} s): is it waiting for a confirmation?`;
+		}
 	}
 }

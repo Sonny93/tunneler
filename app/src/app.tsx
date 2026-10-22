@@ -30,7 +30,7 @@ export function App() {
 		<>
 			{connection.status === 'connecting' && <ConnectingScreen />}
 			{connection.status === 'disconnected' && (
-				<DisconnectedScreen message={connection.message} onRetry={retry} />
+				<DisconnectedScreen error={connection.error} onRetry={retry} />
 			)}
 			{connection.status === 'connected' && (
 				<>

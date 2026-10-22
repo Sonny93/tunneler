@@ -1,3 +1,6 @@
+import { msg, t } from '@lingui/core/macro';
+import type { I18n, MessageDescriptor } from '@lingui/core';
+
 import { summarizeTags } from '#/sidebar/summarize_tags';
 import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { listAwakeTunnels } from '#/standby/list_awake_tunnels';
@@ -17,75 +20,96 @@ type PaletteSources = {
 	openers: readonly Readonly<AvailableOpenerDto>[];
 };
 
-const GENERAL_COMMANDS: readonly PaletteCommand[] = [
-	{
-		id: 'general:new-tunnel',
-		label: 'Nouveau tunnel',
-		category: 'Général',
-		action: { kind: 'newTunnel' },
-	},
-	{
-		id: 'general:new-temporary-tunnel',
-		label: 'Nouveau tunnel temporaire…',
-		category: 'Général',
-		action: { kind: 'newTemporaryTunnel' },
-	},
-	{
-		id: 'general:import',
-		label: 'Importer des tunnels',
-		category: 'Général',
-		action: { kind: 'importTunnels' },
-	},
-	{
-		id: 'general:settings',
-		label: 'Ouvrir les paramètres',
-		category: 'Général',
-		action: { kind: 'openSettings' },
-	},
-	{
-		id: 'general:reveal-config',
-		label: 'Ouvrir le dossier de configuration',
-		category: 'Général',
-		action: { kind: 'revealConfig' },
-	},
-	{
-		id: 'general:sidebar',
-		label: 'Masquer ou afficher le panneau',
-		category: 'Général',
-		action: { kind: 'toggleSidebar' },
-	},
-	{
-		id: 'general:shortcuts',
-		label: 'Afficher les raccourcis clavier',
-		category: 'Général',
-		action: { kind: 'showShortcuts' },
-	},
-];
+type CategoryKey = 'general' | 'tunnel' | 'tag' | 'host';
 
-function buildToggleCommand(tunnel: Readonly<TunnelDto>): PaletteCommand {
+const CATEGORY_LABELS: Readonly<Record<CategoryKey, MessageDescriptor>> = {
+	general: msg`General`,
+	tunnel: msg`Tunnel`,
+	tag: msg`Tag`,
+	host: msg`Host`,
+};
+
+function buildGeneralCommands(i18n: I18n): PaletteCommand[] {
+	const category = i18n._(CATEGORY_LABELS.general);
+	return [
+		{
+			id: 'general:new-tunnel',
+			label: t(i18n)`New tunnel`,
+			category,
+			action: { kind: 'newTunnel' },
+		},
+		{
+			id: 'general:new-temporary-tunnel',
+			label: t(i18n)`New temporary tunnel…`,
+			category,
+			action: { kind: 'newTemporaryTunnel' },
+		},
+		{
+			id: 'general:import',
+			label: t(i18n)`Import tunnels`,
+			category,
+			action: { kind: 'importTunnels' },
+		},
+		{
+			id: 'general:settings',
+			label: t(i18n)`Open settings`,
+			category,
+			action: { kind: 'openSettings' },
+		},
+		{
+			id: 'general:reveal-config',
+			label: t(i18n)`Open the configuration folder`,
+			category,
+			action: { kind: 'revealConfig' },
+		},
+		{
+			id: 'general:sidebar',
+			label: t(i18n)`Hide or show the sidebar`,
+			category,
+			action: { kind: 'toggleSidebar' },
+		},
+		{
+			id: 'general:shortcuts',
+			label: t(i18n)`Show keyboard shortcuts`,
+			category,
+			action: { kind: 'showShortcuts' },
+		},
+	];
+}
+
+function buildToggleCommand(
+	tunnel: Readonly<TunnelDto>,
+	i18n: I18n
+): PaletteCommand {
 	const tunnelId = tunnel.id;
+	const endpointLabel = getTunnelEndpointLabel(tunnel);
+	const category = i18n._(CATEGORY_LABELS.tunnel);
 	return isTunnelRunning(tunnel.state)
 		? {
 				id: `tunnel:${tunnelId}:stop`,
-				label: `Arrêter ${getTunnelEndpointLabel(tunnel)}`,
-				category: 'Tunnel',
+				label: t(i18n)`Stop ${endpointLabel}`,
+				category,
 				action: { kind: 'stopTunnel', tunnelId },
 			}
 		: {
 				id: `tunnel:${tunnelId}:start`,
-				label: `Démarrer ${getTunnelEndpointLabel(tunnel)}`,
-				category: 'Tunnel',
+				label: t(i18n)`Start ${endpointLabel}`,
+				category,
 				action: { kind: 'startTunnel', tunnelId },
 			};
 }
 
-function buildStandbyCommands(tunnel: Readonly<TunnelDto>): PaletteCommand[] {
+function buildStandbyCommands(
+	tunnel: Readonly<TunnelDto>,
+	i18n: I18n
+): PaletteCommand[] {
 	if (!tunnel.isAwake) return [];
+	const endpointLabel = getTunnelEndpointLabel(tunnel);
 	return [
 		{
 			id: `tunnel:${tunnel.id}:standby`,
-			label: `Mettre en veille ${getTunnelEndpointLabel(tunnel)}`,
-			category: 'Tunnel',
+			label: t(i18n)`Send ${endpointLabel} to standby`,
+			category: i18n._(CATEGORY_LABELS.tunnel),
 			action: { kind: 'standbyTunnel', tunnelId: tunnel.id },
 		},
 	];
@@ -93,23 +117,29 @@ function buildStandbyCommands(tunnel: Readonly<TunnelDto>): PaletteCommand[] {
 
 function buildOpenCommands(
 	tunnel: Readonly<TunnelDto>,
-	openers: readonly Readonly<AvailableOpenerDto>[]
+	openers: readonly Readonly<AvailableOpenerDto>[],
+	i18n: I18n
 ): PaletteCommand[] {
 	if (tunnel.kind !== 'local') return [];
+	const category = i18n._(CATEGORY_LABELS.tunnel);
 	const endpointLabel = getTunnelEndpointLabel(tunnel);
-	const defaultChoice = toDefaultChoice(tunnel.defaultOpener);
-	const alternatives = listAlternativeChoices(tunnel.defaultOpener, openers);
+	const defaultChoice = toDefaultChoice(tunnel.defaultOpener, i18n);
+	const alternatives = listAlternativeChoices(
+		tunnel.defaultOpener,
+		openers,
+		i18n
+	);
 	return [
 		{
 			id: `tunnel:${tunnel.id}:open`,
-			label: describeTunnelOpenCommand(endpointLabel, defaultChoice),
-			category: 'Tunnel',
+			label: describeTunnelOpenCommand(endpointLabel, defaultChoice, i18n),
+			category,
 			action: { kind: 'openTunnel', id: tunnel.id },
 		},
 		...alternatives.map((choice) => ({
 			id: `tunnel:${tunnel.id}:open:${choice.id}`,
-			label: describeTunnelOpenCommand(endpointLabel, choice),
-			category: 'Tunnel' as const,
+			label: describeTunnelOpenCommand(endpointLabel, choice, i18n),
+			category,
 			action: { kind: 'openTunnel' as const, id: tunnel.id, opener: choice.id },
 		})),
 	];
@@ -117,25 +147,28 @@ function buildOpenCommands(
 
 function buildTunnelCommands(
 	tunnel: Readonly<TunnelDto>,
-	openers: readonly Readonly<AvailableOpenerDto>[]
+	openers: readonly Readonly<AvailableOpenerDto>[],
+	i18n: I18n
 ): PaletteCommand[] {
 	const tunnelId = tunnel.id;
+	const endpointLabel = getTunnelEndpointLabel(tunnel);
+	const category = i18n._(CATEGORY_LABELS.tunnel);
 	return [
-		buildToggleCommand(tunnel),
-		...buildStandbyCommands(tunnel),
+		buildToggleCommand(tunnel, i18n),
+		...buildStandbyCommands(tunnel, i18n),
 		{
 			id: `tunnel:${tunnelId}:details`,
-			label: `Détails de ${getTunnelEndpointLabel(tunnel)}`,
-			category: 'Tunnel',
+			label: t(i18n)`Details of ${endpointLabel}`,
+			category,
 			action: { kind: 'showTunnelDetails', tunnelId },
 		},
 		{
 			id: `tunnel:${tunnelId}:edit`,
-			label: `Modifier ${getTunnelEndpointLabel(tunnel)}`,
-			category: 'Tunnel',
+			label: t(i18n)`Edit ${endpointLabel}`,
+			category,
 			action: { kind: 'editTunnel', tunnelId },
 		},
-		...buildOpenCommands(tunnel, openers),
+		...buildOpenCommands(tunnel, openers, i18n),
 	];
 }
 
@@ -147,44 +180,46 @@ function hasAwakeTunnel(
 }
 
 function buildTagCommands(
-	tunnels: readonly Readonly<TunnelDto>[]
+	tunnels: readonly Readonly<TunnelDto>[],
+	i18n: I18n
 ): PaletteCommand[] {
+	const category = i18n._(CATEGORY_LABELS.tag);
 	return summarizeTags(tunnels).flatMap(({ tag, started, total }) => {
 		const commands: PaletteCommand[] = [];
 		if (started < total) {
 			commands.push({
 				id: `tag:${tag}:start`,
-				label: `Démarrer le tag ${tag}`,
-				category: 'Tag',
+				label: t(i18n)`Start tag ${tag}`,
+				category,
 				action: { kind: 'startTag', tag },
 			});
 		}
 		if (started > 0) {
 			commands.push({
 				id: `tag:${tag}:stop`,
-				label: `Arrêter le tag ${tag}`,
-				category: 'Tag',
+				label: t(i18n)`Stop tag ${tag}`,
+				category,
 				action: { kind: 'stopTag', tag },
 			});
 		}
 		if (hasAwakeTunnel(tunnels, tag)) {
 			commands.push({
 				id: `tag:${tag}:standby`,
-				label: `Mettre en veille le tag ${tag}`,
-				category: 'Tag',
+				label: t(i18n)`Send tag ${tag} to standby`,
+				category,
 				action: { kind: 'standbyTag', tag },
 			});
 		}
 		commands.push({
 			id: `tag:${tag}:rename`,
-			label: `Renommer le tag ${tag}…`,
-			category: 'Tag',
+			label: t(i18n)`Rename tag ${tag}…`,
+			category,
 			action: { kind: 'renameTag', tag },
 		});
 		commands.push({
 			id: `tag:${tag}:delete`,
-			label: `Supprimer le tag ${tag}…`,
-			category: 'Tag',
+			label: t(i18n)`Delete tag ${tag}…`,
+			category,
 			action: { kind: 'deleteTag', tag },
 		});
 		return commands;
@@ -199,32 +234,34 @@ function listHosts({
 	return [...allHosts].sort(compareTextCaseInsensitively);
 }
 
-function buildHostCommands(host: string): PaletteCommand[] {
+function buildHostCommands(host: string, i18n: I18n): PaletteCommand[] {
+	const category = i18n._(CATEGORY_LABELS.host);
 	return [
 		{
 			id: `host:${host}:config`,
-			label: `Configuration de ${host}`,
-			category: 'Hôte',
+			label: t(i18n)`Configuration of ${host}`,
+			category,
 			action: { kind: 'showHostConfig', host },
 		},
 		{
 			id: `host:${host}:x11`,
-			label: `X11 pour ${host}`,
-			category: 'Hôte',
+			label: t(i18n)`X11 for ${host}`,
+			category,
 			action: { kind: 'showX11', host },
 		},
 	];
 }
 
 function buildStandbyAllCommands(
-	tunnels: readonly Readonly<TunnelDto>[]
+	tunnels: readonly Readonly<TunnelDto>[],
+	i18n: I18n
 ): PaletteCommand[] {
 	if (listAwakeTunnels(tunnels).length === 0) return [];
 	return [
 		{
 			id: 'general:standby-all',
-			label: 'Mettre en veille les tunnels réveillés',
-			category: 'Général',
+			label: t(i18n)`Send awake tunnels to standby`,
+			category: i18n._(CATEGORY_LABELS.general),
 			action: { kind: 'standbyAll' },
 		},
 	];
@@ -232,15 +269,16 @@ function buildStandbyAllCommands(
 
 /** Every command the palette can run, in display order: general, tunnels, tags, hosts. */
 export function buildPaletteCommands(
-	sources: Readonly<PaletteSources>
+	sources: Readonly<PaletteSources>,
+	i18n: I18n
 ): PaletteCommand[] {
 	return [
-		...GENERAL_COMMANDS,
-		...buildStandbyAllCommands(sources.tunnels),
+		...buildGeneralCommands(i18n),
+		...buildStandbyAllCommands(sources.tunnels, i18n),
 		...sources.tunnels.flatMap((tunnel) =>
-			buildTunnelCommands(tunnel, sources.openers)
+			buildTunnelCommands(tunnel, sources.openers, i18n)
 		),
-		...buildTagCommands(sources.tunnels),
-		...listHosts(sources).flatMap(buildHostCommands),
+		...buildTagCommands(sources.tunnels, i18n),
+		...listHosts(sources).flatMap((host) => buildHostCommands(host, i18n)),
 	];
 }

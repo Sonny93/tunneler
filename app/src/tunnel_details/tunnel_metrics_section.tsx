@@ -1,10 +1,11 @@
 import { useId } from 'react';
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+import { useLingui } from '@lingui/react/macro';
 
 import { formatTime } from '#/shared/format_time';
 import type { MetricsDto } from '#/daemon/protocol';
 import { formatBytes } from '#/shared/format_bytes';
-
-const NO_ACTIVITY_TEXT = 'Aucune';
 
 type TunnelMetricsSectionProps = {
 	metrics: MetricsDto;
@@ -12,23 +13,26 @@ type TunnelMetricsSectionProps = {
 
 type MetricRow = { label: string; value: string };
 
-function buildMetricRows(metrics: Readonly<MetricsDto>): MetricRow[] {
+function buildMetricRows(
+	metrics: Readonly<MetricsDto>,
+	i18n: I18n
+): MetricRow[] {
 	return [
 		{
-			label: 'Connexions actives',
+			label: t(i18n)`Active connections`,
 			value: String(metrics.activeConnections),
 		},
 		{
-			label: 'Connexions totales',
+			label: t(i18n)`Total connections`,
 			value: String(metrics.totalConnections),
 		},
-		{ label: 'Reçu', value: formatBytes(metrics.bytesIn) },
-		{ label: 'Envoyé', value: formatBytes(metrics.bytesOut) },
+		{ label: t(i18n)`Received`, value: formatBytes(metrics.bytesIn) },
+		{ label: t(i18n)`Sent`, value: formatBytes(metrics.bytesOut) },
 		{
-			label: 'Dernière activité',
+			label: t(i18n)`Last activity`,
 			value:
 				metrics.lastActivity === undefined
-					? NO_ACTIVITY_TEXT
+					? t(i18n)`None`
 					: formatTime(metrics.lastActivity),
 		},
 	];
@@ -37,15 +41,16 @@ function buildMetricRows(metrics: Readonly<MetricsDto>): MetricRow[] {
 export function TunnelMetricsSection({
 	metrics,
 }: Readonly<TunnelMetricsSectionProps>) {
+	const { i18n } = useLingui();
 	const headingId = useId();
 
 	return (
 		<section aria-labelledby={headingId} className="flex flex-col gap-2">
 			<h3 id={headingId} className="m-0 text-sm font-semibold">
-				Métriques
+				{t(i18n)`Metrics`}
 			</h3>
 			<dl className="m-0 flex flex-col gap-1 text-sm">
-				{buildMetricRows(metrics).map(({ label, value }) => (
+				{buildMetricRows(metrics, i18n).map(({ label, value }) => (
 					<div key={label} className="flex justify-between gap-4">
 						<dt className="text-tn-muted">{label}</dt>
 						<dd className="m-0 font-mono">{value}</dd>

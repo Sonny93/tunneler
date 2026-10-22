@@ -1,4 +1,5 @@
 import { Button } from '@minimalstuff/ui';
+import { Trans, useLingui } from '@lingui/react/macro';
 
 type ImportConfigTabProps = {
 	isAnalyzing: boolean;
@@ -9,11 +10,15 @@ export function ImportConfigTab({
 	isAnalyzing,
 	onAnalyze,
 }: Readonly<ImportConfigTabProps>) {
+	const { t } = useLingui();
+
 	return (
 		<div className="flex flex-col gap-3 pt-3">
 			<p className="m-0 text-sm text-tn-muted">
-				Importe les options LocalForward, RemoteForward et DynamicForward
-				déclarées dans <code>~/.ssh/config</code>.
+				<Trans>
+					Imports the LocalForward, RemoteForward and DynamicForward options
+					declared in <code>~/.ssh/config</code>.
+				</Trans>
 			</p>
 			<div>
 				<Button
@@ -21,7 +26,7 @@ export function ImportConfigTab({
 					loading={isAnalyzing}
 					onClick={onAnalyze}
 				>
-					Lire ~/.ssh/config
+					{t`Read ~/.ssh/config`}
 				</Button>
 			</div>
 		</div>

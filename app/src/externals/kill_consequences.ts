@@ -1,5 +1,5 @@
-export const KILL_EXTERNAL_CONSEQUENCE =
-	'Tous les tunnels que ce processus fournit s’arrêtent aussi.';
+import { msg } from '@lingui/core/macro';
 
-export const KILL_CONFLICT_CONSEQUENCE =
-	'Le port est libéré : le tunnel pourra ensuite être démarré.';
+export const KILL_EXTERNAL_CONSEQUENCE = msg`All the tunnels this process provides stop as well.`;
+
+export const KILL_CONFLICT_CONSEQUENCE = msg`The port is freed: the tunnel can then be started.`;

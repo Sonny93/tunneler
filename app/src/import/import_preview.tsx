@@ -1,3 +1,4 @@
+import { useLingui } from '@lingui/react/macro';
 import { Button, Input, Select } from '@minimalstuff/ui';
 import { useEffect, useId, useMemo, useRef, type ChangeEvent } from 'react';
 
@@ -12,10 +13,8 @@ import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 import {
 	describeDetectedCount,
 	describeImportAction,
+	describeImportProgress,
 } from '#/import/import_texts';
-
-const TAGS_HINT =
-	'Optionnel. Ajouté à chaque tunnel importé ; séparer plusieurs tags par des virgules.';
 
 type ImportPreviewProps = {
 	preview: ImportPreviewDto;
@@ -27,6 +26,7 @@ export function ImportPreview({
 	preview,
 	settings,
 }: Readonly<ImportPreviewProps>) {
+	const { t, i18n } = useLingui();
 	const headingId = useId();
 	const tagsListId = useId();
 	const headingRef = useRef<HTMLHeadingElement>(null);
@@ -45,8 +45,8 @@ export function ImportPreview({
 		headingRef.current?.focus();
 		useAnnouncerStore
 			.getState()
-			.announce(describeDetectedCount(candidates.length), 'polite');
-	}, [candidates.length]);
+			.announce(describeDetectedCount(candidates.length, i18n), 'polite');
+	}, [candidates.length, i18n]);
 
 	const handleHostChange = (event: ChangeEvent<HTMLSelectElement>) =>
 		form.changeDefaultHost(event.target.value);
@@ -61,9 +61,11 @@ export function ImportPreview({
 				tabIndex={-1}
 				className="m-0 text-base font-semibold"
 			>
-				Résultat de l'analyse
+				{t`Analysis result`}
 			</h3>
-			<p className="m-0 text-sm">{describeDetectedCount(candidates.length)}</p>
+			<p className="m-0 text-sm">
+				{describeDetectedCount(candidates.length, i18n)}
+			</p>
 			<ImportWarnings warnings={warnings} />
 			{candidates.length > 0 && (
 				<form
@@ -80,9 +82,9 @@ export function ImportPreview({
 					{hasHostlessCandidate && (
 						<Select
 							name="defaultHost"
-							label="Hôte des tunnels sans destination"
+							label={t`Host of the tunnels without a destination`}
 							options={hostOptions}
-							placeholder="Choisir un hôte"
+							placeholder={t`Choose a host`}
 							value={form.defaultHost}
 							onChange={handleHostChange}
 							error={form.hostError}
@@ -92,11 +94,11 @@ export function ImportPreview({
 					<div>
 						<Input
 							name="tags"
-							label="Tag à ajouter"
+							label={t`Tag to add`}
 							value={form.tagsText}
 							onChange={handleTagsChange}
 							error={form.tagsError}
-							description={TAGS_HINT}
+							description={t`Optional. Added to every imported tunnel; separate several tags with commas.`}
 							autoComplete="off"
 							list={tagsListId}
 						/>
@@ -120,8 +122,11 @@ export function ImportPreview({
 					<div className="sticky bottom-0 flex flex-col gap-2 border-t border-tn-divider bg-tn-surface py-3">
 						{form.progress !== null && (
 							<output className="block text-sm">
-								Import en cours : {form.progress.doneCount} sur{' '}
-								{form.progress.totalCount}
+								{describeImportProgress(
+									form.progress.doneCount,
+									form.progress.totalCount,
+									i18n
+								)}
 							</output>
 						)}
 						<div>
@@ -131,7 +136,7 @@ export function ImportPreview({
 								loading={form.progress !== null}
 								disabled={selectedCount === 0}
 							>
-								{describeImportAction(selectedCount)}
+								{describeImportAction(selectedCount, i18n)}
 							</Button>
 						</div>
 					</div>

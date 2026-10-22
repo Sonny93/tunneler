@@ -1,10 +1,15 @@
-import { formatTunnelCount } from '#/tunnels/selection/describe_selection_count';
+import type { I18n } from '@lingui/core';
+import { plural, t } from '@lingui/core/macro';
 
-/** « Tag dev renommé en staging (3 tunnels) ». */
+/** "Tag dev renamed to staging (3 tunnels)". */
 export function describeTagRename(
 	from: string,
 	to: string,
-	renamedCount: number
+	renamedCount: number,
+	i18n: I18n
 ): string {
-	return `Tag ${from} renommé en ${to} (${formatTunnelCount(renamedCount)})`;
+	return t(i18n)`${plural(renamedCount, {
+		one: `Tag ${from} renamed to ${to} (# tunnel)`,
+		other: `Tag ${from} renamed to ${to} (# tunnels)`,
+	})}`;
 }

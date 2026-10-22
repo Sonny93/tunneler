@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useLingui } from '@lingui/react/macro';
 
 import type { TunnelDto } from '#/daemon/protocol';
 import { useDaemonStore } from '#/state/daemon_store';
@@ -7,8 +8,6 @@ import { useDaemonAction } from '#/daemon/use_daemon_action';
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
 import { listAwakeTunnels } from '#/standby/list_awake_tunnels';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
-
-const FAILURE_MESSAGE = 'Mise en veille impossible';
 
 type UseSendToStandbyReturn = {
 	sendTunnel: (tunnel: Readonly<TunnelDto>) => Promise<void>;
@@ -21,6 +20,7 @@ type UseSendToStandbyReturn = {
  * Asks for confirmation first when open connections would be cut.
  */
 export function useSendToStandby(): UseSendToStandbyReturn {
+	const { t, i18n } = useLingui();
 	const runDaemonAction = useDaemonAction();
 
 	const confirmAndSend = useCallback(
@@ -29,20 +29,22 @@ export function useSendToStandby(): UseSendToStandbyReturn {
 			targets: readonly TunnelDto[],
 			send: (gateway: DaemonGateway) => Promise<unknown>
 		) => {
-			if (!(await confirmStandby(title, targets))) return;
-			await runDaemonAction(send, FAILURE_MESSAGE);
+			if (!(await confirmStandby(title, targets, i18n))) return;
+			await runDaemonAction(send, t`Couldn't send to standby`);
 		},
-		[runDaemonAction]
+		[i18n, runDaemonAction, t]
 	);
 
 	const sendTunnel = useCallback(
-		(tunnel: Readonly<TunnelDto>) =>
-			confirmAndSend(
-				`Mettre en veille le tunnel ${getTunnelEndpointLabel(tunnel)} ?`,
+		(tunnel: Readonly<TunnelDto>) => {
+			const endpoint = getTunnelEndpointLabel(tunnel);
+			return confirmAndSend(
+				t`Send tunnel ${endpoint} to standby?`,
 				[tunnel],
 				(gateway) => gateway.standbyTunnel(tunnel.id)
-			),
-		[confirmAndSend]
+			);
+		},
+		[confirmAndSend, t]
 	);
 
 	const sendTag = useCallback(
@@ -53,22 +55,22 @@ export function useSendToStandby(): UseSendToStandbyReturn {
 					.tunnels.filter((tunnel) => tunnel.tags.includes(tag))
 			);
 			return confirmAndSend(
-				`Mettre en veille le tag ${tag} ?`,
+				t`Send tag ${tag} to standby?`,
 				targets,
 				(gateway) => gateway.standbyTag(tag)
 			);
 		},
-		[confirmAndSend]
+		[confirmAndSend, t]
 	);
 
 	const sendAll = useCallback(() => {
 		const targets = listAwakeTunnels(useDaemonStore.getState().tunnels);
 		return confirmAndSend(
-			'Mettre en veille les tunnels réveillés ?',
+			t`Send the awake tunnels to standby?`,
 			targets,
 			(gateway) => gateway.standbyAll()
 		);
-	}, [confirmAndSend]);
+	}, [confirmAndSend, t]);
 
 	return { sendTunnel, sendTag, sendAll };
 }

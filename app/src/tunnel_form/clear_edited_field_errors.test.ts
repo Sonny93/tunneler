@@ -1,13 +1,14 @@
+import { msg } from '@lingui/core/macro';
 import { describe, expect, it } from 'vitest';
 
 import { toTunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 import { clearEditedFieldErrors } from '#/tunnel_form/clear_edited_field_errors';
 
 const ALL_ERRORS = {
-	host: 'host error',
-	tags: 'tags error',
-	listenPort: 'listen error',
-	targetPort: 'target error',
+	host: msg`host error`,
+	tags: msg`tags error`,
+	listenPort: msg`listen error`,
+	targetPort: msg`target error`,
 };
 
 const linkedValues = toTunnelFormValues(null);
@@ -32,9 +33,9 @@ describe('clearEditedFieldErrors', () => {
 				linkedValues
 			)
 		).toEqual({
-			tags: 'tags error',
-			listenPort: 'listen error',
-			targetPort: 'target error',
+			tags: ALL_ERRORS.tags,
+			listenPort: ALL_ERRORS.listenPort,
+			targetPort: ALL_ERRORS.targetPort,
 		});
 	});
 
@@ -55,7 +56,7 @@ describe('clearEditedFieldErrors', () => {
 				{ type: 'textChanged', field: 'listenPort', value: '80' },
 				unlinkedValues
 			).targetPort
-		).toBe('target error');
+		).toBe(ALL_ERRORS.targetPort);
 	});
 
 	it('should clear the target port error when the target port is edited', () => {

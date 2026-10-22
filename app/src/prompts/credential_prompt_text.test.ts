@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
 import type { CredentialRequestDto } from '#/daemon/protocol';
@@ -24,7 +25,7 @@ const keyboardInteractive: CredentialRequestDto = {
 	kind: 'keyboardInteractive',
 	alias: 'nova',
 	name: '',
-	instructions: 'Code à usage unique',
+	instructions: 'One-time code',
 	prompts: [
 		{ text: 'Code', echo: true },
 		{ text: 'PIN', echo: false },
@@ -33,59 +34,64 @@ const keyboardInteractive: CredentialRequestDto = {
 
 describe('credential prompt text', () => {
 	it('should title a passphrase request', () => {
-		expect(getCredentialTitle(passphrase)).toBe('Phrase de passe');
+		expect(getCredentialTitle(passphrase, i18n)).toBe('Passphrase');
 	});
 
 	it('should describe a passphrase request with the key and alias', () => {
-		expect(getCredentialDescription(passphrase)).toBe(
-			'La clé ~/.ssh/id_ed25519 est chiffrée (connexion à nova).'
+		expect(getCredentialDescription(passphrase, i18n)).toBe(
+			'The key ~/.ssh/id_ed25519 is encrypted (connecting to nova).'
 		);
 	});
 
 	it('should title a password request', () => {
-		expect(getCredentialTitle(password)).toBe('Mot de passe');
+		expect(getCredentialTitle(password, i18n)).toBe('Password');
 	});
 
 	it('should describe a password request with user, host and alias', () => {
-		expect(getCredentialDescription(password)).toBe(
-			'Mot de passe de jules@nova.example.com (nova).'
+		expect(getCredentialDescription(password, i18n)).toBe(
+			'Password for jules@nova.example.com (nova).'
 		);
 	});
 
 	it('should title a keyboard-interactive request after the alias when unnamed', () => {
-		expect(getCredentialTitle(keyboardInteractive)).toBe(
-			'Authentification nova'
+		expect(getCredentialTitle(keyboardInteractive, i18n)).toBe(
+			'Authentication for nova'
 		);
 	});
 
 	it('should title a keyboard-interactive request with its name', () => {
 		expect(
-			getCredentialTitle({ ...keyboardInteractive, name: 'Duo' } as const)
+			getCredentialTitle({ ...keyboardInteractive, name: 'Duo' } as const, i18n)
 		).toBe('Duo');
 	});
 
 	it('should describe a keyboard-interactive request with its instructions', () => {
-		expect(getCredentialDescription(keyboardInteractive)).toBe(
-			'Code à usage unique'
+		expect(getCredentialDescription(keyboardInteractive, i18n)).toBe(
+			'One-time code'
 		);
 	});
 
 	it('should hide only the inputs that do not echo', () => {
 		expect(
-			getCredentialFields(keyboardInteractive).map((field) => field.isSecret)
+			getCredentialFields(keyboardInteractive, i18n).map(
+				(field) => field.isSecret
+			)
 		).toEqual([false, true]);
 	});
 
 	it('should offer a single secret field for a passphrase', () => {
-		expect(getCredentialFields(passphrase)).toEqual([
-			{ id: 'secret', label: 'Phrase de passe', isSecret: true },
+		expect(getCredentialFields(passphrase, i18n)).toEqual([
+			{ id: 'secret', label: 'Passphrase', isSecret: true },
 		]);
 	});
 
-	it('should label the submit button "Continuer" without prompts', () => {
+	it('should label the submit button "Continue" without prompts', () => {
 		expect(
-			getCredentialSubmitLabel({ ...keyboardInteractive, prompts: [] } as const)
-		).toBe('Continuer');
+			getCredentialSubmitLabel(
+				{ ...keyboardInteractive, prompts: [] } as const,
+				i18n
+			)
+		).toBe('Continue');
 	});
 
 	it('should answer a passphrase with a string', () => {

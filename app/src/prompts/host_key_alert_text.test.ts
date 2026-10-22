@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
 import type { HostKeyAlertReasonDto } from '#/daemon/protocol';
@@ -22,44 +23,46 @@ const policy: HostKeyAlertReasonDto = { kind: 'unknownRejectedByPolicy' };
 
 describe('host key alert text', () => {
 	it.each([
-		[changed, "Clé d'hôte modifiée"],
-		[revoked, "Clé d'hôte révoquée"],
-		[policy, 'Hôte inconnu refusé'],
+		[changed, 'Host key changed'],
+		[revoked, 'Host key revoked'],
+		[policy, 'Unknown host rejected'],
 	])('should title %o', (reason, title) => {
-		expect(getHostKeyAlertTitle(reason)).toBe(title);
+		expect(getHostKeyAlertTitle(reason, i18n)).toBe(title);
 	});
 
-	it('should list presented, recorded fingerprints and location for a changed key', () => {
-		expect(getHostKeyAlertFacts(changed, 'SHA256:new')).toEqual([
-			{ label: 'Empreinte présentée', value: 'SHA256:new' },
-			{ label: 'Empreinte enregistrée', value: 'SHA256:known' },
-			{ label: 'Emplacement', value: '/home/jules/.ssh/known_hosts:12' },
+	it('should list presented, stored fingerprints and location for a changed key', () => {
+		expect(getHostKeyAlertFacts(changed, 'SHA256:new', i18n)).toEqual([
+			{ label: 'Presented fingerprint', value: 'SHA256:new' },
+			{ label: 'Stored fingerprint', value: 'SHA256:known' },
+			{ label: 'Location', value: '/home/jules/.ssh/known_hosts:12' },
 		]);
 	});
 
 	it('should list the presented fingerprint and location for a revoked key', () => {
 		expect(
-			getHostKeyAlertFacts(revoked, 'SHA256:new').map((fact) => fact.label)
-		).toEqual(['Empreinte présentée', 'Emplacement']);
+			getHostKeyAlertFacts(revoked, 'SHA256:new', i18n).map(
+				(fact) => fact.label
+			)
+		).toEqual(['Presented fingerprint', 'Location']);
 	});
 
 	it('should list only the presented fingerprint under the policy', () => {
-		expect(getHostKeyAlertFacts(policy, 'SHA256:new')).toHaveLength(1);
+		expect(getHostKeyAlertFacts(policy, 'SHA256:new', i18n)).toHaveLength(1);
 	});
 
 	it('should tell how to remove a legitimately changed key', () => {
-		expect(getHostKeyAlertAdvice(changed)).toBe(
-			'Si le changement est légitime, supprimez la ligne 12 de /home/jules/.ssh/known_hosts puis réessayez.'
+		expect(getHostKeyAlertAdvice(changed, i18n)).toBe(
+			'If the change is legitimate, delete line 12 of /home/jules/.ssh/known_hosts and try again.'
 		);
 	});
 
 	it('should explain the policy refusal', () => {
-		expect(getHostKeyAlertAdvice(policy)).toBe(
-			"StrictHostKeyChecking interdit d'accepter une clé inconnue pour cet hôte."
+		expect(getHostKeyAlertAdvice(policy, i18n)).toBe(
+			'StrictHostKeyChecking forbids accepting an unknown key for this host.'
 		);
 	});
 
 	it('should give no advice for a revoked key', () => {
-		expect(getHostKeyAlertAdvice(revoked)).toBeNull();
+		expect(getHostKeyAlertAdvice(revoked, i18n)).toBeNull();
 	});
 });

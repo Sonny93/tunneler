@@ -1,13 +1,13 @@
 import { Button } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { useUiStore } from '#/state/ui_store';
 import { buildImportDraft } from '#/externals/build_import_draft';
-import { SPOKEN_SEPARATOR } from '#/tunnels/tunnel_endpoint_label';
 import type { ExternalForwardDto, ExternalProcessDto } from '#/daemon/protocol';
 import {
 	getExternalForwardAccessibleLabel,
 	getExternalForwardLabel,
-	getExternalForwardRoute,
+	getExternalForwardSpokenRoute,
 } from '#/externals/external_forward_label';
 
 type ExternalForwardItemProps = {
@@ -19,8 +19,9 @@ export function ExternalForwardItem({
 	process,
 	forward,
 }: Readonly<ExternalForwardItemProps>) {
+	const { t, i18n } = useLingui();
 	const openTunnelImport = useUiStore((state) => state.openTunnelImport);
-	const route = getExternalForwardRoute(forward, SPOKEN_SEPARATOR);
+	const route = getExternalForwardSpokenRoute(forward, i18n);
 
 	const handleImport = () =>
 		openTunnelImport(buildImportDraft(process, forward));
@@ -30,17 +31,17 @@ export function ExternalForwardItem({
 			<span className="font-mono text-sm text-tn-muted">
 				<span aria-hidden="true">{getExternalForwardLabel(forward)}</span>
 				<span className="sr-only">
-					{getExternalForwardAccessibleLabel(forward)}
+					{getExternalForwardAccessibleLabel(forward, i18n)}
 				</span>
 			</span>
 			<Button
 				size="sm"
 				variant="outline"
 				color="neutral"
-				aria-label={`Importer comme tunnel : ${route}`}
+				aria-label={t`Import as a tunnel: ${route}`}
 				onClick={handleImport}
 			>
-				Importer comme tunnel
+				{t`Import as a tunnel`}
 			</Button>
 		</li>
 	);

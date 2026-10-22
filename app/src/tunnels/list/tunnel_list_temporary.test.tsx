@@ -12,8 +12,8 @@ import { useToastStore } from '#/shared/toasts/toast_store';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 
-const SAVED = '3001 vers nova:3001';
-const TEMPORARY = '5000 vers nova:5000';
+const SAVED = '3001 to nova:3001';
+const TEMPORARY = '5000 to nova:5000';
 const TEMPORARY_ARROW = '5000 → nova:5000';
 
 function seedTunnels() {
@@ -57,15 +57,13 @@ function renderList() {
 }
 
 const openRowMenu = (label: string) =>
-	userEvent.click(
-		screen.getByRole('button', { name: `Actions pour ${label}` })
-	);
+	userEvent.click(screen.getByRole('button', { name: `Actions for ${label}` }));
 
 describe('TunnelList with a temporary tunnel', () => {
-	it('should show the Temporaire badge on the temporary row only', () => {
+	it('should show the Temporary badge on the temporary row only', () => {
 		renderList();
 
-		expect(screen.getAllByText('Temporaire')).toHaveLength(1);
+		expect(screen.getAllByText('Temporary')).toHaveLength(1);
 	});
 
 	it('should put the temporary state in the accessible name of the switch', () => {
@@ -73,7 +71,7 @@ describe('TunnelList with a temporary tunnel', () => {
 
 		expect(
 			screen.getByRole('switch', {
-				name: 'Tunnel 5000 vers nova:5000, temporaire, actif',
+				name: 'Tunnel 5000 to nova:5000, temporary, active',
 			})
 		).toBeChecked();
 	});
@@ -84,7 +82,7 @@ describe('TunnelList with a temporary tunnel', () => {
 		expect(await axe(container)).toHaveNoViolations();
 	});
 
-	it('should hide Modifier and Supprimer and offer to save and to stop in the menu', async () => {
+	it('should hide Edit and Delete and offer to save and to stop in the menu', async () => {
 		renderList();
 
 		await openRowMenu(TEMPORARY);
@@ -92,24 +90,24 @@ describe('TunnelList with a temporary tunnel', () => {
 		expect(
 			screen.getAllByRole('menuitem').map((item) => item.textContent)
 		).toEqual([
-			'Détails',
-			'Ouvrir dans le navigateur',
-			'Enregistrer le tunnel',
-			'Redémarrer',
-			'Arrêter et retirer',
+			'Details',
+			'Open in the browser',
+			'Save tunnel',
+			'Restart',
+			'Stop and remove',
 		]);
 	});
 
-	it('should keep Modifier and Supprimer on a saved tunnel', async () => {
+	it('should keep Edit and Delete on a saved tunnel', async () => {
 		renderList();
 
 		await openRowMenu(SAVED);
 
 		expect(
-			screen.queryByRole('menuitem', { name: 'Enregistrer le tunnel' })
+			screen.queryByRole('menuitem', { name: 'Save tunnel' })
 		).not.toBeInTheDocument();
 		expect(
-			screen.getByRole('menuitem', { name: 'Supprimer' })
+			screen.getByRole('menuitem', { name: 'Delete' })
 		).toBeInTheDocument();
 	});
 
@@ -118,22 +116,22 @@ describe('TunnelList with a temporary tunnel', () => {
 		await openRowMenu(TEMPORARY);
 
 		await userEvent.click(
-			screen.getByRole('menuitem', { name: 'Enregistrer le tunnel' })
+			screen.getByRole('menuitem', { name: 'Save tunnel' })
 		);
 
 		expect(gateway.persistTunnel).toHaveBeenCalledWith('temporary');
 		await waitFor(() =>
-			expect(screen.queryByText('Temporaire')).not.toBeInTheDocument()
+			expect(screen.queryByText('Temporary')).not.toBeInTheDocument()
 		);
 		expect(useToastStore.getState().toasts[0]?.message).toBe(
-			`Tunnel ${TEMPORARY_ARROW} enregistré`
+			`Tunnel ${TEMPORARY_ARROW} saved`
 		);
 	});
 
 	it('should offer to save from the context menu too', async () => {
 		renderList();
 		const row = screen
-			.getByRole('switch', { name: /^Tunnel 5000 vers/ })
+			.getByRole('switch', { name: /^Tunnel 5000 to/ })
 			.closest('li');
 
 		await userEvent.pointer({
@@ -142,7 +140,7 @@ describe('TunnelList with a temporary tunnel', () => {
 		});
 
 		expect(
-			await screen.findByRole('menuitem', { name: 'Enregistrer le tunnel' })
+			await screen.findByRole('menuitem', { name: 'Save tunnel' })
 		).toBeInTheDocument();
 	});
 
@@ -150,18 +148,18 @@ describe('TunnelList with a temporary tunnel', () => {
 		const { gateway } = renderList();
 
 		await userEvent.click(
-			screen.getByRole('switch', { name: /^Tunnel 5000 vers/ })
+			screen.getByRole('switch', { name: /^Tunnel 5000 to/ })
 		);
 
 		expect(gateway.stopTunnel).toHaveBeenCalledWith('temporary');
 		await waitFor(() =>
 			expect(useAnnouncerStore.getState().polite.message).toBe(
-				`Tunnel temporaire ${TEMPORARY_ARROW} arrêté et retiré`
+				`Temporary tunnel ${TEMPORARY_ARROW} stopped and removed`
 			)
 		);
 		await waitFor(() =>
 			expect(
-				screen.getByRole('switch', { name: /^Tunnel 3001 vers/ })
+				screen.getByRole('switch', { name: /^Tunnel 3001 to/ })
 			).toHaveFocus()
 		);
 	});
@@ -182,7 +180,7 @@ describe('TunnelList with a temporary tunnel', () => {
 		await openRowMenu(TEMPORARY);
 
 		await userEvent.click(
-			screen.getByRole('menuitem', { name: 'Arrêter et retirer' })
+			screen.getByRole('menuitem', { name: 'Stop and remove' })
 		);
 
 		expect(gateway.stopTunnel).toHaveBeenCalledWith('temporary');
@@ -191,13 +189,11 @@ describe('TunnelList with a temporary tunnel', () => {
 
 describe('TunnelList bulk actions with a temporary tunnel', () => {
 	const selectBoth = async () => {
-		await userEvent.click(
-			screen.getByRole('checkbox', { name: 'Tout sélectionner' })
-		);
+		await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
 	};
 	const toolbarButton = (name: string) =>
 		within(
-			screen.getByRole('toolbar', { name: 'Actions sur la sélection' })
+			screen.getByRole('toolbar', { name: 'Actions on the selection' })
 		).getByRole('button', { name });
 
 	it('should disable Tags… when only temporary tunnels are selected', async () => {
@@ -206,9 +202,7 @@ describe('TunnelList bulk actions with a temporary tunnel', () => {
 		});
 		renderWithGateway(<TunnelList />);
 
-		await userEvent.click(
-			screen.getByRole('checkbox', { name: 'Tout sélectionner' })
-		);
+		await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
 
 		expect(toolbarButton('Tags…')).toBeDisabled();
 	});
@@ -241,7 +235,7 @@ describe('TunnelList bulk actions with a temporary tunnel', () => {
 		renderWithGateway(<TunnelList />, gateway);
 		await selectBoth();
 
-		await userEvent.click(toolbarButton('Arrêter'));
+		await userEvent.click(toolbarButton('Stop'));
 
 		await waitFor(() => expect(gateway.stopTunnel).toHaveBeenCalledTimes(2));
 	});
@@ -258,10 +252,8 @@ describe('TunnelList bulk actions with a temporary tunnel', () => {
 		});
 		renderWithGateway(<TunnelList />);
 
-		await userEvent.click(
-			screen.getByRole('checkbox', { name: 'Tout sélectionner' })
-		);
+		await userEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
 
-		expect(toolbarButton('Arrêter')).toBeEnabled();
+		expect(toolbarButton('Stop')).toBeEnabled();
 	});
 });

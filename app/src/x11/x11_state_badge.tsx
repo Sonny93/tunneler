@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro';
+
 import { cn } from '#/shared/cn';
 import type { X11StateDto } from '#/daemon/protocol';
 import { getX11StateLabel } from '#/x11/x11_state_label';
@@ -34,6 +36,7 @@ type X11StateBadgeProps = {
 };
 
 export const X11StateBadge = ({ state }: Readonly<X11StateBadgeProps>) => {
+	const { i18n } = useLingui();
 	const { icon, toneClassName } = STATE_APPEARANCES[state.kind];
 
 	return (
@@ -44,7 +47,7 @@ export const X11StateBadge = ({ state }: Readonly<X11StateBadgeProps>) => {
 			)}
 		>
 			<span aria-hidden="true" className={cn(icon, 'size-4 shrink-0')} />
-			<span>{getX11StateLabel(state)}</span>
+			<span>{getX11StateLabel(state, i18n)}</span>
 		</span>
 	);
 };

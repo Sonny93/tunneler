@@ -10,12 +10,12 @@ function Harness({ isModalOpen = false }: Readonly<{ isModalOpen?: boolean }>) {
 	useGlobalShortcuts();
 	return (
 		<>
-			<input aria-label="Champ" />
-			<textarea aria-label="Zone" />
+			<input aria-label="Field" />
+			<textarea aria-label="Area" />
 			<div
 				contentEditable
 				suppressContentEditableWarning
-				aria-label="Éditable"
+				aria-label="Editable"
 			/>
 			{isModalOpen && <OpenModalStandIn />}
 		</>
@@ -82,7 +82,7 @@ describe('useGlobalShortcuts', () => {
 	it('should not toggle the sidebar on b typed in a field', async () => {
 		const user = userEvent.setup();
 		render(<Harness />);
-		await user.click(screen.getByLabelText('Champ'));
+		await user.click(screen.getByLabelText('Field'));
 
 		await user.keyboard('b');
 
@@ -111,7 +111,7 @@ describe('useGlobalShortcuts', () => {
 	it('should open the palette even from a text field', async () => {
 		const user = userEvent.setup();
 		render(<Harness />);
-		await user.click(screen.getByLabelText('Champ'));
+		await user.click(screen.getByLabelText('Field'));
 
 		await user.keyboard('{Control>}k{/Control}');
 
@@ -142,7 +142,7 @@ describe('useGlobalShortcuts', () => {
 		expect(useUiStore.getState().panel.kind).toBe('none');
 	});
 
-	it.each(['Champ', 'Zone', 'Éditable'])(
+	it.each(['Field', 'Area', 'Editable'])(
 		'should ignore keys typed in "%s"',
 		async (name) => {
 			const user = userEvent.setup();

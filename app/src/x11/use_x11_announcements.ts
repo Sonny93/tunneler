@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useLingui } from '@lingui/react/macro';
 
 import { findX11State } from '#/x11/find_x11_state';
 import type { X11AnchorDto } from '#/daemon/protocol';
@@ -22,6 +23,8 @@ function findChangedHosts(
 
 /** Announces X11 anchor changes politely; the snapshot loaded while connecting is never announced. */
 export function useX11Announcements(): void {
+	const { i18n } = useLingui();
+
 	useEffect(
 		() =>
 			useDaemonStore.subscribe((state, previousState) => {
@@ -34,11 +37,15 @@ export function useX11Announcements(): void {
 					useAnnouncerStore
 						.getState()
 						.announce(
-							buildX11Announcement(host, findX11State(state.x11Anchors, host)),
+							buildX11Announcement(
+								host,
+								findX11State(state.x11Anchors, host),
+								i18n
+							),
 							'polite'
 						);
 				}
 			}),
-		[]
+		[i18n]
 	);
 }

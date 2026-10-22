@@ -1,5 +1,9 @@
+import { msg } from '@lingui/core/macro';
+import type { MessageDescriptor } from '@lingui/core';
+
 import { BROWSER_OPENER_ID } from '#/openers/open_choices';
 import {
+	PLACEHOLDER_TEXTS,
 	parseArguments,
 	type OpenerFormValues,
 } from '#/openers/opener_form_values';
@@ -15,17 +19,25 @@ export const OPENER_FORM_FIELD_ORDER = [
 
 export type OpenerFormField = (typeof OPENER_FORM_FIELD_ORDER)[number];
 
-export type OpenerFormErrors = Partial<Record<OpenerFormField, string>>;
+export type OpenerFormErrors = Partial<
+	Record<OpenerFormField, MessageDescriptor>
+>;
 
 const ID_PATTERN = /^[a-z0-9-]+$/u;
 const PLACEHOLDER_PATTERN = /\{[^{}]*\}/gu;
-const KNOWN_PLACEHOLDERS: readonly string[] = ['{host}', '{port}', '{url}'];
+const { hostPlaceholder, portPlaceholder, urlPlaceholder } = PLACEHOLDER_TEXTS;
+const KNOWN_PLACEHOLDERS: readonly string[] = Object.values(PLACEHOLDER_TEXTS);
 const MIN_PORT = 1;
 const MAX_PORT = 65_535;
 const PORT_PATTERN = /^\d+$/u;
 
-const PORTS_MESSAGE =
-	'Les ports doivent être des entiers entre 1 et 65535, séparés par des virgules.';
+const PORTS_MESSAGE = msg`The ports must be whole numbers between 1 and 65535, separated by commas.`;
+const NAME_MESSAGE = msg`The name is required.`;
+const COMMAND_MESSAGE = msg`The command is required.`;
+const ID_REQUIRED_MESSAGE = msg`The identifier is required.`;
+const ID_FORMAT_MESSAGE = msg`The identifier can only contain lowercase letters, digits and dashes.`;
+const ID_RESERVED_MESSAGE = msg`"browser" is reserved for the browser.`;
+const ID_TAKEN_MESSAGE = msg`This identifier is already used by one of your applications.`;
 
 function findUnknownPlaceholder(argument: string): string | null {
 	const placeholders = argument.match(PLACEHOLDER_PATTERN) ?? [];
@@ -34,32 +46,29 @@ function findUnknownPlaceholder(argument: string): string | null {
 	);
 }
 
-function validateId(id: string, takenIds: readonly string[]): string | null {
+function validateId(
+	id: string,
+	takenIds: readonly string[]
+): MessageDescriptor | null {
 	const trimmed = id.trim();
-	if (trimmed === '') return "L'identifiant est obligatoire.";
-	if (!ID_PATTERN.test(trimmed)) {
-		return "L'identifiant ne peut contenir que des minuscules, des chiffres et des tirets.";
-	}
-	if (trimmed === BROWSER_OPENER_ID) {
-		return '« browser » est réservé au navigateur.';
-	}
-	if (takenIds.includes(trimmed)) {
-		return 'Cet identifiant est déjà utilisé par une de vos applications.';
-	}
+	if (trimmed === '') return ID_REQUIRED_MESSAGE;
+	if (!ID_PATTERN.test(trimmed)) return ID_FORMAT_MESSAGE;
+	if (trimmed === BROWSER_OPENER_ID) return ID_RESERVED_MESSAGE;
+	if (takenIds.includes(trimmed)) return ID_TAKEN_MESSAGE;
 	return null;
 }
 
-function validateArguments(text: string): string | null {
+function validateArguments(text: string): MessageDescriptor | null {
 	for (const argument of parseArguments(text)) {
 		const unknown = findUnknownPlaceholder(argument);
 		if (unknown !== null) {
-			return `Paramètre inconnu : ${unknown}. Seuls {host}, {port} et {url} existent.`;
+			return msg`Unknown parameter: ${unknown}. Only ${hostPlaceholder}, ${portPlaceholder} and ${urlPlaceholder} exist.`;
 		}
 	}
 	return null;
 }
 
-function validatePorts(text: string): string | null {
+function validatePorts(text: string): MessageDescriptor | null {
 	const parts = text
 		.split(',')
 		.map((part) => part.trim())
@@ -77,11 +86,10 @@ export function validateOpenerForm(
 	takenIds: readonly string[]
 ): OpenerFormErrors {
 	const errors: OpenerFormErrors = {};
-	if (values.name.trim() === '') errors.name = 'Le nom est obligatoire.';
+	if (values.name.trim() === '') errors.name = NAME_MESSAGE;
 	const idProblem = validateId(values.id, takenIds);
 	if (idProblem !== null) errors.id = idProblem;
-	if (values.command.trim() === '')
-		errors.command = 'La commande est obligatoire.';
+	if (values.command.trim() === '') errors.command = COMMAND_MESSAGE;
 	const argumentsProblem = validateArguments(values.args);
 	if (argumentsProblem !== null) errors.args = argumentsProblem;
 	const portsProblem = validatePorts(values.ports);

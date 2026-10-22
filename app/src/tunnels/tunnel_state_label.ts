@@ -1,22 +1,30 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+
 import type { TunnelStateDto } from '#/daemon/protocol';
 
-export function getTunnelStateLabel(state: Readonly<TunnelStateDto>): string {
+export function getTunnelStateLabel(
+	state: Readonly<TunnelStateDto>,
+	i18n: I18n
+): string {
 	switch (state.kind) {
 		case 'stopped':
-			return 'Arrêté';
+			return t(i18n)`Stopped`;
 		case 'standby':
-			return 'Veille';
+			return t(i18n)`Standby`;
 		case 'starting':
-			return 'Démarrage…';
+			return t(i18n)`Starting…`;
 		case 'active':
-			return 'Actif';
-		case 'reconnecting':
-			return `Reconnexion (tentative ${state.attempt})`;
+			return t(i18n)`Active`;
+		case 'reconnecting': {
+			const { attempt } = state;
+			return t(i18n)`Reconnecting (attempt ${attempt})`;
+		}
 		case 'failed':
-			return 'Échec';
+			return t(i18n)`Failed`;
 		case 'external':
-			return 'Externe';
+			return t(i18n)`External`;
 		case 'conflict':
-			return 'Conflit';
+			return t(i18n)`Conflict`;
 	}
 }

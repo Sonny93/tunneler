@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro';
+
 import { Drawer } from '#/shared/drawer';
 import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
@@ -17,21 +19,20 @@ type TunnelDetailsPanelProps = {
 export function TunnelDetailsPanel({
 	tunnel,
 }: Readonly<TunnelDetailsPanelProps>) {
+	const { t, i18n } = useLingui();
 	const closePanel = useUiStore((state) => state.closePanel);
 
+	const endpointLabel = getTunnelEndpointLabel(tunnel);
+
 	return (
-		<Drawer
-			isOpen
-			title={`Tunnel ${getTunnelEndpointLabel(tunnel)}`}
-			onClose={closePanel}
-		>
+		<Drawer isOpen title={t`Tunnel ${endpointLabel}`} onClose={closePanel}>
 			<div className="flex flex-col gap-6">
 				<TunnelStateSection tunnel={tunnel} />
 				<TunnelMetricsSection metrics={tunnel.metrics} />
 				<TunnelActionsSection tunnel={tunnel} />
 				<TunnelLogSection
 					tunnelId={tunnel.id}
-					tunnelLabel={getTunnelAccessibleEndpointLabel(tunnel)}
+					tunnelLabel={getTunnelAccessibleEndpointLabel(tunnel, i18n)}
 				/>
 			</div>
 		</Drawer>

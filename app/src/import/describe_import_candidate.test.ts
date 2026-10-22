@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -10,21 +11,30 @@ describe('describeImportCandidateLabel', () => {
 		expect(
 			describeImportCandidateLabel(
 				{ host: 'nova', kind: 'local', listenPort: 3333 },
-				''
+				'',
+				i18n
 			)
-		).toBe('3333 vers nova:3333');
+		).toBe('3333 to nova:3333');
 	});
 
 	it('should use the fallback host for a candidate without host', () => {
 		expect(
-			describeImportCandidateLabel({ kind: 'local', listenPort: 3333 }, 'nova')
-		).toBe('3333 vers nova:3333');
+			describeImportCandidateLabel(
+				{ kind: 'local', listenPort: 3333 },
+				'nova',
+				i18n
+			)
+		).toBe('3333 to nova:3333');
 	});
 
 	it('should say the host is yet to choose without any host', () => {
 		expect(
-			describeImportCandidateLabel({ kind: 'local', listenPort: 3333 }, '')
-		).toBe('3333 vers hôte à choisir:3333');
+			describeImportCandidateLabel(
+				{ kind: 'local', listenPort: 3333 },
+				'',
+				i18n
+			)
+		).toBe('3333 to host to choose:3333');
 	});
 });
 
@@ -39,25 +49,28 @@ describe('describeImportCandidateDetails', () => {
 					comment: 'adonis',
 					line: 12,
 				},
-				null
+				null,
+				i18n
 			)
-		).toBe('adonis · ligne 12');
+		).toBe('adonis · line 12');
 	});
 
 	it('should append the conflict note', () => {
 		expect(
 			describeImportCandidateDetails(
 				{ host: 'nova', kind: 'local', listenPort: 3333 },
-				'Déjà configuré'
+				'Already configured',
+				i18n
 			)
-		).toBe('Déjà configuré');
+		).toBe('Already configured');
 	});
 
 	it('should be empty without comment, line or conflict', () => {
 		expect(
 			describeImportCandidateDetails(
 				{ host: 'nova', kind: 'local', listenPort: 3333 },
-				null
+				null,
+				i18n
 			)
 		).toBe('');
 	});

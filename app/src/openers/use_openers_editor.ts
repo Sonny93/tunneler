@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { plural } from '@lingui/core/macro';
 import { ConfirmModal } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { useDaemonStore } from '#/state/daemon_store';
 import { useToastStore } from '#/shared/toasts/toast_store';
@@ -30,13 +32,8 @@ function toSpec(opener: Readonly<AvailableOpenerDto>): OpenerSpecDto {
 	return { id, name, command, args, ports };
 }
 
-function describeUsage(count: number): string {
-	return count === 1
-		? '1 tunnel utilise cette application et ne pourra plus s’ouvrir tant qu’une autre n’est pas choisie.'
-		: `${count} tunnels utilisent cette application et ne pourront plus s’ouvrir tant qu’une autre n’est pas choisie.`;
-}
-
 export function useOpenersEditor(): UseOpenersEditorReturn {
+	const { t } = useLingui();
 	const gateway = useDaemonGateway();
 	const runDaemonAction = useDaemonAction();
 	const openers = useDaemonStore((state) => state.openers);
@@ -52,9 +49,12 @@ export function useOpenersEditor(): UseOpenersEditorReturn {
 			? others.map((opener) => (opener.id === spec.id ? spec : opener))
 			: [...others, spec];
 		await gateway.updateOpeners(next);
+		const { name } = spec;
 		useToastStore.getState().pushToast({
 			tone: 'success',
-			message: `Application ${spec.name} ${isEdition ? 'enregistrée' : 'ajoutée'}`,
+			message: isEdition
+				? t`Application ${name} saved`
+				: t`Application ${name} added`,
 		});
 		setEditing({ kind: 'none' });
 	};
@@ -63,11 +63,16 @@ export function useOpenersEditor(): UseOpenersEditorReturn {
 		const usageCount = tunnels.filter(
 			(tunnel) => tunnel.open?.with === opener.id
 		).length;
+		const { name } = opener;
 		if (usageCount > 0) {
 			const isConfirmed = await ConfirmModal.call({
-				title: `Supprimer l’application ${opener.name} ?`,
-				children: describeUsage(usageCount),
-				confirmLabel: 'Supprimer',
+				title: t`Delete the application ${name}?`,
+				children: t`${plural(usageCount, {
+					one: '# tunnel uses this application and will not be able to open until another one is chosen.',
+					other:
+						'# tunnels use this application and will not be able to open until another one is chosen.',
+				})}`,
+				confirmLabel: t`Delete`,
 				confirmColor: 'danger',
 			});
 			if (!isConfirmed) return;
@@ -77,12 +82,12 @@ export function useOpenersEditor(): UseOpenersEditorReturn {
 			.map(toSpec);
 		const isDeleted = await runDaemonAction(
 			(daemon) => daemon.updateOpeners(remaining),
-			'Suppression impossible'
+			t`Couldn't delete the application`
 		);
 		if (!isDeleted) return;
 		useToastStore.getState().pushToast({
 			tone: 'success',
-			message: `Application ${opener.name} supprimée`,
+			message: t`Application ${name} deleted`,
 		});
 	};
 

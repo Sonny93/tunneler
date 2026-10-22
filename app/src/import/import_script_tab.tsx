@@ -1,10 +1,6 @@
+import { useLingui } from '@lingui/react/macro';
 import { useState, type ChangeEvent } from 'react';
 import { Button, Textarea } from '@minimalstuff/ui';
-
-const SCRIPT_HINT =
-	'Script PowerShell ou shell (ssh -L …), liste de ports (3333, 5432), ou une option par ligne.';
-const EMPTY_TEXT_ERROR =
-	'Collez un script, une liste de ports ou des options -L/-R/-D.';
 
 type ImportScriptTabProps = {
 	text: string;
@@ -19,6 +15,7 @@ export function ImportScriptTab({
 	onTextChange,
 	onAnalyze,
 }: Readonly<ImportScriptTabProps>) {
+	const { t } = useLingui();
 	const [error, setError] = useState<string>();
 
 	const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -27,7 +24,7 @@ export function ImportScriptTab({
 	};
 	const handleAnalyze = () => {
 		if (text.trim() === '') {
-			setError(EMPTY_TEXT_ERROR);
+			setError(t`Paste a script, a list of ports or -L/-R/-D options.`);
 			return;
 		}
 		onAnalyze(text);
@@ -37,8 +34,8 @@ export function ImportScriptTab({
 		<div className="flex flex-col gap-3 pt-3">
 			<Textarea
 				name="script"
-				label="Script, liste de ports ou options -L/-R/-D"
-				description={SCRIPT_HINT}
+				label={t`Script, list of ports or -L/-R/-D options`}
+				description={t`PowerShell or shell script (ssh -L …), list of ports (3333, 5432), or one option per line.`}
 				value={text}
 				onChange={handleChange}
 				error={error}
@@ -54,7 +51,7 @@ export function ImportScriptTab({
 					loading={isAnalyzing}
 					onClick={handleAnalyze}
 				>
-					Analyser
+					{t`Analyze`}
 				</Button>
 			</div>
 		</div>

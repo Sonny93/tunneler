@@ -33,6 +33,7 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 - Panneau de détails avec journaux et métriques en direct, import depuis `ssh_config` et depuis des scripts `ssh -L` collés, écran de réglages.
 - Ouverture d'un tunnel dans le navigateur ou dans une application choisie d'après le port cible (VNC, RDP, toute commande que vous ajoutez).
 - Thèmes clair et sombre qui suivent le système.
+- Anglais et français, pour la fenêtre, l'icône de la zone de notification et les notifications. La langue suit le système ou se choisit dans les réglages.
 
 ### Ligne de commande
 - `tunneler up`, `down`, `status`, `list`, `open`, `check`, `quit` et `purge`, avec sortie `--json` et codes de sortie documentés.
@@ -47,7 +48,6 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 
 ## Prochainement
 
-- **Interface en anglais avec traduction française**, et un réglage de langue. Aujourd'hui l'interface n'existe qu'en français.
 - **Cette documentation** : un guide (installation, premier tunnel, tags, veille, ouverture des tunnels, X11) et une référence (`tunnels.toml`, ligne de commande, réglages, codes de sortie).
 - Ce que la section [À tester](#a-tester) fera ressortir.
 
@@ -102,6 +102,7 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 - Un `tunnels.toml` en fins de ligne CRLF n'est pas garanti identique après réécriture en dehors des lignes que Tunneler modifie.
 - Les bordures de certains contrôles de la bibliothèque de composants sont sous 3:1 de contraste (WCAG 1.4.11). C'est accepté pour l'instant.
 - WebKitGTK expose le bouton du menu d'actions comme une liste déroulante (« combo box »).
+- Les choix « English » et « Français » du réglage de langue ne portent pas leur langue pour les lecteurs d'écran : la bibliothèque de composants ne permet pas encore de poser `lang` sur une option.
 - Les toasts Windows portent le nom Tunneler mais pas d'icône.
 - Les binaires et installeurs ne sont pas signés : Windows SmartScreen avertit au premier lancement.
 - macOS n'est pas maintenu : ni paquet, ni CI, ni zone de notification.

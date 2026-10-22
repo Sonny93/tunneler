@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro';
+
 import { copyTextWithToast } from '#/shared/copy_text';
 
 type UseCopyDisplayCommandReturn = {
@@ -8,9 +10,10 @@ type UseCopyDisplayCommandReturn = {
 export function useCopyDisplayCommand(
 	display: string
 ): UseCopyDisplayCommandReturn {
+	const { t } = useLingui();
 	const command = `export DISPLAY=${display}`;
 
-	const copy = () => copyTextWithToast(command, 'Commande copiée');
+	const copy = () => copyTextWithToast(command, t`Command copied`);
 
 	return { command, copy };
 }

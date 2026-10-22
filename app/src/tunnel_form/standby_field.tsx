@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { RadioOptions } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { useDaemonStore } from '#/state/daemon_store';
 import { getRadioOrientation } from '#/shared/radio_orientation';
@@ -14,6 +15,7 @@ type StandbyFieldProps = {
 
 /** Whether a local or dynamic tunnel waits without an SSH session until a client connects. */
 export function StandbyField({ value, onChange }: Readonly<StandbyFieldProps>) {
+	const { t } = useLingui();
 	const hintId = useId();
 	const isStandbyByDefault = useDaemonStore(
 		(state) => state.settings?.standby ?? false
@@ -21,10 +23,12 @@ export function StandbyField({ value, onChange }: Readonly<StandbyFieldProps>) {
 	const options = [
 		{
 			value: INHERITED_VALUE,
-			label: `Réglage général (${isStandbyByDefault ? 'oui' : 'non'})`,
+			label: isStandbyByDefault
+				? t`General setting (yes)`
+				: t`General setting (no)`,
 		},
-		{ value: 'yes', label: 'Oui' },
-		{ value: 'no', label: 'Non' },
+		{ value: 'yes', label: t`Yes` },
+		{ value: 'no', label: t`No` },
 	];
 
 	const handleChange = (selected: string) =>
@@ -34,7 +38,7 @@ export function StandbyField({ value, onChange }: Readonly<StandbyFieldProps>) {
 		<div className="flex flex-col gap-1">
 			<RadioOptions
 				name="standby"
-				label="Veille"
+				label={t`Standby`}
 				orientation={getRadioOrientation(options.length)}
 				options={options}
 				value={value}
@@ -42,8 +46,7 @@ export function StandbyField({ value, onChange }: Readonly<StandbyFieldProps>) {
 				aria-describedby={hintId}
 			/>
 			<p id={hintId} className="m-0 text-sm text-tn-muted">
-				Le tunnel garde son port sans session SSH jusqu&apos;à la première
-				connexion. Prend effet au prochain démarrage.
+				{t`The tunnel keeps its port without an SSH session until the first connection. Takes effect on the next start.`}
 			</p>
 		</div>
 	);

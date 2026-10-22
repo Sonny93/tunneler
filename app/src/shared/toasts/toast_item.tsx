@@ -1,5 +1,6 @@
-import { IconButton } from '@minimalstuff/ui';
 import { useCallback, useState } from 'react';
+import { IconButton } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { cn } from '#/shared/cn';
 import { useAutoDismiss } from '#/shared/toasts/use_auto_dismiss';
@@ -25,6 +26,7 @@ type ToastItemProps = {
 };
 
 export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
+	const { t } = useLingui();
 	const [isPaused, setIsPaused] = useState(false);
 	const { icon, iconClassName } = TOAST_APPEARANCES[toast.tone];
 	const isError = toast.tone === 'error';
@@ -50,7 +52,7 @@ export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
 			<p className="min-w-0 flex-1 break-words text-sm">{toast.message}</p>
 			<IconButton
 				icon="i-mdi-close"
-				aria-label="Fermer la notification"
+				aria-label={t`Close notification`}
 				tooltip
 				size="sm"
 				variant="ghost"

@@ -2,16 +2,17 @@ import { axe } from 'vitest-axe';
 import { describe, expect, it } from 'vitest';
 import { ModalProvider } from '@minimalstuff/ui';
 import userEvent from '@testing-library/user-event';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 
 import { useUiStore } from '#/state/ui_store';
 import { AppUIProvider } from '#/shared/app_ui_provider';
 import { ShortcutsHelp } from '#/shortcuts/shortcuts_help';
+import { renderWithI18n } from '#/testing/render_with_i18n';
 
 function renderHelp() {
-	return render(
+	return renderWithI18n(
 		<AppUIProvider>
-			<button>Déclencheur</button>
+			<button>Trigger</button>
 			<ModalProvider />
 			<ShortcutsHelp />
 		</AppUIProvider>
@@ -33,27 +34,27 @@ describe('ShortcutsHelp', () => {
 		openHelp();
 
 		const dialog = await screen.findByRole('dialog', {
-			name: 'Raccourcis clavier',
+			name: 'Keyboard shortcuts',
 		});
 		for (const text of [
 			'n',
-			'Nouveau tunnel',
+			'New tunnel',
 			',',
 			'?',
-			'Importer des tunnels',
+			'Import tunnels',
 			'Ctrl',
 			'K',
-			'Ouvrir la palette de commandes',
-			'Tunnel précédent / suivant',
-			'Démarrer ou arrêter le tunnel, cocher ou décocher la case',
-			'Maj',
-			'clic',
-			'Sélectionner une plage de tunnels',
+			'Open the command palette',
+			'Previous / next tunnel',
+			'Start or stop the tunnel, check or uncheck the checkbox',
+			'Shift',
+			'click',
+			'Select a range of tunnels',
 			'A',
-			'Sélectionner tous les tunnels affichés',
-			'Effacer la sélection',
-			'Fermer le panneau ou la fenêtre',
-			'Toutes ces actions sont aussi disponibles avec les boutons.',
+			'Select all displayed tunnels',
+			'Clear the selection',
+			'Close the panel or the dialog',
+			'All these actions are also available with the buttons.',
 		]) {
 			expect(dialog).toHaveTextContent(text, { normalizeWhitespace: true });
 		}
@@ -72,7 +73,7 @@ describe('ShortcutsHelp', () => {
 		renderHelp();
 		openHelp();
 
-		await user.click(await screen.findByRole('button', { name: 'Fermer' }));
+		await user.click(await screen.findByRole('button', { name: 'Close' }));
 
 		await waitFor(() =>
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -94,14 +95,14 @@ describe('ShortcutsHelp', () => {
 	it('should return the focus to the trigger on close', async () => {
 		const user = userEvent.setup();
 		renderHelp();
-		screen.getByRole('button', { name: 'Déclencheur' }).focus();
+		screen.getByRole('button', { name: 'Trigger' }).focus();
 		openHelp();
 		await screen.findByRole('dialog');
 
 		await user.keyboard('{Escape}');
 
 		await waitFor(() =>
-			expect(screen.getByRole('button', { name: 'Déclencheur' })).toHaveFocus()
+			expect(screen.getByRole('button', { name: 'Trigger' })).toHaveFocus()
 		);
 	});
 });

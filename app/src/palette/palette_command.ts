@@ -21,11 +21,10 @@ export type PaletteAction =
 	| { kind: 'showHostConfig'; host: string }
 	| { kind: 'showX11'; host: string };
 
-export type PaletteCategory = 'Général' | 'Tunnel' | 'Tag' | 'Hôte';
-
 export type PaletteCommand = {
 	id: string;
 	label: string;
-	category: PaletteCategory;
+	/** Already translated: it is shown and searched as is. */
+	category: string;
 	action: PaletteAction;
 };

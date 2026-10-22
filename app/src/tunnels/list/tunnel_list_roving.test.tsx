@@ -17,16 +17,16 @@ function seedTunnels() {
 	});
 }
 
-const ALPHA = '3001 vers nova:3001';
-const BETA = '3002 vers nova:3002';
-const GAMMA = '3003 vers zeta:3003';
+const ALPHA = '3001 to nova:3001';
+const BETA = '3002 to nova:3002';
+const GAMMA = '3003 to zeta:3003';
 
 const rowCheckbox = (name: string) =>
-	screen.getByRole('checkbox', { name: `Sélectionner ${name}` });
+	screen.getByRole('checkbox', { name: `Select ${name}` });
 const rowSwitch = (name: string) =>
 	screen.getByRole('switch', { name: new RegExp(`^Tunnel ${name},`) });
 const actionsButton = (name: string) =>
-	screen.getByRole('button', { name: `Actions pour ${name}` });
+	screen.getByRole('button', { name: `Actions for ${name}` });
 
 const STOPS_BEFORE_FIRST_ROW_SWITCH = 5;
 
@@ -249,7 +249,7 @@ describe('TunnelList roving focus', () => {
 		const [firstList] = screen.getAllByRole('list');
 
 		expect(firstList).toHaveAccessibleDescription(
-			'Utilisez les flèches haut et bas pour passer d’un tunnel à l’autre.'
+			'Use the up and down arrow keys to move between tunnels.'
 		);
 	});
 });

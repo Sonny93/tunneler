@@ -1,6 +1,8 @@
 import { useId } from 'react';
+import { useLingui } from '@lingui/react/macro';
 
 export function X11SecurityNote() {
+	const { t } = useLingui();
 	const titleId = useId();
 
 	return (
@@ -11,12 +13,10 @@ export function X11SecurityNote() {
 		>
 			<p id={titleId} className="m-0 flex items-center gap-1.5 font-semibold">
 				<span aria-hidden="true" className="i-mdi-alert size-4 shrink-0" />
-				Sécurité
+				{t`Security`}
 			</p>
 			<p className="m-0">
-				Le transfert X11 donne au serveur un accès complet à votre affichage
-				local : il peut capturer le clavier et l'écran. À n'activer que vers des
-				hôtes de confiance.
+				{t`X11 forwarding gives the server full access to your local display: it can capture the keyboard and the screen. Only enable it for trusted hosts.`}
 			</p>
 		</div>
 	);

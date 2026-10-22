@@ -43,10 +43,10 @@ async function createTunnelOn(host: string) {
 	useUiStore.getState().openTunnelEditor(null);
 	await user.type(await screen.findByRole('combobox', { name: /^Host/ }), host);
 	await user.type(
-		screen.getByRole('textbox', { name: /^Port d'écoute/ }),
+		screen.getByRole('textbox', { name: /^Listen port/ }),
 		'4444'
 	);
-	await user.click(screen.getByRole('button', { name: 'Créer' }));
+	await user.click(screen.getByRole('button', { name: 'Create' }));
 }
 
 describe('TunnelList focus after creation', () => {
@@ -57,11 +57,11 @@ describe('TunnelList focus after creation', () => {
 
 		await waitFor(() =>
 			expect(
-				screen.getByRole('switch', { name: /^Tunnel 4444 vers nova:4444,/ })
+				screen.getByRole('switch', { name: /^Tunnel 4444 to nova:4444,/ })
 			).toHaveFocus()
 		);
 		expect(
-			screen.getByRole('switch', { name: /^Tunnel 4444 vers nova:4444,/ })
+			screen.getByRole('switch', { name: /^Tunnel 4444 to nova:4444,/ })
 		).toHaveAttribute('tabindex', '0');
 	});
 

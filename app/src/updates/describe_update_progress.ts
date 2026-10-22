@@ -1,3 +1,6 @@
+import { t } from '@lingui/core/macro';
+import type { I18n } from '@lingui/core';
+
 import { formatBytes } from '#/shared/format_bytes';
 import type { UpdateProgressDto } from '#/daemon/protocol';
 
@@ -9,27 +12,35 @@ export type UpdateProgressView = {
 	text: string;
 };
 
-export const INSTALLING_TEXT = 'Installation en cours, Tunneler va redémarrer.';
-export const DOWNLOAD_START_TEXT = 'Téléchargement de la mise à jour…';
+export function getDownloadStartText(i18n: I18n): string {
+	return t(i18n)`Downloading the update…`;
+}
 
 export function describeUpdateProgress(
-	progress: Readonly<UpdateProgressDto> | null
+	progress: Readonly<UpdateProgressDto> | null,
+	i18n: I18n
 ): UpdateProgressView {
-	if (progress === null) return { percent: null, text: DOWNLOAD_START_TEXT };
-	if (progress.kind === 'installing')
-		return { percent: null, text: INSTALLING_TEXT };
-	const { downloadedBytes, totalBytes } = progress;
-	if (totalBytes === undefined || totalBytes === 0)
+	if (progress === null) {
+		return { percent: null, text: getDownloadStartText(i18n) };
+	}
+	if (progress.kind === 'installing') {
 		return {
 			percent: null,
-			text: `Téléchargement : ${formatBytes(downloadedBytes)}`,
+			text: t(i18n)`Installing, Tunneler will restart.`,
 		};
+	}
+	const { downloadedBytes, totalBytes } = progress;
+	const downloaded = formatBytes(downloadedBytes);
+	if (totalBytes === undefined || totalBytes === 0) {
+		return { percent: null, text: t(i18n)`Downloading: ${downloaded}` };
+	}
 	const percent = Math.min(
 		PERCENT_SCALE,
 		Math.floor((downloadedBytes / totalBytes) * PERCENT_SCALE)
 	);
+	const total = formatBytes(totalBytes);
 	return {
 		percent,
-		text: `Téléchargement : ${percent} % (${formatBytes(downloadedBytes)} sur ${formatBytes(totalBytes)})`,
+		text: t(i18n)`Downloading: ${percent}% (${downloaded} of ${total})`,
 	};
 }

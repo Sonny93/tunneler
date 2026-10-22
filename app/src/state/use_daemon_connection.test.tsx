@@ -65,11 +65,11 @@ describe('useDaemonConnection', () => {
 		expect(useDaemonStore.getState().hosts).toEqual([]);
 	});
 
-	it('should be disconnected with the message when connect fails', async () => {
+	it('should be disconnected with the error when connect fails', async () => {
 		const gateway = createFakeGateway();
 		gateway.connect.mockRejectedValue({
 			code: 'daemon_unreachable',
-			message: 'introuvable',
+			message: 'not found',
 		});
 
 		const { result } = renderConnection(gateway);
@@ -77,7 +77,10 @@ describe('useDaemonConnection', () => {
 		await waitFor(() =>
 			expect(result.current.connection).toEqual({
 				status: 'disconnected',
-				message: 'introuvable',
+				error: expect.objectContaining({
+					code: 'daemon_unreachable',
+					message: 'not found',
+				}),
 			})
 		);
 	});
@@ -108,11 +111,11 @@ describe('useDaemonConnection', () => {
 			expect(result.current.connection.status).toBe('connected')
 		);
 
-		act(() => gateway.disconnect('perdu'));
+		act(() => gateway.disconnect('lost'));
 
 		expect(result.current.connection).toEqual({
 			status: 'disconnected',
-			message: 'perdu',
+			error: expect.objectContaining({ message: 'lost' }),
 		});
 	});
 

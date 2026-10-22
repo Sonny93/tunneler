@@ -10,7 +10,7 @@ import { renderWithGateway } from '#/testing/render_with_gateway';
 
 const renderConnectedApp = async () => {
 	const rendered = renderWithGateway(<App />);
-	await screen.findByRole('navigation', { name: 'Filtres des tunnels' });
+	await screen.findByRole('navigation', { name: 'Tunnel filters' });
 	return rendered;
 };
 
@@ -18,10 +18,10 @@ const renderDisconnectedApp = async () => {
 	const gateway = createFakeGateway();
 	gateway.connect.mockRejectedValue({
 		code: 'daemon_unreachable',
-		message: 'introuvable',
+		message: 'not found',
 	});
 	const rendered = renderWithGateway(<App />, gateway);
-	await screen.findByText(/Daemon injoignable/);
+	await screen.findByText(/Daemon unreachable/);
 	return rendered;
 };
 
@@ -34,7 +34,7 @@ describe('App', () => {
 
 		expect(
 			within(screen.getByRole('main')).getByRole('status')
-		).toHaveTextContent('Connexion au daemon…');
+		).toHaveTextContent('Connecting to the daemon…');
 	});
 
 	it('should have no axe violations while connecting', async () => {
@@ -67,7 +67,7 @@ describe('App', () => {
 
 		expect(
 			await screen.findByRole('switch', {
-				name: /^Tunnel 3333 vers nova:3333,/,
+				name: /^Tunnel 3333 to nova:3333,/,
 			})
 		).toBeInTheDocument();
 	});
@@ -82,7 +82,7 @@ describe('App', () => {
 		await renderDisconnectedApp();
 
 		expect(
-			screen.getByText('Daemon injoignable : introuvable')
+			screen.getByText('Daemon unreachable: not found')
 		).toBeInTheDocument();
 	});
 
@@ -90,7 +90,7 @@ describe('App', () => {
 		const user = userEvent.setup();
 		const { gateway } = await renderDisconnectedApp();
 
-		await user.click(screen.getByRole('button', { name: 'Réessayer' }));
+		await user.click(screen.getByRole('button', { name: 'Retry' }));
 
 		expect(gateway.connect).toHaveBeenCalledTimes(2);
 	});

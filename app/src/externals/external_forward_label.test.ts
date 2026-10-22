@@ -1,3 +1,4 @@
+import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -56,18 +57,24 @@ describe('getExternalForwardLabel', () => {
 describe('getExternalForwardAccessibleLabel', () => {
 	it('should spell a local forward without an arrow', () => {
 		expect(
-			getExternalForwardAccessibleLabel({
-				kind: 'local',
-				listenPort: 3333,
-				targetHost: 'localhost',
-				targetPort: 3333,
-			})
-		).toBe('Redirection locale 3333 vers localhost:3333');
+			getExternalForwardAccessibleLabel(
+				{
+					kind: 'local',
+					listenPort: 3333,
+					targetHost: 'localhost',
+					targetPort: 3333,
+				},
+				i18n
+			)
+		).toBe('Local forward 3333 to localhost:3333');
 	});
 
 	it('should name a dynamic forward', () => {
 		expect(
-			getExternalForwardAccessibleLabel({ kind: 'dynamic', listenPort: 1080 })
-		).toBe('Proxy dynamique 1080');
+			getExternalForwardAccessibleLabel(
+				{ kind: 'dynamic', listenPort: 1080 },
+				i18n
+			)
+		).toBe('Dynamic proxy 1080');
 	});
 });

@@ -40,7 +40,7 @@ const renderNotice = (
 };
 
 const getRegion = () =>
-	screen.getByRole('region', { name: 'Version 0.2.0 disponible' });
+	screen.getByRole('region', { name: 'Version 0.2.0 available' });
 
 describe('UpdateNotice', () => {
 	it('should render nothing when no newer version was found', () => {
@@ -56,16 +56,16 @@ describe('UpdateNotice', () => {
 	});
 
 	it('should show the release notes when the release has some', () => {
-		renderNotice(buildOffer({ notes: 'Corrige la reconnexion' }));
+		renderNotice(buildOffer({ notes: 'Fixes reconnection' }));
 
-		expect(getRegion()).toHaveTextContent('Corrige la reconnexion');
+		expect(getRegion()).toHaveTextContent('Fixes reconnection');
 	});
 
 	it('should offer to install and restart when the program can update itself', () => {
 		renderNotice(buildOffer({ action: 'installAndRestart' }));
 
 		expect(
-			screen.getByRole('button', { name: 'Installer et redémarrer' })
+			screen.getByRole('button', { name: 'Install and restart' })
 		).toBeInTheDocument();
 	});
 
@@ -73,19 +73,17 @@ describe('UpdateNotice', () => {
 		renderNotice(buildOffer({ action: 'releaseLinkOnly' }));
 
 		expect(
-			screen.queryByRole('button', { name: 'Installer et redémarrer' })
+			screen.queryByRole('button', { name: 'Install and restart' })
 		).not.toBeInTheDocument();
 		expect(
-			screen.getByRole('link', { name: 'Voir la version' })
+			screen.getByRole('link', { name: 'View release' })
 		).toBeInTheDocument();
 	});
 
 	it('should open the release page through the native side when the link is clicked', async () => {
 		const { gateway } = renderNotice();
 
-		await userEvent.click(
-			screen.getByRole('link', { name: 'Voir la version' })
-		);
+		await userEvent.click(screen.getByRole('link', { name: 'View release' }));
 
 		expect(gateway.openReleasePage).toHaveBeenCalledOnce();
 	});
@@ -93,25 +91,23 @@ describe('UpdateNotice', () => {
 	it('should toast an error when the release page cannot open', async () => {
 		const gateway = createFakeGateway();
 		gateway.openReleasePage.mockRejectedValue(
-			new DaemonCommandError('no_browser', 'pas de navigateur')
+			new DaemonCommandError('no_browser', 'no browser')
 		);
 		renderNotice(buildOffer(), gateway);
 
-		await userEvent.click(
-			screen.getByRole('link', { name: 'Voir la version' })
-		);
+		await userEvent.click(screen.getByRole('link', { name: 'View release' }));
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts[0]?.message).toBe(
-				'Ouverture impossible: pas de navigateur'
+				"Couldn't open the page: no browser"
 			)
 		);
 	});
 
-	it('should hide the notice and move the focus to the main region on Masquer', async () => {
+	it('should hide the notice and move the focus to the main region on Hide', async () => {
 		renderNotice();
 
-		await userEvent.click(screen.getByRole('button', { name: 'Masquer' }));
+		await userEvent.click(screen.getByRole('button', { name: 'Hide' }));
 
 		expect(screen.queryByRole('region')).not.toBeInTheDocument();
 		expect(screen.getByRole('main')).toHaveFocus();
@@ -121,7 +117,7 @@ describe('UpdateNotice', () => {
 		const { gateway } = renderNotice();
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Installer et redémarrer' })
+			screen.getByRole('button', { name: 'Install and restart' })
 		);
 
 		expect(gateway.installUpdate).toHaveBeenCalledOnce();
@@ -140,18 +136,16 @@ describe('UpdateNotice', () => {
 			const { gateway } = renderNotice();
 
 			await userEvent.click(
-				screen.getByRole('button', { name: 'Installer et redémarrer' })
+				screen.getByRole('button', { name: 'Install and restart' })
 			);
 
 			const dialog = await screen.findByRole('alertdialog', {
-				name: 'Installer la mise à jour ?',
+				name: 'Install the update?',
 			});
 			expect(dialog).toHaveTextContent(
-				'1 tunnel ou session X11 en cours sera arrêté.'
+				'1 running tunnel or X11 session will be stopped.'
 			);
-			expect(dialog).toHaveTextContent(
-				'Ils redémarreront après la mise à jour'
-			);
+			expect(dialog).toHaveTextContent('They will restart after the update');
 			expect(await axe(document.body)).toHaveNoViolations();
 			expect(gateway.installUpdate).not.toHaveBeenCalled();
 		});
@@ -161,25 +155,27 @@ describe('UpdateNotice', () => {
 			renderNotice();
 
 			await userEvent.click(
-				screen.getByRole('button', { name: 'Installer et redémarrer' })
+				screen.getByRole('button', { name: 'Install and restart' })
 			);
 
 			expect(
 				await screen.findByRole('alertdialog', {
-					name: 'Installer la mise à jour ?',
+					name: 'Install the update?',
 				})
-			).toHaveTextContent('Ils ne redémarreront pas après la mise à jour');
+			).toHaveTextContent('They will not restart after the update');
 		});
 
 		it('should install once the confirmation is accepted', async () => {
 			runWithTunnels(true);
 			const { gateway } = renderNotice();
 			await userEvent.click(
-				screen.getByRole('button', { name: 'Installer et redémarrer' })
+				screen.getByRole('button', { name: 'Install and restart' })
 			);
 
 			await userEvent.click(
-				await screen.findByRole('button', { name: 'Tout arrêter et installer' })
+				await screen.findByRole('button', {
+					name: 'Stop everything and install',
+				})
 			);
 
 			await waitFor(() => expect(gateway.installUpdate).toHaveBeenCalledOnce());
@@ -189,11 +185,11 @@ describe('UpdateNotice', () => {
 			runWithTunnels(true);
 			const { gateway } = renderNotice();
 			await userEvent.click(
-				screen.getByRole('button', { name: 'Installer et redémarrer' })
+				screen.getByRole('button', { name: 'Install and restart' })
 			);
 
 			await userEvent.click(
-				await screen.findByRole('button', { name: 'Annuler' })
+				await screen.findByRole('button', { name: 'Cancel' })
 			);
 
 			await waitFor(() =>
@@ -214,7 +210,7 @@ describe('UpdateNotice', () => {
 			});
 			renderNotice(buildOffer(), gateway);
 			await userEvent.click(
-				screen.getByRole('button', { name: 'Installer et redémarrer' })
+				screen.getByRole('button', { name: 'Install and restart' })
 			);
 			return {
 				gateway,
@@ -227,15 +223,15 @@ describe('UpdateNotice', () => {
 			await startInstallation();
 
 			const progressBar = await screen.findByRole('progressbar', {
-				name: 'Progression de la mise à jour',
+				name: 'Update progress',
 			});
 			expect(progressBar).toHaveAttribute(
 				'aria-valuetext',
-				'Téléchargement de la mise à jour…'
+				'Downloading the update…'
 			);
 			expect(progressBar.parentElement).toHaveFocus();
 			expect(
-				screen.queryByRole('button', { name: 'Installer et redémarrer' })
+				screen.queryByRole('button', { name: 'Install and restart' })
 			).not.toBeInTheDocument();
 		});
 
@@ -247,10 +243,10 @@ describe('UpdateNotice', () => {
 			const progressBar = await screen.findByRole('progressbar');
 			expect(progressBar).toHaveAttribute(
 				'aria-valuetext',
-				'Téléchargement : 50 % (512 o sur 1 Ko)'
+				'Downloading: 50% (512 B of 1 KB)'
 			);
 			expect(progressBar).toHaveValue(50);
-			expect(getRegion()).toHaveTextContent('Téléchargement : 50 %');
+			expect(getRegion()).toHaveTextContent('Downloading: 50%');
 		});
 
 		it('should tell the installation runs once the download is over', async () => {
@@ -260,7 +256,7 @@ describe('UpdateNotice', () => {
 
 			expect(await screen.findByRole('progressbar')).toHaveAttribute(
 				'aria-valuetext',
-				'Installation en cours, Tunneler va redémarrer.'
+				'Installing, Tunneler will restart.'
 			);
 		});
 
@@ -275,25 +271,22 @@ describe('UpdateNotice', () => {
 	it('should toast the failure and offer the buttons again when the installation fails', async () => {
 		const gateway = createFakeGateway();
 		gateway.installUpdate.mockRejectedValue(
-			new DaemonCommandError(
-				'update_failed',
-				'La mise à jour a échoué : réseau'
-			)
+			new DaemonCommandError('update_failed', 'network down')
 		);
 		renderNotice(buildOffer(), gateway);
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Installer et redémarrer' })
+			screen.getByRole('button', { name: 'Install and restart' })
 		);
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts[0]).toMatchObject({
 				tone: 'error',
-				message: 'Mise à jour impossible: The update failed',
+				message: "Couldn't install the update: The update failed",
 			})
 		);
 		expect(
-			await screen.findByRole('button', { name: 'Installer et redémarrer' })
+			await screen.findByRole('button', { name: 'Install and restart' })
 		).toBeInTheDocument();
 	});
 
@@ -301,7 +294,7 @@ describe('UpdateNotice', () => {
 		'should have no axe violations for the %s action with notes',
 		async (action) => {
 			const { container } = renderNotice(
-				buildOffer({ action, notes: 'Corrige la reconnexion' })
+				buildOffer({ action, notes: 'Fixes reconnection' })
 			);
 
 			expect(await axe(container)).toHaveNoViolations();

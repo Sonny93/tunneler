@@ -1,3 +1,6 @@
+import { msg } from '@lingui/core/macro';
+import type { MessageDescriptor } from '@lingui/core';
+
 import { parsePort } from '#/tunnel_form/parse_port';
 import { validateTags } from '#/tunnel_form/validate_tags';
 import { validateOpenPath } from '#/tunnel_form/validate_open_path';
@@ -14,9 +17,12 @@ export const TUNNEL_FORM_FIELD_ORDER = [
 
 export type TunnelFormField = (typeof TUNNEL_FORM_FIELD_ORDER)[number];
 
-export type TunnelFormErrors = Partial<Record<TunnelFormField, string>>;
+export type TunnelFormErrors = Partial<
+	Record<TunnelFormField, MessageDescriptor>
+>;
 
-const PORT_MESSAGE = 'Le port doit être un entier entre 1 et 65535.';
+const PORT_MESSAGE = msg`The port must be a whole number between 1 and 65535.`;
+const HOST_MESSAGE = msg`The host is required.`;
 
 function hasUnlinkedInvalidTargetPort(
 	values: Readonly<TunnelFormValues>
@@ -29,7 +35,7 @@ export function validateTunnelForm(
 	values: Readonly<TunnelFormValues>
 ): TunnelFormErrors {
 	const errors: TunnelFormErrors = {};
-	if (values.host.trim() === '') errors.host = "L'hôte est obligatoire.";
+	if (values.host.trim() === '') errors.host = HOST_MESSAGE;
 	if (parsePort(values.listenPort) === null) errors.listenPort = PORT_MESSAGE;
 	if (hasUnlinkedInvalidTargetPort(values)) errors.targetPort = PORT_MESSAGE;
 	const tagsProblem = validateTags(values.tags);

@@ -29,7 +29,7 @@ function renderQuit(gateway = createFakeGateway()) {
 }
 
 const tunnelsRunning = (count: number) =>
-	new DaemonCommandError('tunnels_running', 'tunnels actifs', count);
+	new DaemonCommandError('tunnels_running', 'tunnels running', count);
 
 describe('QuitButton', () => {
 	it('should have no axe violations', async () => {
@@ -42,7 +42,7 @@ describe('QuitButton', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderQuit();
 
-		await user.click(screen.getByRole('button', { name: 'Quitter Tunneler' }));
+		await user.click(screen.getByRole('button', { name: 'Quit Tunneler' }));
 
 		expect(gateway.quit.mock.calls).toEqual([[false]]);
 		expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -54,13 +54,13 @@ describe('QuitButton', () => {
 		gateway.quit.mockRejectedValueOnce(tunnelsRunning(2));
 		renderQuit(gateway);
 
-		await user.click(screen.getByRole('button', { name: 'Quitter Tunneler' }));
+		await user.click(screen.getByRole('button', { name: 'Quit Tunneler' }));
 
 		const dialog = await screen.findByRole('alertdialog', {
-			name: 'Quitter Tunneler ?',
+			name: 'Quit Tunneler?',
 		});
 		expect(dialog).toHaveTextContent(
-			'2 tunnels ou sessions X11 en cours seront arrêtés.'
+			'2 running tunnels or X11 sessions will be stopped.'
 		);
 		expect(await axe(document.body)).toHaveNoViolations();
 	});
@@ -70,10 +70,10 @@ describe('QuitButton', () => {
 		const gateway = createFakeGateway();
 		gateway.quit.mockRejectedValueOnce(tunnelsRunning(2));
 		renderQuit(gateway);
-		await user.click(screen.getByRole('button', { name: 'Quitter Tunneler' }));
+		await user.click(screen.getByRole('button', { name: 'Quit Tunneler' }));
 
 		await user.click(
-			await screen.findByRole('button', { name: 'Tout arrêter et quitter' })
+			await screen.findByRole('button', { name: 'Stop everything and quit' })
 		);
 
 		await waitFor(() =>
@@ -86,9 +86,9 @@ describe('QuitButton', () => {
 		const gateway = createFakeGateway();
 		gateway.quit.mockRejectedValueOnce(tunnelsRunning(2));
 		renderQuit(gateway);
-		await user.click(screen.getByRole('button', { name: 'Quitter Tunneler' }));
+		await user.click(screen.getByRole('button', { name: 'Quit Tunneler' }));
 
-		await user.click(await screen.findByRole('button', { name: 'Annuler' }));
+		await user.click(await screen.findByRole('button', { name: 'Cancel' }));
 
 		await waitFor(() =>
 			expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
@@ -104,11 +104,11 @@ describe('QuitButton', () => {
 		);
 		renderQuit(gateway);
 
-		await user.click(screen.getByRole('button', { name: 'Quitter Tunneler' }));
+		await user.click(screen.getByRole('button', { name: 'Quit Tunneler' }));
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts[0]?.message).toBe(
-				'Impossible de quitter : boom'
+				"Couldn't quit: boom"
 			)
 		);
 	});
@@ -120,10 +120,10 @@ describe('QuitButton', () => {
 			.mockRejectedValueOnce(tunnelsRunning(1))
 			.mockRejectedValueOnce(new DaemonCommandError('io_error', 'boom'));
 		renderQuit(gateway);
-		await user.click(screen.getByRole('button', { name: 'Quitter Tunneler' }));
+		await user.click(screen.getByRole('button', { name: 'Quit Tunneler' }));
 
 		await user.click(
-			await screen.findByRole('button', { name: 'Tout arrêter et quitter' })
+			await screen.findByRole('button', { name: 'Stop everything and quit' })
 		);
 
 		await waitFor(() =>
@@ -149,7 +149,7 @@ describe('useQuitRequestListener', () => {
 		act(() => useDaemonStore.setState({ isQuitRequested: true }));
 
 		expect(await screen.findByRole('alertdialog')).toHaveTextContent(
-			'2 tunnels ou sessions X11 en cours seront arrêtés.'
+			'2 running tunnels or X11 sessions will be stopped.'
 		);
 		expect(useDaemonStore.getState().isQuitRequested).toBe(false);
 	});
@@ -161,7 +161,7 @@ describe('useQuitRequestListener', () => {
 		act(() => useDaemonStore.setState({ isQuitRequested: true }));
 
 		await user.click(
-			await screen.findByRole('button', { name: 'Tout arrêter et quitter' })
+			await screen.findByRole('button', { name: 'Stop everything and quit' })
 		);
 
 		await waitFor(() => expect(gateway.quit.mock.calls).toEqual([[true]]));
