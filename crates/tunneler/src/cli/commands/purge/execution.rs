@@ -11,6 +11,7 @@ use thiserror::Error;
 use super::plan::PurgeTarget;
 use crate::cli::CliError;
 use crate::daemon::login_launch::{LoginLaunch, LoginLaunchError};
+use crate::daemon::notification_identity::{NotificationIdentity, NotificationIdentityError};
 
 /// The file system operations of a purge. Removing something that is already
 /// gone succeeds.
@@ -49,6 +50,9 @@ pub enum PurgeError {
         /// Why.
         source: io::Error,
     },
+    /// The notification identity could not be removed.
+    #[error("cannot remove the notification identity: {0}")]
+    NotificationIdentity(#[from] NotificationIdentityError),
     /// The launch-at-login entry could not be removed.
     #[error("cannot remove the launch-at-login entry: {0}")]
     LoginLaunch(#[from] LoginLaunchError),
@@ -77,14 +81,16 @@ pub struct Purger<'a> {
     pub filesystem: &'a dyn Filesystem,
     /// The launch-at-login entry.
     pub login_launch: &'a dyn LoginLaunch,
+    /// The notification identity of Windows.
+    pub notification_identity: &'a dyn NotificationIdentity,
     /// The OS keyring.
     pub keyring: &'a dyn SecretKeyring,
 }
 
 impl Purger<'_> {
     /// The targets of `plan` that exist, so that the user is told about what is
-    /// really there. A launch-at-login entry and a keyring passphrase cannot
-    /// be probed cheaply, they always stay.
+    /// really there. A launch-at-login entry, a notification identity and a
+    /// keyring passphrase cannot be probed cheaply, they always stay.
     pub fn retain_present(&self, plan: Vec<PurgeTarget>) -> Vec<PurgeTarget> {
         plan.into_iter()
             .filter(|target| match target {
@@ -92,7 +98,9 @@ impl Purger<'_> {
                 | PurgeTarget::File(path)
                 | PurgeTarget::StateFile(path)
                 | PurgeTarget::DirectoryIfEmpty(path) => self.filesystem.exists(path),
-                PurgeTarget::LoginLaunch | PurgeTarget::KeyringPassphrase(_) => true,
+                PurgeTarget::LoginLaunch
+                | PurgeTarget::NotificationIdentity
+                | PurgeTarget::KeyringPassphrase(_) => true,
             })
             .collect()
     }
@@ -126,6 +134,7 @@ impl Purger<'_> {
     fn remove(&self, target: &PurgeTarget) -> Result<(), PurgeError> {
         match target {
             PurgeTarget::LoginLaunch => Ok(self.login_launch.apply(false)?),
+            PurgeTarget::NotificationIdentity => Ok(self.notification_identity.remove()?),
             PurgeTarget::Directory(path) => {
                 with_path(path, self.filesystem.remove_directory_all(path))
             }
@@ -245,6 +254,24 @@ mod tests {
         }
     }
 
+    struct FakeNotificationIdentity<'a> {
+        journal: &'a Journal,
+    }
+
+    impl NotificationIdentity for FakeNotificationIdentity<'_> {
+        fn register(&self) -> Result<(), NotificationIdentityError> {
+            Ok(())
+        }
+
+        fn remove(&self) -> Result<(), NotificationIdentityError> {
+            self.journal
+                .lock()
+                .unwrap()
+                .push("remove notification identity".to_owned());
+            Ok(())
+        }
+    }
+
     struct FakeKeyring<'a> {
         journal: &'a Journal,
         is_failing: bool,
@@ -310,10 +337,14 @@ mod tests {
                 journal: &self.journal,
                 is_failing: self.is_keyring_failing,
             };
+            let notification_identity = FakeNotificationIdentity {
+                journal: &self.journal,
+            };
             Purger {
                 daemon: &daemon,
                 filesystem: &filesystem,
                 login_launch: &login_launch,
+                notification_identity: &notification_identity,
                 keyring: &keyring,
             }
             .purge(plan)
@@ -338,10 +369,14 @@ mod tests {
                 journal: &self.journal,
                 is_failing: self.is_keyring_failing,
             };
+            let notification_identity = FakeNotificationIdentity {
+                journal: &self.journal,
+            };
             Purger {
                 daemon: &daemon,
                 filesystem: &filesystem,
                 login_launch: &login_launch,
+                notification_identity: &notification_identity,
                 keyring: &keyring,
             }
             .retain_present(plan)
@@ -355,6 +390,7 @@ mod tests {
     fn full_plan() -> Vec<PurgeTarget> {
         vec![
             PurgeTarget::LoginLaunch,
+            PurgeTarget::NotificationIdentity,
             PurgeTarget::Directory("/data/logs".into()),
             PurgeTarget::File("/config/tunnels.toml".into()),
             PurgeTarget::KeyringPassphrase("/ssh/id_rsa".into()),
@@ -373,6 +409,7 @@ mod tests {
             fixture.journal(),
             vec![
                 "login launch enabled=false",
+                "remove notification identity",
                 "remove directory /data/logs",
                 "remove file /config/tunnels.toml",
                 "delete passphrase /ssh/id_rsa",
@@ -427,7 +464,7 @@ mod tests {
         let failures = fixture.purge(&full_plan()).await.unwrap();
 
         assert_eq!(failures.len(), 1);
-        assert_eq!(fixture.journal().len(), 6);
+        assert_eq!(fixture.journal().len(), 7);
     }
 
     #[tokio::test]
@@ -472,6 +509,7 @@ mod tests {
             present,
             vec![
                 PurgeTarget::LoginLaunch,
+                PurgeTarget::NotificationIdentity,
                 PurgeTarget::File("/config/tunnels.toml".into()),
                 PurgeTarget::KeyringPassphrase("/ssh/id_rsa".into()),
             ]

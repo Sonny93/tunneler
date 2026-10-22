@@ -17,6 +17,7 @@ use super::super::args::PurgeArguments;
 use super::super::terminal::{StandardTerminal, Terminal, is_interactive};
 use super::super::{CliError, Context};
 use crate::daemon::login_launch::system_login_launch;
+use crate::daemon::notification_identity::system_notification_identity;
 use crate::daemon::os_keyring::OsKeyring;
 use crate::layout::DataLayout;
 use crate::logging;
@@ -34,13 +35,20 @@ pub async fn purge(context: &Context, arguments: &PurgeArguments) -> Result<(), 
         endpoint: &context.endpoint,
     };
     let login_launch = system_login_launch();
+    let notification_identity = system_notification_identity();
     let purger = Purger {
         daemon: &daemon,
         filesystem: &SystemFilesystem,
         login_launch: login_launch.as_ref(),
+        notification_identity: notification_identity.as_ref(),
         keyring: &OsKeyring,
     };
-    let plan = purger.retain_present(build_plan(&layout, arguments.keep_config, &keyring_entries));
+    let plan = purger.retain_present(build_plan(
+        &layout,
+        arguments.keep_config,
+        &keyring_entries,
+        cfg!(windows),
+    ));
     let is_daemon_running = daemon.is_running().await;
     print_summary(
         &plan,

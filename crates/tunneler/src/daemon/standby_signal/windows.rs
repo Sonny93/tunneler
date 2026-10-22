@@ -1,5 +1,6 @@
-//! Windows: a silent toast from the PowerShell application identity, and the
-//! system sounds through `PlaySoundW`.
+//! Windows: a silent toast from the application identity of Tunneler (the one
+//! of PowerShell when it cannot be registered), and the system sounds through
+//! `PlaySoundW`.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -7,6 +8,10 @@ use async_trait::async_trait;
 use tauri_winrt_notification::Toast;
 
 use super::{DesktopNotifier, SoundEvent, SoundPlayer};
+use crate::daemon::notification_identity::{
+    ToastIdentity, register_for_toasts, system_notification_identity,
+};
+use crate::layout::APPLICATION_IDENTIFIER;
 
 fn sound_alias(event: SoundEvent) -> &'static str {
     match event {
@@ -16,19 +21,30 @@ fn sound_alias(event: SoundEvent) -> &'static str {
 }
 
 pub(crate) struct SystemNotifier {
+    app_id: &'static str,
     has_warned: AtomicBool,
 }
 
 impl SystemNotifier {
+    /// Registers the notification identity of the daemon, which is idempotent,
+    /// and shows toasts under it, or under PowerShell's when that fails.
     pub(crate) fn new() -> Self {
         Self {
+            app_id: app_id(register_for_toasts(system_notification_identity().as_ref())),
             has_warned: AtomicBool::new(false),
         }
     }
 }
 
-fn show(summary: &str, body: &str) -> tauri_winrt_notification::Result<()> {
-    Toast::new(Toast::POWERSHELL_APP_ID)
+fn app_id(identity: ToastIdentity) -> &'static str {
+    match identity {
+        ToastIdentity::Tunneler => APPLICATION_IDENTIFIER,
+        ToastIdentity::PowerShell => Toast::POWERSHELL_APP_ID,
+    }
+}
+
+fn show(app_id: &str, summary: &str, body: &str) -> tauri_winrt_notification::Result<()> {
+    Toast::new(app_id)
         .title(summary)
         .text1(body)
         .sound(None)
@@ -38,8 +54,8 @@ fn show(summary: &str, body: &str) -> tauri_winrt_notification::Result<()> {
 #[async_trait]
 impl DesktopNotifier for SystemNotifier {
     async fn notify(&self, summary: &str, body: &str) {
-        let (summary, body) = (summary.to_owned(), body.to_owned());
-        let outcome = tokio::task::spawn_blocking(move || show(&summary, &body)).await;
+        let (app_id, summary, body) = (self.app_id, summary.to_owned(), body.to_owned());
+        let outcome = tokio::task::spawn_blocking(move || show(app_id, &summary, &body)).await;
         let error = match outcome {
             Ok(Ok(())) => return,
             Ok(Err(error)) => error.to_string(),
@@ -91,6 +107,16 @@ fn play_alias(alias: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn should_show_toasts_as_tunneler_when_the_identity_is_registered() {
+        assert_eq!(app_id(ToastIdentity::Tunneler), "com.minimalstuff.tunneler");
+    }
+
+    #[test]
+    fn should_show_toasts_as_powershell_when_the_identity_is_not_registered() {
+        assert_eq!(app_id(ToastIdentity::PowerShell), Toast::POWERSHELL_APP_ID);
+    }
 
     #[test]
     fn should_use_the_notification_alias_when_the_tunnel_woke() {

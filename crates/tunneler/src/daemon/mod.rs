@@ -13,6 +13,7 @@ mod instance;
 mod launch;
 pub(crate) mod login_launch;
 mod mapping;
+pub(crate) mod notification_identity;
 pub(crate) mod os_keyring;
 mod prompts;
 mod signals;

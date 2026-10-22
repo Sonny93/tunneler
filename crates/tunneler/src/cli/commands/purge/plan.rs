@@ -4,17 +4,19 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
+use crate::daemon::notification_identity::describe_registry_key;
 use crate::layout::DataLayout;
 
 /// One thing `purge` removes.
 ///
-/// A new kind of trace (such as the Windows notification identity of task
-/// 18.4, a registry key) is added as a variant here, planned in
-/// [`build_plan`] and removed in `Purger::remove`.
+/// A new kind of trace is added as a variant here, planned in [`build_plan`]
+/// and removed in `Purger::remove`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PurgeTarget {
     /// The entry that starts the daemon at login.
     LoginLaunch,
+    /// The registry key of the Windows notification identity.
+    NotificationIdentity,
     /// A directory and everything in it.
     Directory(PathBuf),
     /// A single file.
@@ -33,6 +35,12 @@ impl PurgeTarget {
     pub fn describe(&self) -> String {
         match self {
             Self::LoginLaunch => "launch-at-login entry".to_owned(),
+            Self::NotificationIdentity => {
+                format!(
+                    "notification identity, registry key {}",
+                    describe_registry_key()
+                )
+            }
             Self::Directory(path) => format!("directory {}", path.display()),
             Self::File(path) | Self::StateFile(path) => format!("file {}", path.display()),
             Self::KeyringPassphrase(key_path) => {
@@ -49,18 +57,23 @@ impl PurgeTarget {
 }
 
 /// The targets in the order they are removed: the traces outside the
-/// configuration, then the configuration unless `keep_config`, then the
+/// configuration (the notification identity only when the platform has one,
+/// `has_notification_identity`), then the configuration unless `keep_config`, then the
 /// directories that may have been left empty.
 pub fn build_plan(
     layout: &DataLayout,
     keep_config: bool,
     keyring_entries: &BTreeSet<PathBuf>,
+    has_notification_identity: bool,
 ) -> Vec<PurgeTarget> {
     let mut plan = vec![
         PurgeTarget::LoginLaunch,
         PurgeTarget::Directory(layout.log_directory.clone()),
         PurgeTarget::Directory(layout.webview_data_directory.clone()),
     ];
+    if has_notification_identity {
+        plan.push(PurgeTarget::NotificationIdentity);
+    }
     if !keep_config {
         plan.extend(
             keyring_entries
@@ -116,7 +129,7 @@ mod tests {
     #[test]
     fn should_remove_everything_in_order_when_the_configuration_is_not_kept() {
         assert_eq!(
-            build_plan(&user_layout(), false, &entries()),
+            build_plan(&user_layout(), false, &entries(), false),
             vec![
                 PurgeTarget::LoginLaunch,
                 PurgeTarget::Directory("/home/me/.local/share/tunneler/logs".into()),
@@ -134,7 +147,7 @@ mod tests {
 
     #[test]
     fn should_keep_the_tunnels_the_state_and_the_passphrases_when_the_configuration_is_kept() {
-        let plan = build_plan(&user_layout(), true, &entries());
+        let plan = build_plan(&user_layout(), true, &entries(), false);
 
         assert!(!plan.iter().any(|target| matches!(
             target,
@@ -145,7 +158,7 @@ mod tests {
     #[test]
     fn should_still_remove_the_login_entry_the_logs_and_the_webview_when_the_configuration_is_kept()
     {
-        let plan = build_plan(&user_layout(), true, &entries());
+        let plan = build_plan(&user_layout(), true, &entries(), false);
 
         assert_eq!(
             plan[..3],
@@ -163,7 +176,7 @@ mod tests {
             DataLayout::portable(&portable_layout(Path::new("/opt/tunneler"), true).unwrap());
 
         assert_eq!(
-            build_plan(&layout, false, &BTreeSet::new()),
+            build_plan(&layout, false, &BTreeSet::new(), false),
             vec![
                 PurgeTarget::LoginLaunch,
                 PurgeTarget::Directory("/opt/tunneler/data/logs".into()),
@@ -180,7 +193,7 @@ mod tests {
         let layout =
             DataLayout::portable(&portable_layout(Path::new("/opt/tunneler"), true).unwrap());
 
-        let described: Vec<String> = build_plan(&layout, false, &BTreeSet::new())
+        let described: Vec<String> = build_plan(&layout, false, &BTreeSet::new(), false)
             .iter()
             .map(PurgeTarget::describe)
             .collect();
@@ -191,6 +204,27 @@ mod tests {
                 && !line.contains("portable")
                 && !line.contains("tunneler-ui")
         }));
+    }
+
+    #[test]
+    fn should_remove_the_notification_identity_after_the_webview_when_the_platform_has_one() {
+        let plan = build_plan(&user_layout(), false, &entries(), true);
+
+        assert_eq!(plan[3], PurgeTarget::NotificationIdentity);
+    }
+
+    #[test]
+    fn should_remove_the_notification_identity_even_when_the_configuration_is_kept() {
+        let plan = build_plan(&user_layout(), true, &entries(), true);
+
+        assert!(plan.contains(&PurgeTarget::NotificationIdentity));
+    }
+
+    #[test]
+    fn should_not_plan_a_notification_identity_when_the_platform_has_none() {
+        let plan = build_plan(&user_layout(), false, &entries(), false);
+
+        assert!(!plan.contains(&PurgeTarget::NotificationIdentity));
     }
 
     #[test]

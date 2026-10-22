@@ -11,9 +11,10 @@ use engine::{StoreError, default_state_path, default_store_path};
 use ipc::{PortableLayout, detect_portable_layout};
 use thiserror::Error;
 
-/// The Tauri identifier of the UI (`tauri.conf.json`): the name of the
-/// directory where the webview keeps its data on Windows and Linux.
-const WEBVIEW_DATA_DIRECTORY_NAME: &str = "com.minimalstuff.tunneler";
+/// The Tauri identifier of the UI (`tauri.conf.json`). It names the directory
+/// where the webview keeps its data on Windows and Linux, and is the AUMID of
+/// the Windows notifications.
+pub const APPLICATION_IDENTIFIER: &str = "com.minimalstuff.tunneler";
 const APPLICATION_DIRECTORY_NAME: &str = "tunneler";
 const LOG_DIRECTORY_NAME: &str = "logs";
 
@@ -92,7 +93,7 @@ impl DataLayout {
             tunnels_file,
             state_file,
             log_directory,
-            webview_data_directory: data_local_directory.join(WEBVIEW_DATA_DIRECTORY_NAME),
+            webview_data_directory: data_local_directory.join(APPLICATION_IDENTIFIER),
             removable_when_empty,
         }
     }
@@ -195,6 +196,6 @@ mod tests {
         let configuration: serde_json::Value =
             serde_json::from_str(include_str!("../../../app/src-tauri/tauri.conf.json")).unwrap();
 
-        assert_eq!(configuration["identifier"], WEBVIEW_DATA_DIRECTORY_NAME);
+        assert_eq!(configuration["identifier"], APPLICATION_IDENTIFIER);
     }
 }
