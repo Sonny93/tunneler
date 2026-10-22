@@ -5,7 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTauriGateway } from '#/daemon/tauri_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
+vi.mock('@tauri-apps/api/core', () => ({
+	invoke: vi.fn(),
+	Channel: class {
+		onmessage: (message: unknown) => void = () => undefined;
+	},
+}));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn() }));
 
 const invokeMock = vi.mocked(invoke);
@@ -95,6 +100,8 @@ describe('createTauriGateway', () => {
 		],
 		['forgetSecrets', [], 'forget_secrets', undefined],
 		['revealConfig', [], 'reveal_config', undefined],
+		['checkForUpdate', [], 'check_for_update', undefined],
+		['openReleasePage', [], 'open_release_page', undefined],
 		[
 			'respondHostKey',
 			['p1', 'reject'],
@@ -115,6 +122,20 @@ describe('createTauriGateway', () => {
 			expect(invokeMock).toHaveBeenCalledWith(command, expectedArguments);
 		}
 	);
+
+	it('should pass a channel relaying the progress to the install_update command', async () => {
+		const onProgress = vi.fn();
+
+		await createTauriGateway().installUpdate(onProgress);
+
+		const [command, args] = invokeMock.mock.calls[0] ?? [];
+		const channel = (
+			args as { onProgress: { onmessage: (m: unknown) => void } }
+		).onProgress;
+		channel.onmessage({ kind: 'installing' });
+		expect(command).toBe('install_update');
+		expect(onProgress).toHaveBeenCalledWith({ kind: 'installing' });
+	});
 
 	it('should convert a native rejection into a DaemonCommandError', async () => {
 		invokeMock.mockRejectedValue({

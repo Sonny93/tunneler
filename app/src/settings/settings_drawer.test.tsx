@@ -58,8 +58,9 @@ describe('SettingsDrawer', () => {
 				'Ouverture',
 				'Démarrage',
 				'Secrets',
+				'Mises à jour',
 			].map((name) => screen.queryByRole('group', { name }) !== null)
-		).toEqual([true, true, true, true, true, true, true, true]);
+		).toEqual([true, true, true, true, true, true, true, true, true]);
 	});
 
 	it('should show durations in seconds', () => {
@@ -378,6 +379,36 @@ describe('SettingsDrawer', () => {
 			launchAtLogin: true,
 			restoreOnLaunch: false,
 			useOsKeyring: true,
+		});
+	});
+
+	it('should describe that checking for updates contacts GitHub', () => {
+		openSettings();
+		renderDrawer();
+
+		expect(
+			screen.getByRole('switch', {
+				name: "Vérifier les mises à jour à l'ouverture",
+			})
+		).toHaveAccessibleDescription(/contacte GitHub/);
+	});
+
+	it('should save the check for updates switch once turned off', async () => {
+		const settings = buildSettings({ checkForUpdates: true });
+		openSettings(settings);
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+
+		await user.click(
+			screen.getByRole('switch', {
+				name: "Vérifier les mises à jour à l'ouverture",
+			})
+		);
+		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith({
+			...settings,
+			checkForUpdates: false,
 		});
 	});
 

@@ -17,6 +17,8 @@ import type {
 	TunnelDto,
 	TemporaryTunnelSpecDto,
 	TunnelSpecDto,
+	UpdateOfferDto,
+	UpdateProgressDto,
 } from '#/daemon/protocol';
 
 export type Unsubscribe = () => void;
@@ -72,6 +74,14 @@ export type DaemonGateway = {
 	forgetSecrets(): Promise<ForgetSecretsResultDto>;
 	/** Shows the configuration file in the file manager; the path comes from the daemon. */
 	revealConfig(): Promise<void>;
+	/** Looks for a newer version once; a failed check is logged by the native side and resolves to `null`. */
+	checkForUpdate(): Promise<UpdateOfferDto | null>;
+	/** Downloads the pending update, stops the daemon and runs the installer; the native side exits the app on success. */
+	installUpdate(
+		onProgress: (progress: UpdateProgressDto) => void
+	): Promise<void>;
+	/** Opens the release page of the pending update in the browser. */
+	openReleasePage(): Promise<void>;
 	respondHostKey(promptId: string, decision: HostKeyDecisionDto): Promise<void>;
 	/** On success the native side exits the app. */
 	quit(force: boolean): Promise<void>;

@@ -34,6 +34,7 @@ UI Rust crate: `cargo clippy -p tunneler-ui --all-targets --locked -- -D warning
 Pitfalls:
 - `cargo build --release -p tunneler-ui` without `tauri/custom-protocol` builds in `cfg(dev)` and loads `devUrl` (blank window without `pnpm dev`). Build the release UI with `pnpm tauri build` only.
 - `pnpm tauri build` rewrites `app/src-tauri/Cargo.toml` (`features = []`): never commit that rewrite.
+- Updater artifacts need the signing key: without `TAURI_SIGNING_PRIVATE_KEY`, `pnpm tauri build` bundles then fails. Build locally with `pnpm tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}' …` (only the release workflow signs).
 - Headless (Xvfb), WebKitGTK never starts without a D-Bus session and reports no error: run the UI under `dbus-run-session`.
 
 CI (`.github/workflows/ci.yml`) runs the same commands on Linux and Windows (macOS is not maintained: no CI, cfg-gated code kept as is). Validate workflow edits with `actionlint`.

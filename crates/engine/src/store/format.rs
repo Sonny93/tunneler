@@ -88,6 +88,7 @@ struct StoredSettings {
     standby: Option<bool>,
     standby_idle_s: Option<u64>,
     standby_notify: Option<StoredStandbyNotify>,
+    check_for_updates: Option<bool>,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -299,6 +300,7 @@ impl StoredSettings {
             standby_notify: self
                 .standby_notify
                 .map_or(defaults.standby_notify, StandbyNotify::from),
+            check_for_updates: self.check_for_updates.unwrap_or(defaults.check_for_updates),
         }
     }
 }
@@ -885,6 +887,20 @@ mod tests {
             outcome.document.settings.standby_notify,
             StandbyNotify::Visual
         );
+    }
+
+    #[test]
+    fn should_check_for_updates_when_the_setting_is_absent() {
+        let outcome = parse("version = 1\n").unwrap();
+
+        assert!(outcome.document.settings.check_for_updates);
+    }
+
+    #[test]
+    fn should_not_check_for_updates_when_the_setting_is_off() {
+        let outcome = parse("[settings]\ncheck_for_updates = false\n").unwrap();
+
+        assert!(!outcome.document.settings.check_for_updates);
     }
 
     #[test]

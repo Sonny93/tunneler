@@ -60,6 +60,19 @@ Not maintained: no package and no CI. The code may still build from source (see 
 
 The daemon figures are its resident set size (RSS), tray included; the 10 tunnels share one SSH session and carried a little traffic. The UI figure is the proportional set size (PSS, shared libraries counted once) of `tunneler-ui` plus its WebKit (Linux) or WebView2 (Windows) child processes, with the window open; the UI process exits when the window is closed. Linux: release build 0.1.0, Debian 13, WebKitGTK 2.54, UI under Xvfb with software rendering (likely an overestimate of a desktop with a GPU). Windows: release build 0.1.0, daemon working set (the RSS equivalent; Task Manager shows the private figure), the same with no tunnel and with 8 tunnels (within noise); the UI figure ranges from the private memory to the summed working sets of `tunneler-ui` and its six `msedgewebview2` processes (Windows has no PSS), `tunneler-ui` itself being 5.6 MiB private.
 
+## Updates
+
+When the window opens, the UI looks once for a newer release (it asks GitHub for `latest.json`). A failed check (offline, repository not public yet) is only logged: nothing is shown. A newer version shows a banner with its release notes and a « Voir la version » link to the release page; « Masquer » hides it until the window is reopened.
+
+| Form | What the banner offers |
+|---|---|
+| Windows installer | « Installer et redémarrer »: asks for confirmation when tunnels run (they stop, and restart afterwards when « Rétablir les tunnels actifs au lancement » is on), downloads the installer with a textual progress, checks its signature, stops the daemon and runs the installer in passive mode, which relaunches Tunneler |
+| Windows zip, Linux tar.gz, `.deb`, AppImage | the link only: download and replace by hand (`apt install ./tunneler_<version>_amd64.deb` for the package). The AppImage never updates itself because it does not contain the daemon |
+
+Turn the check off with « Vérifier les mises à jour à l'ouverture » in the settings, or `check_for_updates = false` under `[settings]` in `tunnels.toml`. Nothing else contacts the network on its own.
+
+Updates are signed with a minisign key whose public half is in `app/src-tauri/tauri.conf.json` (`plugins.updater.pubkey`) and whose private half and password live in the `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` repository secrets. Keep a copy of both outside GitHub: an installed program only accepts updates signed with the key it shipped with, so losing the key means every installed copy must be reinstalled by hand.
+
 ## Uninstall
 
 `tunneler purge` removes what Tunneler left on the machine, except the programs: it stops the daemon, then removes the launch-at-login entry, the logs, the webview data, `tunnels.toml`, `state.toml` and the keyring passphrases listed in `state.toml`, and the `tunneler` directories left empty. It never touches the executables, the `portable` marker, the install directory or `~/.ssh`, nor a file given with `--config` or `--state`.
@@ -136,7 +149,7 @@ The bump comes from the Conventional Commits since the last tag and stays in 0.x
 3. commits `chore(release): vX.Y.Z`, tags it and pushes;
 4. creates a draft GitHub release with the changelog as notes.
 
-The tag triggers the `release` workflow, which checks that the three versions and the tag agree, builds the Windows installer and zip, the Linux .deb, tar.gz and AppImage, attaches them with a `SHA256SUMS` to the draft release and publishes it. A manual run (`workflow_dispatch`) builds the same packages as run artifacts without releasing.
+The tag triggers the `release` workflow, which checks that the three versions and the tag agree, builds the Windows installer and zip, the Linux .deb, tar.gz and AppImage, writes `latest.json` (the update manifest, with the signatures of the installer and the AppImage), attaches everything with a `SHA256SUMS` to the draft release and publishes it. The build is signed with the repository secrets above; without them `pnpm tauri build` fails, because `bundle.createUpdaterArtifacts` is on. A manual run (`workflow_dispatch`) builds the same packages as run artifacts without releasing.
 
 For the first release, tag the existing 0.1.0 as is: `GITHUB_TOKEN=$(gh auth token) pnpm release --no-increment`.
 

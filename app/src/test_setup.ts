@@ -7,6 +7,7 @@ import { useDaemonStore } from '#/state/daemon_store';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { INITIAL_DAEMON_STATE } from '#/state/daemon_state';
 import { INITIAL_UI_STATE, useUiStore } from '#/state/ui_store';
+import { INITIAL_UPDATE_STATE, useUpdateStore } from '#/updates/update_store';
 import {
 	INITIAL_ANNOUNCER_STATE,
 	useAnnouncerStore,
@@ -31,6 +32,7 @@ afterEach(() => {
 	localStorage.clear();
 	useDaemonStore.setState(INITIAL_DAEMON_STATE);
 	useUiStore.setState(INITIAL_UI_STATE);
+	useUpdateStore.setState(INITIAL_UPDATE_STATE);
 	useAnnouncerStore.setState(INITIAL_ANNOUNCER_STATE);
 	useToastStore.setState({ toasts: [] });
 });

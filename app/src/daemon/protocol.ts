@@ -161,7 +161,22 @@ export type SettingsDto = {
 	standby: boolean;
 	standbyIdleS: number;
 	standbyNotify: StandbyNotifyDto;
+	checkForUpdates: boolean;
 };
+
+/** What the banner offers for a newer version. */
+export type UpdateActionDto = 'installAndRestart' | 'releaseLinkOnly';
+
+export type UpdateOfferDto = {
+	version: string;
+	notes?: string;
+	releaseUrl: string;
+	action: UpdateActionDto;
+};
+
+export type UpdateProgressDto =
+	| { kind: 'downloading'; downloadedBytes: number; totalBytes?: number }
+	| { kind: 'installing' };
 
 export type TrayStatusDto =
 	| { kind: 'active' }

@@ -347,6 +347,7 @@ pub(crate) fn settings_to_dto(settings: &Settings) -> SettingsDto {
         standby: settings.standby,
         standby_idle_s: settings.standby_idle.as_secs(),
         standby_notify: standby_notify_to_dto(settings.standby_notify),
+        check_for_updates: settings.check_for_updates,
     }
 }
 
@@ -368,6 +369,7 @@ pub(crate) fn settings_from_dto(dto: SettingsDto) -> Settings {
         standby: dto.standby,
         standby_idle: Duration::from_secs(dto.standby_idle_s),
         standby_notify: standby_notify_from_dto(dto.standby_notify),
+        check_for_updates: dto.check_for_updates,
     }
 }
 
@@ -855,6 +857,7 @@ mod tests {
             standby: true,
             standby_idle: Duration::from_secs(90),
             standby_notify: StandbyNotify::Both,
+            check_for_updates: false,
             ..Settings::default()
         };
 

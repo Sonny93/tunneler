@@ -63,6 +63,7 @@ fn settings() -> SettingsDto {
         standby: false,
         standby_idle_s: 300,
         standby_notify: ipc::protocol::StandbyNotifyDto::Visual,
+        check_for_updates: true,
     }
 }
 
@@ -1118,7 +1119,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isTemporary":false,"defaultOpener":{"id":"browser","name":"Browser"}}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","standby":false,"standbyIdleS":300,"standbyNotify":"visual"},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","standby":false,"standbyIdleS":300,"standbyNotify":"visual","checkForUpdates":true},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
             "\n"
         )
     );
@@ -1350,6 +1351,24 @@ fn should_deserialize_settings_without_standby_notify_as_visual() {
         parsed.standby_notify,
         ipc::protocol::StandbyNotifyDto::Visual
     );
+}
+
+#[test]
+fn should_deserialize_settings_without_check_for_updates_as_enabled() {
+    let mut value = to_json(&settings());
+    value.as_object_mut().unwrap().remove("checkForUpdates");
+
+    let parsed: SettingsDto = serde_json::from_value(value).unwrap();
+
+    assert!(parsed.check_for_updates);
+}
+
+#[test]
+fn should_serialize_the_check_for_updates_setting_in_camel_case() {
+    let mut disabled = settings();
+    disabled.check_for_updates = false;
+
+    assert_eq!(to_json(&disabled)["checkForUpdates"], json!(false));
 }
 
 #[test]

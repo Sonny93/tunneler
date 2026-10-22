@@ -1,8 +1,8 @@
-import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { Channel, invoke } from '@tauri-apps/api/core';
 
-import type { EventMessage } from '#/daemon/protocol';
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
+import type { EventMessage, UpdateProgressDto } from '#/daemon/protocol';
 import type { DaemonGateway, Unsubscribe } from '#/daemon/daemon_gateway';
 
 const EVENT_CHANNEL = 'daemon-event';
@@ -58,6 +58,13 @@ export function createTauriGateway(): DaemonGateway {
 			}),
 		forgetSecrets: () => call('forget_secrets'),
 		revealConfig: () => call('reveal_config'),
+		checkForUpdate: () => call('check_for_update'),
+		installUpdate: (onProgress) => {
+			const channel = new Channel<UpdateProgressDto>();
+			channel.onmessage = onProgress;
+			return call('install_update', { onProgress: channel });
+		},
+		openReleasePage: () => call('open_release_page'),
 		respondHostKey: (promptId, decision) =>
 			call('respond_host_key', { promptId, decision }),
 		quit: (force) => call('quit_daemon', { force }),

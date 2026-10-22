@@ -25,6 +25,7 @@ export type SettingsFormValues = {
 	standby: boolean;
 	standbyIdleSeconds: string;
 	standbyNotify: StandbyNotifyDto;
+	checkForUpdates: boolean;
 };
 
 export function millisecondsToSeconds(milliseconds: number): string {
@@ -63,6 +64,7 @@ export function toSettingsFormValues(
 		standby: settings.standby,
 		standbyIdleSeconds: String(settings.standbyIdleS),
 		standbyNotify: settings.standbyNotify,
+		checkForUpdates: settings.checkForUpdates,
 	};
 }
 
@@ -92,5 +94,6 @@ export function toSettings(
 		standby: values.standby,
 		standbyIdleS: Number(values.standbyIdleSeconds.trim()),
 		standbyNotify: values.standbyNotify,
+		checkForUpdates: values.checkForUpdates,
 	};
 }

@@ -9,6 +9,8 @@ const CODE_DISCONNECTED: &str = "disconnected";
 const CODE_DAEMON_UNREACHABLE: &str = "daemon_unreachable";
 const CODE_PROTOCOL_MISMATCH: &str = "protocol_mismatch";
 const CODE_INTERNAL: &str = "internal";
+const CODE_UPDATE_FAILED: &str = "update_failed";
+const CODE_UPDATE_UNAVAILABLE: &str = "update_unavailable";
 
 /// What a command reports to the front end when it fails.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -39,6 +41,22 @@ impl BridgeError {
     /// A failure of the bridge itself.
     pub fn internal(cause: &str) -> Self {
         Self::new(CODE_INTERNAL, format!("Erreur interne : {cause}"))
+    }
+
+    /// Downloading, verifying or installing the update failed.
+    pub fn update_failed(cause: &dyn std::fmt::Display) -> Self {
+        Self::new(
+            CODE_UPDATE_FAILED,
+            format!("La mise à jour a échoué : {cause}"),
+        )
+    }
+
+    /// There is no update to install or to show, or this form cannot install it.
+    pub fn update_unavailable() -> Self {
+        Self::new(
+            CODE_UPDATE_UNAVAILABLE,
+            "Aucune mise à jour installable n'est disponible.".to_owned(),
+        )
     }
 
     /// The daemon could not be started or reached.
@@ -235,6 +253,21 @@ mod tests {
 
         assert_eq!(error.code, "daemon_unreachable");
         assert!(error.message.contains("5 seconds"));
+    }
+
+    #[test]
+    fn should_report_the_cause_when_the_update_fails() {
+        let error = BridgeError::update_failed(&"signature invalide");
+
+        assert_eq!(error.code, "update_failed");
+        assert!(error.message.contains("signature invalide"));
+    }
+
+    #[test]
+    fn should_report_unavailable_when_there_is_no_update_to_install() {
+        let error = BridgeError::update_unavailable();
+
+        assert_eq!(error.code, "update_unavailable");
     }
 
     #[test]

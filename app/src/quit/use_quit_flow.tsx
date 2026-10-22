@@ -1,11 +1,10 @@
 import { useCallback } from 'react';
-import { ConfirmModal } from '@minimalstuff/ui';
 
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
+import { confirmTunnelsStop } from '#/quit/confirm_tunnels_stop';
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
-import { describeTunnelsToStop } from '#/quit/describe_running_tunnels';
 
 const TUNNELS_RUNNING_CODE = 'tunnels_running';
 const QUIT_FAILURE_MESSAGE = 'Impossible de quitter';
@@ -27,11 +26,10 @@ export function useQuitFlow(): UseQuitFlowReturn {
 
 	const confirmAndQuit = useCallback(
 		async (runningCount: number) => {
-			const isConfirmed = await ConfirmModal.call({
+			const isConfirmed = await confirmTunnelsStop({
 				title: 'Quitter Tunneler ?',
-				children: <p>{describeTunnelsToStop(runningCount)}</p>,
 				confirmLabel: 'Tout arrêter et quitter',
-				confirmColor: 'danger',
+				runningCount,
 			});
 			if (isConfirmed)
 				await run((daemon) => daemon.quit(true), QUIT_FAILURE_MESSAGE);

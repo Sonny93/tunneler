@@ -14,6 +14,7 @@ import { SettingsOpenFieldset } from '#/settings/settings_open_fieldset';
 import { OpenConfigFolderButton } from '#/settings/open_config_folder_button';
 import { SettingsSecretsFieldset } from '#/settings/settings_secrets_fieldset';
 import { SettingsStartupFieldset } from '#/settings/settings_startup_fieldset';
+import { SettingsUpdatesFieldset } from '#/settings/settings_updates_fieldset';
 import {
 	SETTINGS_SECTIONS,
 	STANDBY_SECTION,
@@ -89,6 +90,10 @@ export function SettingsPanel({ settings }: Readonly<SettingsPanelProps>) {
 					onChangeToggle={form.changeToggle}
 				/>
 				<SettingsSecretsFieldset
+					values={values}
+					onChangeToggle={form.changeToggle}
+				/>
+				<SettingsUpdatesFieldset
 					values={values}
 					onChangeToggle={form.changeToggle}
 				/>

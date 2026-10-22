@@ -8,13 +8,18 @@ mod connection_slot;
 mod credential;
 mod daemon_binary;
 mod main_window;
+mod pending_update;
 mod reveal_target;
 mod startup_claim;
+mod update_action;
+mod update_commands;
+mod update_offer;
 mod window_attention;
 
 use std::time::Duration;
 
 use bridge::BridgeState;
+use pending_update::PendingUpdate;
 use tauri::Manager;
 
 const STARTUP_REVEAL_DEADLINE: Duration = Duration::from_secs(15);
@@ -22,7 +27,9 @@ const STARTUP_REVEAL_DEADLINE: Duration = Duration::from_secs(15);
 fn main() -> tauri::Result<()> {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BridgeState::default())
+        .manage(PendingUpdate::default())
         .setup(|app| {
             main_window::create_main_window(app)?;
             reveal_window_when_startup_stalls(app.handle().clone());
@@ -63,6 +70,9 @@ fn main() -> tauri::Result<()> {
             commands::forget_secrets,
             commands::respond_host_key,
             commands::quit_daemon,
+            update_commands::check_for_update,
+            update_commands::install_update,
+            update_commands::open_release_page,
         ])
         .run(tauri::generate_context!())
 }

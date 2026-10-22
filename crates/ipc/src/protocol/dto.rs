@@ -420,6 +420,13 @@ pub struct SettingsDto {
     /// How a wake-up from standby, or its failure, is signalled.
     #[serde(default)]
     pub standby_notify: StandbyNotifyDto,
+    /// Whether the UI looks for a newer release when it opens.
+    #[serde(default = "default_check_for_updates")]
+    pub check_for_updates: bool,
+}
+
+fn default_check_for_updates() -> bool {
+    true
 }
 
 fn default_standby_idle_s() -> u64 {

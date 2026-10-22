@@ -5,11 +5,13 @@ import { AppLayout } from '#/app_layout';
 import { Sidebar } from '#/sidebar/sidebar';
 import { useUiStore } from '#/state/ui_store';
 import { ConnectingScreen } from '#/connecting_screen';
+import { UpdateNotice } from '#/updates/update_notice';
 import { HeaderActions } from '#/header/header_actions';
 import { TunnelList } from '#/tunnels/list/tunnel_list';
 import { SidebarToggle } from '#/sidebar/sidebar_toggle';
 import { DisconnectedScreen } from '#/disconnected_screen';
 import { ToastRegion } from '#/shared/toasts/toast_region';
+import { useUpdateCheck } from '#/updates/use_update_check';
 import { TrayStatusNotice } from '#/tray/tray_status_notice';
 import { ExternalSection } from '#/externals/external_section';
 import { LiveAnnouncer } from '#/shared/announcer/live_announcer';
@@ -22,6 +24,7 @@ export function App() {
 	const isSidebarCollapsed = useUiStore((state) => state.isSidebarCollapsed);
 	useTunnelStateAnnouncements();
 	useX11Announcements();
+	useUpdateCheck();
 
 	return (
 		<>
@@ -38,6 +41,7 @@ export function App() {
 						actions={<HeaderActions />}
 					>
 						<TrayStatusNotice />
+						<UpdateNotice />
 						<TunnelList />
 						<ExternalSection />
 					</AppLayout>

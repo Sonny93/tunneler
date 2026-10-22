@@ -300,6 +300,8 @@ pub struct Settings {
     pub standby_idle: Duration,
     /// How a wake-up from standby, or its failure, is signalled.
     pub standby_notify: StandbyNotify,
+    /// Whether the UI looks for a newer release when it opens.
+    pub check_for_updates: bool,
 }
 
 impl Default for Settings {
@@ -321,6 +323,7 @@ impl Default for Settings {
             standby: false,
             standby_idle: DEFAULT_STANDBY_IDLE,
             standby_notify: StandbyNotify::default(),
+            check_for_updates: true,
         }
     }
 }

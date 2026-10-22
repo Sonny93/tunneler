@@ -27,6 +27,16 @@ describe('settings round trip', () => {
 		);
 	});
 
+	it('should keep the check for updates switch when the form turns it off', () => {
+		const settings = buildSettings({ checkForUpdates: true });
+		const values = {
+			...toSettingsFormValues(settings),
+			checkForUpdates: false,
+		};
+
+		expect(toSettings(values, settings).checkForUpdates).toBe(false);
+	});
+
 	it('should show durations in seconds', () => {
 		const values = toSettingsFormValues(
 			buildSettings({ keepaliveIntervalMs: 30_000 })
