@@ -6,3 +6,5 @@ app/dist
 *.swp
 /.claude/worktrees/
 app/src-tauri/binaries/
+/docs/.vitepress/cache
+/docs/.vitepress/dist

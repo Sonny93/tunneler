@@ -2,7 +2,7 @@
 
 Portable SSH tunnel manager (Windows + Linux; macOS is not maintained): a light headless daemon with an embedded SSH client and a tray icon, plus an on-demand Tauri UI.
 
-> Status: early development. See [`docs/PLAN.md`](docs/PLAN.md) for the design and [`docs/TASKS.md`](docs/TASKS.md) for progress.
+> Status: early development. Documentation and roadmap: <https://sonny93.github.io/tunneler/>.
 
 ## Install
 

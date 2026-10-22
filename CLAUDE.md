@@ -4,9 +4,10 @@ SSH tunnel manager: Rust daemon (embedded `russh` client, tray, IPC) + on-demand
 
 ## Source of truth
 
-- [`docs/PLAN.md`](docs/PLAN.md): design and **locked decisions (§1)**. Do not re-litigate them; if one must change, update the plan and say why.
-- [`docs/TASKS.md`](docs/TASKS.md): what is left: the current phase, manual validations, known gaps. Tick tasks as they land and add a note under a task when reality diverges from the plan. Once a phase lands, remove it: decisions go to the plan, open validations and gaps to their sections, the rest stays in git history.
-- Accessibility (PLAN §8) is part of "done" for every UI/CLI task, not a later polish pass.
+- [`docs/roadmap/decisions.md`](docs/roadmap/decisions.md): the **locked design decisions**. Do not re-litigate them; if one must change, update that page and say why.
+- [`docs/roadmap/index.md`](docs/roadmap/index.md): what is shipped, what is next, what needs testing, known limitations. Update it as work lands: move items from Next to Shipped, keep Needs testing and Known limitations current.
+- [`docs/contributing/accessibility.md`](docs/contributing/accessibility.md): the accessibility rules. They are part of "done" for every UI/CLI task, not a later polish pass.
+- Every docs page exists in English and in French (`docs/fr/` mirrors `docs/`): update both in the same change.
 
 ## Commands
 
@@ -30,6 +31,13 @@ pnpm build   # vite build → app/dist
 On Windows, the UI crate also needs the daemon staged as its sidecar: `cargo build -p tunneler`, then copy `target/debug/tunneler.exe` to `app/src-tauri/binaries/tunneler-x86_64-pc-windows-msvc.exe` (gitignored; CI does the same).
 
 UI Rust crate: `cargo clippy -p tunneler-ui --all-targets --locked -- -D warnings`. Requires `app/dist` (run `pnpm build` first, `tauri::generate_context!` embeds it) and, on Linux, the webkit2gtk-4.1 dev packages listed in the README.
+
+`docs/` (VitePress site, English at the root and French under `fr/`, run with pnpm):
+
+```sh
+pnpm dev     # local server with hot reload
+pnpm build   # static site → docs/.vitepress/dist (fails on dead links)
+```
 
 Pitfalls:
 - `cargo build --release -p tunneler-ui` without `tauri/custom-protocol` builds in `cfg(dev)` and loads `devUrl` (blank window without `pnpm dev`). Build the release UI with `pnpm tauri build` only.
@@ -55,4 +63,4 @@ CI (`.github/workflows/ci.yml`) runs the same commands on Linux and Windows (mac
 - Tests: Vitest + Testing Library, query by role/accessible name first, and an `axe` check (`vitest-axe`) for every component and screen.
 
 ### Language
-Code, comments, commits and these files are in English. `docs/PLAN.md` and `docs/TASKS.md` are in French. User-facing UI strings are French (`<html lang="fr">`).
+Code, comments, commits and these files are in English. User-facing UI strings are French (`<html lang="fr">`).
