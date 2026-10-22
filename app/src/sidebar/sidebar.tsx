@@ -44,6 +44,7 @@ export function Sidebar() {
 				<FilterButton
 					label="Tous les tunnels"
 					count={countActiveTunnels(tunnels)}
+					icon="i-mdi-format-list-bulleted"
 					isActive={filter.kind === 'all'}
 					onSelect={handleSelectAll}
 				/>

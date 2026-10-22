@@ -20,6 +20,7 @@ export function HostFilterRow({ summary }: Readonly<HostFilterRowProps>) {
 			<FilterButton
 				label={host}
 				count={summary}
+				icon="i-mdi-server-outline"
 				isActive={isActive}
 				onSelect={handleSelect}
 			/>

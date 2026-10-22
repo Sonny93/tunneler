@@ -5,6 +5,7 @@ import { describeActiveCount } from '#/tunnels/describe_active_count';
 
 type FilterButtonProps = {
 	label: string;
+	icon: string;
 	count: ActiveCount;
 	isActive: boolean;
 	onSelect: () => void;
@@ -13,11 +14,12 @@ type FilterButtonProps = {
 /**
  * `aria-current` (not `aria-pressed`): the buttons are the entries of a
  * navigation, exactly one is current, and none is a toggle. The active entry
- * is also bold with a filled subtle background and a check icon, so color is
- * not the only cue.
+ * is also bold with a filled subtle background and a check icon that replaces
+ * the muted icon of its kind, so color is not the only cue.
  */
 export const FilterButton = ({
 	label,
+	icon,
 	count,
 	isActive,
 	onSelect,
@@ -35,7 +37,7 @@ export const FilterButton = ({
 			aria-hidden="true"
 			className={cn(
 				'size-4 shrink-0',
-				isActive && 'i-mdi-check text-tn-accent'
+				isActive ? 'i-mdi-check text-tn-accent' : [icon, 'text-tn-muted']
 			)}
 		/>
 		<span className="min-w-0 flex-1 break-words">{label}</span>

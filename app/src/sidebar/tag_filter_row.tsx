@@ -79,6 +79,7 @@ export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
 				<FilterButton
 					label={tag}
 					count={summary}
+					icon="i-mdi-tag-outline"
 					isActive={isActive}
 					onSelect={handleSelect}
 				/>
