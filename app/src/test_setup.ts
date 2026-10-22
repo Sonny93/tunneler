@@ -1,9 +1,10 @@
-import { afterEach, expect, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import * as axeMatchers from 'vitest-axe/matchers';
+import { afterEach, beforeEach, expect, vi } from 'vitest';
 import * as jestDomMatchers from '@testing-library/jest-dom/matchers';
 
 import { useDaemonStore } from '#/state/daemon_store';
+import { activateLocale } from '#/i18n/activate_locale';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { INITIAL_DAEMON_STATE } from '#/state/daemon_state';
 import { INITIAL_UI_STATE, useUiStore } from '#/state/ui_store';
@@ -26,6 +27,10 @@ vi.stubGlobal(
 			removeEventListener: vi.fn(),
 		}) as unknown as MediaQueryList
 );
+
+beforeEach(async () => {
+	await activateLocale('en');
+});
 
 afterEach(() => {
 	cleanup();

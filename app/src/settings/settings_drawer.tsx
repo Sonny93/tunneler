@@ -1,3 +1,5 @@
+import { useLingui } from '@lingui/react/macro';
+
 import { Drawer } from '#/shared/drawer';
 import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
@@ -8,12 +10,13 @@ export function SettingsDrawer() {
 	const panel = useUiStore((state) => state.panel);
 	const closePanel = useUiStore((state) => state.closePanel);
 	const settings = useDaemonStore((state) => state.settings);
+	const { t } = useLingui();
 
 	if (panel.kind !== 'settings') return null;
 	if (settings === null) {
 		return (
-			<Drawer isOpen title="Paramètres" onClose={closePanel}>
-				<p>Paramètres indisponibles.</p>
+			<Drawer isOpen title={t`Settings`} onClose={closePanel}>
+				<p>{t`Settings unavailable.`}</p>
 			</Drawer>
 		);
 	}

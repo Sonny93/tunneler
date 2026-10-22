@@ -10,7 +10,7 @@ import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { StandbySoundOptions } from '#/settings/standby_sound_options';
 import type { StandbyNotifyDto, StandbySoundDto } from '#/daemon/protocol';
 
-const HINT = /Pas joué avec le signal choisi/;
+const HINT = /Not played with the chosen signal/;
 
 function renderOptions(
 	props: {
@@ -34,7 +34,7 @@ describe('StandbySoundOptions', () => {
 	it('should render the four sounds in order with the selected one chosen', () => {
 		renderOptions({ value: 'marimba' });
 
-		const select = screen.getByRole('combobox', { name: 'Son' });
+		const select = screen.getByRole('combobox', { name: 'Sound' });
 		expect(
 			within(select)
 				.getAllByRole('option')
@@ -48,8 +48,8 @@ describe('StandbySoundOptions', () => {
 		renderOptions({ onChange });
 
 		await userEvent.selectOptions(
-			screen.getByRole('combobox', { name: 'Son' }),
-			'Carillon'
+			screen.getByRole('combobox', { name: 'Sound' }),
+			'Chime'
 		);
 
 		expect(onChange).toHaveBeenCalledWith('chime');
@@ -61,7 +61,7 @@ describe('StandbySoundOptions', () => {
 			renderOptions({ notifyMode });
 
 			expect(
-				screen.getByRole('combobox', { name: 'Son' })
+				screen.getByRole('combobox', { name: 'Sound' })
 			).toHaveAccessibleDescription(HINT);
 		}
 	);
@@ -79,7 +79,7 @@ describe('StandbySoundOptions', () => {
 		const { gateway } = renderOptions({ value: 'chime' });
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Écouter le réveil' })
+			screen.getByRole('button', { name: 'Play the wake sound' })
 		);
 
 		expect(gateway.previewSound).toHaveBeenCalledWith('chime', 'woke');
@@ -89,7 +89,7 @@ describe('StandbySoundOptions', () => {
 		const { gateway } = renderOptions({ value: 'system' });
 
 		await userEvent.click(
-			screen.getByRole('button', { name: "Écouter l'échec" })
+			screen.getByRole('button', { name: 'Play the failure sound' })
 		);
 
 		expect(gateway.previewSound).toHaveBeenCalledWith('system', 'wakeFailed');
@@ -98,19 +98,19 @@ describe('StandbySoundOptions', () => {
 	it('should toast an error when the preview fails', async () => {
 		const gateway = createFakeGateway();
 		gateway.previewSound.mockRejectedValue(
-			new DaemonCommandError('internal', 'pas de sortie audio')
+			new DaemonCommandError('audio_unavailable', 'no audio output')
 		);
 		renderOptions({}, gateway);
 
 		await userEvent.click(
-			screen.getByRole('button', { name: 'Écouter le réveil' })
+			screen.getByRole('button', { name: 'Play the wake sound' })
 		);
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts).toEqual([
 				expect.objectContaining({
 					tone: 'error',
-					message: 'Écoute impossible : pas de sortie audio',
+					message: "Couldn't play the sound: no audio output",
 				}),
 			])
 		);

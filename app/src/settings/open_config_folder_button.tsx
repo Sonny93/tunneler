@@ -1,14 +1,16 @@
 import { Button } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 
 export function OpenConfigFolderButton() {
+	const { t } = useLingui();
 	const runDaemonAction = useDaemonAction();
 
 	const handleOpen = () =>
 		void runDaemonAction(
 			(gateway) => gateway.revealConfig(),
-			'Ouverture impossible'
+			t`Couldn't open the folder`
 		);
 
 	return (
@@ -19,7 +21,7 @@ export function OpenConfigFolderButton() {
 				color="neutral"
 				onClick={handleOpen}
 			>
-				Ouvrir le dossier de configuration
+				{t`Open the configuration folder`}
 			</Button>
 		</div>
 	);

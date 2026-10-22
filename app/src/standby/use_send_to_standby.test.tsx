@@ -172,7 +172,7 @@ describe('useSendToStandby', () => {
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts[0]?.message).toBe(
-				'Mise en veille impossible : boom'
+				'Mise en veille impossible: boom'
 			)
 		);
 	});

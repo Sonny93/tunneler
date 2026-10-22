@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import { getPromptId } from '#/state/prompt_id';
 import { reduceDaemonEvent } from '#/state/reduce_daemon_event';
-import type { EventMessage, SnapshotDto } from '#/daemon/protocol';
+import type { EventMessage, SettingsDto, SnapshotDto } from '#/daemon/protocol';
 import {
 	INITIAL_DAEMON_STATE,
 	type ConnectionState,
@@ -12,6 +12,7 @@ import {
 type DaemonActions = {
 	setConnection: (connection: ConnectionState) => void;
 	applySnapshot: (snapshot: SnapshotDto) => void;
+	setSettings: (settings: SettingsDto) => void;
 	setHosts: (hosts: readonly string[]) => void;
 	applyEvent: (event: EventMessage) => void;
 	dismissPrompt: (id: string) => void;
@@ -33,6 +34,7 @@ export const useDaemonStore = create<DaemonState & DaemonActions>()((set) => ({
 			tray: snapshot.tray,
 			configErrors: [],
 		}),
+	setSettings: (settings) => set({ settings }),
 	setHosts: (hosts) => set({ hosts }),
 	applyEvent: (event) => set((state) => reduceDaemonEvent(state, event)),
 	dismissPrompt: (id) =>

@@ -1,6 +1,8 @@
+import { useLingui } from '@lingui/react/macro';
 import { useState, type FormEvent } from 'react';
 
 import { useUiStore } from '#/state/ui_store';
+import { useDaemonStore } from '#/state/daemon_store';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
@@ -8,17 +10,18 @@ import type {
 	SettingsTextField,
 	SettingsToggleField,
 } from '#/settings/settings_field_specs';
-import type {
-	OpenHostDto,
-	SettingsDto,
-	StandbyNotifyDto,
-	StandbySoundDto,
-} from '#/daemon/protocol';
 import {
 	toSettings,
 	toSettingsFormValues,
 	type SettingsFormValues,
 } from '#/settings/settings_form_values';
+import type {
+	OpenHostDto,
+	SettingsDto,
+	StandbyNotifyDto,
+	StandbySoundDto,
+	LanguageSettingDto,
+} from '#/daemon/protocol';
 import {
 	getFirstInvalidSettingsField,
 	validateSettingsForm,
@@ -35,6 +38,7 @@ type UseSettingsFormReturn = {
 	changeOpenHost: (host: OpenHostDto) => void;
 	changeStandbyNotify: (mode: StandbyNotifyDto) => void;
 	changeStandbySound: (sound: StandbySoundDto) => void;
+	changeLanguage: (language: LanguageSettingDto) => void;
 	submit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
@@ -46,6 +50,7 @@ function focusField(form: HTMLFormElement, fieldName: string): void {
 export function useSettingsForm(
 	settings: Readonly<SettingsDto>
 ): UseSettingsFormReturn {
+	const { t } = useLingui();
 	const gateway = useDaemonGateway();
 	const [values, setValues] = useState(() => toSettingsFormValues(settings));
 	const [errors, setErrors] = useState<SettingsFormErrors>({});
@@ -66,19 +71,24 @@ export function useSettingsForm(
 	const changeStandbySound = (standbySound: StandbySoundDto) =>
 		setValues((current) => ({ ...current, standbySound }));
 
+	const changeLanguage = (language: LanguageSettingDto) =>
+		setValues((current) => ({ ...current, language }));
+
 	const save = async () => {
 		setIsSaving(true);
 		summary.clearFailure();
+		const nextSettings = toSettings(values, settings);
 		try {
-			await gateway.updateSettings(toSettings(values, settings));
+			await gateway.updateSettings(nextSettings);
 		} catch (rejection) {
 			setIsSaving(false);
 			summary.reportFailure(rejection);
 			return;
 		}
+		useDaemonStore.getState().setSettings(nextSettings);
 		useToastStore
 			.getState()
-			.pushToast({ tone: 'success', message: 'Paramètres enregistrés' });
+			.pushToast({ tone: 'success', message: t`Settings saved` });
 		useUiStore.getState().closePanel();
 	};
 
@@ -105,6 +115,7 @@ export function useSettingsForm(
 		changeOpenHost,
 		changeStandbyNotify,
 		changeStandbySound,
+		changeLanguage,
 		submit,
 	};
 }

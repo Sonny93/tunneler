@@ -1,5 +1,6 @@
 import { Input } from '@minimalstuff/ui';
 import type { ChangeEvent } from 'react';
+import { useLingui } from '@lingui/react/macro';
 
 import { useDaemonStore } from '#/state/daemon_store';
 import { summarizeTags } from '#/sidebar/summarize_tags';
@@ -21,36 +22,38 @@ export function SettingsStartupFieldset({
 	onChangeText,
 	onChangeToggle,
 }: Readonly<SettingsStartupFieldsetProps>) {
+	const { t } = useLingui();
 	const tunnels = useDaemonStore((state) => state.tunnels);
 	const existingTags = summarizeTags(tunnels).map(({ tag }) => tag);
+	const existingTagsText = existingTags.join(', ');
 	const tagsHint =
 		existingTags.length === 0
-			? 'Séparés par des virgules.'
-			: `Séparés par des virgules. Tags existants : ${existingTags.join(', ')}.`;
+			? t`Separated by commas.`
+			: t`Separated by commas. Existing tags: ${existingTagsText}.`;
 
 	const handleTagsChange = (event: ChangeEvent<HTMLInputElement>) =>
 		onChangeText('startOnLaunchTags', event.target.value);
 
 	return (
 		<fieldset className="flex flex-col gap-4 border-0 p-0">
-			<legend className="mb-3 text-sm font-semibold">Démarrage</legend>
+			<legend className="mb-3 text-sm font-semibold">{t`Startup`}</legend>
 			<SettingsSwitch
 				field="launchAtLogin"
-				label="Lancer Tunneler à l'ouverture de session"
-				hint="Démarre le daemon et son icône, sans ouvrir la fenêtre."
+				label={t`Launch Tunneler at login`}
+				hint={t`Starts the daemon and its tray icon without opening the window.`}
 				isChecked={values.launchAtLogin}
 				onChange={onChangeToggle}
 			/>
 			<SettingsSwitch
 				field="restoreOnLaunch"
-				label="Rétablir les tunnels actifs au lancement"
-				hint="Relance les tunnels qui tournaient à la dernière fermeture."
+				label={t`Restore active tunnels on launch`}
+				hint={t`Restarts the tunnels that were running when Tunneler last closed.`}
 				isChecked={values.restoreOnLaunch}
 				onChange={onChangeToggle}
 			/>
 			<Input
 				name="startOnLaunchTags"
-				label="Tags démarrés au lancement"
+				label={t`Tags to start on launch`}
 				description={tagsHint}
 				value={values.startOnLaunchTags}
 				onChange={handleTagsChange}

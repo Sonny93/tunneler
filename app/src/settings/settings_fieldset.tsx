@@ -1,5 +1,7 @@
 import { Input } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 import type { ChangeEvent, ReactNode } from 'react';
+import type { MessageDescriptor } from '@lingui/core';
 
 import type { SettingsFormValues } from '#/settings/settings_form_values';
 import type { SettingsFormErrors } from '#/settings/validate_settings_form';
@@ -12,7 +14,7 @@ import type {
 type SettingsFieldProps = {
 	spec: SettingsFieldSpec;
 	value: string;
-	error?: string;
+	error?: MessageDescriptor;
 	onChange: (field: SettingsTextField, value: string) => void;
 };
 
@@ -22,17 +24,18 @@ function SettingsField({
 	error,
 	onChange,
 }: Readonly<SettingsFieldProps>) {
+	const { i18n } = useLingui();
 	const handleChange = (event: ChangeEvent<HTMLInputElement>) =>
 		onChange(spec.field, event.target.value);
 
 	return (
 		<Input
 			name={spec.field}
-			label={spec.label}
+			label={i18n._(spec.label)}
 			value={value}
 			onChange={handleChange}
-			error={error}
-			description={spec.hint}
+			error={error && i18n._(error)}
+			description={spec.hint && i18n._(spec.hint)}
 			required={!spec.isOptional}
 			inputMode={spec.inputMode}
 			autoComplete="off"
@@ -49,24 +52,30 @@ type SettingsFieldsetProps = {
 	children?: ReactNode;
 };
 
-export const SettingsFieldset = ({
+export function SettingsFieldset({
 	section,
 	values,
 	errors,
 	onChange,
 	children,
-}: Readonly<SettingsFieldsetProps>) => (
-	<fieldset className="flex flex-col gap-4 border-0 p-0">
-		<legend className="mb-3 text-sm font-semibold">{section.legend}</legend>
-		{children}
-		{section.fields.map((spec) => (
-			<SettingsField
-				key={spec.field}
-				spec={spec}
-				value={values[spec.field]}
-				error={errors[spec.field]}
-				onChange={onChange}
-			/>
-		))}
-	</fieldset>
-);
+}: Readonly<SettingsFieldsetProps>) {
+	const { i18n } = useLingui();
+
+	return (
+		<fieldset className="flex flex-col gap-4 border-0 p-0">
+			<legend className="mb-3 text-sm font-semibold">
+				{i18n._(section.legend)}
+			</legend>
+			{children}
+			{section.fields.map((spec) => (
+				<SettingsField
+					key={spec.field}
+					spec={spec}
+					value={values[spec.field]}
+					error={errors[spec.field]}
+					onChange={onChange}
+				/>
+			))}
+		</fieldset>
+	);
+}

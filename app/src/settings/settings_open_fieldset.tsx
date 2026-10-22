@@ -1,4 +1,5 @@
 import { RadioOptions } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import type { OpenHostDto } from '#/daemon/protocol';
 import { OPEN_HOST_OPTIONS } from '#/shared/open_host_options';
@@ -14,6 +15,7 @@ export function SettingsOpenFieldset({
 	value,
 	onChange,
 }: Readonly<SettingsOpenFieldsetProps>) {
+	const { t } = useLingui();
 	const handleChange = (selected: string) => {
 		const option = OPTIONS.find((candidate) => candidate.value === selected);
 		if (option) onChange(option.value);
@@ -21,10 +23,10 @@ export function SettingsOpenFieldset({
 
 	return (
 		<fieldset className="flex flex-col gap-4 border-0 p-0">
-			<legend className="mb-3 text-sm font-semibold">Ouverture</legend>
+			<legend className="mb-3 text-sm font-semibold">{t`Opening`}</legend>
 			<RadioOptions
 				name="openHost"
-				label="Hôte à ouvrir"
+				label={t`Host to open`}
 				options={OPTIONS}
 				value={value}
 				onChange={handleChange}

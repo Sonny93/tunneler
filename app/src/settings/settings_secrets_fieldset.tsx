@@ -1,4 +1,5 @@
 import { Button } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { SettingsSwitch } from '#/settings/settings_switch';
 import { useForgetSecrets } from '#/settings/use_forget_secrets';
@@ -14,15 +15,16 @@ export function SettingsSecretsFieldset({
 	values,
 	onChangeToggle,
 }: Readonly<SettingsSecretsFieldsetProps>) {
+	const { t } = useLingui();
 	const forgetSecrets = useForgetSecrets();
 
 	return (
 		<fieldset className="flex flex-col gap-4 border-0 p-0">
-			<legend className="mb-3 text-sm font-semibold">Secrets</legend>
+			<legend className="mb-3 text-sm font-semibold">{t`Secrets`}</legend>
 			<SettingsSwitch
 				field="useOsKeyring"
-				label="Mémoriser les passphrases dans le trousseau du système"
-				hint="Windows : gestionnaire d'identification ; Linux : Secret Service (GNOME Keyring, KWallet). Désactivé : mémorisation jusqu'à la fermeture de Tunneler seulement."
+				label={t`Remember passphrases in the system keyring`}
+				hint={t`Windows: Credential Manager; Linux: Secret Service (GNOME Keyring, KWallet). When off, passphrases are remembered only until Tunneler is closed.`}
 				isChecked={values.useOsKeyring}
 				onChange={onChangeToggle}
 			/>
@@ -33,7 +35,7 @@ export function SettingsSecretsFieldset({
 					color="neutral"
 					onClick={() => void forgetSecrets()}
 				>
-					Oublier les passphrases mémorisées
+					{t`Forget remembered passphrases`}
 				</Button>
 			</div>
 		</fieldset>

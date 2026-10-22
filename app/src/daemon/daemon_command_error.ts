@@ -27,7 +27,7 @@ function isNativeRejection(rejection: unknown): rejection is NativeRejection {
 function describeUnknown(rejection: unknown): string {
 	if (rejection instanceof Error) return rejection.message;
 	if (typeof rejection === 'string') return rejection;
-	return 'Erreur inattendue';
+	return 'Unexpected error';
 }
 
 export function toDaemonCommandError(rejection: unknown): DaemonCommandError {

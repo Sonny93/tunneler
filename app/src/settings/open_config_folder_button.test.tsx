@@ -9,7 +9,7 @@ import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { OpenConfigFolderButton } from '#/settings/open_config_folder_button';
 
-const BUTTON_NAME = 'Ouvrir le dossier de configuration';
+const BUTTON_NAME = 'Open the configuration folder';
 
 describe('OpenConfigFolderButton', () => {
 	it('should reveal the configuration folder', async () => {
@@ -23,7 +23,7 @@ describe('OpenConfigFolderButton', () => {
 	it('should toast an error when it cannot open', async () => {
 		const gateway = createFakeGateway();
 		gateway.revealConfig.mockRejectedValue(
-			new DaemonCommandError('internal', 'pas de gestionnaire')
+			new DaemonCommandError('no_handler', 'no file manager')
 		);
 		renderWithGateway(<OpenConfigFolderButton />, gateway);
 
@@ -33,7 +33,7 @@ describe('OpenConfigFolderButton', () => {
 			expect(useToastStore.getState().toasts).toEqual([
 				expect.objectContaining({
 					tone: 'error',
-					message: 'Ouverture impossible : pas de gestionnaire',
+					message: "Couldn't open the folder: no file manager",
 				}),
 			])
 		);

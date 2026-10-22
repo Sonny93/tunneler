@@ -1,13 +1,15 @@
 import UnoCSS from 'unocss/vite';
-import react from '@vitejs/plugin-react';
+import react from '@vitejs/plugin-react-swc';
+import { lingui } from '@lingui/vite-plugin';
 import { defineConfig } from 'vitest/config';
+import { linguiMacroSwcPlugin } from '@lingui/swc-plugin/options';
 
 const DEV_SERVER_PORT = 1420;
 const isWindowsPlatform = process.env.TAURI_ENV_PLATFORM === 'windows';
 const isDebugBuild = Boolean(process.env.TAURI_ENV_DEBUG);
 
 export default defineConfig({
-	plugins: [react(), UnoCSS()],
+	plugins: [react({ plugins: [linguiMacroSwcPlugin()] }), lingui(), UnoCSS()],
 	clearScreen: false,
 	envPrefix: ['VITE_', 'TAURI_ENV_*'],
 	server: {

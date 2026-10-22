@@ -21,7 +21,7 @@ describe('useDaemonAction', () => {
 		const { run } = renderDaemonAction();
 
 		const isSuccess = await act(() =>
-			run((gateway) => gateway.startTunnel('a'), 'Démarrage impossible')
+			run((gateway) => gateway.startTunnel('a'), 'Could not start')
 		);
 
 		expect(isSuccess).toBe(true);
@@ -31,17 +31,35 @@ describe('useDaemonAction', () => {
 		const { gateway, run } = renderDaemonAction();
 		gateway.startTunnel.mockRejectedValueOnce({
 			code: 'not_found',
-			message: 'tunnel inconnu',
+			message: 'unknown tunnel',
 		});
 
 		await act(() =>
-			run((daemon) => daemon.startTunnel('a'), 'Démarrage impossible')
+			run((daemon) => daemon.startTunnel('a'), 'Could not start')
 		);
 
 		expect(useToastStore.getState().toasts).toEqual([
 			expect.objectContaining({
 				tone: 'error',
-				message: 'Démarrage impossible : tunnel inconnu',
+				message: 'Could not start: unknown tunnel',
+			}),
+		]);
+	});
+
+	it('should push a translated message when the error code is mapped', async () => {
+		const { gateway, run } = renderDaemonAction();
+		gateway.startTunnel.mockRejectedValueOnce({
+			code: 'disconnected',
+			message: 'raw bridge text',
+		});
+
+		await act(() =>
+			run((daemon) => daemon.startTunnel('a'), 'Could not start')
+		);
+
+		expect(useToastStore.getState().toasts).toEqual([
+			expect.objectContaining({
+				message: 'Could not start: The daemon is not reachable',
 			}),
 		]);
 	});

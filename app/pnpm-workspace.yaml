@@ -1,2 +1,4 @@
 minimumReleaseAgeExclude:
   - '@minimalstuff/ui@4.1.0'
+allowBuilds:
+  '@swc/core': true

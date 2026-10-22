@@ -6,6 +6,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 
 import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
+import { activateLocale } from '#/i18n/activate_locale';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { SettingsDrawer } from '#/settings/settings_drawer';
@@ -41,7 +42,7 @@ describe('SettingsDrawer', () => {
 		useUiStore.getState().openSettings();
 		renderDrawer();
 
-		expect(screen.getByText('Paramètres indisponibles.')).toBeInTheDocument();
+		expect(screen.getByText('Settings unavailable.')).toBeInTheDocument();
 	});
 
 	it('should group the fields in labelled sections', () => {
@@ -50,17 +51,18 @@ describe('SettingsDrawer', () => {
 
 		expect(
 			[
-				'Adresses',
-				'Connexion',
-				'Reconnexion',
+				'Language',
+				'Addresses',
+				'Connection',
+				'Reconnection',
 				'X11',
-				'Veille',
-				'Ouverture',
-				'Démarrage',
+				'Standby',
+				'Opening',
+				'Startup',
 				'Secrets',
-				'Mises à jour',
+				'Updates',
 			].map((name) => screen.queryByRole('group', { name }) !== null)
-		).toEqual([true, true, true, true, true, true, true, true, true]);
+		).toEqual([true, true, true, true, true, true, true, true, true, true]);
 	});
 
 	it('should show durations in seconds', () => {
@@ -68,7 +70,7 @@ describe('SettingsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('textbox', { name: /^Intervalle de keepalive/ })
+			screen.getByRole('textbox', { name: /^Keepalive interval/ })
 		).toHaveValue('30');
 	});
 
@@ -85,17 +87,65 @@ describe('SettingsDrawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 		const grace = screen.getByRole('textbox', {
-			name: /^Délai avant fermeture/,
+			name: /^Time before an unused session/,
 		});
 
 		await user.clear(grace);
 		await user.type(grace, '90');
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
 			...settings,
 			sessionIdleGraceMs: 90_000,
 		});
+	});
+
+	it('should offer the display languages with the current one selected', () => {
+		openSettings(buildSettings({ language: 'fr' }));
+		renderDrawer();
+
+		const select = screen.getByRole('combobox', { name: 'Display language' });
+		expect(
+			within(select)
+				.getAllByRole('option')
+				.map((option) => option.getAttribute('value'))
+		).toEqual(['system', 'en', 'fr']);
+		expect(select).toHaveValue('fr');
+	});
+
+	it('should save the chosen language', async () => {
+		const settings = buildSettings();
+		openSettings(settings);
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+
+		await user.selectOptions(
+			screen.getByRole('combobox', { name: 'Display language' }),
+			'Français'
+		);
+		await user.click(screen.getByRole('button', { name: 'Save' }));
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith({
+			...settings,
+			language: 'fr',
+		});
+		expect(useDaemonStore.getState().settings?.language).toBe('fr');
+	});
+
+	it('should display the settings in French when the French locale is active', async () => {
+		await activateLocale('fr');
+		openSettings();
+		renderDrawer();
+
+		expect(
+			screen.getByRole('combobox', { name: "Langue d'affichage" })
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: 'Enregistrer' })
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('switch', { name: 'Mettre les tunnels en veille' })
+		).toBeInTheDocument();
 	});
 
 	it('should offer the applications section', () => {
@@ -118,15 +168,15 @@ describe('SettingsDrawer', () => {
 		openSettings();
 		renderDrawer();
 
-		const section = screen.getByRole('group', { name: 'Veille' });
+		const section = screen.getByRole('group', { name: 'Standby' });
 		expect(
 			within(section).getByRole('switch', {
-				name: 'Mettre les tunnels en veille',
+				name: 'Put tunnels on standby',
 			})
 		).not.toBeChecked();
 		expect(
 			within(section).getByRole('textbox', {
-				name: /^Retour en veille après \(secondes\)/,
+				name: /^Return to standby after \(seconds\)/,
 			})
 		).toHaveValue('300');
 	});
@@ -137,15 +187,15 @@ describe('SettingsDrawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 		const delay = screen.getByRole('textbox', {
-			name: /^Retour en veille après/,
+			name: /^Return to standby after/,
 		});
 
 		await user.click(
-			screen.getByRole('switch', { name: 'Mettre les tunnels en veille' })
+			screen.getByRole('switch', { name: 'Put tunnels on standby' })
 		);
 		await user.clear(delay);
 		await user.type(delay, '120');
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
 			...settings,
@@ -159,7 +209,7 @@ describe('SettingsDrawer', () => {
 		renderDrawer();
 
 		const select = screen.getByRole('combobox', {
-			name: 'Signal à la sortie de veille',
+			name: 'Signal when leaving standby',
 		});
 		expect(
 			within(select)
@@ -174,8 +224,8 @@ describe('SettingsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('combobox', { name: 'Signal à la sortie de veille' })
-		).toHaveAccessibleDescription(/quand le réveil échoue/);
+			screen.getByRole('combobox', { name: 'Signal when leaving standby' })
+		).toHaveAccessibleDescription(/when waking fails/);
 	});
 
 	it('should save the chosen standby signal', async () => {
@@ -185,10 +235,10 @@ describe('SettingsDrawer', () => {
 		const { gateway } = renderDrawer();
 
 		await user.selectOptions(
-			screen.getByRole('combobox', { name: 'Signal à la sortie de veille' }),
-			'Les deux'
+			screen.getByRole('combobox', { name: 'Signal when leaving standby' }),
+			'Both'
 		);
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
 			...settings,
@@ -203,10 +253,10 @@ describe('SettingsDrawer', () => {
 		const { gateway } = renderDrawer();
 
 		await user.selectOptions(
-			screen.getByRole('combobox', { name: 'Son' }),
+			screen.getByRole('combobox', { name: 'Sound' }),
 			'Marimba'
 		);
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
 			...settings,
@@ -220,10 +270,12 @@ describe('SettingsDrawer', () => {
 		const { gateway } = renderDrawer();
 
 		await user.selectOptions(
-			screen.getByRole('combobox', { name: 'Son' }),
-			'Carillon'
+			screen.getByRole('combobox', { name: 'Sound' }),
+			'Chime'
 		);
-		await user.click(screen.getByRole('button', { name: 'Écouter le réveil' }));
+		await user.click(
+			screen.getByRole('button', { name: 'Play the wake sound' })
+		);
 
 		expect(gateway.previewSound).toHaveBeenCalledWith('chime', 'woke');
 	});
@@ -233,12 +285,12 @@ describe('SettingsDrawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 		const delay = screen.getByRole('textbox', {
-			name: /^Retour en veille après/,
+			name: /^Return to standby after/,
 		});
 
 		await user.clear(delay);
 		await user.type(delay, '0');
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(delay).toBeInvalid();
 		expect(gateway.updateSettings).not.toHaveBeenCalled();
@@ -251,7 +303,7 @@ describe('SettingsDrawer', () => {
 		const { gateway } = renderDrawer();
 
 		await user.click(screen.getByRole('radio', { name: /^Adresse IP/ }));
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
 			...settings,
@@ -264,9 +316,9 @@ describe('SettingsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('textbox', { name: 'Display X11 local' })
+			screen.getByRole('textbox', { name: 'Local X11 display' })
 		).toHaveAccessibleDescription(
-			'Vide : variable DISPLAY (127.0.0.1:0.0 sous Windows)'
+			'Empty: DISPLAY variable (127.0.0.1:0.0 on Windows)'
 		);
 	});
 
@@ -276,10 +328,10 @@ describe('SettingsDrawer', () => {
 		const { gateway } = renderDrawer();
 
 		await user.type(
-			screen.getByRole('textbox', { name: 'Display X11 local' }),
+			screen.getByRole('textbox', { name: 'Local X11 display' }),
 			'203.0.113.20:0.0'
 		);
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith(
 			expect.objectContaining({ x11Display: '203.0.113.20:0.0' })
@@ -292,9 +344,9 @@ describe('SettingsDrawer', () => {
 		const { gateway } = renderDrawer();
 
 		await user.clear(
-			screen.getByRole('textbox', { name: 'Display X11 local' })
+			screen.getByRole('textbox', { name: 'Local X11 display' })
 		);
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith(
 			expect.objectContaining({ x11Display: undefined })
@@ -306,12 +358,10 @@ describe('SettingsDrawer', () => {
 		const user = userEvent.setup();
 		renderDrawer();
 
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		await waitFor(() => expect(useUiStore.getState().panel.kind).toBe('none'));
-		expect(useToastStore.getState().toasts[0]?.message).toBe(
-			'Paramètres enregistrés'
-		);
+		expect(useToastStore.getState().toasts[0]?.message).toBe('Settings saved');
 	});
 
 	it('should flag an invalid value and not save', async () => {
@@ -319,12 +369,12 @@ describe('SettingsDrawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 		const keepaliveMax = screen.getByRole('textbox', {
-			name: /^Keepalives sans réponse/,
+			name: /^Unanswered keepalives/,
 		});
 
 		await user.clear(keepaliveMax);
 		await user.type(keepaliveMax, 'x');
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(keepaliveMax).toHaveFocus();
 		expect(keepaliveMax).toBeInvalid();
@@ -336,16 +386,16 @@ describe('SettingsDrawer', () => {
 		const user = userEvent.setup();
 		const gateway = createFakeGateway();
 		gateway.updateSettings.mockRejectedValueOnce(
-			new DaemonCommandError('validation_failed', 'invalide', [
-				'Adresse invalide.',
+			new DaemonCommandError('validation_failed', 'invalid', [
+				'Invalid address.',
 			])
 		);
 		renderDrawer(gateway);
 
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		const alert = await screen.findByRole('alert');
-		expect(alert).toHaveTextContent('Adresse invalide.');
+		expect(alert).toHaveTextContent('Invalid address.');
 		expect(alert).toHaveFocus();
 	});
 
@@ -355,10 +405,10 @@ describe('SettingsDrawer', () => {
 
 		expect(
 			screen.getByRole('switch', {
-				name: "Lancer Tunneler à l'ouverture de session",
+				name: 'Launch Tunneler at login',
 			})
 		).toHaveAccessibleDescription(
-			'Démarre le daemon et son icône, sans ouvrir la fenêtre.'
+			'Starts the daemon and its tray icon without opening the window.'
 		);
 	});
 
@@ -373,9 +423,9 @@ describe('SettingsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('textbox', { name: 'Tags démarrés au lancement' })
+			screen.getByRole('textbox', { name: 'Tags to start on launch' })
 		).toHaveAccessibleDescription(
-			'Séparés par des virgules. Tags existants : adonis, dev.'
+			'Separated by commas. Existing tags: adonis, dev.'
 		);
 	});
 
@@ -387,20 +437,20 @@ describe('SettingsDrawer', () => {
 
 		await user.click(
 			screen.getByRole('switch', {
-				name: "Lancer Tunneler à l'ouverture de session",
+				name: 'Launch Tunneler at login',
 			})
 		);
 		await user.click(
 			screen.getByRole('switch', {
-				name: 'Rétablir les tunnels actifs au lancement',
+				name: 'Restore active tunnels on launch',
 			})
 		);
 		await user.click(
 			screen.getByRole('switch', {
-				name: 'Mémoriser les passphrases dans le trousseau du système',
+				name: 'Remember passphrases in the system keyring',
 			})
 		);
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
 			...settings,
@@ -416,9 +466,9 @@ describe('SettingsDrawer', () => {
 
 		expect(
 			screen.getByRole('switch', {
-				name: "Vérifier les mises à jour à l'ouverture",
+				name: 'Check for updates when opening',
 			})
-		).toHaveAccessibleDescription(/contacte GitHub/);
+		).toHaveAccessibleDescription(/contacts GitHub/);
 	});
 
 	it('should save the check for updates switch once turned off', async () => {
@@ -429,10 +479,10 @@ describe('SettingsDrawer', () => {
 
 		await user.click(
 			screen.getByRole('switch', {
-				name: "Vérifier les mises à jour à l'ouverture",
+				name: 'Check for updates when opening',
 			})
 		);
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
 			...settings,
@@ -446,10 +496,10 @@ describe('SettingsDrawer', () => {
 		const { gateway } = renderDrawer();
 
 		await user.type(
-			screen.getByRole('textbox', { name: 'Tags démarrés au lancement' }),
+			screen.getByRole('textbox', { name: 'Tags to start on launch' }),
 			'dev, adonis, dev'
 		);
-		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith(
 			expect.objectContaining({ startOnLaunchTags: ['dev', 'adonis'] })
@@ -460,7 +510,7 @@ describe('SettingsDrawer', () => {
 		const clickForget = async (user: ReturnType<typeof userEvent.setup>) =>
 			user.click(
 				screen.getByRole('button', {
-					name: 'Oublier les passphrases mémorisées',
+					name: 'Forget remembered passphrases',
 				})
 			);
 
@@ -473,7 +523,7 @@ describe('SettingsDrawer', () => {
 
 			expect(
 				await screen.findByRole('alertdialog', {
-					name: 'Oublier les passphrases mémorisées ?',
+					name: 'Forget remembered passphrases?',
 				})
 			).toBeInTheDocument();
 			expect(gateway.forgetSecrets).not.toHaveBeenCalled();
@@ -499,11 +549,11 @@ describe('SettingsDrawer', () => {
 			renderDrawerWithModals(gateway);
 			await clickForget(user);
 
-			await user.click(await screen.findByRole('button', { name: 'Oublier' }));
+			await user.click(await screen.findByRole('button', { name: 'Forget' }));
 
 			await waitFor(() =>
 				expect(useToastStore.getState().toasts[0]?.message).toBe(
-					'3 passphrases oubliées'
+					'3 passphrases forgotten'
 				)
 			);
 		});
@@ -513,17 +563,17 @@ describe('SettingsDrawer', () => {
 			const user = userEvent.setup();
 			const gateway = createFakeGateway();
 			gateway.forgetSecrets.mockRejectedValue(
-				new DaemonCommandError('internal', 'trousseau verrouillé')
+				new DaemonCommandError('internal', 'keyring locked')
 			);
 			renderDrawerWithModals(gateway);
 			await clickForget(user);
 
-			await user.click(await screen.findByRole('button', { name: 'Oublier' }));
+			await user.click(await screen.findByRole('button', { name: 'Forget' }));
 
 			await waitFor(() =>
 				expect(useToastStore.getState().toasts[0]).toMatchObject({
 					tone: 'error',
-					message: 'Oubli impossible : trousseau verrouillé',
+					message: "Couldn't forget the passphrases: Internal error",
 				})
 			);
 		});

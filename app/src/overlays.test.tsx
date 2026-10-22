@@ -44,7 +44,7 @@ describe('Overlays', () => {
 		act(() => useUiStore.getState().openSettings());
 
 		expect(
-			screen.getByRole('dialog', { name: 'Paramètres' })
+			screen.getByRole('dialog', { name: 'Settings' })
 		).toBeInTheDocument();
 	});
 

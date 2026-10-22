@@ -139,7 +139,7 @@ describe('X11Drawer', () => {
 		useUiStore.getState().confirmX11Host('nova');
 		const gateway = createFakeGateway();
 		gateway.startX11.mockRejectedValueOnce(
-			new DaemonCommandError('internal', 'injoignable')
+			new DaemonCommandError('x11_unreachable', 'injoignable')
 		);
 		renderDrawer(gateway);
 
@@ -147,7 +147,7 @@ describe('X11Drawer', () => {
 
 		await waitFor(() =>
 			expect(toastMessages()).toEqual([
-				'Démarrage de X11 pour nova impossible : injoignable',
+				'Démarrage de X11 pour nova impossible: injoignable',
 			])
 		);
 	});
@@ -239,7 +239,7 @@ describe('X11Drawer', () => {
 
 		await waitFor(() =>
 			expect(toastMessages()).toEqual([
-				'Lancement de VS Code sur nova impossible : lanceur inconnu',
+				'Lancement de VS Code sur nova impossible: lanceur inconnu',
 			])
 		);
 	});

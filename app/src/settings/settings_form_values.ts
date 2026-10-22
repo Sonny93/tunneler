@@ -4,6 +4,7 @@ import type {
 	SettingsDto,
 	StandbyNotifyDto,
 	StandbySoundDto,
+	LanguageSettingDto,
 } from '#/daemon/protocol';
 
 const MILLISECONDS_PER_SECOND = 1000;
@@ -27,6 +28,7 @@ export type SettingsFormValues = {
 	standbyIdleSeconds: string;
 	standbyNotify: StandbyNotifyDto;
 	standbySound: StandbySoundDto;
+	language: LanguageSettingDto;
 	checkForUpdates: boolean;
 };
 
@@ -67,6 +69,7 @@ export function toSettingsFormValues(
 		standbyIdleSeconds: String(settings.standbyIdleS),
 		standbyNotify: settings.standbyNotify,
 		standbySound: settings.standbySound,
+		language: settings.language,
 		checkForUpdates: settings.checkForUpdates,
 	};
 }
@@ -98,6 +101,7 @@ export function toSettings(
 		standbyIdleS: Number(values.standbyIdleSeconds.trim()),
 		standbyNotify: values.standbyNotify,
 		standbySound: values.standbySound,
+		language: values.language,
 		checkForUpdates: values.checkForUpdates,
 	};
 }

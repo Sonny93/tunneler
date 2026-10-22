@@ -200,7 +200,7 @@ describe('useDeleteTag', () => {
 				expect.objectContaining({
 					tone: 'error',
 					message:
-						'Suppression du tag impossible : Aucun tunnel ne porte ce tag',
+						'Suppression du tag impossible: Aucun tunnel ne porte ce tag',
 				}),
 			])
 		);

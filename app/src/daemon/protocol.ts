@@ -148,6 +148,8 @@ export type StandbyNotifyDto = 'none' | 'visual' | 'sound' | 'both';
 
 export type StandbySoundDto = 'system' | 'chime' | 'marimba' | 'pluck';
 
+export type LanguageSettingDto = 'system' | 'en' | 'fr';
+
 export type SoundEventDto = 'woke' | 'wakeFailed';
 
 export type SettingsDto = {
@@ -168,6 +170,7 @@ export type SettingsDto = {
 	standbyIdleS: number;
 	standbyNotify: StandbyNotifyDto;
 	standbySound: StandbySoundDto;
+	language: LanguageSettingDto;
 	checkForUpdates: boolean;
 };
 

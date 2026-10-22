@@ -154,7 +154,7 @@ describe('TunnelDetailsDrawer', () => {
 
 		expect(
 			useToastStore.getState().toasts.map((toast) => toast.message)
-		).toEqual(['Ouverture impossible : pas de navigateur']);
+		).toEqual(['Ouverture impossible: pas de navigateur']);
 	});
 
 	it('should disable restart with a visible reason when stopped', () => {

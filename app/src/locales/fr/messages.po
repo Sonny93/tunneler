@@ -1,0 +1,314 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-22 16:43+0200\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: fr\n"
+
+#: src/daemon/use_daemon_action.ts:38
+msgid "{failureMessage}: {errorMessage}"
+msgstr "{failureMessage} : {errorMessage}"
+
+#: src/settings/forgotten_secrets_message.ts:9
+msgid "{forgottenCount, plural, =0 {No passphrase was remembered} one {# passphrase forgotten} other {# passphrases forgotten}}"
+msgstr "{forgottenCount, plural, =0 {Aucune passphrase mémorisée} one {# passphrase oubliée} other {# passphrases oubliées}}"
+
+#: src/settings/settings_field_specs.ts:69
+msgid "0 to disable"
+msgstr "0 pour désactiver"
+
+#: src/settings/settings_field_specs.ts:50
+msgid "Addresses"
+msgstr "Adresses"
+
+#: src/settings/settings_field_specs.ts:75
+msgid "Beyond this, the connection is considered lost"
+msgstr "Au-delà, la connexion est considérée perdue"
+
+#: src/settings/standby_notify_options.tsx:17
+msgid "Both"
+msgstr "Les deux"
+
+#: src/settings/settings_panel.tsx:40
+msgid "Cancel"
+msgstr "Annuler"
+
+#: src/settings/settings_updates_fieldset.tsx:23
+msgid "Check for updates when opening"
+msgstr "Vérifier les mises à jour à l'ouverture"
+
+#: src/settings/standby_sound_options.tsx:20
+msgid "Chime"
+msgstr "Carillon"
+
+#: src/settings/settings_field_specs.ts:64
+msgid "Connection"
+msgstr "Connexion"
+
+#: src/settings/use_forget_secrets.ts:29
+msgid "Couldn't forget the passphrases"
+msgstr "Oubli impossible"
+
+#: src/settings/open_config_folder_button.tsx:13
+msgid "Couldn't open the folder"
+msgstr "Ouverture impossible"
+
+#: src/settings/standby_sound_options.tsx:54
+msgid "Couldn't play the sound"
+msgstr "Écoute impossible"
+
+#: src/settings/settings_field_specs.ts:54
+msgid "Default listen address (local)"
+msgstr "Adresse d'écoute par défaut (local)"
+
+#: src/settings/settings_field_specs.ts:58
+msgid "Default listen address (remote)"
+msgstr "Adresse d'écoute par défaut (remote)"
+
+#: src/settings/settings_language_fieldset.tsx:39
+msgid "Display language"
+msgstr "Langue d'affichage"
+
+#: src/settings/settings_updates_fieldset.tsx:24
+msgid "Each time the window opens, Tunneler contacts GitHub to see whether a new version exists. Nothing is installed without your approval."
+msgstr "À chaque ouverture de la fenêtre, Tunneler contacte GitHub pour savoir si une nouvelle version existe. Rien n'est installé sans votre accord."
+
+#: src/settings/settings_field_specs.ts:108
+msgid "Empty: DISPLAY variable (127.0.0.1:0.0 on Windows)"
+msgstr "Vide : variable DISPLAY (127.0.0.1:0.0 sous Windows)"
+
+#: src/settings/use_forget_secrets.ts:17
+msgid "Forget"
+msgstr "Oublier"
+
+#: src/settings/settings_secrets_fieldset.tsx:38
+msgid "Forget remembered passphrases"
+msgstr "Oublier les passphrases mémorisées"
+
+#: src/settings/use_forget_secrets.ts:15
+msgid "Forget remembered passphrases?"
+msgstr "Oublier les passphrases mémorisées ?"
+
+#: src/settings/settings_open_fieldset.tsx:29
+msgid "Host to open"
+msgstr "Hôte à ouvrir"
+
+#: src/settings/settings_field_specs.ts:91
+msgid "Initial reconnect delay (seconds)"
+msgstr "Délai initial de reconnexion (secondes)"
+
+#: src/daemon/describe_daemon_error.ts:19
+msgid "Internal error"
+msgstr "Erreur interne"
+
+#: src/settings/settings_field_specs.ts:68
+msgid "Keepalive interval (seconds)"
+msgstr "Intervalle de keepalive (secondes)"
+
+#: src/settings/settings_language_fieldset.tsx:36
+msgid "Language"
+msgstr "Langue"
+
+#: src/settings/settings_startup_fieldset.tsx:42
+msgid "Launch Tunneler at login"
+msgstr "Lancer Tunneler à l'ouverture de session"
+
+#: src/settings/settings_panel.tsx:82
+msgid "Local and dynamic tunnels keep their port without an SSH session until the first connection. Takes effect the next time each tunnel starts."
+msgstr "Les tunnels locaux et dynamiques gardent leur port sans session SSH jusqu'à la première connexion. Prend effet au prochain démarrage de chaque tunnel."
+
+#: src/settings/settings_field_specs.ts:107
+msgid "Local X11 display"
+msgstr "Display X11 local"
+
+#: src/settings/standby_sound_options.tsx:21
+msgid "Marimba"
+msgstr "Marimba"
+
+#: src/settings/settings_field_specs.ts:96
+msgid "Maximum reconnect delay (seconds)"
+msgstr "Délai maximal de reconnexion (secondes)"
+
+#: src/daemon/describe_daemon_error.ts:23
+msgid "No update is available"
+msgstr "Aucune mise à jour disponible"
+
+#: src/settings/standby_notify_options.tsx:14
+msgid "None"
+msgstr "Aucun"
+
+#: src/settings/standby_sound_options.tsx:71
+msgid "Not played with the chosen signal."
+msgstr "Pas joué avec le signal choisi."
+
+#: src/settings/standby_notify_options.tsx:15
+msgid "Notification"
+msgstr "Notification"
+
+#: src/settings/open_config_folder_button.tsx:24
+msgid "Open the configuration folder"
+msgstr "Ouvrir le dossier de configuration"
+
+#: src/settings/settings_open_fieldset.tsx:26
+msgid "Opening"
+msgstr "Ouverture"
+
+#: src/settings/use_forget_secrets.ts:16
+msgid "Passphrases kept in memory and in the system keyring will be erased; they will be asked for again at the next connection."
+msgstr "Les passphrases gardées en mémoire et dans le trousseau du système seront effacées ; elles seront redemandées à la prochaine connexion."
+
+#: src/settings/standby_sound_options.tsx:89
+msgid "Play the failure sound"
+msgstr "Écouter l'échec"
+
+#: src/settings/standby_sound_options.tsx:81
+msgid "Play the wake sound"
+msgstr "Écouter le réveil"
+
+#: src/settings/standby_sound_options.tsx:19
+msgid "Plucked string"
+msgstr "Corde pincée"
+
+#: src/settings/settings_panel.tsx:81
+msgid "Put tunnels on standby"
+msgstr "Mettre les tunnels en veille"
+
+#: src/settings/settings_field_specs.ts:87
+msgid "Reconnection"
+msgstr "Reconnexion"
+
+#: src/settings/settings_secrets_fieldset.tsx:26
+msgid "Remember passphrases in the system keyring"
+msgstr "Mémoriser les passphrases dans le trousseau du système"
+
+#: src/settings/settings_startup_fieldset.tsx:50
+msgid "Restarts the tunnels that were running when Tunneler last closed."
+msgstr "Relance les tunnels qui tournaient à la dernière fermeture."
+
+#: src/settings/settings_startup_fieldset.tsx:49
+msgid "Restore active tunnels on launch"
+msgstr "Rétablir les tunnels actifs au lancement"
+
+#: src/settings/settings_field_specs.ts:39
+msgid "Return to standby after (seconds)"
+msgstr "Retour en veille après (secondes)"
+
+#: src/settings/settings_panel.tsx:43
+msgid "Save"
+msgstr "Enregistrer"
+
+#: src/settings/settings_secrets_fieldset.tsx:23
+msgid "Secrets"
+msgstr "Secrets"
+
+#: src/settings/settings_startup_fieldset.tsx:31
+msgid "Separated by commas."
+msgstr "Séparés par des virgules."
+
+#: src/settings/settings_startup_fieldset.tsx:32
+msgid "Separated by commas. Existing tags: {existingTagsText}."
+msgstr "Séparés par des virgules. Tags existants : {existingTagsText}."
+
+#: src/settings/settings_drawer.tsx:18
+#: src/settings/settings_panel.tsx:49
+msgid "Settings"
+msgstr "Paramètres"
+
+#: src/settings/use_settings_form.ts:91
+msgid "Settings saved"
+msgstr "Paramètres enregistrés"
+
+#: src/settings/settings_drawer.tsx:19
+msgid "Settings unavailable."
+msgstr "Paramètres indisponibles."
+
+#: src/settings/standby_notify_options.tsx:44
+msgid "Signal when leaving standby"
+msgstr "Signal à la sortie de veille"
+
+#: src/settings/standby_notify_options.tsx:16
+#: src/settings/standby_sound_options.tsx:63
+msgid "Sound"
+msgstr "Son"
+
+#: src/settings/settings_field_specs.ts:35
+msgid "Standby"
+msgstr "Veille"
+
+#: src/settings/settings_startup_fieldset.tsx:43
+msgid "Starts the daemon and its tray icon without opening the window."
+msgstr "Démarre le daemon et son icône, sans ouvrir la fenêtre."
+
+#: src/settings/settings_startup_fieldset.tsx:39
+msgid "Startup"
+msgstr "Démarrage"
+
+#: src/settings/settings_language_fieldset.tsx:22
+msgid "System"
+msgstr "Système"
+
+#: src/settings/standby_sound_options.tsx:22
+msgid "System sound"
+msgstr "Son du système"
+
+#: src/settings/settings_startup_fieldset.tsx:56
+msgid "Tags to start on launch"
+msgstr "Tags démarrés au lancement"
+
+#: src/settings/validate_settings_form.ts:21
+msgid "The address is required."
+msgstr "L'adresse est obligatoire."
+
+#: src/daemon/describe_daemon_error.ts:17
+msgid "The daemon is not reachable"
+msgstr "Le daemon est injoignable"
+
+#: src/settings/validate_settings_form.ts:20
+msgid "The delay must be a whole number of seconds greater than 0."
+msgstr "Le délai doit être un nombre entier de secondes supérieur à 0."
+
+#: src/settings/validate_settings_form.ts:18
+msgid "The duration must be zero or a positive number of seconds."
+msgstr "La durée doit être un nombre de secondes positif ou nul."
+
+#: src/settings/validate_settings_form.ts:22
+msgid "The maximum delay must be greater than or equal to the initial delay."
+msgstr "Le délai maximal doit être supérieur ou égal au délai initial."
+
+#: src/daemon/describe_daemon_error.ts:21
+msgid "The update failed"
+msgstr "La mise à jour a échoué"
+
+#: src/settings/validate_settings_form.ts:19
+msgid "The value must be a whole number, zero or more."
+msgstr "La valeur doit être un entier positif ou nul."
+
+#: src/settings/settings_field_specs.ts:80
+msgid "Time before an unused session is closed (seconds)"
+msgstr "Délai avant fermeture d'une session inutilisée (secondes)"
+
+#: src/settings/settings_field_specs.ts:40
+msgid "Time without connections before the SSH session is released"
+msgstr "Délai sans connexion avant de libérer la session SSH"
+
+#: src/settings/settings_field_specs.ts:74
+msgid "Unanswered keepalives tolerated"
+msgstr "Keepalives sans réponse tolérés"
+
+#: src/settings/settings_updates_fieldset.tsx:20
+msgid "Updates"
+msgstr "Mises à jour"
+
+#: src/settings/standby_notify_options.tsx:51
+msgid "When a tunnel wakes up, and when waking fails."
+msgstr "Au réveil d'un tunnel, et quand le réveil échoue."
+
+#: src/settings/settings_secrets_fieldset.tsx:27
+msgid "Windows: Credential Manager; Linux: Secret Service (GNOME Keyring, KWallet). When off, passphrases are remembered only until Tunneler is closed."
+msgstr "Windows : gestionnaire d'identification ; Linux : Secret Service (GNOME Keyring, KWallet). Désactivé : mémorisation jusqu'à la fermeture de Tunneler seulement."
+
+#: src/settings/settings_field_specs.ts:103
+msgid "X11"
+msgstr "X11"

@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { Button } from '@minimalstuff/ui';
+import { useLingui } from '@lingui/react/macro';
 
 import { Drawer } from '#/shared/drawer';
 import { useUiStore } from '#/state/ui_store';
@@ -16,6 +17,7 @@ import { OpenConfigFolderButton } from '#/settings/open_config_folder_button';
 import { SettingsSecretsFieldset } from '#/settings/settings_secrets_fieldset';
 import { SettingsStartupFieldset } from '#/settings/settings_startup_fieldset';
 import { SettingsUpdatesFieldset } from '#/settings/settings_updates_fieldset';
+import { SettingsLanguageFieldset } from '#/settings/settings_language_fieldset';
 import {
 	SETTINGS_SECTIONS,
 	STANDBY_SECTION,
@@ -26,6 +28,7 @@ type SettingsPanelProps = {
 };
 
 export function SettingsPanel({ settings }: Readonly<SettingsPanelProps>) {
+	const { t } = useLingui();
 	const formId = useId();
 	const closePanel = useUiStore((state) => state.closePanel);
 	const { values, errors, isSaving, summary, ...form } =
@@ -34,16 +37,16 @@ export function SettingsPanel({ settings }: Readonly<SettingsPanelProps>) {
 	const footer = (
 		<div className="flex justify-end gap-2">
 			<Button variant="outline" color="neutral" onClick={closePanel}>
-				Annuler
+				{t`Cancel`}
 			</Button>
 			<Button type="submit" form={formId} loading={isSaving}>
-				Enregistrer
+				{t`Save`}
 			</Button>
 		</div>
 	);
 
 	return (
-		<Drawer isOpen title="Paramètres" onClose={closePanel} footer={footer}>
+		<Drawer isOpen title={t`Settings`} onClose={closePanel} footer={footer}>
 			<form
 				id={formId}
 				noValidate
@@ -54,9 +57,13 @@ export function SettingsPanel({ settings }: Readonly<SettingsPanelProps>) {
 					messages={summary.messages}
 					attach={summary.attachSummary}
 				/>
+				<SettingsLanguageFieldset
+					value={values.language}
+					onChange={form.changeLanguage}
+				/>
 				{SETTINGS_SECTIONS.map((section) => (
 					<SettingsFieldset
-						key={section.legend}
+						key={section.name}
 						section={section}
 						values={values}
 						errors={errors}
@@ -71,8 +78,8 @@ export function SettingsPanel({ settings }: Readonly<SettingsPanelProps>) {
 				>
 					<SettingsSwitch
 						field="standby"
-						label="Mettre les tunnels en veille"
-						hint="Les tunnels locaux et dynamiques gardent leur port sans session SSH jusqu'à la première connexion. Prend effet au prochain démarrage de chaque tunnel."
+						label={t`Put tunnels on standby`}
+						hint={t`Local and dynamic tunnels keep their port without an SSH session until the first connection. Takes effect the next time each tunnel starts.`}
 						isChecked={values.standby}
 						onChange={form.changeToggle}
 					/>

@@ -1,3 +1,5 @@
+import { i18n } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 import { describe, expect, it } from 'vitest';
 
 import { buildSettings } from '#/testing/factories';
@@ -9,6 +11,14 @@ import {
 
 const valid = toSettingsFormValues(buildSettings());
 
+const validate = (values: Parameters<typeof validateSettingsForm>[0]) =>
+	Object.fromEntries(
+		Object.entries(validateSettingsForm(values)).map(([field, error]) => [
+			field,
+			i18n._(error),
+		])
+	);
+
 describe('validateSettingsForm', () => {
 	it('should accept valid values', () => {
 		expect(validateSettingsForm(valid)).toEqual({});
@@ -16,16 +26,15 @@ describe('validateSettingsForm', () => {
 
 	it('should require the bind addresses', () => {
 		expect(
-			validateSettingsForm({ ...valid, defaultBindAddress: ' ' })
-				.defaultBindAddress
-		).toBe("L'adresse est obligatoire.");
+			validate({ ...valid, defaultBindAddress: ' ' }).defaultBindAddress
+		).toBe('The address is required.');
 	});
 
 	it('should reject a negative or non numeric duration', () => {
 		expect(
-			validateSettingsForm({ ...valid, keepaliveIntervalSeconds: '-1' })
+			validate({ ...valid, keepaliveIntervalSeconds: '-1' })
 				.keepaliveIntervalSeconds
-		).toBe('La durée doit être un nombre de secondes positif ou nul.');
+		).toBe('The duration must be zero or a positive number of seconds.');
 	});
 
 	it('should accept 0 to disable the keepalive', () => {
@@ -35,20 +44,20 @@ describe('validateSettingsForm', () => {
 	});
 
 	it('should reject a keepalive max that is not an integer', () => {
-		expect(
-			validateSettingsForm({ ...valid, keepaliveMax: '1.5' }).keepaliveMax
-		).toBe('La valeur doit être un entier positif ou nul.');
+		expect(validate({ ...valid, keepaliveMax: '1.5' }).keepaliveMax).toBe(
+			'The value must be a whole number, zero or more.'
+		);
 	});
 
 	it('should reject an initial delay above the max delay', () => {
-		const errors = validateSettingsForm({
+		const errors = validate({
 			...valid,
 			reconnectInitialDelaySeconds: '120',
 			reconnectMaxDelaySeconds: '60',
 		});
 
 		expect(errors.reconnectMaxDelaySeconds).toBe(
-			'Le délai maximal doit être supérieur ou égal au délai initial.'
+			'The maximum delay must be greater than or equal to the initial delay.'
 		);
 	});
 });
@@ -58,9 +67,8 @@ describe('validateSettingsForm for the standby delay', () => {
 		'should reject "%s" as a standby delay',
 		(standbyIdleSeconds) => {
 			expect(
-				validateSettingsForm({ ...valid, standbyIdleSeconds })
-					.standbyIdleSeconds
-			).toBe('Le délai doit être un nombre entier de secondes supérieur à 0.');
+				validate({ ...valid, standbyIdleSeconds }).standbyIdleSeconds
+			).toBe('The delay must be a whole number of seconds greater than 0.');
 		}
 	);
 
@@ -71,12 +79,14 @@ describe('validateSettingsForm for the standby delay', () => {
 	});
 });
 
+const INVALID = msg`invalid`;
+
 describe('getFirstInvalidSettingsField', () => {
 	it('should return the first invalid field in form order', () => {
 		expect(
 			getFirstInvalidSettingsField({
-				reconnectMaxDelaySeconds: 'x',
-				keepaliveMax: 'y',
+				reconnectMaxDelaySeconds: INVALID,
+				keepaliveMax: INVALID,
 			})
 		).toBe('keepaliveMax');
 	});
@@ -84,7 +94,7 @@ describe('getFirstInvalidSettingsField', () => {
 	it('should return the standby delay after the other fields', () => {
 		expect(
 			getFirstInvalidSettingsField({
-				standbyIdleSeconds: 'x',
+				standbyIdleSeconds: INVALID,
 			})
 		).toBe('standbyIdleSeconds');
 	});

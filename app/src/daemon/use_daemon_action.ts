@@ -1,15 +1,18 @@
+import { i18n } from '@lingui/core';
 import { useCallback } from 'react';
+import { t } from '@lingui/core/macro';
 
 import { useToastStore } from '#/shared/toasts/toast_store';
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
+import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 
 type DaemonAction = (gateway: DaemonGateway) => Promise<unknown>;
 
 /**
  * Runs a daemon call and reports a failure as an error toast:
- * "{failureMessage} : {daemon message}". Resolves to whether the call
+ * "{failureMessage}: {daemon message}" (translated by error code when known). Resolves to whether the call
  * succeeded, so callers can chain on success without handling errors.
  */
 export type RunDaemonAction = (
@@ -26,10 +29,13 @@ export function useDaemonAction(): RunDaemonAction {
 				await action(gateway);
 				return true;
 			} catch (rejection) {
-				const { message } = toDaemonCommandError(rejection);
+				const errorMessage = describeDaemonError(
+					toDaemonCommandError(rejection),
+					i18n
+				);
 				useToastStore.getState().pushToast({
 					tone: 'error',
-					message: `${failureMessage} : ${message}`,
+					message: t`${failureMessage}: ${errorMessage}`,
 				});
 				return false;
 			}

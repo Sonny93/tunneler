@@ -98,6 +98,7 @@ export function buildSettings(
 		standbyIdleS: 300,
 		standbyNotify: 'visual',
 		standbySound: 'pluck',
+		language: 'system',
 		checkForUpdates: true,
 		...overrides,
 	};

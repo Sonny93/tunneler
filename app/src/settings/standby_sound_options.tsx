@@ -1,6 +1,10 @@
+import { msg } from '@lingui/core/macro';
 import { useId, type ChangeEvent } from 'react';
+import { useLingui } from '@lingui/react/macro';
 import { Button, Select } from '@minimalstuff/ui';
+import type { MessageDescriptor } from '@lingui/core';
 
+import { translateOptions } from '#/i18n/translate_options';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import type {
 	SoundEventDto,
@@ -8,11 +12,14 @@ import type {
 	StandbySoundDto,
 } from '#/daemon/protocol';
 
-const OPTIONS: readonly { value: StandbySoundDto; label: string }[] = [
-	{ value: 'pluck', label: 'Corde pincée' },
-	{ value: 'chime', label: 'Carillon' },
-	{ value: 'marimba', label: 'Marimba' },
-	{ value: 'system', label: 'Son du système' },
+const OPTIONS: readonly {
+	value: StandbySoundDto;
+	label: MessageDescriptor;
+}[] = [
+	{ value: 'pluck', label: msg`Plucked string` },
+	{ value: 'chime', label: msg`Chime` },
+	{ value: 'marimba', label: msg`Marimba` },
+	{ value: 'system', label: msg`System sound` },
 ];
 
 const SILENT_MODES: readonly StandbyNotifyDto[] = ['none', 'visual'];
@@ -29,6 +36,7 @@ export function StandbySoundOptions({
 	notifyMode,
 	onChange,
 }: Readonly<StandbySoundOptionsProps>) {
+	const { t, i18n } = useLingui();
 	const silentHintId = useId();
 	const runDaemonAction = useDaemonAction();
 	const isSilent = SILENT_MODES.includes(notifyMode);
@@ -43,7 +51,7 @@ export function StandbySoundOptions({
 	const preview = (event: SoundEventDto) =>
 		void runDaemonAction(
 			(gateway) => gateway.previewSound(value, event),
-			'Écoute impossible'
+			t`Couldn't play the sound`
 		);
 	const handlePreviewWoke = () => preview('woke');
 	const handlePreviewWakeFailed = () => preview('wakeFailed');
@@ -52,15 +60,15 @@ export function StandbySoundOptions({
 		<div className="flex flex-col gap-1">
 			<Select
 				name="standbySound"
-				label="Son"
-				options={OPTIONS.map((option) => ({ ...option }))}
+				label={t`Sound`}
+				options={translateOptions(OPTIONS, i18n)}
 				value={value}
 				onChange={handleChange}
 				aria-describedby={isSilent ? silentHintId : undefined}
 			/>
 			{isSilent && (
 				<p id={silentHintId} className="m-0 text-sm text-tn-muted">
-					Pas joué avec le signal choisi.
+					{t`Not played with the chosen signal.`}
 				</p>
 			)}
 			<div className="flex gap-2">
@@ -70,7 +78,7 @@ export function StandbySoundOptions({
 					color="neutral"
 					onClick={handlePreviewWoke}
 				>
-					Écouter le réveil
+					{t`Play the wake sound`}
 				</Button>
 				<Button
 					type="button"
@@ -78,7 +86,7 @@ export function StandbySoundOptions({
 					color="neutral"
 					onClick={handlePreviewWakeFailed}
 				>
-					Écouter l'échec
+					{t`Play the failure sound`}
 				</Button>
 			</div>
 		</div>

@@ -93,7 +93,7 @@ describe('UpdateNotice', () => {
 	it('should toast an error when the release page cannot open', async () => {
 		const gateway = createFakeGateway();
 		gateway.openReleasePage.mockRejectedValue(
-			new DaemonCommandError('internal', 'pas de navigateur')
+			new DaemonCommandError('no_browser', 'pas de navigateur')
 		);
 		renderNotice(buildOffer(), gateway);
 
@@ -103,7 +103,7 @@ describe('UpdateNotice', () => {
 
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts[0]?.message).toBe(
-				'Ouverture impossible : pas de navigateur'
+				'Ouverture impossible: pas de navigateur'
 			)
 		);
 	});
@@ -289,7 +289,7 @@ describe('UpdateNotice', () => {
 		await waitFor(() =>
 			expect(useToastStore.getState().toasts[0]).toMatchObject({
 				tone: 'error',
-				message: 'Mise à jour impossible : La mise à jour a échoué : réseau',
+				message: 'Mise à jour impossible: The update failed',
 			})
 		);
 		expect(

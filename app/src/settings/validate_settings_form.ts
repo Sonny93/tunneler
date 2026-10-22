@@ -1,3 +1,6 @@
+import { msg } from '@lingui/core/macro';
+import type { MessageDescriptor } from '@lingui/core';
+
 import type { SettingsFormValues } from '#/settings/settings_form_values';
 import {
 	SETTINGS_SECTIONS,
@@ -5,19 +8,18 @@ import {
 	type SettingsTextField,
 } from '#/settings/settings_field_specs';
 
-export type SettingsFormErrors = Partial<Record<SettingsTextField, string>>;
+export type SettingsFormErrors = Partial<
+	Record<SettingsTextField, MessageDescriptor>
+>;
 
 const DURATION_PATTERN = /^\d+([.,]\d+)?$/;
 const INTEGER_PATTERN = /^\d+$/;
 
-const DURATION_MESSAGE =
-	'La durée doit être un nombre de secondes positif ou nul.';
-const INTEGER_MESSAGE = 'La valeur doit être un entier positif ou nul.';
-const STANDBY_IDLE_MESSAGE =
-	'Le délai doit être un nombre entier de secondes supérieur à 0.';
-const ADDRESS_MESSAGE = "L'adresse est obligatoire.";
-const ORDER_MESSAGE =
-	'Le délai maximal doit être supérieur ou égal au délai initial.';
+const DURATION_MESSAGE = msg`The duration must be zero or a positive number of seconds.`;
+const INTEGER_MESSAGE = msg`The value must be a whole number, zero or more.`;
+const STANDBY_IDLE_MESSAGE = msg`The delay must be a whole number of seconds greater than 0.`;
+const ADDRESS_MESSAGE = msg`The address is required.`;
+const ORDER_MESSAGE = msg`The maximum delay must be greater than or equal to the initial delay.`;
 
 const ADDRESS_FIELDS: readonly SettingsTextField[] = [
 	'defaultBindAddress',

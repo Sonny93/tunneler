@@ -16,10 +16,13 @@
 		"format:check": "oxfmt . --check",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
+		"i18n:extract": "lingui extract --clean",
 		"check": "pnpm run lint && pnpm run format:check && pnpm run typecheck",
 		"release": "release-it"
 	},
 	"dependencies": {
+		"@lingui/core": "^6.10.0",
+		"@lingui/react": "^6.10.0",
 		"@minimalstuff/ui": "^4.1.0",
 		"@tauri-apps/api": "^2.12.4",
 		"clsx": "^2.1.1",
@@ -29,6 +32,9 @@
 	},
 	"devDependencies": {
 		"@iconify-json/mdi": "^1.2.3",
+		"@lingui/cli": "^6.10.0",
+		"@lingui/swc-plugin": "^6.7.1",
+		"@lingui/vite-plugin": "^6.10.0",
 		"@minimalstuff/tooling": "^0.6.0",
 		"@release-it/bumper": "^8.0.1",
 		"@release-it/conventional-changelog": "^12.0.2",
@@ -40,7 +46,7 @@
 		"@types/node": "^26.6.5",
 		"@types/react": "^19.3.0",
 		"@types/react-dom": "^19.3.0",
-		"@vitejs/plugin-react": "^6.1.2",
+		"@vitejs/plugin-react-swc": "^4.3.3",
 		"axe-core": "^4.14.0",
 		"jsdom": "^30.1.2",
 		"oxfmt": "^0.73.0",
