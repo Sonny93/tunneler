@@ -4,9 +4,8 @@
 //! stderr. The CLI subcommands stay silent unless `TUNNELER_LOG` is set.
 
 use std::io::{self, IsTerminal};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use directories::BaseDirs;
 use thiserror::Error;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_appender::rolling::{InitError, RollingFileAppender, Rotation};
@@ -15,21 +14,21 @@ use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+use crate::layout::{DataLayout, LayoutError};
+
 /// The environment variable holding the log filter directives.
 pub const LOG_FILTER_VARIABLE: &str = "TUNNELER_LOG";
 
 /// How many daily log files are kept.
 pub const MAX_LOG_FILES: usize = 7;
 
-const APPLICATION_DIRECTORY: &str = "tunneler";
-const LOG_DIRECTORY: &str = "logs";
 const LOG_FILE_PREFIX: &str = "tunneler";
 const LOG_FILE_SUFFIX: &str = "log";
 
 #[derive(Debug, Error)]
 enum LogFileError {
-    #[error("the platform has no user data directory")]
-    NoDataDirectory,
+    #[error(transparent)]
+    Layout(#[from] LayoutError),
     #[error("cannot create the log file in {}: {source}", directory.display())]
     Appender {
         directory: PathBuf,
@@ -42,17 +41,6 @@ pub struct LogGuard {
     _file_writer: Option<WorkerGuard>,
 }
 
-fn log_directory_under(data_directory: &Path) -> PathBuf {
-    data_directory
-        .join(APPLICATION_DIRECTORY)
-        .join(LOG_DIRECTORY)
-}
-
-fn log_directory() -> Result<PathBuf, LogFileError> {
-    let base = BaseDirs::new().ok_or(LogFileError::NoDataDirectory)?;
-    Ok(log_directory_under(base.data_local_dir()))
-}
-
 fn filter_from(directives: Option<&str>) -> EnvFilter {
     EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())
@@ -61,7 +49,7 @@ fn filter_from(directives: Option<&str>) -> EnvFilter {
 
 fn open_log_file()
 -> Result<(tracing_appender::non_blocking::NonBlocking, WorkerGuard), LogFileError> {
-    let directory = log_directory()?;
+    let directory = DataLayout::resolve()?.log_directory;
     let appender = RollingFileAppender::builder()
         .rotation(Rotation::DAILY)
         .filename_prefix(LOG_FILE_PREFIX)
@@ -135,13 +123,5 @@ mod tests {
     #[test]
     fn should_fall_back_to_info_when_the_directives_are_invalid() {
         assert_eq!(filter_from(Some("=,")).to_string(), "info");
-    }
-
-    #[test]
-    fn should_keep_the_logs_in_a_tunneler_directory_under_the_data_directory() {
-        assert_eq!(
-            log_directory_under(Path::new("/home/me/.local/share")),
-            PathBuf::from("/home/me/.local/share/tunneler/logs")
-        );
     }
 }

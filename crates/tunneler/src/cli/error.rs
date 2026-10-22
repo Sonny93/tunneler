@@ -1,7 +1,6 @@
 use std::io;
 use std::time::Duration;
 
-use engine::StoreError;
 use ipc::protocol::ErrorCode;
 use ipc::{ClientError, EndpointError};
 use thiserror::Error;
@@ -10,6 +9,7 @@ use super::exit_code;
 use super::forward_spec::ForwardSpecError;
 use super::target::ResolveError;
 use crate::daemon::DaemonError;
+use crate::layout::LayoutError;
 
 const UI_UNAVAILABLE_HINT: &str = "the UI program `tunneler-ui` must sit next to `tunneler`, be on your PATH, or be set with TUNNELER_UI_BINARY";
 
@@ -62,9 +62,9 @@ pub enum CliError {
     /// The endpoint could not be determined.
     #[error(transparent)]
     Endpoint(#[from] EndpointError),
-    /// The default tunnels file could not be located.
+    /// The default location of the program's files could not be determined.
     #[error(transparent)]
-    Store(#[from] StoreError),
+    Layout(#[from] LayoutError),
     /// The tunnels did not all become active in time.
     #[error("timed out after {} seconds waiting for: {}", .waited.as_secs(), .waiting_for.join(", "))]
     TimedOutWaiting {
@@ -103,6 +103,17 @@ pub enum CliError {
     ConfirmationRequired {
         /// How many tunnels run.
         running: usize,
+    },
+    /// Removing files needs a confirmation that cannot be asked.
+    #[error("purge removes files and needs a confirmation")]
+    PurgeConfirmationRequired,
+    /// Some of the items to remove could not be removed.
+    #[error("{failed} of {total} items could not be removed")]
+    PurgeIncomplete {
+        /// How many removals failed.
+        failed: usize,
+        /// How many removals were attempted.
+        total: usize,
     },
     /// The running daemon could not launch the UI.
     #[error("{message}")]
@@ -155,7 +166,9 @@ impl CliError {
             Self::TargetUnreachable { .. } => exit_code::TARGET_UNREACHABLE,
             Self::OpenFailed { .. } => exit_code::OPEN_FAILED,
             Self::UnknownOpener { .. } => exit_code::UNKNOWN_OPENER,
-            Self::ConfirmationRequired { .. } => exit_code::CONFIRMATION_REQUIRED,
+            Self::ConfirmationRequired { .. } | Self::PurgeConfirmationRequired => {
+                exit_code::CONFIRMATION_REQUIRED
+            }
             Self::TimedOutWaiting { .. } | Self::DaemonStopTimedOut { .. } => exit_code::TIMED_OUT,
             Self::DaemonSpawn(_)
             | Self::DaemonExited { .. }
@@ -164,10 +177,11 @@ impl CliError {
             | Self::Daemon(_)
             | Self::Resolve(_)
             | Self::Endpoint(_)
-            | Self::Store(_)
+            | Self::Layout(_)
             | Self::ConnectionLost
             | Self::NotOpenable { .. }
             | Self::TargetCheckInconclusive { .. }
+            | Self::PurgeIncomplete { .. }
             | Self::UiUnavailable { .. }
             | Self::Terminal(_)
             | Self::Encoding(_)
@@ -211,6 +225,14 @@ impl CliError {
             Self::ConfirmationRequired { .. } => Some(
                 "run it in a terminal to be asked, or pass --yes to stop them and quit".to_owned(),
             ),
+            Self::PurgeConfirmationRequired => Some(
+                "run it in a terminal to be asked, pass --yes to remove without asking, or --dry-run to only list"
+                    .to_owned(),
+            ),
+            Self::PurgeIncomplete { .. } => Some(
+                "the errors above say which item failed and why: fix the cause and run `tunneler purge` again"
+                    .to_owned(),
+            ),
             Self::OpenFailed { .. } => Some(
                 "see `tunneler status` for the tunnel state, or open its address in your browser yourself"
                     .to_owned(),
@@ -228,7 +250,7 @@ impl CliError {
             | Self::TargetCheckInconclusive { .. }
             | Self::Daemon(_)
             | Self::Endpoint(_)
-            | Self::Store(_)
+            | Self::Layout(_)
             | Self::Client(_)
             | Self::Terminal(_)
             | Self::Encoding(_)
@@ -326,6 +348,32 @@ mod tests {
             CliError::ConfirmationRequired { running: 2 }.exit_code(),
             exit_code::CONFIRMATION_REQUIRED
         );
+    }
+
+    #[test]
+    fn should_exit_with_5_when_purge_cannot_ask_for_a_confirmation() {
+        assert_eq!(
+            CliError::PurgeConfirmationRequired.exit_code(),
+            exit_code::CONFIRMATION_REQUIRED
+        );
+    }
+
+    #[test]
+    fn should_suggest_the_yes_flag_when_purge_cannot_ask_for_a_confirmation() {
+        let hint = CliError::PurgeConfirmationRequired.hint().unwrap();
+
+        assert!(hint.contains("--yes"));
+    }
+
+    #[test]
+    fn should_exit_with_1_when_some_removals_failed() {
+        let error = CliError::PurgeIncomplete {
+            failed: 1,
+            total: 4,
+        };
+
+        assert_eq!(error.exit_code(), exit_code::ERROR);
+        assert_eq!(error.to_string(), "1 of 4 items could not be removed");
     }
 
     #[test]

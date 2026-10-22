@@ -61,6 +61,7 @@ jobs:
           $name = "tunneler-$env:VERSION-windows-x86_64"
           New-Item -ItemType Directory -Path $name
           Copy-Item target/release/tunneler.exe, target/release/tunneler-ui.exe -Destination $name
+          New-Item -ItemType File -Path "$name/portable" | Out-Null
           Compress-Archive -Path "$name/*" -DestinationPath "$name.zip"
       - uses: actions/upload-artifact@v7
         with:
@@ -94,6 +95,7 @@ jobs:
           name="tunneler-$VERSION-linux-x86_64"
           mkdir "$name"
           cp target/release/tunneler target/release/tunneler-ui "$name"
+          touch "$name/portable"
           tar -czf "$name.tar.gz" "$name"
           cp target/release/bundle/appimage/*.AppImage "tunneler-ui-$VERSION-x86_64.AppImage"
       - uses: actions/upload-artifact@v7

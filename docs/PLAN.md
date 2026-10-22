@@ -345,6 +345,7 @@ Cible : **WCAG 2.2 niveau AA** pour l'UI ; CLI conforme aux conventions `NO_COLO
 - Arrête le daemon (comme `quit --yes`), puis retire le lancement au login, l'AUMID, les journaux et le cache du webview.
 - Sans `--keep-config` : aussi `tunnels.toml`, `state.toml` et les passphrases du trousseau listées dans `state.toml`. Avec : ces trois-là restent, pour tout retrouver après une réinstallation.
 - Ne touche jamais aux exécutables, au dossier d'installation ni à `~/.ssh`. Supprime les dossiers `tunneler` devenus vides.
+- Les cibles sont les emplacements par défaut (portable ou dossiers utilisateur) : un fichier donné par `--config` / `--state` (ou leurs variables) n'est jamais supprimé, la commande le signale.
 - Liste ce qui va être supprimé et demande confirmation sur un TTY ; hors TTY sans `--yes` → code 5. `--dry-run` liste seulement.
 
 ### Installeur Windows (NSIS)

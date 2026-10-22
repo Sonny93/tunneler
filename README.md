@@ -26,6 +26,30 @@ These packages pull in the rest of the UI's shared libraries (`libsoup-3.0-0`, `
 
 When `libwebkit2gtk-4.1` cannot be installed, download `tunneler-ui-<version>-x86_64.AppImage` instead, which bundles its libraries. Put it next to `tunneler` under the name `tunneler-ui`, or point `TUNNELER_UI_BINARY` at it.
 
+### Portable mode
+
+The Windows zip and the Linux tar.gz contain an empty file named `portable` next to the executables. While it is there, Tunneler keeps its files in the folder of the executables instead of the user's directories:
+
+| File | Portable | Installed (Linux) |
+|---|---|---|
+| `tunnels.toml` | next to the executables | `~/.config/tunneler/` |
+| `state.toml` | `data/` | `~/.local/state/tunneler/` |
+| Logs | `data/logs/` | `~/.local/share/tunneler/logs/` |
+| Webview data (UI) | `data/webview/` | `~/.local/share/com.minimalstuff.tunneler/` |
+
+Delete the `portable` file to go back to the user's directories (the files already written are not moved). `--config` and `--state` (or `TUNNELER_CONFIG` and `TUNNELER_STATE`) still win over both. The launch-at-login entry and the passphrases stored in the OS keyring stay outside the folder by nature; `tunneler purge` removes them.
+
+### Removing everything
+
+`tunneler purge` removes what Tunneler left on the machine, except the programs: it stops the daemon, then removes the launch-at-login entry, the logs, the webview data, `tunnels.toml`, `state.toml` and the keyring passphrases listed in `state.toml`, and the `tunneler` directories left empty. It never touches the executables, the `portable` marker, the install directory or `~/.ssh`, nor a file given with `--config` or `--state`.
+
+```sh
+tunneler purge --dry-run      # list what would be removed, remove nothing
+tunneler purge                # list, ask for a confirmation, remove
+tunneler purge --yes          # no question (required without a terminal, otherwise exit code 5)
+tunneler purge --keep-config  # keep tunnels.toml, state.toml and the passphrases, to find them again after a reinstall
+```
+
 ### macOS
 
 Not maintained: no package and no CI. The code may still build from source (see [Development](#development)).
@@ -118,6 +142,7 @@ tunneler open 5999 --with browser  # force the browser; by default a tunnel open
 tunneler check 3333      # try the target of a running tunnel once (exit code 7 when it does not answer)
 tunneler down --all
 tunneler quit            # asks for confirmation when tunnels are active (--yes to skip)
+tunneler purge --dry-run # list everything Tunneler left on the machine (see "Removing everything")
 ```
 
 Tunnels live in `tunnels.toml` (`~/.config/tunneler/` on Linux, `%APPDATA%\tunneler\` on Windows), reloaded on change. Tunnels have no name: tags group them, and the CLI selects them by port, `host:port` or tag. `tunneler --help` lists every command, the environment variables and the exit codes.

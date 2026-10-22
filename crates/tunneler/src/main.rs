@@ -3,6 +3,7 @@
 
 mod cli;
 mod daemon;
+mod layout;
 mod logging;
 
 use std::process::ExitCode;

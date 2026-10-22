@@ -18,12 +18,22 @@ const DAEMON_STOP_POLL_INTERVAL: Duration = Duration::from_millis(50);
 /// `tunneler quit`: stops the daemon, asking first when tunnels are active.
 pub async fn quit(context: &Context, arguments: &QuitArguments) -> Result<(), CliError> {
     logging::init_cli_logging();
-    let client = connect(&context.endpoint, ConnectionMode::default()).await?;
-    request_quit(&client, arguments.yes).await?;
-    drop(client);
-    wait_until_stopped(&context.endpoint).await?;
+    quit_and_wait(&context.endpoint, arguments.yes).await?;
     println!("Tunneler stopped.");
     Ok(())
+}
+
+/// Stops the daemon and the active tunnels without asking, and waits until the
+/// daemon is gone.
+pub(super) async fn stop_daemon(endpoint: &Endpoint) -> Result<(), CliError> {
+    quit_and_wait(endpoint, true).await
+}
+
+async fn quit_and_wait(endpoint: &Endpoint, assume_yes: bool) -> Result<(), CliError> {
+    let client = connect(endpoint, ConnectionMode::default()).await?;
+    request_quit(&client, assume_yes).await?;
+    drop(client);
+    wait_until_stopped(endpoint).await
 }
 
 async fn request_quit(client: &IpcClient, assume_yes: bool) -> Result<(), CliError> {

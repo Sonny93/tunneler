@@ -7,6 +7,7 @@ mod commands;
 mod connection_slot;
 mod credential;
 mod daemon_binary;
+mod main_window;
 mod reveal_target;
 mod startup_claim;
 mod window_attention;
@@ -23,6 +24,7 @@ fn main() -> tauri::Result<()> {
         .plugin(tauri_plugin_opener::init())
         .manage(BridgeState::default())
         .setup(|app| {
+            main_window::create_main_window(app)?;
             reveal_window_when_startup_stalls(app.handle().clone());
             Ok(())
         })

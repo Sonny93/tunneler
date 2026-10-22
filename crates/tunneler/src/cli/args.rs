@@ -95,13 +95,34 @@ Examples:
   tunneler quit                 Stop the daemon; asks first when tunnels are active
   tunneler quit --yes           Stop the tunnels and the daemon without asking";
 
+const PURGE_EXAMPLES: &str = "\
+Examples:
+  tunneler purge --dry-run      List what would be removed, remove nothing
+  tunneler purge                List what will be removed, ask, then remove it
+  tunneler purge --yes          Remove it without asking
+  tunneler purge --keep-config  Keep tunnels.toml, state.toml and the stored passphrases
+
+Stops the daemon when one runs, then removes: the launch-at-login entry, the log
+files and the data of the UI's webview. Unless --keep-config is given, it also
+removes tunnels.toml, state.toml and the passphrases stored in the OS keyring
+(those listed in state.toml). Directories left empty are removed too.
+
+It never removes the program files (tunneler, tunneler-ui, the `portable` marker
+file), the install directory or anything under ~/.ssh. A file given with
+--config or --state (or TUNNELER_CONFIG, TUNNELER_STATE) is never removed.
+
+In portable mode the files are those next to the executable. Run it before
+uninstalling a package that leaves the user's files alone, such as a .deb.
+Without a terminal, --yes is required (exit code 5).";
+
 const DAEMON_EXAMPLES: &str = "\
 Examples:
   tunneler daemon               Run the daemon in the foreground
   TUNNELER_LOG=debug tunneler daemon
 
-Logs go to daily files under the user data directory (7 are kept), and to stderr
-when it is a terminal. Normally the daemon is started for you by `tunneler up`.";
+Logs go to daily files under the user data directory, or data/logs next to the
+executable in portable mode (7 are kept), and to stderr when it is a terminal.
+Normally the daemon is started for you by `tunneler up`.";
 
 fn top_level_help() -> String {
     format!(
@@ -111,6 +132,7 @@ Examples:
   tunneler status               Show what is running
   tunneler down --all           Stop every tunnel
   tunneler quit                 Stop the daemon
+  tunneler purge --dry-run      List everything Tunneler left on this machine
 
 Without a command, tunneler starts the daemon, or asks the running one to show
 its window.
@@ -173,6 +195,9 @@ pub enum Command {
     /// Stop the daemon
     #[command(after_help = QUIT_EXAMPLES)]
     Quit(QuitArguments),
+    /// Remove everything Tunneler left on this machine, except the programs
+    #[command(after_help = PURGE_EXAMPLES)]
+    Purge(PurgeArguments),
 }
 
 /// The arguments of `up`.
@@ -271,6 +296,20 @@ pub struct CheckArguments {
 #[derive(Debug, Args)]
 pub struct QuitArguments {
     /// Stop the active tunnels too, without asking
+    #[arg(short, long)]
+    pub yes: bool,
+}
+
+/// The arguments of `purge`.
+#[derive(Debug, Args)]
+pub struct PurgeArguments {
+    /// Keep tunnels.toml, state.toml and the passphrases stored in the keyring
+    #[arg(long)]
+    pub keep_config: bool,
+    /// List what would be removed and remove nothing
+    #[arg(long)]
+    pub dry_run: bool,
+    /// Remove without asking for a confirmation
     #[arg(short, long)]
     pub yes: bool,
 }
@@ -389,6 +428,27 @@ mod tests {
         };
 
         assert!(arguments.yes);
+    }
+
+    #[test]
+    fn should_read_every_flag_when_purging() {
+        let Some(Command::Purge(arguments)) = parse(&["purge", "--keep-config", "--dry-run", "-y"])
+            .unwrap()
+            .command
+        else {
+            panic!("expected purge");
+        };
+
+        assert!(arguments.keep_config && arguments.dry_run && arguments.yes);
+    }
+
+    #[test]
+    fn should_default_every_flag_to_off_when_purging() {
+        let Some(Command::Purge(arguments)) = parse(&["purge"]).unwrap().command else {
+            panic!("expected purge");
+        };
+
+        assert!(!arguments.keep_config && !arguments.dry_run && !arguments.yes);
     }
 
     #[test]

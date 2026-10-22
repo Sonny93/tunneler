@@ -3,11 +3,11 @@ use std::path::PathBuf;
 
 use clap::Args;
 use clap::builder::FalseyValueParser;
-use engine::{default_state_path, default_store_path};
 use ipc::{Endpoint, default_endpoint};
 
 use super::error::CliError;
 use crate::daemon::DaemonOptions;
+use crate::layout::DataLayout;
 
 /// Where the daemon's files and socket are; each falls back to a platform
 /// default.
@@ -49,20 +49,28 @@ impl Locations {
         }
     }
 
+    /// The tunnels file: `--config`, else the one of the data layout.
+    pub fn store_path(&self) -> Result<PathBuf, CliError> {
+        match &self.config {
+            Some(path) => Ok(path.clone()),
+            None => Ok(DataLayout::resolve()?.tunnels_file),
+        }
+    }
+
+    /// The state file: `--state`, else the one of the data layout.
+    pub fn state_path(&self) -> Result<PathBuf, CliError> {
+        match &self.state {
+            Some(path) => Ok(path.clone()),
+            None => Ok(DataLayout::resolve()?.state_file),
+        }
+    }
+
     /// What the daemon needs to run.
     pub fn daemon_options(&self) -> Result<DaemonOptions, CliError> {
-        let store_path = match &self.config {
-            Some(path) => path.clone(),
-            None => default_store_path()?,
-        };
-        let state_path = match &self.state {
-            Some(path) => path.clone(),
-            None => default_state_path()?,
-        };
         Ok(DaemonOptions {
             endpoint: self.endpoint()?,
-            store_path,
-            state_path,
+            store_path: self.store_path()?,
+            state_path: self.state_path()?,
             ssh_config: self.ssh_config.clone(),
             is_tray_enabled: !self.no_tray,
             should_open_ui_on_start: false,
