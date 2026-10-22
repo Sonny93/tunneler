@@ -27,6 +27,8 @@ pnpm format  # lint:fix + oxfmt
 pnpm build   # vite build → app/dist
 ```
 
+On Windows, the UI crate also needs the daemon staged as its sidecar: `cargo build -p tunneler`, then copy `target/debug/tunneler.exe` to `app/src-tauri/binaries/tunneler-x86_64-pc-windows-msvc.exe` (gitignored; CI does the same).
+
 UI Rust crate: `cargo clippy -p tunneler-ui --all-targets --locked -- -D warnings`. Requires `app/dist` (run `pnpm build` first, `tauri::generate_context!` embeds it) and, on Linux, the webkit2gtk-4.1 dev packages listed in the README.
 
 Pitfalls:

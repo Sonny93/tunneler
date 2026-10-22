@@ -5,3 +5,4 @@ app/dist
 .idea
 *.swp
 /.claude/worktrees/
+app/src-tauri/binaries/

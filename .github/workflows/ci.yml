@@ -80,5 +80,12 @@ jobs:
         working-directory: app
       - run: pnpm build
         working-directory: app
+      - name: Stage the daemon as the Windows sidecar
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cargo build --locked -p tunneler
+          New-Item -ItemType Directory -Force app/src-tauri/binaries | Out-Null
+          Copy-Item target/debug/tunneler.exe app/src-tauri/binaries/tunneler-x86_64-pc-windows-msvc.exe
       - run: cargo clippy -p tunneler-ui --all-targets --locked -- -D warnings
       - run: cargo build -p tunneler-ui --locked

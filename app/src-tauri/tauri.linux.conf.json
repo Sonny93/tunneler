@@ -1,0 +1,13 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"bundle": {
+		"targets": ["appimage", "deb"],
+		"linux": {
+			"deb": {
+				"files": {
+					"/usr/bin/tunneler": "../../target/release/tunneler"
+				}
+			}
+		}
+	}
+}

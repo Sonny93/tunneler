@@ -29,7 +29,6 @@
 	},
 	"bundle": {
 		"active": true,
-		"targets": ["appimage"],
 		"publisher": "minimalstuff",
 		"category": "Utility",
 		"shortDescription": "Gestionnaire de tunnels SSH",

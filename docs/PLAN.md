@@ -357,6 +357,7 @@ Cible : **WCAG 2.2 niveau AA** pour l'UI ; CLI conforme aux conventions `NO_COLO
 
 ### Paquet `.deb`
 - Bundler Tauri, dépendances WebKitGTK déduites. Le daemon est ajouté par `bundle.linux.deb.files` (`/usr/bin/tunneler`), pas en `externalBin` (même raison que l'AppImage).
+- Le bundler nomme le fichier `Tunneler_<v>_amd64.deb` (paquet `tunneler`) et l'installeur `Tunneler_<v>_x64-setup.exe` : le workflow de release les renomme selon le tableau ci-dessus. Cibles et `files` vivent dans `tauri.linux.conf.json`.
 - `apt remove` / `purge` ne touchent jamais au dossier personnel (politique Debian) : `tunneler purge` avant de désinstaller pour tout retirer (README).
 
 ### Mises à jour

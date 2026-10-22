@@ -53,9 +53,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: app
       - run: cargo build --release --locked -p tunneler
-      - run: pnpm tauri build --no-bundle -- --locked
+      - name: Stage the daemon as the installer sidecar
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force app/src-tauri/binaries | Out-Null
+          Copy-Item target/release/tunneler.exe app/src-tauri/binaries/tunneler-x86_64-pc-windows-msvc.exe
+      - run: pnpm tauri build --bundles nsis -- --locked
         working-directory: app
-      - name: Stage and zip
+      - name: Stage the zip and the installer
         shell: pwsh
         run: |
           $name = "tunneler-$env:VERSION-windows-x86_64"
@@ -63,10 +68,17 @@ jobs:
           Copy-Item target/release/tunneler.exe, target/release/tunneler-ui.exe -Destination $name
           New-Item -ItemType File -Path "$name/portable" | Out-Null
           Compress-Archive -Path "$name/*" -DestinationPath "$name.zip"
+          Copy-Item (Get-Item target/release/bundle/nsis/*-setup.exe) "$name-setup.exe"
       - uses: actions/upload-artifact@v7
         with:
           name: tunneler-${{ env.VERSION }}-windows-x86_64.zip
           path: tunneler-${{ env.VERSION }}-windows-x86_64.zip
+          archive: false
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: tunneler-${{ env.VERSION }}-windows-x86_64-setup.exe
+          path: tunneler-${{ env.VERSION }}-windows-x86_64-setup.exe
           archive: false
           if-no-files-found: error
 
@@ -88,9 +100,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: app
       - run: cargo build --release --locked -p tunneler
-      - run: pnpm tauri build --bundles appimage -- --locked
+      - run: pnpm tauri build --bundles appimage,deb -- --locked
         working-directory: app
-      - name: Stage the archive and the AppImage
+      - name: Stage the archive, the AppImage and the deb
         run: |
           name="tunneler-$VERSION-linux-x86_64"
           mkdir "$name"
@@ -98,6 +110,7 @@ jobs:
           touch "$name/portable"
           tar -czf "$name.tar.gz" "$name"
           cp target/release/bundle/appimage/*.AppImage "tunneler-ui-$VERSION-x86_64.AppImage"
+          cp target/release/bundle/deb/*.deb "tunneler_${VERSION}_amd64.deb"
       - uses: actions/upload-artifact@v7
         with:
           name: tunneler-${{ env.VERSION }}-linux-x86_64.tar.gz
@@ -108,6 +121,12 @@ jobs:
         with:
           name: tunneler-ui-${{ env.VERSION }}-x86_64.AppImage
           path: tunneler-ui-${{ env.VERSION }}-x86_64.AppImage
+          archive: false
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: tunneler_${{ env.VERSION }}_amd64.deb
+          path: tunneler_${{ env.VERSION }}_amd64.deb
           archive: false
           if-no-files-found: error
 
