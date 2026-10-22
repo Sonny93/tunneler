@@ -1,6 +1,6 @@
 # Tunneler — Tâches
 
-Ce qui reste à faire, à valider ou à connaître du [plan](./PLAN.md). Une phase livrée sort de ce fichier : ce qui a changé une décision va dans `PLAN.md`, ce qui reste à valider ou manque encore va dans les sections ci-dessous, le reste vit dans l'historique git. Notes d'implémentation détaillées des phases 0 à 17 : `git show 6f613f3:docs/TASKS.md`.
+Ce qui reste à faire, à valider ou à connaître du [plan](./PLAN.md). Une phase livrée sort de ce fichier : ce qui a changé une décision va dans `PLAN.md`, ce qui reste à valider ou manque encore va dans les sections ci-dessous, le reste vit dans l'historique git. Notes d'implémentation détaillées des phases 0 à 17 : `git show 88f2040:docs/TASKS.md`.
 
 Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (avec raison)
 
