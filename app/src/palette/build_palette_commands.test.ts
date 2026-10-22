@@ -50,6 +50,55 @@ describe('buildPaletteCommands', () => {
 		expect(labels).not.toContain('Démarrer 3333 → nova:3333');
 	});
 
+	it('should offer to put an awake tunnel back to standby', () => {
+		expect(
+			build([buildTunnel({ state: { kind: 'active' }, isAwake: true })])
+		).toContainEqual(
+			expect.objectContaining({
+				label: 'Mettre en veille 3333 → nova:3333',
+				category: 'Tunnel',
+				action: { kind: 'standbyTunnel', tunnelId: 'tunnel-1' },
+			})
+		);
+	});
+
+	it('should not offer standby for a tunnel that is not awake', () => {
+		const labels = labelsOf(
+			build([buildTunnel({ state: { kind: 'active' } })])
+		);
+
+		expect(labels).not.toContain('Mettre en veille 3333 → nova:3333');
+		expect(labels).not.toContain('Mettre en veille les tunnels réveillés');
+	});
+
+	it('should offer to put every awake tunnel back to standby when one is awake', () => {
+		expect(
+			build([buildTunnel({ state: { kind: 'active' }, isAwake: true })])
+		).toContainEqual(
+			expect.objectContaining({
+				label: 'Mettre en veille les tunnels réveillés',
+				category: 'Général',
+				action: { kind: 'standbyAll' },
+			})
+		);
+	});
+
+	it('should offer to put a tag back to standby only when one of its tunnels is awake', () => {
+		const commands = build([
+			buildTunnel({ id: 'a', tags: ['dev'], isAwake: true }),
+			buildTunnel({ id: 'b', tags: ['db'] }),
+		]);
+
+		expect(commands).toContainEqual(
+			expect.objectContaining({
+				label: 'Mettre en veille le tag dev',
+				category: 'Tag',
+				action: { kind: 'standbyTag', tag: 'dev' },
+			})
+		);
+		expect(labelsOf(commands)).not.toContain('Mettre en veille le tag db');
+	});
+
 	it('should offer details and edition for every tunnel', () => {
 		const labels = labelsOf(build([buildTunnel()]));
 

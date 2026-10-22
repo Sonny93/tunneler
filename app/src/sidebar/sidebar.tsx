@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { ContextMenu, MenuItem } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
 import { SIDEBAR_ID } from '#/sidebar/sidebar_id';
@@ -8,6 +9,8 @@ import { TagFilterRow } from '#/sidebar/tag_filter_row';
 import { summarizeTags } from '#/sidebar/summarize_tags';
 import { HostFilterRow } from '#/sidebar/host_filter_row';
 import { summarizeHosts } from '#/sidebar/summarize_hosts';
+import { listAwakeTunnels } from '#/standby/list_awake_tunnels';
+import { useSendToStandby } from '#/standby/use_send_to_standby';
 import { useResolvedFilter } from '#/tunnels/use_resolved_filter';
 import { countActiveTunnels } from '#/tunnels/count_active_tunnels';
 
@@ -20,6 +23,9 @@ export function Sidebar() {
 	const setFilter = useUiStore((state) => state.setFilter);
 	const tagSummaries = useMemo(() => summarizeTags(tunnels), [tunnels]);
 	const hostSummaries = useMemo(() => summarizeHosts(tunnels), [tunnels]);
+
+	const { sendAll } = useSendToStandby();
+	const hasAwakeTunnel = listAwakeTunnels(tunnels).length > 0;
 
 	const allFilterRef = useRef<HTMLDivElement>(null);
 	const isAllFilterFocusPending = useUiStore(
@@ -34,6 +40,8 @@ export function Sidebar() {
 
 	const handleSelectAll = () => setFilter({ kind: 'all' });
 
+	const handleStandbyAll = () => void sendAll();
+
 	return (
 		<nav
 			id={SIDEBAR_ID}
@@ -41,13 +49,27 @@ export function Sidebar() {
 			className="flex flex-col gap-4"
 		>
 			<div ref={allFilterRef} className="flex">
-				<FilterButton
-					label="Tous les tunnels"
-					count={countActiveTunnels(tunnels)}
-					icon="i-mdi-format-list-bulleted"
-					isActive={filter.kind === 'all'}
-					onSelect={handleSelectAll}
-				/>
+				<ContextMenu
+					items={
+						<MenuItem
+							icon="i-mdi-sleep"
+							disabled={!hasAwakeTunnel}
+							onClick={handleStandbyAll}
+						>
+							Mettre en veille les tunnels réveillés
+						</MenuItem>
+					}
+					aria-label="Actions pour tous les tunnels"
+					className="flex flex-1"
+				>
+					<FilterButton
+						label="Tous les tunnels"
+						count={countActiveTunnels(tunnels)}
+						icon="i-mdi-format-list-bulleted"
+						isActive={filter.kind === 'all'}
+						onSelect={handleSelectAll}
+					/>
+				</ContextMenu>
 			</div>
 			{hostSummaries.length > 0 && (
 				<section>

@@ -191,7 +191,80 @@ describe('Sidebar', () => {
 		);
 	});
 
+	describe('all tunnels context menu', () => {
+		const openAllMenu = (gateway = createFakeGateway()) => {
+			const rendered = renderWithGateway(<Sidebar />, gateway);
+			fireEvent.contextMenu(
+				screen.getByRole('button', { name: /Tous les tunnels/ })
+			);
+			return rendered;
+		};
+
+		it('should send every awake tunnel to standby from the menu', async () => {
+			useDaemonStore.setState({ tunnels: [buildTunnel({ isAwake: true })] });
+			const { gateway } = openAllMenu();
+
+			await userEvent.click(
+				screen.getByRole('menuitem', {
+					name: 'Mettre en veille les tunnels réveillés',
+				})
+			);
+
+			expect(gateway.standbyAll).toHaveBeenCalledTimes(1);
+		});
+
+		it('should disable the standby item when no tunnel is awake and have no axe violations', async () => {
+			seedTunnels();
+			openAllMenu();
+
+			expect(
+				screen.getByRole('menuitem', {
+					name: 'Mettre en veille les tunnels réveillés',
+				})
+			).toBeDisabled();
+			expect(
+				await axe(document.body, { rules: { region: { enabled: false } } })
+			).toHaveNoViolations();
+		});
+
+		it('should name the menu and keep focusing the all entry on request', () => {
+			seedTunnels();
+			renderWithGateway(<Sidebar />);
+
+			act(() => useUiStore.setState({ isAllFilterFocusPending: true }));
+
+			expect(
+				screen.getByRole('button', { name: /Tous les tunnels/ })
+			).toHaveFocus();
+		});
+	});
+
 	describe('tag context menu', () => {
+		it('should send the awake tunnels of the tag to standby from the menu', async () => {
+			useDaemonStore.setState({
+				tunnels: [buildTunnel({ tags: ['dev'], isAwake: true })],
+			});
+			const { gateway } = renderWithGateway(<Sidebar />);
+			fireEvent.contextMenu(screen.getByRole('button', { name: /^dev/ }));
+
+			await userEvent.click(
+				screen.getByRole('menuitem', { name: 'Mettre en veille le tag' })
+			);
+
+			expect(gateway.standbyTag).toHaveBeenCalledWith('dev');
+		});
+
+		it('should disable the standby item of a tag without awake tunnel', () => {
+			useDaemonStore.setState({ tunnels: [buildTunnel({ tags: ['dev'] })] });
+			renderWithGateway(<Sidebar />);
+
+			fireEvent.contextMenu(screen.getByRole('button', { name: /^dev/ }));
+
+			expect(
+				screen.getByRole('menuitem', { name: 'Mettre en veille le tag' })
+			).toBeDisabled();
+		});
+
 		const openTagMenu = (name: RegExp) => {
 			seedTunnels();
 			const rendered = renderWithGateway(<Sidebar />);
@@ -204,7 +277,12 @@ describe('Sidebar', () => {
 
 			expect(
 				screen.getAllByRole('menuitem').map((item) => item.textContent)
-			).toEqual(['Renommer…', 'Supprimer le tag…', 'Démarrer le tag']);
+			).toEqual([
+				'Renommer…',
+				'Supprimer le tag…',
+				'Démarrer le tag',
+				'Mettre en veille le tag',
+			]);
 		});
 
 		it('should offer to stop a fully running tag', () => {

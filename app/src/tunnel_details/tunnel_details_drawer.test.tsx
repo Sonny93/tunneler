@@ -274,6 +274,28 @@ describe('TunnelDetailsDrawer', () => {
 		expect(gateway.restartTunnel).toHaveBeenCalledWith('tunnel-1');
 	});
 
+	it('should send an awake tunnel back to standby', async () => {
+		setUp({ state: { kind: 'active' }, isAwake: true });
+		const { gateway } = renderDrawer();
+
+		await userEvent.click(
+			screen.getByRole('button', { name: 'Mettre en veille' })
+		);
+
+		await waitFor(() =>
+			expect(gateway.standbyTunnel).toHaveBeenCalledWith('tunnel-1')
+		);
+	});
+
+	it('should not offer standby when the tunnel is not awake', () => {
+		setUp({ state: { kind: 'active' } });
+		renderDrawer();
+
+		expect(
+			screen.queryByRole('button', { name: 'Mettre en veille' })
+		).not.toBeInTheDocument();
+	});
+
 	it('should open the editor', async () => {
 		setUp();
 		renderDrawer();

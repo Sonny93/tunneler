@@ -4,9 +4,11 @@ import { ConfirmModal, Modal } from '@minimalstuff/ui';
 import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
 import { useDaemonStore } from '#/state/daemon_store';
+import { confirmStandby } from '#/standby/confirm_standby';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
+import { listAwakeTunnels } from '#/standby/list_awake_tunnels';
 import { TunnelLabelList } from '#/tunnels/selection/tunnel_label_list';
 import { BulkTagsContent } from '#/tunnels/selection/bulk_tags_content';
 import { runBulkOperation } from '#/tunnels/selection/run_bulk_operation';
@@ -22,7 +24,13 @@ import {
 	type TagChange,
 } from '#/tunnels/selection/tag_change';
 
-export type BulkActionKey = 'start' | 'stop' | 'restart' | 'tags' | 'remove';
+export type BulkActionKey =
+	| 'start'
+	| 'stop'
+	| 'restart'
+	| 'standby'
+	| 'tags'
+	| 'remove';
 
 export type BulkAction = {
 	key: BulkActionKey;
@@ -38,6 +46,10 @@ const STOPPED: BulkParticiple = { singular: 'arrêté', plural: 'arrêtés' };
 const RESTARTED: BulkParticiple = {
 	singular: 'redémarré',
 	plural: 'redémarrés',
+};
+const SENT_TO_STANDBY: BulkParticiple = {
+	singular: 'mis en veille',
+	plural: 'mis en veille',
 };
 const REMOVED: BulkParticiple = { singular: 'supprimé', plural: 'supprimés' };
 const UPDATED: BulkParticiple = {
@@ -65,6 +77,7 @@ export function useBulkTunnelActions(
 	);
 	const idleTunnels = tunnels.filter(({ state }) => !isTunnelRunning(state));
 	const runningTunnels = tunnels.filter(({ state }) => isTunnelRunning(state));
+	const awakeTunnels = listAwakeTunnels(tunnels);
 	const stoppableTunnels = tunnels.filter(
 		({ state, isTemporary }) => isTemporary || isTunnelRunning(state)
 	);
@@ -94,6 +107,19 @@ export function useBulkTunnelActions(
 			.filter(({ id, isTemporary }) => isTemporary && succeededIds.includes(id))
 			.map(({ id }) => id);
 		if (removedIds.length > 0) requestFocusAfterRemoval(removedIds);
+	};
+
+	const confirmAndSendToStandby = async () => {
+		const isConfirmed = await confirmStandby(
+			`Mettre en veille ${formatTunnelCount(awakeTunnels.length)} ?`,
+			awakeTunnels
+		);
+		if (!isConfirmed) return;
+		await runOn(
+			awakeTunnels,
+			({ id }) => gateway.standbyTunnel(id),
+			SENT_TO_STANDBY
+		);
 	};
 
 	const confirmRemoval = async () => {
@@ -180,6 +206,14 @@ export function useBulkTunnelActions(
 					({ id }) => gateway.restartTunnel(id),
 					RESTARTED
 				),
+		},
+		{
+			key: 'standby',
+			label: 'Mettre en veille',
+			icon: 'i-mdi-sleep',
+			isDanger: false,
+			isDisabled: awakeTunnels.length === 0,
+			perform: () => void confirmAndSendToStandby(),
 		},
 		{
 			key: 'tags',

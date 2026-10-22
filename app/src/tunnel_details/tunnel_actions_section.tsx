@@ -5,6 +5,7 @@ import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
 import { copyTextWithToast } from '#/shared/copy_text';
 import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
+import { useSendToStandby } from '#/standby/use_send_to_standby';
 import { useOpenTunnel } from '#/tunnel_details/use_open_tunnel';
 import { useCheckTarget } from '#/tunnel_details/use_check_target';
 import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
@@ -23,6 +24,7 @@ export function TunnelActionsSection({
 	const restartReasonId = useId();
 	const openTunnelEditor = useUiStore((state) => state.openTunnelEditor);
 	const { restart, stopAndRemove, persist } = useTunnelActions(tunnel);
+	const { sendTunnel } = useSendToStandby();
 	const { isOpenable, label, alternatives, open, openWith } =
 		useOpenTunnel(tunnel);
 	const isRunning = isTunnelRunning(tunnel.state);
@@ -32,6 +34,7 @@ export function TunnelActionsSection({
 
 	const handleCopy = () => void copyTextWithToast(command, 'Commande copiée');
 	const handleEdit = () => openTunnelEditor(tunnel.id);
+	const handleStandby = () => void sendTunnel(tunnel);
 
 	return (
 		<section aria-labelledby={headingId} className="flex flex-col gap-3">
@@ -120,6 +123,16 @@ export function TunnelActionsSection({
 					>
 						Redémarrer
 					</Button>
+					{tunnel.isAwake && (
+						<Button
+							startIcon="i-mdi-sleep"
+							variant="outline"
+							color="neutral"
+							onClick={handleStandby}
+						>
+							Mettre en veille
+						</Button>
+					)}
 					{tunnel.isTemporary ? (
 						<>
 							<Button

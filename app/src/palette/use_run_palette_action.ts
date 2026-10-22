@@ -1,7 +1,9 @@
 import { useUiStore } from '#/state/ui_store';
+import { useDaemonStore } from '#/state/daemon_store';
 import { useDeleteTag } from '#/tag_delete/use_delete_tag';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import type { PaletteAction } from '#/palette/palette_command';
+import { useSendToStandby } from '#/standby/use_send_to_standby';
 
 type RunPaletteAction = (action: PaletteAction) => void;
 
@@ -9,6 +11,15 @@ type RunPaletteAction = (action: PaletteAction) => void;
 export function useRunPaletteAction(): RunPaletteAction {
 	const runDaemonAction = useDaemonAction();
 	const deleteTag = useDeleteTag();
+	const { sendTunnel, sendTag, sendAll } = useSendToStandby();
+
+	const sendStandbyTunnel = async (tunnelId: string) => {
+		const tunnel = useDaemonStore
+			.getState()
+			.tunnels.find(({ id }) => id === tunnelId);
+		if (tunnel === undefined) return;
+		await sendTunnel(tunnel);
+	};
 
 	return (action) => {
 		const ui = useUiStore.getState();
@@ -52,6 +63,12 @@ export function useRunPaletteAction(): RunPaletteAction {
 					(gateway) => gateway.stopTunnel(action.tunnelId),
 					'Arrêt impossible'
 				);
+			case 'standbyTunnel':
+				return void sendStandbyTunnel(action.tunnelId);
+			case 'standbyTag':
+				return void sendTag(action.tag);
+			case 'standbyAll':
+				return void sendAll();
 			case 'startTag':
 				return void runDaemonAction(
 					(gateway) => gateway.startTag(action.tag),

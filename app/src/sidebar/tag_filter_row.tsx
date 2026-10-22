@@ -2,10 +2,12 @@ import { useEffect, useId, useRef } from 'react';
 import { ContextMenu, MenuItem, Switch } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
+import { useDaemonStore } from '#/state/daemon_store';
 import { FilterButton } from '#/sidebar/filter_button';
 import type { TagSummary } from '#/sidebar/summarize_tags';
 import { useDeleteTag } from '#/tag_delete/use_delete_tag';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
+import { useSendToStandby } from '#/standby/use_send_to_standby';
 import { useResolvedFilter } from '#/tunnels/use_resolved_filter';
 import { describeActiveCount } from '#/tunnels/describe_active_count';
 
@@ -23,6 +25,10 @@ export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
 	const openTagRename = useUiStore((state) => state.openTagRename);
 	const runDaemonAction = useDaemonAction();
 	const deleteTag = useDeleteTag();
+	const { sendTag } = useSendToStandby();
+	const hasAwakeTunnel = useDaemonStore((state) =>
+		state.tunnels.some((tunnel) => tunnel.isAwake && tunnel.tags.includes(tag))
+	);
 	const isEveryTunnelStarted = total > 0 && started === total;
 	const isActive = filter.kind === 'tag' && filter.tag === tag;
 
@@ -37,6 +43,8 @@ export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
 	const handleRename = () => openTagRename(tag, 'sidebar');
 
 	const handleDelete = () => void deleteTag(tag);
+
+	const handleStandby = () => void sendTag(tag);
 
 	const handleToggle = () => {
 		if (isEveryTunnelStarted) {
@@ -65,6 +73,13 @@ export function TagFilterRow({ summary }: Readonly<TagFilterRowProps>) {
 				onClick={handleToggle}
 			>
 				{isEveryTunnelStarted ? 'Arrêter le tag' : 'Démarrer le tag'}
+			</MenuItem>
+			<MenuItem
+				icon="i-mdi-sleep"
+				disabled={!hasAwakeTunnel}
+				onClick={handleStandby}
+			>
+				Mettre en veille le tag
 			</MenuItem>
 		</>
 	);

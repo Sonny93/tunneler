@@ -229,6 +229,19 @@ describe('CommandPalette', () => {
 		);
 	});
 
+	it('should send an awake tunnel back to standby through the daemon', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderPalette();
+		useDaemonStore.setState({ tunnels: [buildTunnel({ isAwake: true })] });
+		await openPalette(user);
+
+		await user.type(getInput(), 'Mettre en veille 3333 → nova:3333{Enter}');
+
+		await waitFor(() =>
+			expect(gateway.standbyTunnel).toHaveBeenCalledWith('tunnel-1')
+		);
+	});
+
 	it('should ask for confirmation before deleting a tag', async () => {
 		const user = userEvent.setup();
 		const { gateway } = renderPalette();

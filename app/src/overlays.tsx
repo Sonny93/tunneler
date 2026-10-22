@@ -10,11 +10,13 @@ import { TunnelFormDrawer } from '#/tunnel_form/tunnel_form_drawer';
 import { useGlobalShortcuts } from '#/shortcuts/use_global_shortcuts';
 import { useQuitRequestListener } from '#/quit/use_quit_request_listener';
 import { TunnelDetailsDrawer } from '#/tunnel_details/tunnel_details_drawer';
+import { useStandbyRequestListener } from '#/standby/use_standby_request_listener';
 
 /** Everything that opens over the main screen; mount it once inside the connected state. */
 export function Overlays() {
 	useGlobalShortcuts();
 	useQuitRequestListener();
+	useStandbyRequestListener();
 
 	return (
 		<>

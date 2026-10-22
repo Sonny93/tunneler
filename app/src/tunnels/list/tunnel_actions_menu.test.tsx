@@ -59,6 +59,45 @@ describe('TunnelActionsMenu', () => {
 		).toEqual(['Modifier', 'Redémarrer', 'Supprimer']);
 	});
 
+	it('should offer to put an awake tunnel back to standby after the restart', async () => {
+		renderMenu({ state: { kind: 'active' }, isAwake: true });
+
+		await openMenu();
+
+		const group = screen.getByRole('group', { name: 'Contrôle' });
+		expect(
+			within(group)
+				.getAllByRole('menuitem')
+				.map((item) => item.textContent)
+		).toEqual(['Modifier', 'Redémarrer', 'Mettre en veille', 'Supprimer']);
+	});
+
+	it('should send the awake tunnel to standby from the menu', async () => {
+		const { gateway } = renderMenu({
+			state: { kind: 'active' },
+			isAwake: true,
+		});
+		await openMenu();
+
+		await userEvent.click(
+			screen.getByRole('menuitem', { name: 'Mettre en veille' })
+		);
+
+		await waitFor(() =>
+			expect(gateway.standbyTunnel).toHaveBeenCalledWith('tunnel-1')
+		);
+	});
+
+	it('should not offer standby when the tunnel is not awake', async () => {
+		renderMenu({ state: { kind: 'active' } });
+
+		await openMenu();
+
+		expect(
+			screen.queryByRole('menuitem', { name: 'Mettre en veille' })
+		).not.toBeInTheDocument();
+	});
+
 	it('should not offer the browser for a remote forward', async () => {
 		renderMenu({ kind: 'remote' });
 

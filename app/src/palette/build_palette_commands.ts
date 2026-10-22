@@ -1,5 +1,6 @@
 import { summarizeTags } from '#/sidebar/summarize_tags';
 import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
+import { listAwakeTunnels } from '#/standby/list_awake_tunnels';
 import type { PaletteCommand } from '#/palette/palette_command';
 import type { AvailableOpenerDto, TunnelDto } from '#/daemon/protocol';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
@@ -78,6 +79,18 @@ function buildToggleCommand(tunnel: Readonly<TunnelDto>): PaletteCommand {
 			};
 }
 
+function buildStandbyCommands(tunnel: Readonly<TunnelDto>): PaletteCommand[] {
+	if (!tunnel.isAwake) return [];
+	return [
+		{
+			id: `tunnel:${tunnel.id}:standby`,
+			label: `Mettre en veille ${getTunnelEndpointLabel(tunnel)}`,
+			category: 'Tunnel',
+			action: { kind: 'standbyTunnel', tunnelId: tunnel.id },
+		},
+	];
+}
+
 function buildOpenCommands(
 	tunnel: Readonly<TunnelDto>,
 	openers: readonly Readonly<AvailableOpenerDto>[]
@@ -109,6 +122,7 @@ function buildTunnelCommands(
 	const tunnelId = tunnel.id;
 	return [
 		buildToggleCommand(tunnel),
+		...buildStandbyCommands(tunnel),
 		{
 			id: `tunnel:${tunnelId}:details`,
 			label: `Détails de ${getTunnelEndpointLabel(tunnel)}`,
@@ -123,6 +137,13 @@ function buildTunnelCommands(
 		},
 		...buildOpenCommands(tunnel, openers),
 	];
+}
+
+function hasAwakeTunnel(
+	tunnels: readonly Readonly<TunnelDto>[],
+	tag: string
+): boolean {
+	return tunnels.some((tunnel) => tunnel.isAwake && tunnel.tags.includes(tag));
 }
 
 function buildTagCommands(
@@ -144,6 +165,14 @@ function buildTagCommands(
 				label: `Arrêter le tag ${tag}`,
 				category: 'Tag',
 				action: { kind: 'stopTag', tag },
+			});
+		}
+		if (hasAwakeTunnel(tunnels, tag)) {
+			commands.push({
+				id: `tag:${tag}:standby`,
+				label: `Mettre en veille le tag ${tag}`,
+				category: 'Tag',
+				action: { kind: 'standbyTag', tag },
 			});
 		}
 		commands.push({
@@ -187,12 +216,27 @@ function buildHostCommands(host: string): PaletteCommand[] {
 	];
 }
 
+function buildStandbyAllCommands(
+	tunnels: readonly Readonly<TunnelDto>[]
+): PaletteCommand[] {
+	if (listAwakeTunnels(tunnels).length === 0) return [];
+	return [
+		{
+			id: 'general:standby-all',
+			label: 'Mettre en veille les tunnels réveillés',
+			category: 'Général',
+			action: { kind: 'standbyAll' },
+		},
+	];
+}
+
 /** Every command the palette can run, in display order: general, tunnels, tags, hosts. */
 export function buildPaletteCommands(
 	sources: Readonly<PaletteSources>
 ): PaletteCommand[] {
 	return [
 		...GENERAL_COMMANDS,
+		...buildStandbyAllCommands(sources.tunnels),
 		...sources.tunnels.flatMap((tunnel) =>
 			buildTunnelCommands(tunnel, sources.openers)
 		),

@@ -8,11 +8,14 @@ export type PaletteAction =
 	| { kind: 'showShortcuts' }
 	| { kind: 'startTunnel'; tunnelId: string }
 	| { kind: 'stopTunnel'; tunnelId: string }
+	| { kind: 'standbyTunnel'; tunnelId: string }
 	| { kind: 'showTunnelDetails'; tunnelId: string }
 	| { kind: 'editTunnel'; tunnelId: string }
 	| { kind: 'openTunnel'; id: string; opener?: string }
 	| { kind: 'startTag'; tag: string }
 	| { kind: 'stopTag'; tag: string }
+	| { kind: 'standbyTag'; tag: string }
+	| { kind: 'standbyAll' }
 	| { kind: 'renameTag'; tag: string }
 	| { kind: 'deleteTag'; tag: string }
 	| { kind: 'showHostConfig'; host: string }

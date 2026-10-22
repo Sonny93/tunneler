@@ -331,6 +331,51 @@ describe('TunnelList bulk actions', () => {
 		expect(gateway.restartTunnel).toHaveBeenCalledWith('a');
 	});
 
+	it('should send only the awake tunnels to standby when they have no open connection', async () => {
+		const { gateway } = renderList();
+		useDaemonStore.setState({
+			tunnels: useDaemonStore
+				.getState()
+				.tunnels.map((tunnel) => ({ ...tunnel, isAwake: tunnel.id === 'a' })),
+		});
+		await select(ALPHA, BETA);
+
+		await userEvent.click(toolbarButton('Mettre en veille'));
+
+		await waitFor(() => expect(gateway.standbyTunnel).toHaveBeenCalledTimes(1));
+		expect(gateway.standbyTunnel).toHaveBeenCalledWith('a');
+		expect(lastToastMessage()).toBe('1 tunnel mis en veille');
+	});
+
+	it('should ask for confirmation before sending awake tunnels with open connections to standby', async () => {
+		const { gateway } = renderList();
+		useDaemonStore.setState({
+			tunnels: useDaemonStore.getState().tunnels.map((tunnel) => ({
+				...tunnel,
+				isAwake: tunnel.id === 'a',
+				metrics: { ...tunnel.metrics, activeConnections: 2 },
+			})),
+		});
+		await select(ALPHA, BETA);
+
+		await userEvent.click(toolbarButton('Mettre en veille'));
+
+		expect(
+			await screen.findByRole('alertdialog', {
+				name: 'Mettre en veille 1 tunnel ?',
+			})
+		).toHaveTextContent('2 connexions ouvertes seront coupées.');
+		expect(gateway.standbyTunnel).not.toHaveBeenCalled();
+	});
+
+	it('should disable standby when no selected tunnel is awake', async () => {
+		renderList();
+
+		await select(ALPHA, BETA);
+
+		expect(toolbarButton('Mettre en veille')).toBeDisabled();
+	});
+
 	it('should disable stopping when no selected tunnel is running', async () => {
 		renderList();
 
@@ -559,7 +604,14 @@ describe('TunnelList context menu', () => {
 			within(menu)
 				.getAllByRole('menuitem')
 				.map((item) => item.textContent)
-		).toEqual(['Démarrer', 'Arrêter', 'Redémarrer', 'Tags…', 'Supprimer']);
+		).toEqual([
+			'Démarrer',
+			'Arrêter',
+			'Redémarrer',
+			'Mettre en veille',
+			'Tags…',
+			'Supprimer',
+		]);
 		expect(
 			within(menu).getByRole('group', { name: '2 tunnels sélectionnés' })
 		).toBeInTheDocument();
