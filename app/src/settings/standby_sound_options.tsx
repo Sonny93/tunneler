@@ -1,8 +1,7 @@
-import { useId } from 'react';
-import { Button, RadioOptions } from '@minimalstuff/ui';
+import { useId, type ChangeEvent } from 'react';
+import { Button, Select } from '@minimalstuff/ui';
 
 import { useDaemonAction } from '#/daemon/use_daemon_action';
-import { getRadioOrientation } from '#/shared/radio_orientation';
 import type {
 	SoundEventDto,
 	StandbyNotifyDto,
@@ -38,8 +37,10 @@ export function StandbySoundOptions({
 		? `${systemHintId} ${silentHintId}`
 		: systemHintId;
 
-	const handleChange = (selected: string) => {
-		const option = OPTIONS.find((candidate) => candidate.value === selected);
+	const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
+		const option = OPTIONS.find(
+			(candidate) => candidate.value === event.target.value
+		);
 		if (option) onChange(option.value);
 	};
 
@@ -53,10 +54,9 @@ export function StandbySoundOptions({
 
 	return (
 		<div className="flex flex-col gap-1">
-			<RadioOptions
+			<Select
 				name="standbySound"
 				label="Son"
-				orientation={getRadioOrientation(OPTIONS.length)}
 				options={OPTIONS.map((option) => ({ ...option }))}
 				value={value}
 				onChange={handleChange}

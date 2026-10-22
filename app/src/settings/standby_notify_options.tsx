@@ -1,8 +1,7 @@
-import { useId } from 'react';
-import { RadioOptions } from '@minimalstuff/ui';
+import { Select } from '@minimalstuff/ui';
+import { useId, type ChangeEvent } from 'react';
 
 import type { StandbyNotifyDto } from '#/daemon/protocol';
-import { getRadioOrientation } from '#/shared/radio_orientation';
 
 const OPTIONS: readonly { value: StandbyNotifyDto; label: string }[] = [
 	{ value: 'none', label: 'Aucun' },
@@ -23,17 +22,18 @@ export function StandbyNotifyOptions({
 }: Readonly<StandbyNotifyOptionsProps>) {
 	const hintId = useId();
 
-	const handleChange = (selected: string) => {
-		const option = OPTIONS.find((candidate) => candidate.value === selected);
+	const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
+		const option = OPTIONS.find(
+			(candidate) => candidate.value === event.target.value
+		);
 		if (option) onChange(option.value);
 	};
 
 	return (
 		<div className="flex flex-col gap-1">
-			<RadioOptions
+			<Select
 				name="standbyNotify"
 				label="Signal à la sortie de veille"
-				orientation={getRadioOrientation(OPTIONS.length)}
 				options={OPTIONS.map((option) => ({ ...option }))}
 				value={value}
 				onChange={handleChange}

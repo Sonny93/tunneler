@@ -1,7 +1,7 @@
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { useToastStore } from '#/shared/toasts/toast_store';
@@ -31,29 +31,26 @@ function renderOptions(
 }
 
 describe('StandbySoundOptions', () => {
-	it('should render the four sounds in order with the selected one checked', () => {
+	it('should render the four sounds in order with the selected one chosen', () => {
 		renderOptions({ value: 'marimba' });
 
+		const select = screen.getByRole('combobox', { name: 'Son' });
 		expect(
-			screen
-				.getAllByRole('radio')
-				.map((radio) => [
-					radio.getAttribute('value'),
-					(radio as HTMLInputElement).checked,
-				])
-		).toEqual([
-			['pluck', false],
-			['chime', false],
-			['marimba', true],
-			['system', false],
-		]);
+			within(select)
+				.getAllByRole('option')
+				.map((option) => option.getAttribute('value'))
+		).toEqual(['pluck', 'chime', 'marimba', 'system']);
+		expect(select).toHaveValue('marimba');
 	});
 
-	it('should report the chosen sound when a radio is picked', async () => {
+	it('should report the chosen sound when an option is picked', async () => {
 		const onChange = vi.fn();
 		renderOptions({ onChange });
 
-		await userEvent.click(screen.getByRole('radio', { name: 'Carillon' }));
+		await userEvent.selectOptions(
+			screen.getByRole('combobox', { name: 'Son' }),
+			'Carillon'
+		);
 
 		expect(onChange).toHaveBeenCalledWith('chime');
 	});
@@ -64,7 +61,7 @@ describe('StandbySoundOptions', () => {
 			renderOptions({ notifyMode });
 
 			expect(
-				screen.getByRole('group', { name: 'Son' })
+				screen.getByRole('combobox', { name: 'Son' })
 			).toHaveAccessibleDescription(HINT);
 		}
 	);
@@ -82,7 +79,7 @@ describe('StandbySoundOptions', () => {
 		renderOptions();
 
 		expect(
-			screen.getByRole('group', { name: 'Son' })
+			screen.getByRole('combobox', { name: 'Son' })
 		).toHaveAccessibleDescription(/schéma de sons de Windows/);
 	});
 

@@ -154,26 +154,19 @@ describe('SettingsDrawer', () => {
 		});
 	});
 
-	it('should offer the standby signal choices with the current one checked', () => {
+	it('should offer the standby signal choices with the current one selected', () => {
 		openSettings(buildSettings({ standbyNotify: 'sound' }));
 		renderDrawer();
 
-		const group = screen.getByRole('group', {
+		const select = screen.getByRole('combobox', {
 			name: 'Signal à la sortie de veille',
 		});
 		expect(
-			within(group)
-				.getAllByRole('radio')
-				.map((radio) => [
-					radio.getAttribute('value'),
-					(radio as HTMLInputElement).checked,
-				])
-		).toEqual([
-			['none', false],
-			['visual', false],
-			['sound', true],
-			['both', false],
-		]);
+			within(select)
+				.getAllByRole('option')
+				.map((option) => option.getAttribute('value'))
+		).toEqual(['none', 'visual', 'sound', 'both']);
+		expect(select).toHaveValue('sound');
 	});
 
 	it('should say the sound plays even when system notifications are off', () => {
@@ -181,7 +174,7 @@ describe('SettingsDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('group', { name: 'Signal à la sortie de veille' })
+			screen.getByRole('combobox', { name: 'Signal à la sortie de veille' })
 		).toHaveAccessibleDescription(/même quand les notifications du système/);
 	});
 
@@ -191,7 +184,10 @@ describe('SettingsDrawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('radio', { name: 'Les deux' }));
+		await user.selectOptions(
+			screen.getByRole('combobox', { name: 'Signal à la sortie de veille' }),
+			'Les deux'
+		);
 		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
@@ -206,7 +202,10 @@ describe('SettingsDrawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('radio', { name: 'Marimba' }));
+		await user.selectOptions(
+			screen.getByRole('combobox', { name: 'Son' }),
+			'Marimba'
+		);
 		await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
 		expect(gateway.updateSettings).toHaveBeenCalledWith({
@@ -220,7 +219,10 @@ describe('SettingsDrawer', () => {
 		const user = userEvent.setup();
 		const { gateway } = renderDrawer();
 
-		await user.click(screen.getByRole('radio', { name: 'Carillon' }));
+		await user.selectOptions(
+			screen.getByRole('combobox', { name: 'Son' }),
+			'Carillon'
+		);
 		await user.click(screen.getByRole('button', { name: 'Écouter le réveil' }));
 
 		expect(gateway.previewSound).toHaveBeenCalledWith('chime', 'woke');
