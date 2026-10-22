@@ -29,13 +29,9 @@ export function StandbySoundOptions({
 	notifyMode,
 	onChange,
 }: Readonly<StandbySoundOptionsProps>) {
-	const systemHintId = useId();
 	const silentHintId = useId();
 	const runDaemonAction = useDaemonAction();
 	const isSilent = SILENT_MODES.includes(notifyMode);
-	const describedBy = isSilent
-		? `${systemHintId} ${silentHintId}`
-		: systemHintId;
 
 	const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
 		const option = OPTIONS.find(
@@ -60,15 +56,11 @@ export function StandbySoundOptions({
 				options={OPTIONS.map((option) => ({ ...option }))}
 				value={value}
 				onChange={handleChange}
-				aria-describedby={describedBy}
+				aria-describedby={isSilent ? silentHintId : undefined}
 			/>
-			<p id={systemHintId} className="m-0 text-sm text-tn-muted">
-				Son du système : suit le schéma de sons de Windows ou le thème de sons
-				du bureau.
-			</p>
 			{isSilent && (
 				<p id={silentHintId} className="m-0 text-sm text-tn-muted">
-					Choisissez « Son » ou « Les deux » pour l'entendre au réveil.
+					Pas joué avec le signal choisi.
 				</p>
 			)}
 			<div className="flex gap-2">

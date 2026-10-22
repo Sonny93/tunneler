@@ -169,13 +169,13 @@ describe('SettingsDrawer', () => {
 		expect(select).toHaveValue('sound');
 	});
 
-	it('should say the sound plays even when system notifications are off', () => {
+	it('should say when the standby signal is given', () => {
 		openSettings();
 		renderDrawer();
 
 		expect(
 			screen.getByRole('combobox', { name: 'Signal à la sortie de veille' })
-		).toHaveAccessibleDescription(/même quand les notifications du système/);
+		).toHaveAccessibleDescription(/quand le réveil échoue/);
 	});
 
 	it('should save the chosen standby signal', async () => {

@@ -10,7 +10,7 @@ import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { StandbySoundOptions } from '#/settings/standby_sound_options';
 import type { StandbyNotifyDto, StandbySoundDto } from '#/daemon/protocol';
 
-const HINT = /Choisissez « Son » ou « Les deux »/;
+const HINT = /Pas joué avec le signal choisi/;
 
 function renderOptions(
 	props: {
@@ -74,14 +74,6 @@ describe('StandbySoundOptions', () => {
 			expect(screen.queryByText(HINT)).not.toBeInTheDocument();
 		}
 	);
-
-	it('should describe the system sound', () => {
-		renderOptions();
-
-		expect(
-			screen.getByRole('combobox', { name: 'Son' })
-		).toHaveAccessibleDescription(/schéma de sons de Windows/);
-	});
 
 	it('should preview the selected sound for the wake when asked', async () => {
 		const { gateway } = renderOptions({ value: 'chime' });

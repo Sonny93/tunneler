@@ -40,9 +40,7 @@ export function StandbyNotifyOptions({
 				aria-describedby={hintId}
 			/>
 			<p id={hintId} className="m-0 text-sm text-tn-muted">
-				Le son est joué par Tunneler lui-même : il reste audible même quand les
-				notifications du système sont désactivées. Il signale aussi un réveil
-				qui échoue.
+				Au réveil d'un tunnel, et quand le réveil échoue.
 			</p>
 		</div>
 	);
