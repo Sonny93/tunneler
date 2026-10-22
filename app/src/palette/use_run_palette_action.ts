@@ -6,6 +6,7 @@ import { useDeleteTag } from '#/tag_delete/use_delete_tag';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import type { PaletteAction } from '#/palette/palette_command';
 import { useSendToStandby } from '#/standby/use_send_to_standby';
+import { useOpenDocumentation } from '#/documentation/use_open_documentation';
 
 type RunPaletteAction = (action: PaletteAction) => void;
 
@@ -15,6 +16,7 @@ export function useRunPaletteAction(): RunPaletteAction {
 	const runDaemonAction = useDaemonAction();
 	const deleteTag = useDeleteTag();
 	const { sendTunnel, sendTag, sendAll } = useSendToStandby();
+	const openDocumentation = useOpenDocumentation();
 
 	const sendStandbyTunnel = async (tunnelId: string) => {
 		const tunnel = useDaemonStore
@@ -48,6 +50,8 @@ export function useRunPaletteAction(): RunPaletteAction {
 				return ui.toggleSidebar();
 			case 'showShortcuts':
 				return ui.setHelpOpen(true);
+			case 'openDocumentation':
+				return void openDocumentation('home');
 			case 'showTunnelDetails':
 				return ui.openTunnelDetails(action.tunnelId);
 			case 'editTunnel':

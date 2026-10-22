@@ -10,6 +10,7 @@ import {
 import { useUiStore } from '#/state/ui_store';
 import { QuitButton } from '#/quit/quit_button';
 import { formatShortcutTooltip } from '#/shared/shortcut_tooltip';
+import { useOpenDocumentation } from '#/documentation/use_open_documentation';
 
 export function HeaderActions() {
 	const { t } = useLingui();
@@ -25,6 +26,8 @@ export function HeaderActions() {
 	const handleNewTunnel = () => openTunnelEditor(null);
 	const handleOpenPalette = () => setPaletteOpen(true);
 	const handleOpenHelp = () => setHelpOpen(true);
+	const openDocumentation = useOpenDocumentation();
+	const handleOpenDocumentation = () => void openDocumentation('home');
 
 	return (
 		<>
@@ -89,6 +92,15 @@ export function HeaderActions() {
 				variant="ghost"
 				color="neutral"
 				onClick={handleOpenHelp}
+			/>
+			<IconButton
+				icon="i-mdi-help-circle-outline"
+				aria-label={t`Documentation`}
+				tooltip={{ content: formatShortcutTooltip(t`Documentation`, 'F1') }}
+				aria-keyshortcuts="F1"
+				variant="ghost"
+				color="neutral"
+				onClick={handleOpenDocumentation}
 			/>
 			<QuitButton />
 		</>

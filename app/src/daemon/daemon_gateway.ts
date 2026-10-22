@@ -1,8 +1,10 @@
+import type { Locale } from '#/i18n/supported_locales';
 import type {
 	EventMessage,
 	HostKeyDecisionDto,
 	ImportPreviewDto,
 	DeleteTagResultDto,
+	DocumentationPageDto,
 	AvailableOpenerDto,
 	OpenerSpecDto,
 	ForgetSecretsResultDto,
@@ -92,6 +94,8 @@ export type DaemonGateway = {
 	): Promise<void>;
 	/** Opens the release page of the pending update in the browser. */
 	openReleasePage(): Promise<void>;
+	/** Opens a page of the documentation site, in this language, in the browser. */
+	openDocumentation(page: DocumentationPageDto, locale: Locale): Promise<void>;
 	respondHostKey(promptId: string, decision: HostKeyDecisionDto): Promise<void>;
 	/** On success the native side exits the app. */
 	quit(force: boolean): Promise<void>;

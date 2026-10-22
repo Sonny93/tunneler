@@ -198,7 +198,7 @@ msgstr "{tunnelCount, plural, one {Tags for # tunnel} other {Tags for # tunnels}
 msgid "{tunnelCount, plural, one {The tag will be removed from # tunnel. The tunnels are kept.} other {The tag will be removed from # tunnels. The tunnels are kept.}}"
 msgstr "{tunnelCount, plural, one {The tag will be removed from # tunnel. The tunnels are kept.} other {The tag will be removed from # tunnels. The tunnels are kept.}}"
 
-#: src/openers/use_openers_editor.ts:70
+#: src/openers/use_openers_editor.ts:72
 msgid "{usageCount, plural, one {# tunnel uses this application and will not be able to open until another one is chosen.} other {# tunnels use this application and will not be able to open until another one is chosen.}}"
 msgstr "{usageCount, plural, one {# tunnel uses this application and will not be able to open until another one is chosen.} other {# tunnels use this application and will not be able to open until another one is chosen.}}"
 
@@ -252,7 +252,7 @@ msgstr "Active"
 msgid "Active connections"
 msgstr "Active connections"
 
-#: src/openers/opener_form.tsx:164
+#: src/openers/opener_form.tsx:178
 msgid "Add"
 msgstr "Add"
 
@@ -260,12 +260,12 @@ msgstr "Add"
 msgid "Add a tag"
 msgstr "Add a tag"
 
-#: src/openers/applications_section.tsx:151
-#: src/openers/opener_form.tsx:48
+#: src/openers/applications_section.tsx:187
+#: src/openers/opener_form.tsx:54
 msgid "Add an application"
 msgstr "Add an application"
 
-#: src/openers/applications_section.tsx:125
+#: src/openers/applications_section.tsx:161
 msgid "Added"
 msgstr "Added"
 
@@ -326,19 +326,19 @@ msgstr "Analyze"
 msgid "Application"
 msgstr "Application"
 
-#: src/openers/use_openers_editor.ts:57
+#: src/openers/use_openers_editor.ts:59
 msgid "Application {name} added"
 msgstr "Application {name} added"
 
-#: src/openers/use_openers_editor.ts:90
+#: src/openers/use_openers_editor.ts:92
 msgid "Application {name} deleted"
 msgstr "Application {name} deleted"
 
-#: src/openers/use_openers_editor.ts:56
+#: src/openers/use_openers_editor.ts:58
 msgid "Application {name} saved"
 msgstr "Application {name} saved"
 
-#: src/openers/applications_section.tsx:106
+#: src/openers/applications_section.tsx:134
 msgid "Applications"
 msgstr "Applications"
 
@@ -346,7 +346,7 @@ msgstr "Applications"
 msgid "Apply"
 msgstr "Apply"
 
-#: src/openers/opener_form.tsx:142
+#: src/openers/opener_form.tsx:156
 msgid "Arguments"
 msgstr "Arguments"
 
@@ -378,7 +378,7 @@ msgstr "Both"
 msgid "Browser"
 msgstr "Browser"
 
-#: src/openers/opener_form.tsx:161
+#: src/openers/opener_form.tsx:175
 #: src/prompts/credential_prompt_content.tsx:95
 #: src/settings/settings_panel.tsx:40
 #: src/shared/app_ui_provider.tsx:13
@@ -388,7 +388,7 @@ msgstr "Browser"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/openers/opener_form.tsx:124
+#: src/openers/opener_form.tsx:88
 msgid "Cannot be changed: tunnels refer to it by this identifier."
 msgstr "Cannot be changed: tunnels refer to it by this identifier."
 
@@ -408,7 +408,7 @@ msgstr "Check the target"
 msgid "Check this fingerprint with the server administrator before accepting it."
 msgstr "Check this fingerprint with the server administrator before accepting it."
 
-#: src/shortcuts/shortcut_definitions.ts:31
+#: src/shortcuts/shortcut_definitions.ts:32
 msgid "Checkbox, switch and menu of the row"
 msgstr "Checkbox, switch and menu of the row"
 
@@ -436,11 +436,11 @@ msgstr "Clear"
 msgid "Clear selection"
 msgstr "Clear selection"
 
-#: src/shortcuts/shortcut_definitions.ts:47
+#: src/shortcuts/shortcut_definitions.ts:48
 msgid "Clear the selection"
 msgstr "Clear the selection"
 
-#: src/shortcuts/shortcut_definitions.ts:40
+#: src/shortcuts/shortcut_definitions.ts:41
 msgid "click"
 msgstr "click"
 
@@ -453,11 +453,11 @@ msgstr "Close"
 msgid "Close notification"
 msgstr "Close notification"
 
-#: src/shortcuts/shortcut_definitions.ts:50
+#: src/shortcuts/shortcut_definitions.ts:51
 msgid "Close the panel or the dialog"
 msgstr "Close the panel or the dialog"
 
-#: src/openers/opener_form.tsx:132
+#: src/openers/opener_form.tsx:146
 msgid "Command"
 msgstr "Command"
 
@@ -466,8 +466,8 @@ msgstr "Command"
 msgid "Command copied"
 msgstr "Command copied"
 
-#: src/header/header_actions.tsx:65
-#: src/header/header_actions.tsx:67
+#: src/header/header_actions.tsx:68
+#: src/header/header_actions.tsx:70
 #: src/palette/command_palette.tsx:34
 msgid "Command palette"
 msgstr "Command palette"
@@ -482,7 +482,7 @@ msgstr "Configuration copied"
 
 #: src/host_config/host_config_button.tsx:20
 #: src/host_config/host_config_panel.tsx:22
-#: src/palette/build_palette_commands.ts:242
+#: src/palette/build_palette_commands.ts:248
 msgid "Configuration of {host}"
 msgstr "Configuration of {host}"
 
@@ -546,7 +546,7 @@ msgstr "Couldn't copy the fingerprint"
 msgid "Couldn't copy to the clipboard"
 msgstr "Couldn't copy to the clipboard"
 
-#: src/openers/use_openers_editor.ts:85
+#: src/openers/use_openers_editor.ts:87
 msgid "Couldn't delete the application"
 msgstr "Couldn't delete the application"
 
@@ -574,7 +574,11 @@ msgstr "Couldn't install the update"
 msgid "Couldn't launch {name} on {host}"
 msgstr "Couldn't launch {name} on {host}"
 
-#: src/palette/use_run_palette_action.ts:41
+#: src/documentation/use_open_documentation.ts:23
+msgid "Couldn't open the documentation"
+msgstr "Couldn't open the documentation"
+
+#: src/palette/use_run_palette_action.ts:43
 #: src/settings/open_config_folder_button.tsx:13
 msgid "Couldn't open the folder"
 msgstr "Couldn't open the folder"
@@ -583,7 +587,7 @@ msgstr "Couldn't open the folder"
 msgid "Couldn't open the page"
 msgstr "Couldn't open the page"
 
-#: src/palette/use_run_palette_action.ts:88
+#: src/palette/use_run_palette_action.ts:92
 #: src/tunnel_details/use_open_tunnel.ts:35
 msgid "Couldn't open the tunnel"
 msgstr "Couldn't open the tunnel"
@@ -629,12 +633,12 @@ msgstr "Couldn't send the answer"
 msgid "Couldn't send to standby"
 msgstr "Couldn't send to standby"
 
-#: src/palette/use_run_palette_action.ts:62
+#: src/palette/use_run_palette_action.ts:66
 #: src/tunnels/list/use_tunnel_actions.ts:74
 msgid "Couldn't start the tunnel"
 msgstr "Couldn't start the tunnel"
 
-#: src/palette/use_run_palette_action.ts:78
+#: src/palette/use_run_palette_action.ts:82
 #: src/sidebar/tag_filter_row.tsx:61
 msgid "Couldn't start the tunnels"
 msgstr "Couldn't start the tunnels"
@@ -647,13 +651,13 @@ msgstr "Couldn't start X11 for {host}"
 msgid "Couldn't stop the process"
 msgstr "Couldn't stop the process"
 
-#: src/palette/use_run_palette_action.ts:67
+#: src/palette/use_run_palette_action.ts:71
 #: src/tunnels/list/use_tunnel_actions.ts:36
 #: src/tunnels/list/use_tunnel_actions.ts:68
 msgid "Couldn't stop the tunnel"
 msgstr "Couldn't stop the tunnel"
 
-#: src/palette/use_run_palette_action.ts:83
+#: src/palette/use_run_palette_action.ts:87
 #: src/sidebar/tag_filter_row.tsx:55
 msgid "Couldn't stop the tunnels"
 msgstr "Couldn't stop the tunnels"
@@ -669,6 +673,14 @@ msgstr "Create"
 #: src/tunnels/list/tunnel_list_empty.tsx:23
 msgid "Create a tunnel"
 msgstr "Create a tunnel"
+
+#: src/openers/applications_section.tsx:109
+msgid "Customize"
+msgstr "Customize"
+
+#: src/openers/applications_section.tsx:106
+msgid "Customize {name}"
+msgstr "Customize {name}"
 
 #: src/disconnected_screen.tsx:22
 msgid "Daemon unreachable: {reason}"
@@ -686,8 +698,8 @@ msgstr "Default listen address (local)"
 msgid "Default listen address (remote)"
 msgstr "Default listen address (remote)"
 
-#: src/openers/applications_section.tsx:81
-#: src/openers/use_openers_editor.ts:75
+#: src/openers/applications_section.tsx:82
+#: src/openers/use_openers_editor.ts:77
 #: src/tunnels/list/tunnel_menu_items.tsx:72
 #: src/tunnels/list/use_tunnel_actions.ts:89
 #: src/tunnels/selection/use_bulk_tunnel_actions.tsx:120
@@ -695,7 +707,7 @@ msgstr "Default listen address (remote)"
 msgid "Delete"
 msgstr "Delete"
 
-#: src/openers/applications_section.tsx:78
+#: src/openers/applications_section.tsx:79
 msgid "Delete {name}"
 msgstr "Delete {name}"
 
@@ -707,7 +719,7 @@ msgstr "Delete tag"
 msgid "Delete tag {tag}?"
 msgstr "Delete tag {tag}?"
 
-#: src/palette/build_palette_commands.ts:221
+#: src/palette/build_palette_commands.ts:227
 msgid "Delete tag {tag}…"
 msgstr "Delete tag {tag}…"
 
@@ -715,7 +727,7 @@ msgstr "Delete tag {tag}…"
 msgid "Delete tag…"
 msgstr "Delete tag…"
 
-#: src/openers/use_openers_editor.ts:69
+#: src/openers/use_openers_editor.ts:71
 msgid "Delete the application {name}?"
 msgstr "Delete the application {name}?"
 
@@ -736,11 +748,11 @@ msgstr "Deselect all"
 msgid "Details"
 msgstr "Details"
 
-#: src/palette/build_palette_commands.ts:161
+#: src/palette/build_palette_commands.ts:167
 msgid "Details of {endpointLabel}"
 msgstr "Details of {endpointLabel}"
 
-#: src/openers/applications_section.tsx:113
+#: src/openers/applications_section.tsx:141
 msgid "Detected on this computer"
 msgstr "Detected on this computer"
 
@@ -751,6 +763,11 @@ msgstr "Detected tunnels ({candidateCount})"
 #: src/settings/settings_language_fieldset.tsx:39
 msgid "Display language"
 msgstr "Display language"
+
+#: src/header/header_actions.tsx:98
+#: src/header/header_actions.tsx:99
+msgid "Documentation"
+msgstr "Documentation"
 
 #: src/prompts/credential_prompt_text.ts:102
 msgid "Don't remember"
@@ -780,22 +797,22 @@ msgstr "Dynamic proxy {route}"
 msgid "Each time the window opens, Tunneler contacts GitHub to see whether a new version exists. Nothing is installed without your approval."
 msgstr "Each time the window opens, Tunneler contacts GitHub to see whether a new version exists. Nothing is installed without your approval."
 
-#: src/openers/applications_section.tsx:72
+#: src/openers/applications_section.tsx:73
 #: src/tunnel_details/tunnel_actions_section.tsx:164
 #: src/tunnels/list/tunnel_menu_items.tsx:55
 msgid "Edit"
 msgstr "Edit"
 
-#: src/palette/build_palette_commands.ts:167
+#: src/palette/build_palette_commands.ts:173
 #: src/tunnel_form/tunnel_form_panel.tsx:42
 msgid "Edit {endpointLabel}"
 msgstr "Edit {endpointLabel}"
 
-#: src/openers/applications_section.tsx:69
+#: src/openers/applications_section.tsx:70
 msgid "Edit {name}"
 msgstr "Edit {name}"
 
-#: src/openers/opener_form.tsx:48
+#: src/openers/opener_form.tsx:54
 msgid "Edit {openerName}"
 msgstr "Edit {openerName}"
 
@@ -823,7 +840,7 @@ msgstr "Enable X11"
 msgid "Enable X11 for {host}?"
 msgstr "Enable X11 for {host}?"
 
-#: src/shortcuts/shortcut_definitions.ts:26
+#: src/shortcuts/shortcut_definitions.ts:27
 msgid "End"
 msgstr "End"
 
@@ -839,8 +856,8 @@ msgstr "Enter a tag."
 msgid "Error"
 msgstr "Error"
 
-#: src/shortcuts/shortcut_definitions.ts:47
-#: src/shortcuts/shortcut_definitions.ts:49
+#: src/shortcuts/shortcut_definitions.ts:48
+#: src/shortcuts/shortcut_definitions.ts:50
 msgid "Esc"
 msgstr "Esc"
 
@@ -865,7 +882,7 @@ msgstr "Filter options"
 msgid "Fingerprint copied"
 msgstr "Fingerprint copied"
 
-#: src/shortcuts/shortcut_definitions.ts:27
+#: src/shortcuts/shortcut_definitions.ts:28
 msgid "First / last tunnel"
 msgstr "First / last tunnel"
 
@@ -931,7 +948,7 @@ msgstr "Hide or show the sidebar"
 msgid "Hide the sidebar"
 msgstr "Hide the sidebar"
 
-#: src/shortcuts/shortcut_definitions.ts:26
+#: src/shortcuts/shortcut_definitions.ts:27
 msgid "Home"
 msgstr "Home"
 
@@ -969,7 +986,11 @@ msgstr "Host to open"
 msgid "Hosts"
 msgstr "Hosts"
 
-#: src/openers/opener_form.tsx:117
+#: src/openers/documentation_hint.tsx:21
+msgid "How to add an application"
+msgstr "How to add an application"
+
+#: src/openers/opener_form.tsx:131
 msgid "Identifier"
 msgstr "Identifier"
 
@@ -986,7 +1007,7 @@ msgstr "Ignore"
 msgid "Ignore {description}"
 msgstr "Ignore {description}"
 
-#: src/header/header_actions.tsx:61
+#: src/header/header_actions.tsx:64
 msgid "Import"
 msgstr "Import"
 
@@ -1044,6 +1065,10 @@ msgstr "Install and restart"
 msgid "Install the update?"
 msgstr "Install the update?"
 
+#: src/openers/documentation_hint.tsx:14
+msgid "Installed somewhere else, like a portable version? Add it below with the full path of its program."
+msgstr "Installed somewhere else, like a portable version? Add it below with the full path of its program."
+
 #: src/updates/describe_update_progress.ts:29
 msgid "Installing, Tunneler will restart."
 msgstr "Installing, Tunneler will restart."
@@ -1068,8 +1093,8 @@ msgstr "KB"
 msgid "Keepalive interval (seconds)"
 msgstr "Keepalive interval (seconds)"
 
-#: src/header/header_actions.tsx:85
-#: src/header/header_actions.tsx:87
+#: src/header/header_actions.tsx:88
+#: src/header/header_actions.tsx:90
 #: src/shortcuts/shortcuts_help.tsx:20
 msgid "Keyboard shortcuts"
 msgstr "Keyboard shortcuts"
@@ -1196,7 +1221,7 @@ msgstr "Log unavailable: {errorMessage}"
 msgid "Looked-up name"
 msgstr "Looked-up name"
 
-#: src/openers/opener_form.tsx:123
+#: src/openers/opener_form.tsx:87
 msgid "Lowercase letters, digits and dashes. Cannot be changed after creation."
 msgstr "Lowercase letters, digits and dashes. Cannot be changed after creation."
 
@@ -1220,7 +1245,7 @@ msgstr "MB"
 msgid "Metrics"
 msgstr "Metrics"
 
-#: src/openers/opener_form.tsx:108
+#: src/openers/opener_form.tsx:122
 msgid "Name"
 msgstr "Name"
 
@@ -1240,7 +1265,7 @@ msgstr "New temporary tunnel"
 msgid "New temporary tunnel…"
 msgstr "New temporary tunnel…"
 
-#: src/header/header_actions.tsx:37
+#: src/header/header_actions.tsx:40
 #: src/palette/build_palette_commands.ts:37
 #: src/shortcuts/shortcut_definitions.ts:13
 #: src/tunnel_form/tunnel_form_panel.tsx:44
@@ -1251,11 +1276,11 @@ msgstr "New tunnel"
 msgid "No"
 msgstr "No"
 
-#: src/openers/applications_section.tsx:129
+#: src/openers/applications_section.tsx:165
 msgid "No application added."
 msgstr "No application added."
 
-#: src/openers/applications_section.tsx:117
+#: src/openers/applications_section.tsx:145
 msgid "No application detected."
 msgstr "No application detected."
 
@@ -1312,9 +1337,9 @@ msgstr "Notification"
 msgid "Notification icon unavailable"
 msgstr "Notification icon unavailable"
 
-#: src/openers/opener_form.tsx:146
-msgid "One argument per line, passed as is: no shell interprets quotes or spaces. {hostPlaceholder}, {portPlaceholder} and {urlPlaceholder} are replaced."
-msgstr "One argument per line, passed as is: no shell interprets quotes or spaces. {hostPlaceholder}, {portPlaceholder} and {urlPlaceholder} are replaced."
+#: src/openers/opener_form.tsx:160
+msgid "One argument per line, passed as is: no shell interprets quotes or spaces. {hostPlaceholder} is the address the tunnel listens on (localhost or its IP), {portPlaceholder} is the local port of the tunnel (not the target port), {urlPlaceholder} is the full address, as opened in the browser."
+msgstr "One argument per line, passed as is: no shell interprets quotes or spaces. {hostPlaceholder} is the address the tunnel listens on (localhost or its IP), {portPlaceholder} is the local port of the tunnel (not the target port), {urlPlaceholder} is the full address, as opened in the browser."
 
 #: src/tag_rename/validate_tag_name.ts:10
 msgid "Only one tag, without a comma."
@@ -1337,7 +1362,7 @@ msgstr "Open in the browser"
 msgid "Open settings"
 msgstr "Open settings"
 
-#: src/shortcuts/shortcut_definitions.ts:18
+#: src/shortcuts/shortcut_definitions.ts:19
 msgid "Open the command palette"
 msgstr "Open the command palette"
 
@@ -1345,6 +1370,11 @@ msgstr "Open the command palette"
 #: src/settings/open_config_folder_button.tsx:24
 msgid "Open the configuration folder"
 msgstr "Open the configuration folder"
+
+#: src/palette/build_palette_commands.ts:79
+#: src/shortcuts/shortcut_definitions.ts:18
+msgid "Open the documentation"
+msgstr "Open the documentation"
 
 #: src/tunnels/list/open_with_menu_items.tsx:21
 msgid "Open with"
@@ -1375,7 +1405,7 @@ msgstr "Option"
 msgid "Optional. Added to every imported tunnel; separate several tags with commas."
 msgstr "Optional. Added to every imported tunnel; separate several tags with commas."
 
-#: src/header/header_actions.tsx:44
+#: src/header/header_actions.tsx:47
 msgid "Other ways to create a tunnel"
 msgstr "Other ways to create a tunnel"
 
@@ -1449,7 +1479,7 @@ msgstr "PowerShell or shell script (ssh -L …), list of ports (3333, 5432), or 
 msgid "Presented fingerprint"
 msgstr "Presented fingerprint"
 
-#: src/shortcuts/shortcut_definitions.ts:24
+#: src/shortcuts/shortcut_definitions.ts:25
 msgid "Previous / next tunnel"
 msgstr "Previous / next tunnel"
 
@@ -1546,13 +1576,17 @@ msgstr "Rename tag"
 msgid "Rename tag {tag}"
 msgstr "Rename tag {tag}"
 
-#: src/palette/build_palette_commands.ts:215
+#: src/palette/build_palette_commands.ts:221
 msgid "Rename tag {tag}…"
 msgstr "Rename tag {tag}…"
 
 #: src/sidebar/tag_filter_row.tsx:68
 msgid "Rename…"
 msgstr "Rename…"
+
+#: src/openers/opener_form.tsx:138
+msgid "Replaces the detected {replacedName}."
+msgstr "Replaces the detected {replacedName}."
 
 #: src/shared/app_ui_provider.tsx:18
 msgid "required"
@@ -1594,7 +1628,7 @@ msgstr "Runs {command}"
 msgid "Same port as a tunnel above"
 msgstr "Same port as a tunnel above"
 
-#: src/openers/opener_form.tsx:164
+#: src/openers/opener_form.tsx:178
 #: src/settings/settings_panel.tsx:43
 #: src/tunnel_form/tunnel_form_panel.tsx:36
 msgid "Save"
@@ -1638,7 +1672,7 @@ msgstr "Seen from the SSH server"
 msgid "Select {endpoint}"
 msgstr "Select {endpoint}"
 
-#: src/shortcuts/shortcut_definitions.ts:41
+#: src/shortcuts/shortcut_definitions.ts:42
 msgid "Select a range of tunnels"
 msgstr "Select a range of tunnels"
 
@@ -1647,20 +1681,20 @@ msgstr "Select a range of tunnels"
 msgid "Select all"
 msgstr "Select all"
 
-#: src/shortcuts/shortcut_definitions.ts:45
+#: src/shortcuts/shortcut_definitions.ts:46
 msgid "Select all displayed tunnels"
 msgstr "Select all displayed tunnels"
 
-#: src/palette/build_palette_commands.ts:111
+#: src/palette/build_palette_commands.ts:117
 msgid "Send {endpointLabel} to standby"
 msgstr "Send {endpointLabel} to standby"
 
-#: src/palette/build_palette_commands.ts:263
+#: src/palette/build_palette_commands.ts:269
 #: src/sidebar/sidebar.tsx:61
 msgid "Send awake tunnels to standby"
 msgstr "Send awake tunnels to standby"
 
-#: src/palette/build_palette_commands.ts:208
+#: src/palette/build_palette_commands.ts:214
 msgid "Send tag {tag} to standby"
 msgstr "Send tag {tag} to standby"
 
@@ -1695,7 +1729,7 @@ msgstr "Sent"
 msgid "Separated by commas."
 msgstr "Separated by commas."
 
-#: src/openers/opener_form.tsx:155
+#: src/openers/opener_form.tsx:169
 msgid "Separated by commas. A tunnel whose target port is one of them offers this application by default."
 msgstr "Separated by commas. A tunnel whose target port is one of them offers this application by default."
 
@@ -1703,8 +1737,8 @@ msgstr "Separated by commas. A tunnel whose target port is one of them offers th
 msgid "Separated by commas. Existing tags: {existingTagsText}."
 msgstr "Separated by commas. Existing tags: {existingTagsText}."
 
-#: src/header/header_actions.tsx:76
-#: src/header/header_actions.tsx:77
+#: src/header/header_actions.tsx:79
+#: src/header/header_actions.tsx:80
 #: src/settings/settings_drawer.tsx:18
 #: src/settings/settings_panel.tsx:49
 msgid "Settings"
@@ -1722,7 +1756,7 @@ msgstr "Settings unavailable."
 msgid "SHA-256 fingerprint"
 msgstr "SHA-256 fingerprint"
 
-#: src/shortcuts/shortcut_definitions.ts:40
+#: src/shortcuts/shortcut_definitions.ts:41
 msgid "Shift"
 msgstr "Shift"
 
@@ -1756,7 +1790,7 @@ msgstr "SOCKS proxy on this computer"
 msgid "Sound"
 msgstr "Sound"
 
-#: src/shortcuts/shortcut_definitions.ts:34
+#: src/shortcuts/shortcut_definitions.ts:35
 msgid "Space"
 msgstr "Space"
 
@@ -1775,15 +1809,15 @@ msgstr "Standby"
 msgid "Start"
 msgstr "Start"
 
-#: src/palette/build_palette_commands.ts:96
+#: src/palette/build_palette_commands.ts:102
 msgid "Start {endpointLabel}"
 msgstr "Start {endpointLabel}"
 
-#: src/shortcuts/shortcut_definitions.ts:35
+#: src/shortcuts/shortcut_definitions.ts:36
 msgid "Start or stop the tunnel, check or uncheck the checkbox"
 msgstr "Start or stop the tunnel, check or uncheck the checkbox"
 
-#: src/palette/build_palette_commands.ts:192
+#: src/palette/build_palette_commands.ts:198
 msgid "Start tag {tag}"
 msgstr "Start tag {tag}"
 
@@ -1820,7 +1854,7 @@ msgstr "Stop"
 msgid "Stop {description}?"
 msgstr "Stop {description}?"
 
-#: src/palette/build_palette_commands.ts:90
+#: src/palette/build_palette_commands.ts:96
 msgid "Stop {endpointLabel}"
 msgstr "Stop {endpointLabel}"
 
@@ -1837,7 +1871,7 @@ msgstr "Stop everything and install"
 msgid "Stop everything and quit"
 msgstr "Stop everything and quit"
 
-#: src/palette/build_palette_commands.ts:200
+#: src/palette/build_palette_commands.ts:206
 msgid "Stop tag {tag}"
 msgstr "Stop tag {tag}"
 
@@ -1883,7 +1917,7 @@ msgstr "StrictHostKeyChecking forbids accepting an unknown key for this host."
 msgid "Submit"
 msgstr "Submit"
 
-#: src/openers/opener_form.tsx:151
+#: src/openers/opener_form.tsx:165
 msgid "Suggested ports"
 msgstr "Suggested ports"
 
@@ -1974,7 +2008,7 @@ msgstr "Temporary tunnel {label} started"
 msgid "Temporary tunnel {label} stopped and removed"
 msgstr "Temporary tunnel {label} stopped and removed"
 
-#: src/header/header_actions.tsx:51
+#: src/header/header_actions.tsx:54
 msgid "Temporary tunnel…"
 msgstr "Temporary tunnel…"
 
@@ -2058,9 +2092,9 @@ msgstr "The port must be a whole number between 1 and 65535."
 msgid "The ports must be whole numbers between 1 and 65535, separated by commas."
 msgstr "The ports must be whole numbers between 1 and 65535, separated by commas."
 
-#: src/openers/opener_form.tsx:136
-msgid "The program to run, without its arguments."
-msgstr "The program to run, without its arguments."
+#: src/openers/opener_form.tsx:150
+msgid "The program to run, without its arguments: a name found in the PATH, or the full path of the executable."
+msgstr "The program to run, without its arguments: a name found in the PATH, or the full path of the executable."
 
 #: src/x11/use_x11_anchor_actions.ts:19
 msgid "The server {host} will have full access to your local display (it can capture the keyboard and the screen). Only enable X11 for a trusted host."
@@ -2110,7 +2144,7 @@ msgstr "The value must be a whole number, zero or more."
 msgid "Theme: {themeLabel}, change"
 msgstr "Theme: {themeLabel}, change"
 
-#: src/openers/applications_section.tsx:109
+#: src/openers/applications_section.tsx:137
 msgid "They open a tunnel instead of the browser. Commands run without a shell, with the arguments as is."
 msgstr "They open a tunnel instead of the browser. Commands run without a shell, with the arguments as is."
 
@@ -2284,7 +2318,7 @@ msgstr "X11 active: {display}"
 msgid "X11 anchor"
 msgstr "X11 anchor"
 
-#: src/palette/build_palette_commands.ts:248
+#: src/palette/build_palette_commands.ts:254
 #: src/x11/x11_header_controls.tsx:30
 msgid "X11 for {host}"
 msgstr "X11 for {host}"

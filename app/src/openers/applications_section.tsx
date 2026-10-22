@@ -5,6 +5,7 @@ import { useLingui } from '@lingui/react/macro';
 import { OpenerForm } from '#/openers/opener_form';
 import type { AvailableOpenerDto } from '#/daemon/protocol';
 import { useOpenersEditor } from '#/openers/use_openers_editor';
+import { DocumentationHint } from '#/openers/documentation_hint';
 
 function describeCommandLine(opener: Readonly<AvailableOpenerDto>): string {
 	return [opener.command, ...opener.args]
@@ -84,6 +85,32 @@ function UserOpenerActions({
 	);
 }
 
+type DetectedOpenerActionsProps = {
+	opener: Readonly<AvailableOpenerDto>;
+	onCustomize: (opener: Readonly<AvailableOpenerDto>) => void;
+};
+
+function DetectedOpenerActions({
+	opener,
+	onCustomize,
+}: Readonly<DetectedOpenerActionsProps>) {
+	const { t } = useLingui();
+	const { name } = opener;
+	const handleCustomize = () => onCustomize(opener);
+
+	return (
+		<Button
+			size="xs"
+			variant="outline"
+			color="neutral"
+			aria-label={t`Customize ${name}`}
+			onClick={handleCustomize}
+		>
+			{t`Customize`}
+		</Button>
+	);
+}
+
 /** The "Applications" section of the settings: detected ones read-only, the user's ones editable. */
 export function ApplicationsSection() {
 	const { t } = useLingui();
@@ -92,6 +119,7 @@ export function ApplicationsSection() {
 	const userId = useId();
 	const editor = useOpenersEditor();
 	const { editing, userOpeners } = editor;
+	const draft = editing.kind === 'create' ? editing.draft : undefined;
 	const editedOpener =
 		editing.kind === 'edit'
 			? userOpeners.find(({ id }) => id === editing.id)
@@ -117,8 +145,16 @@ export function ApplicationsSection() {
 						{t`No application detected.`}
 					</p>
 				) : (
-					<OpenerList headingId={detectedId} openers={editor.detectedOpeners} />
+					<OpenerList headingId={detectedId} openers={editor.detectedOpeners}>
+						{(opener) => (
+							<DetectedOpenerActions
+								opener={opener}
+								onCustomize={editor.startCustomizing}
+							/>
+						)}
+					</OpenerList>
 				)}
+				<DocumentationHint />
 			</div>
 			<div className="flex flex-col gap-2">
 				<h4 id={userId} className="m-0 text-xs font-semibold">
@@ -154,8 +190,10 @@ export function ApplicationsSection() {
 			)}
 			{editing.kind !== 'none' && (
 				<OpenerForm
-					key={editedOpener?.id ?? 'new'}
+					key={editedOpener?.id ?? draft?.id ?? 'new'}
 					opener={editedOpener ?? null}
+					draft={draft}
+					detectedOpeners={editor.detectedOpeners}
 					takenIds={takenIds}
 					onSubmit={editor.save}
 					onCancel={editor.stopEditing}

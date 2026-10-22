@@ -9,10 +9,10 @@ import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import type { AvailableOpenerDto, OpenerSpecDto } from '#/daemon/protocol';
 
-/** The form is hidden, adds an application, or edits the one with this identifier. */
+/** The form is hidden, adds an application (empty or prefilled with a `draft`), or edits the one with this identifier. */
 export type OpenerEditing =
 	| { kind: 'none' }
-	| { kind: 'create' }
+	| { kind: 'create'; draft?: OpenerSpecDto }
 	| { kind: 'edit'; id: string };
 
 type UseOpenersEditorReturn = {
@@ -20,6 +20,8 @@ type UseOpenersEditorReturn = {
 	userOpeners: readonly AvailableOpenerDto[];
 	editing: OpenerEditing;
 	startCreating: () => void;
+	/** Opens the creation form prefilled with a detected application, which the saved one replaces. */
+	startCustomizing: (opener: Readonly<AvailableOpenerDto>) => void;
 	startEditing: (id: string) => void;
 	stopEditing: () => void;
 	/** Rejects when the daemon refuses, so the form can show why. */
@@ -96,6 +98,8 @@ export function useOpenersEditor(): UseOpenersEditorReturn {
 		userOpeners,
 		editing,
 		startCreating: () => setEditing({ kind: 'create' }),
+		startCustomizing: (opener) =>
+			setEditing({ kind: 'create', draft: toSpec(opener) }),
 		startEditing: (id) => setEditing({ kind: 'edit', id }),
 		stopEditing: () => setEditing({ kind: 'none' }),
 		save,

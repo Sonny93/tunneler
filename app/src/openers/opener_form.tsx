@@ -2,9 +2,9 @@ import { useLingui } from '@lingui/react/macro';
 import { Button, Input, Textarea } from '@minimalstuff/ui';
 import { useId, useState, type ChangeEvent, type FormEvent } from 'react';
 
-import type { OpenerSpecDto } from '#/daemon/protocol';
 import { FormErrorSummary } from '#/shared/form_error_summary';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
+import type { AvailableOpenerDto, OpenerSpecDto } from '#/daemon/protocol';
 import {
 	getFirstInvalidOpenerField,
 	validateOpenerForm,
@@ -22,6 +22,10 @@ import {
 type OpenerFormProps = {
 	/** The application being edited, or `null` to add one. */
 	opener: Readonly<OpenerSpecDto> | null;
+	/** Prefills the form of an addition, e.g. from a detected application to customize. */
+	draft?: Readonly<OpenerSpecDto>;
+	/** The detected applications: one with the same identifier is replaced by the saved one. */
+	detectedOpeners: readonly Readonly<AvailableOpenerDto>[];
 	/** The identifiers of the user's other applications. */
 	takenIds: readonly string[];
 	onSubmit: (spec: OpenerSpecDto) => Promise<void>;
@@ -35,6 +39,8 @@ function focusField(form: HTMLFormElement, fieldName: string): void {
 
 export function OpenerForm({
 	opener,
+	draft,
+	detectedOpeners,
 	takenIds,
 	onSubmit,
 	onCancel,
@@ -46,10 +52,14 @@ export function OpenerForm({
 	const isCreation = opener === null;
 	const openerName = opener?.name ?? '';
 	const formLabel = isCreation ? t`Add an application` : t`Edit ${openerName}`;
+	const initialOpener = opener ?? draft;
 	const [values, setValues] = useState<OpenerFormValues>(
-		opener ? toOpenerFormValues(opener) : EMPTY_OPENER_FORM_VALUES
+		initialOpener ? toOpenerFormValues(initialOpener) : EMPTY_OPENER_FORM_VALUES
 	);
-	const [isIdEdited, setIsIdEdited] = useState(false);
+	const [isIdEdited, setIsIdEdited] = useState(draft !== undefined);
+	const replacedName = detectedOpeners.find(
+		({ id }) => id === values.id.trim()
+	)?.name;
 	const [errors, setErrors] = useState<OpenerFormErrors>({});
 	const [isSaving, setIsSaving] = useState(false);
 	const summary = useFormErrorSummary();
@@ -72,6 +82,10 @@ export function OpenerForm({
 			change(field, event.target.value);
 	const handleArguments = (event: ChangeEvent<HTMLTextAreaElement>) =>
 		change('args', event.target.value);
+
+	const idDescription = isCreation
+		? t`Lowercase letters, digits and dashes. Cannot be changed after creation.`
+		: t`Cannot be changed: tunnels refer to it by this identifier.`;
 
 	const submit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -119,9 +133,9 @@ export function OpenerForm({
 				onChange={handleId}
 				error={errors.id && i18n._(errors.id)}
 				description={
-					isCreation
-						? t`Lowercase letters, digits and dashes. Cannot be changed after creation.`
-						: t`Cannot be changed: tunnels refer to it by this identifier.`
+					replacedName === undefined
+						? idDescription
+						: t`Replaces the detected ${replacedName}.`
 				}
 				readOnly={!isCreation}
 				required
@@ -133,7 +147,7 @@ export function OpenerForm({
 				value={values.command}
 				onChange={handleText('command')}
 				error={errors.command && i18n._(errors.command)}
-				description={t`The program to run, without its arguments.`}
+				description={t`The program to run, without its arguments: a name found in the PATH, or the full path of the executable.`}
 				required
 				autoComplete="off"
 			/>
@@ -143,7 +157,7 @@ export function OpenerForm({
 				value={values.args}
 				onChange={handleArguments}
 				error={errors.args && i18n._(errors.args)}
-				description={t`One argument per line, passed as is: no shell interprets quotes or spaces. ${hostPlaceholder}, ${portPlaceholder} and ${urlPlaceholder} are replaced.`}
+				description={t`One argument per line, passed as is: no shell interprets quotes or spaces. ${hostPlaceholder} is the address the tunnel listens on (localhost or its IP), ${portPlaceholder} is the local port of the tunnel (not the target port), ${urlPlaceholder} is the full address, as opened in the browser.`}
 				rows={4}
 			/>
 			<Input

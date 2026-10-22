@@ -6,6 +6,7 @@ export type PaletteAction =
 	| { kind: 'revealConfig' }
 	| { kind: 'toggleSidebar' }
 	| { kind: 'showShortcuts' }
+	| { kind: 'openDocumentation' }
 	| { kind: 'startTunnel'; tunnelId: string }
 	| { kind: 'stopTunnel'; tunnelId: string }
 	| { kind: 'standbyTunnel'; tunnelId: string }

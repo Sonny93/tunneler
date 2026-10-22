@@ -69,6 +69,8 @@ export function createTauriGateway(): DaemonGateway {
 			return call('install_update', { onProgress: channel });
 		},
 		openReleasePage: () => call('open_release_page'),
+		openDocumentation: (page, locale) =>
+			call('open_documentation', { page, locale }),
 		respondHostKey: (promptId, decision) =>
 			call('respond_host_key', { promptId, decision }),
 		quit: (force) => call('quit_daemon', { force }),

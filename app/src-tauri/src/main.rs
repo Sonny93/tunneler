@@ -7,6 +7,8 @@ mod commands;
 mod connection_slot;
 mod credential;
 mod daemon_binary;
+mod documentation_commands;
+mod documentation_page;
 mod main_window;
 mod pending_update;
 mod reveal_target;
@@ -77,6 +79,7 @@ fn main() -> tauri::Result<()> {
             update_commands::check_for_update,
             update_commands::install_update,
             update_commands::open_release_page,
+            documentation_commands::open_documentation,
         ])
         .run(tauri::generate_context!())
 }

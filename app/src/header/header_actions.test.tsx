@@ -93,6 +93,15 @@ describe('HeaderActions', () => {
 		expect(await axe(container)).toHaveNoViolations();
 	});
 
+	it('should open the documentation home from the help button', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderActions();
+
+		await user.click(screen.getByRole('button', { name: 'Documentation' }));
+
+		expect(gateway.openDocumentation).toHaveBeenCalledWith('home', 'en');
+	});
+
 	it('should open the import panel', async () => {
 		const user = userEvent.setup();
 		renderActions();

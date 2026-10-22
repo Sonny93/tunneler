@@ -55,6 +55,128 @@ describe('ApplicationsSection', () => {
 		).not.toBeInTheDocument();
 	});
 
+	it('should offer a customize button named after each detected application', () => {
+		useDaemonStore.setState({ openers: [preset] });
+		renderSection();
+
+		expect(
+			screen.getByRole('button', { name: 'Customize Remmina (VNC)' })
+		).toBeInTheDocument();
+	});
+
+	it('should open the applications guide in the active language from the hint', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderSection();
+
+		await user.click(
+			screen.getByRole('button', { name: 'How to add an application' })
+		);
+
+		expect(gateway.openDocumentation).toHaveBeenCalledWith(
+			'applications',
+			'en'
+		);
+	});
+
+	it('should prefill the form from the detected application when customizing it', async () => {
+		useDaemonStore.setState({ openers: [preset] });
+		const user = userEvent.setup();
+		renderSection();
+
+		await user.click(
+			screen.getByRole('button', { name: 'Customize Remmina (VNC)' })
+		);
+
+		const form = screen.getByRole('form', { name: 'Add an application' });
+		expect(within(form).getByRole('textbox', { name: /^Name/ })).toHaveValue(
+			'Remmina (VNC)'
+		);
+		expect(
+			within(form).getByRole('textbox', { name: /^Identifier/ })
+		).toHaveValue('remmina-vnc');
+		expect(within(form).getByRole('textbox', { name: /^Command/ })).toHaveValue(
+			'remmina'
+		);
+		expect(
+			within(form).getByRole('textbox', { name: 'Arguments' })
+		).toHaveValue('-c\nvnc://{host}:{port}');
+		expect(
+			within(form).getByRole('textbox', { name: /^Suggested ports/ })
+		).toHaveValue('5900');
+	});
+
+	it('should say that the identifier replaces the detected application', async () => {
+		useDaemonStore.setState({ openers: [preset] });
+		const user = userEvent.setup();
+		renderSection();
+
+		await user.click(
+			screen.getByRole('button', { name: 'Customize Remmina (VNC)' })
+		);
+
+		expect(
+			screen.getByRole('textbox', { name: /^Identifier/ })
+		).toHaveAccessibleDescription('Replaces the detected Remmina (VNC).');
+	});
+
+	it('should keep the identifier of the preset when its name is edited', async () => {
+		useDaemonStore.setState({ openers: [preset] });
+		const user = userEvent.setup();
+		renderSection();
+		await user.click(
+			screen.getByRole('button', { name: 'Customize Remmina (VNC)' })
+		);
+
+		await user.type(screen.getByRole('textbox', { name: /^Name/ }), ' bis');
+
+		expect(screen.getByRole('textbox', { name: /^Identifier/ })).toHaveValue(
+			'remmina-vnc'
+		);
+	});
+
+	it('should save the customized application with the identifier of the preset', async () => {
+		useDaemonStore.setState({ openers: [preset, mine] });
+		const user = userEvent.setup();
+		const gateway = createFakeGateway();
+		renderSection(gateway);
+		await user.click(
+			screen.getByRole('button', { name: 'Customize Remmina (VNC)' })
+		);
+		const command = screen.getByRole('textbox', { name: /^Command/ });
+		await user.clear(command);
+		await user.type(command, 'C:\\Tools\\remmina.exe');
+
+		await user.click(screen.getByRole('button', { name: 'Add' }));
+
+		expect(gateway.updateOpeners).toHaveBeenCalledWith([
+			MINE_SPEC,
+			{
+				id: 'remmina-vnc',
+				name: 'Remmina (VNC)',
+				command: 'C:\\Tools\\remmina.exe',
+				args: ['-c', 'vnc://{host}:{port}'],
+				ports: [5900],
+			},
+		]);
+	});
+
+	it('should spell out the parameters and the command in the field hints', async () => {
+		const user = userEvent.setup();
+		renderSection();
+		await user.click(
+			screen.getByRole('button', { name: 'Add an application' })
+		);
+
+		expect(
+			screen.getByRole('textbox', { name: 'Arguments' })
+		).toHaveAccessibleDescription(
+			expect.stringContaining('the local port of the tunnel')
+		);
+		expect(
+			screen.getByRole('textbox', { name: /^Command/ })
+		).toHaveAccessibleDescription(expect.stringContaining('full path'));
+	});
+
 	it('should say when nothing is detected or added', () => {
 		renderSection();
 
@@ -359,6 +481,17 @@ describe('ApplicationsSection', () => {
 	it('should have no axe violations', async () => {
 		useDaemonStore.setState({ openers: [preset, mine] });
 		const { container } = renderSection();
+
+		expect(await axe(container)).toHaveNoViolations();
+	});
+
+	it('should have no axe violations with the form customizing a detected application', async () => {
+		useDaemonStore.setState({ openers: [preset] });
+		const user = userEvent.setup();
+		const { container } = renderSection();
+		await user.click(
+			screen.getByRole('button', { name: 'Customize Remmina (VNC)' })
+		);
 
 		expect(await axe(container)).toHaveNoViolations();
 	});

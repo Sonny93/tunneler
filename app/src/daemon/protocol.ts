@@ -174,6 +174,9 @@ export type SettingsDto = {
 	checkForUpdates: boolean;
 };
 
+/** The pages of the documentation site the app can open. */
+export type DocumentationPageDto = 'home' | 'applications';
+
 /** What the banner offers for a newer version. */
 export type UpdateActionDto = 'installAndRestart' | 'releaseLinkOnly';
 

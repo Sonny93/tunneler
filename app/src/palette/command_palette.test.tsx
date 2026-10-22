@@ -124,6 +124,19 @@ describe('CommandPalette', () => {
 		).toBeInTheDocument();
 	});
 
+	it('should open the documentation home from the palette', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderPalette();
+		await openPalette(user);
+
+		await user.type(getInput(), 'documentation');
+		await user.keyboard('{Enter}');
+
+		await waitFor(() =>
+			expect(gateway.openDocumentation).toHaveBeenCalledWith('home', 'en')
+		);
+	});
+
 	it('should announce the number of commands', async () => {
 		const user = userEvent.setup();
 		renderPalette();

@@ -44,6 +44,8 @@ describe('ShortcutsHelp', () => {
 			'Import tunnels',
 			'Ctrl',
 			'K',
+			'F1',
+			'Open the documentation',
 			'Open the command palette',
 			'Previous / next tunnel',
 			'Start or stop the tunnel, check or uncheck the checkbox',

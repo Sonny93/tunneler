@@ -1,7 +1,7 @@
 import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
 
-export type GlobalShortcutKey = 'n' | 'i' | ',' | 'b' | '?';
+export type GlobalShortcutKey = 'n' | 'i' | ',' | 'b' | '?' | 'F1';
 
 export type ShortcutDefinition = {
 	keys: readonly string[];
@@ -15,6 +15,7 @@ export function getGlobalShortcuts(i18n: I18n): readonly ShortcutDefinition[] {
 		{ keys: [','], description: t(i18n)`Open settings` },
 		{ keys: ['b'], description: t(i18n)`Hide or show the sidebar` },
 		{ keys: ['?'], description: t(i18n)`Show keyboard shortcuts` },
+		{ keys: ['F1'], description: t(i18n)`Open the documentation` },
 		{ keys: ['Ctrl', 'K'], description: t(i18n)`Open the command palette` },
 	];
 }

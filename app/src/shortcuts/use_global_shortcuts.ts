@@ -5,8 +5,11 @@ import { useUiStore } from '#/state/ui_store';
 import { isPaletteChord } from '#/shortcuts/is_palette_chord';
 import { shouldHandleShortcut } from '#/shortcuts/should_handle_shortcut';
 import type { GlobalShortcutKey } from '#/shortcuts/shortcut_definitions';
+import { useOpenDocumentation } from '#/documentation/use_open_documentation';
 
-const SHORTCUT_ACTIONS: Readonly<Record<GlobalShortcutKey, () => void>> = {
+const UI_SHORTCUT_ACTIONS: Readonly<
+	Record<Exclude<GlobalShortcutKey, 'F1'>, () => void>
+> = {
 	n: () => useUiStore.getState().openTunnelEditor(null),
 	i: () => useUiStore.getState().openImport(),
 	',': () => useUiStore.getState().openSettings(),
@@ -14,16 +17,22 @@ const SHORTCUT_ACTIONS: Readonly<Record<GlobalShortcutKey, () => void>> = {
 	'?': () => useUiStore.getState().setHelpOpen(true),
 };
 
-function isGlobalShortcutKey(key: string): key is GlobalShortcutKey {
-	return Object.hasOwn(SHORTCUT_ACTIONS, key);
+function isGlobalShortcutKey(
+	actions: Readonly<Record<string, () => void>>,
+	key: string
+): key is GlobalShortcutKey {
+	return Object.hasOwn(actions, key);
 }
 
-function handleKey(event: KeyboardEvent): void {
-	if (!isGlobalShortcutKey(event.key)) return;
+function handleKey(
+	event: KeyboardEvent,
+	actions: Readonly<Record<GlobalShortcutKey, () => void>>
+): void {
+	if (!isGlobalShortcutKey(actions, event.key)) return;
 	const { globalHotkeysEnabled } = useGlobalHotkeysStore.getState();
 	if (!shouldHandleShortcut(event, globalHotkeysEnabled)) return;
 	event.preventDefault();
-	SHORTCUT_ACTIONS[event.key]();
+	actions[event.key]();
 }
 
 /** The palette chord is a modifier chord, so it also works while typing in a field. */
@@ -35,14 +44,20 @@ function handlePaletteChord(event: KeyboardEvent): void {
 	useUiStore.getState().setPaletteOpen(true);
 }
 
-/** Binds `n`, `i`, `,`, `b`, `?` and Ctrl/Meta+K on the document. */
+/** Binds `n`, `i`, `,`, `b`, `?`, `F1` and Ctrl/Meta+K on the document. */
 export function useGlobalShortcuts(): void {
+	const openDocumentation = useOpenDocumentation();
+
 	useEffect(() => {
+		const actions = {
+			...UI_SHORTCUT_ACTIONS,
+			F1: () => void openDocumentation('home'),
+		};
 		const handleKeyDown = (event: KeyboardEvent) => {
 			handlePaletteChord(event);
-			handleKey(event);
+			handleKey(event, actions);
 		};
 		document.addEventListener('keydown', handleKeyDown);
 		return () => document.removeEventListener('keydown', handleKeyDown);
-	}, []);
+	}, [openDocumentation]);
 }

@@ -23,6 +23,7 @@ describe('buildPaletteCommands', () => {
 			'Open the configuration folder',
 			'Hide or show the sidebar',
 			'Show keyboard shortcuts',
+			'Open the documentation',
 		]);
 	});
 

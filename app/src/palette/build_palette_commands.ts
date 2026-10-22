@@ -74,6 +74,12 @@ function buildGeneralCommands(i18n: I18n): PaletteCommand[] {
 			category,
 			action: { kind: 'showShortcuts' },
 		},
+		{
+			id: 'general:documentation',
+			label: t(i18n)`Open the documentation`,
+			category,
+			action: { kind: 'openDocumentation' },
+		},
 	];
 }
 

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { render, screen } from '@testing-library/react';
 import { useDisableHotkeysWhileMounted } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
 import { useGlobalShortcuts } from '#/shortcuts/use_global_shortcuts';
+import { renderWithGateway as render } from '#/testing/render_with_gateway';
 
 function Harness({ isModalOpen = false }: Readonly<{ isModalOpen?: boolean }>) {
 	useGlobalShortcuts();
@@ -61,6 +62,14 @@ describe('useGlobalShortcuts', () => {
 		await userEvent.keyboard('?');
 
 		expect(useUiStore.getState().isHelpOpen).toBe(true);
+	});
+
+	it('should open the documentation home on F1', async () => {
+		const { gateway } = render(<Harness />);
+
+		await userEvent.keyboard('{F1}');
+
+		expect(gateway.openDocumentation).toHaveBeenCalledWith('home', 'en');
 	});
 
 	it('should toggle the sidebar on b', async () => {

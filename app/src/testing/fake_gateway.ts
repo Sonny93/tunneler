@@ -85,6 +85,7 @@ export function createFakeGateway(
 		checkForUpdate: vi.fn(() => Promise.resolve(null)),
 		installUpdate: vi.fn(() => Promise.resolve()),
 		openReleasePage: vi.fn(() => Promise.resolve()),
+		openDocumentation: vi.fn(() => Promise.resolve()),
 		respondHostKey: vi.fn(() => Promise.resolve()),
 		quit: vi.fn(() => Promise.resolve()),
 		onEvent: vi.fn((listener) => {

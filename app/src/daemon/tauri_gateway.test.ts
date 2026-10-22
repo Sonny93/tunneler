@@ -112,6 +112,12 @@ describe('createTauriGateway', () => {
 		['checkForUpdate', [], 'check_for_update', undefined],
 		['openReleasePage', [], 'open_release_page', undefined],
 		[
+			'openDocumentation',
+			['applications', 'fr'],
+			'open_documentation',
+			{ page: 'applications', locale: 'fr' },
+		],
+		[
 			'respondHostKey',
 			['p1', 'reject'],
 			'respond_host_key',
