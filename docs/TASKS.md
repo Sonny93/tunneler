@@ -33,13 +33,21 @@ Légende : `[ ]` à faire · `[x]` fait · `[~]` en cours · `[-]` abandonné (a
 - [x] 19.4 `settings.preview_sound { sound, event }` : requête IPC (contrat JSON figé, `METHOD_NAMES`), client `preview_sound`, handler du daemon, commande Tauri `preview_sound`
 - [x] 19.5 Réglages de l'interface (Veille) : choix « Son » (corde pincée, carillon, marimba, son du système), toujours actif, avec l'indication « Choisissez « Son » ou « Les deux »… » quand le signal n'en joue pas ; boutons « Écouter le réveil » / « Écouter l'échec » sur la valeur du formulaire, même non enregistrée, erreur en toast via `useDaemonAction`
 
+## Phase 20 — Retours d'interface et veille forcée (PLAN §« Veille », §7)
+- [x] 20.1 Moteur : renvoyer en veille un tunnel réveillé (un, un tag, tous), connexions fermées, `is_awake` dans l'instantané ; IPC `tunnel.standby`, `tag.standby`, `tunnels.standby`, `isAwake`, événement `standby.requested` ; daemon (handler, `UiCoordinator`) ; commandes Tauri et passerelle
+- [x] 20.2 Tray : *Mettre en veille les tunnels réveillés*, confirmation déléguée à l'UI si des connexions sont ouvertes
+- [x] 20.3 UI : « Mettre en veille » sur un tunnel (menu, détail, palette), la sélection, un tag et « Tous les tunnels » (clic droit, palette), confirmation si des connexions sont ouvertes, écoute de `standby.requested`
+  - Note : logique partagée dans `app/src/standby/` (`useSendToStandby`, `confirmStandby`) ; le tray n'envoie lui-même en veille que sans connexion ouverte, sinon il délègue la confirmation à l'UI. Barre de sélection avec le bouton en plus jamais vue à l'écran.
+- [x] 20.4 Interrupteur de tag (sidebar, palette) : un tunnel en veille compte comme démarré
+- [x] 20.5 Choix radio de plus de deux options toujours à la verticale ; groupe « Contrôle » dans le menu d'un tunnel ; icône de chaque vue du panneau latéral quand elle n'est pas sélectionnée
+
 ## Reste à valider à la main
 - [~] 6.13 Zoom 200 % sans scroll horizontal dans une vraie webview (`prefers-reduced-motion` et mise en page empilée sous `md` faits)
 - [~] 6.14 NVDA (Windows/WebView2), contraste élevé Windows, écoute Orca par un humain (passe clavier + arbre AT-SPI faite sous Linux le 2026-10-16)
 - [~] 13.5 Audit WCAG 2.2 AA final sur les binaires de release, grille dans [`AUDIT_A11Y.md`](./AUDIT_A11Y.md)
 - [ ] 10.6 X11 : VcXsrv (Windows) + Xorg/Xwayland (Linux) contre un vrai sshd (`xeyes` distant affiché sans `xauth`)
 - [ ] `curl --socks5` à travers un tunnel dynamique vers un vrai sshd
-- [ ] Rendu réel jamais vu par un humain : tiroirs (détails, import, X11, config d'hôte), palette, panneau replié, renommage/suppression de tag, formulaire « Ouverture », section « Applications », badges de veille, infobulles, clic droit, sélection multiple
+- [ ] Rendu réel jamais vu par un humain : veille forcée (menu, barre de sélection, clic droit de « Tous les tunnels », entrée du tray), tiroirs (détails, import, X11, config d'hôte), palette, panneau replié, renommage/suppression de tag, formulaire « Ouverture », section « Applications », badges de veille, infobulles, clic droit, sélection multiple
 - [ ] Entrée pour valider une invite de passphrase (jsdom ne soumet pas un formulaire dont le bouton est hors du `<form>`)
 - [ ] Windows, code compilé en cross-clippy mais pas explicitement vérifié : named pipe et son ACL, tray (`winit`), `FreeConsole`, ressources MSVC, `Run` (`winreg`), Credential Manager, `TerminateProcess`, agent par named pipe + Pageant, `ProxyCommand`/`Match exec` via `cmd /C`, détection des applications, lancement détaché, toast, `PlaySoundW`
 - [ ] 19.6 Sons de veille : les écouter sur un vrai Windows (dont avec « Notification » réglé sur « (Aucun) » dans le jeu de sons, et en `PlaySoundW` `SND_MEMORY`) et sur un vrai bureau Linux (PipeWire : `pw-play -`) ; `paplay` par l'entrée standard (non installé sur la machine de dev, jamais essayé)
