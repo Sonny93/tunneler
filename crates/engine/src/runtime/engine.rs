@@ -467,13 +467,20 @@ impl Engine {
         Ok(())
     }
 
-    /// Validates the settings, saves them to the store and applies them: new
-    /// sessions and the running tunnels see them at once.
-    pub async fn update_settings(&self, settings: Settings) -> Result<(), EngineError> {
+    /// Validates the settings and the openers of the user, replaces both with
+    /// one write of the store and applies the settings: new sessions and the
+    /// running tunnels see them at once. When either is invalid nothing is
+    /// written.
+    pub async fn update_configuration(
+        &self,
+        settings: Settings,
+        openers: Vec<Opener>,
+    ) -> Result<(), EngineError> {
         let _serialized = self.inner.mutation.lock().await;
         self.ensure_running()?;
         let mut document = self.inner.store.document();
         document.settings = settings.clone();
+        document.openers = openers;
         let store = Arc::clone(&self.inner.store);
         run_blocking(move || store.save(document)).await?;
         self.inner.settings.send_replace(settings);
@@ -649,18 +656,6 @@ impl Engine {
             OpenAction::Program(available) => Some(&available.opener),
         };
         Ok(plan_open(opener, &address))
-    }
-
-    /// Replaces the openers of the user with one write of the store.
-    pub async fn update_openers(&self, openers: Vec<Opener>) -> Result<(), EngineError> {
-        let _serialized = self.inner.mutation.lock().await;
-        self.ensure_running()?;
-        let mut document = self.inner.store.document();
-        document.openers = openers;
-        let store = Arc::clone(&self.inner.store);
-        run_blocking(move || store.save(document)).await?;
-        self.inner.bus.publish(EngineEvent::ConfigReloaded);
-        Ok(())
     }
 
     /// Starts the tunnel when it is not running and waits until it is ready:

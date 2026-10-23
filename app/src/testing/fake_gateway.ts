@@ -71,14 +71,13 @@ export function createFakeGateway(
 		importScript: vi.fn(() =>
 			Promise.resolve({ candidates: [], warnings: [] })
 		),
-		updateOpeners: vi.fn(() => Promise.resolve([])),
 		openTunnel: vi.fn(() =>
 			Promise.resolve({ target: 'http://localhost:3333/' })
 		),
 		adoptExternal: vi.fn(() => Promise.resolve([])),
 		killExternal: vi.fn(() => Promise.resolve()),
 		ignoreExternal: vi.fn(() => Promise.resolve()),
-		updateSettings: vi.fn(() => Promise.resolve()),
+		updateSettings: vi.fn(() => Promise.resolve([])),
 		respondCredential: vi.fn(() => Promise.resolve()),
 		forgetSecrets: vi.fn(() => Promise.resolve({ forgottenCount: 0 })),
 		revealConfig: vi.fn(() => Promise.resolve()),

@@ -2,28 +2,29 @@ import { useLingui } from '@lingui/react/macro';
 import { Button } from '@minimalstuff/ui';
 import { useId } from 'react';
 
-import type { AvailableOpenerDto } from '#/daemon/protocol';
+import type { AvailableOpenerDto, OpenerSpecDto } from '#/daemon/protocol';
 import { DocumentationHint } from '#/openers/documentation_hint';
 import { OpenerForm } from '#/openers/opener_form';
-import { useOpenersEditor } from '#/openers/use_openers_editor';
+import { useOpenerFocus } from '#/openers/use_opener_focus';
+import type { UseOpenersDraftReturn } from '#/openers/use_openers_draft';
 
-function describeCommandLine(opener: Readonly<AvailableOpenerDto>): string {
+function describeCommandLine(opener: Readonly<OpenerSpecDto>): string {
 	return [opener.command, ...opener.args]
 		.map((part) => (/\s/u.test(part) ? `"${part}"` : part))
 		.join(' ');
 }
 
-type OpenerListProps = {
+type OpenerListProps<TOpener extends OpenerSpecDto> = {
 	headingId: string;
-	openers: readonly AvailableOpenerDto[];
-	children?: (opener: Readonly<AvailableOpenerDto>) => React.ReactNode;
+	openers: readonly TOpener[];
+	children?: (opener: Readonly<TOpener>) => React.ReactNode;
 };
 
-function OpenerList({
+function OpenerList<TOpener extends OpenerSpecDto>({
 	headingId,
 	openers,
 	children,
-}: Readonly<OpenerListProps>) {
+}: Readonly<OpenerListProps<TOpener>>) {
 	return (
 		<ul
 			aria-labelledby={headingId}
@@ -48,9 +49,9 @@ function OpenerList({
 }
 
 type UserOpenerActionsProps = {
-	opener: Readonly<AvailableOpenerDto>;
+	opener: Readonly<OpenerSpecDto>;
 	onEdit: (id: string) => void;
-	onRemove: (opener: Readonly<AvailableOpenerDto>) => Promise<void>;
+	onRemove: (opener: Readonly<OpenerSpecDto>) => void;
 };
 
 function UserOpenerActions({
@@ -68,6 +69,7 @@ function UserOpenerActions({
 				variant="outline"
 				color="neutral"
 				aria-label={t`Edit ${name}`}
+				data-opener-edit={opener.id}
 				onClick={() => onEdit(opener.id)}
 			>
 				{t`Edit`}
@@ -77,7 +79,7 @@ function UserOpenerActions({
 				variant="outline"
 				color="danger"
 				aria-label={t`Delete ${name}`}
-				onClick={() => void onRemove(opener)}
+				onClick={() => onRemove(opener)}
 			>
 				{t`Delete`}
 			</Button>
@@ -111,15 +113,21 @@ function DetectedOpenerActions({
 	);
 }
 
-/** The "Applications" section of the settings: detected ones read-only, the user's ones editable. */
-export function ApplicationsSection() {
+type ApplicationsSectionProps = {
+	draft: UseOpenersDraftReturn;
+};
+
+/** The "Applications" section of the settings: detected ones read-only, the user's ones edited in the draft. */
+export function ApplicationsSection({
+	draft,
+}: Readonly<ApplicationsSectionProps>) {
 	const { t } = useLingui();
 	const headingId = useId();
 	const detectedId = useId();
 	const userId = useId();
-	const editor = useOpenersEditor();
-	const { editing, userOpeners } = editor;
-	const draft = editing.kind === 'create' ? editing.draft : undefined;
+	const { containerRef, requestFocus } = useOpenerFocus();
+	const { editing, userOpeners, detectedOpeners } = draft;
+	const prefilledSpec = editing.kind === 'create' ? editing.draft : undefined;
 	const editedOpener =
 		editing.kind === 'edit'
 			? userOpeners.find(({ id }) => id === editing.id)
@@ -128,8 +136,37 @@ export function ApplicationsSection() {
 		.map(({ id }) => id)
 		.filter((id) => id !== editedOpener?.id);
 
+	const handleCreate = () => {
+		draft.startCreating();
+		requestFocus({ kind: 'form' });
+	};
+	const handleCustomize = (opener: Readonly<AvailableOpenerDto>) => {
+		draft.startCustomizing(opener);
+		requestFocus({ kind: 'form' });
+	};
+	const handleEdit = (id: string) => {
+		draft.startEditing(id);
+		requestFocus({ kind: 'form' });
+	};
+	const handleSubmit = (spec: OpenerSpecDto) => {
+		draft.save(spec);
+		requestFocus({ kind: 'edit', id: spec.id });
+	};
+	const handleCancel = () => {
+		draft.stopEditing();
+		requestFocus({ kind: 'add' });
+	};
+	const handleRemove = (opener: Readonly<OpenerSpecDto>) =>
+		void draft.remove(opener).then((isRemoved) => {
+			if (isRemoved) requestFocus({ kind: 'add' });
+		});
+
 	return (
-		<section aria-labelledby={headingId} className="mt-6 flex flex-col gap-4">
+		<section
+			ref={containerRef}
+			aria-labelledby={headingId}
+			className="flex flex-col gap-4"
+		>
 			<h3 id={headingId} className="m-0 text-sm font-semibold">
 				{t`Applications`}
 			</h3>
@@ -140,16 +177,16 @@ export function ApplicationsSection() {
 				<h4 id={detectedId} className="m-0 text-xs font-semibold">
 					{t`Detected on this computer`}
 				</h4>
-				{editor.detectedOpeners.length === 0 ? (
+				{detectedOpeners.length === 0 ? (
 					<p className="m-0 text-xs text-tn-muted">
 						{t`No application detected.`}
 					</p>
 				) : (
-					<OpenerList headingId={detectedId} openers={editor.detectedOpeners}>
+					<OpenerList headingId={detectedId} openers={detectedOpeners}>
 						{(opener) => (
 							<DetectedOpenerActions
 								opener={opener}
-								onCustomize={editor.startCustomizing}
+								onCustomize={handleCustomize}
 							/>
 						)}
 					</OpenerList>
@@ -169,8 +206,8 @@ export function ApplicationsSection() {
 						{(opener) => (
 							<UserOpenerActions
 								opener={opener}
-								onEdit={editor.startEditing}
-								onRemove={editor.remove}
+								onEdit={handleEdit}
+								onRemove={handleRemove}
 							/>
 						)}
 					</OpenerList>
@@ -182,7 +219,8 @@ export function ApplicationsSection() {
 						startIcon="i-mdi-plus"
 						variant="outline"
 						color="neutral"
-						onClick={editor.startCreating}
+						data-opener-add
+						onClick={handleCreate}
 					>
 						{t`Add an application`}
 					</Button>
@@ -190,13 +228,14 @@ export function ApplicationsSection() {
 			)}
 			{editing.kind !== 'none' && (
 				<OpenerForm
-					key={editedOpener?.id ?? draft?.id ?? 'new'}
+					key={editedOpener?.id ?? prefilledSpec?.id ?? 'new'}
 					opener={editedOpener ?? null}
-					draft={draft}
-					detectedOpeners={editor.detectedOpeners}
+					draft={prefilledSpec}
+					detectedOpeners={detectedOpeners}
 					takenIds={takenIds}
-					onSubmit={editor.save}
-					onCancel={editor.stopEditing}
+					onSubmit={handleSubmit}
+					onCancel={handleCancel}
+					onInputChange={draft.reportFormInput}
 				/>
 			)}
 		</section>

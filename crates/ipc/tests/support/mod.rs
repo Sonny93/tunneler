@@ -89,7 +89,7 @@ impl RequestHandler for FakeHandler {
                     params.id
                 ),
             })),
-            Request::OpenersUpdate(params) => Ok(user_openers_response(params.openers)),
+            Request::SettingsUpdate(params) => Ok(user_openers_response(params.openers)),
             Request::TunnelDelete(params) if params.id == MISSING_TUNNEL_ID => {
                 Err(IpcError::not_found("no such tunnel"))
             }

@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 
-import type { EventMessage, SettingsDto, SnapshotDto } from '#/daemon/protocol';
+import type {
+	AvailableOpenerDto,
+	EventMessage,
+	SettingsDto,
+	SnapshotDto,
+} from '#/daemon/protocol';
 import {
 	INITIAL_DAEMON_STATE,
 	type ConnectionState,
@@ -13,6 +18,7 @@ type DaemonActions = {
 	setConnection: (connection: ConnectionState) => void;
 	applySnapshot: (snapshot: SnapshotDto) => void;
 	setSettings: (settings: SettingsDto) => void;
+	setOpeners: (openers: readonly AvailableOpenerDto[]) => void;
 	setHosts: (hosts: readonly string[]) => void;
 	applyEvent: (event: EventMessage) => void;
 	dismissPrompt: (id: string) => void;
@@ -35,6 +41,7 @@ export const useDaemonStore = create<DaemonState & DaemonActions>()((set) => ({
 			configErrors: [],
 		}),
 	setSettings: (settings) => set({ settings }),
+	setOpeners: (openers) => set({ openers }),
 	setHosts: (hosts) => set({ hosts }),
 	applyEvent: (event) => set((state) => reduceDaemonEvent(state, event)),
 	dismissPrompt: (id) =>

@@ -8,9 +8,9 @@ use engine::{
 use ipc::protocol::{
     AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, ForgetSecretsResult,
     HostsResult, IpcError, LogsResult, OpenTunnelParams, OpenTunnelResult, OpenersResult,
-    OpenersUpdateParams, PreviewSoundParams, ProcessParams, QuitParams, RenameTagResult, Request,
-    ResponsePayload, SettingsDto, TagParams, TagRenameParams, TunnelIdParams, UiClaimResult,
-    X11HostParams, X11LaunchParams,
+    PreviewSoundParams, ProcessParams, QuitParams, RenameTagResult, Request, ResponsePayload,
+    SettingsUpdateParams, TagParams, TagRenameParams, TunnelIdParams, UiClaimResult, X11HostParams,
+    X11LaunchParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
@@ -87,7 +87,6 @@ impl DaemonHandler {
             Request::TunnelPersist(params) => self.persist_tunnel(params).await,
             Request::TunnelCheckTarget(params) => self.check_target(&params).await,
             Request::TunnelOpen(params) => self.open_tunnel(&params).await,
-            Request::OpenersUpdate(params) => self.update_openers(params).await,
             Request::TunnelDelete(params) => self.delete_tunnel(params).await,
             Request::TunnelStart(params) => self.start_tunnel(&params),
             Request::TunnelStop(params) => self.stop_tunnel(&params),
@@ -102,7 +101,7 @@ impl DaemonHandler {
             Request::TagStop(params) => self.stop_tag(&params.tag),
             Request::TagStandby(params) => self.standby_tag(&params.tag),
             Request::TunnelsStandby {} => self.standby_all(),
-            Request::SettingsUpdate(settings) => self.update_settings(settings).await,
+            Request::SettingsUpdate(params) => self.update_settings(params).await,
             Request::SettingsPreviewSound(params) => Ok(self.preview_sound(params)),
             Request::CredentialRespond(params) => self
                 .prompts
@@ -356,30 +355,6 @@ impl DaemonHandler {
         outcome.map_err(|error| IpcError::open_failed(error.to_string()))
     }
 
-    async fn update_openers(
-        &self,
-        params: OpenersUpdateParams,
-    ) -> Result<ResponsePayload, IpcError> {
-        let openers = params
-            .openers
-            .into_iter()
-            .map(opener_from_spec_dto)
-            .collect();
-        self.engine
-            .update_openers(openers)
-            .await
-            .map_err(engine_error_to_ipc)?;
-        Ok(ResponsePayload::Openers(OpenersResult {
-            openers: self
-                .engine
-                .snapshot()
-                .openers
-                .iter()
-                .map(available_opener_to_dto)
-                .collect(),
-        }))
-    }
-
     fn tunnel_logs(&self, params: &TunnelIdParams) -> Result<ResponsePayload, IpcError> {
         let entries = self
             .engine
@@ -454,12 +429,28 @@ impl DaemonHandler {
             .map_err(engine_error_to_ipc)
     }
 
-    async fn update_settings(&self, dto: SettingsDto) -> Result<ResponsePayload, IpcError> {
+    async fn update_settings(
+        &self,
+        params: SettingsUpdateParams,
+    ) -> Result<ResponsePayload, IpcError> {
+        let openers = params
+            .openers
+            .into_iter()
+            .map(opener_from_spec_dto)
+            .collect();
         self.engine
-            .update_settings(settings_from_dto(dto))
+            .update_configuration(settings_from_dto(params.settings), openers)
             .await
             .map_err(engine_error_to_ipc)?;
-        Ok(ResponsePayload::empty())
+        Ok(ResponsePayload::Openers(OpenersResult {
+            openers: self
+                .engine
+                .snapshot()
+                .openers
+                .iter()
+                .map(available_opener_to_dto)
+                .collect(),
+        }))
     }
 
     fn preview_sound(&self, params: PreviewSoundParams) -> ResponsePayload {
@@ -600,7 +591,8 @@ mod tests {
     };
     use ipc::protocol::{
         AvailableOpenerDto, ErrorCode, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto,
-        OpenerSpecDto, SoundEventDto, StandbySoundDto, TunnelDto, TunnelKindDto, TunnelSpecDto,
+        OpenerSpecDto, SettingsDto, SoundEventDto, StandbySoundDto, TunnelDto, TunnelKindDto,
+        TunnelSpecDto,
     };
     use russh::keys::Algorithm;
     use ssh_config::{ConfigSources, SystemEnvironment};
@@ -1612,7 +1604,7 @@ mod tests {
 
         fixture
             .handler
-            .dispatch(None, Request::SettingsUpdate(settings))
+            .dispatch(None, settings_update_request(settings, Vec::new()))
             .await
             .unwrap();
 
@@ -1655,8 +1647,12 @@ mod tests {
         }
     }
 
+    fn settings_update_request(settings: SettingsDto, openers: Vec<OpenerSpecDto>) -> Request {
+        Request::SettingsUpdate(SettingsUpdateParams { settings, openers })
+    }
+
     async fn update_openers(fixture: &Fixture, openers: Vec<OpenerSpecDto>) -> Request {
-        let request = Request::OpenersUpdate(OpenersUpdateParams { openers });
+        let request = settings_update_request(settings_to_dto_of(fixture), openers);
         fixture
             .handler
             .dispatch(None, request.clone())
@@ -1799,7 +1795,7 @@ mod tests {
         settings.open_host = OpenHostDto::Ip;
         fixture
             .handler
-            .dispatch(None, Request::SettingsUpdate(settings))
+            .dispatch(None, settings_update_request(settings, Vec::new()))
             .await
             .unwrap();
 
@@ -1887,7 +1883,7 @@ mod tests {
 
         fixture
             .handler
-            .dispatch(None, Request::SettingsUpdate(settings))
+            .dispatch(None, settings_update_request(settings, Vec::new()))
             .await
             .unwrap();
 
@@ -2009,9 +2005,7 @@ mod tests {
             .handler
             .dispatch(
                 None,
-                Request::OpenersUpdate(OpenersUpdateParams {
-                    openers: vec![viewer_spec(&[5900])],
-                }),
+                settings_update_request(settings_to_dto_of(&fixture), vec![viewer_spec(&[5900])]),
             )
             .await
             .unwrap();
@@ -2035,17 +2029,44 @@ mod tests {
             .handler
             .dispatch(
                 None,
-                Request::OpenersUpdate(OpenersUpdateParams {
-                    openers: vec![OpenerSpecDto {
+                settings_update_request(
+                    settings_to_dto_of(&fixture),
+                    vec![OpenerSpecDto {
                         id: "browser".to_owned(),
                         ..viewer_spec(&[])
                     }],
-                }),
+                ),
             )
             .await
             .unwrap_err();
 
         assert_eq!(error.code, ErrorCode::ValidationFailed);
+    }
+
+    #[tokio::test]
+    async fn should_leave_the_settings_unchanged_when_an_opener_is_invalid() {
+        let fixture = fixture();
+        let mut settings = settings_to_dto_of(&fixture);
+        settings.keepalive_max = 9;
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                settings_update_request(
+                    settings,
+                    vec![OpenerSpecDto {
+                        id: "browser".to_owned(),
+                        ..viewer_spec(&[])
+                    }],
+                ),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::ValidationFailed);
+        assert_ne!(fixture.engine.snapshot().settings.keepalive_max, 9);
+        assert!(!fixture.store_path.exists());
     }
 
     #[tokio::test]

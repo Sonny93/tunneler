@@ -8,6 +8,7 @@ import {
 	toDefaultChoice,
 } from '#/openers/open_choices';
 import type { PaletteCommand } from '#/palette/palette_command';
+import { SETTINGS_TABS, type SettingsTab } from '#/settings/settings_tab';
 import { summarizeTags } from '#/sidebar/summarize_tags';
 import { listAwakeTunnels } from '#/standby/list_awake_tunnels';
 import { compareTextCaseInsensitively } from '#/tunnels/compare_text_case_insensitively';
@@ -28,6 +29,26 @@ const CATEGORY_LABELS: Readonly<Record<CategoryKey, MessageDescriptor>> = {
 	tag: msg`Tag`,
 	host: msg`Host`,
 };
+
+const SETTINGS_TAB_LABELS: Readonly<Record<SettingsTab, MessageDescriptor>> = {
+	general: msg`Settings: General`,
+	connection: msg`Settings: Connection`,
+	standby: msg`Settings: Standby`,
+	opening: msg`Settings: Opening`,
+	secrets: msg`Settings: Secrets`,
+};
+
+function buildSettingsTabCommands(
+	category: string,
+	i18n: I18n
+): PaletteCommand[] {
+	return SETTINGS_TABS.map((tab) => ({
+		id: `general:settings:${tab}`,
+		label: i18n._(SETTINGS_TAB_LABELS[tab]),
+		category,
+		action: { kind: 'openSettings', tab },
+	}));
+}
 
 function buildGeneralCommands(i18n: I18n): PaletteCommand[] {
 	const category = i18n._(CATEGORY_LABELS.general);
@@ -56,6 +77,7 @@ function buildGeneralCommands(i18n: I18n): PaletteCommand[] {
 			category,
 			action: { kind: 'openSettings' },
 		},
+		...buildSettingsTabCommands(category, i18n),
 		{
 			id: 'general:reveal-config',
 			label: i18n._(msg`Open the configuration folder`),

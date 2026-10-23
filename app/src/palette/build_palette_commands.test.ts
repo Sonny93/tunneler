@@ -20,6 +20,11 @@ describe('buildPaletteCommands', () => {
 			'New temporary tunnel…',
 			'Import tunnels',
 			'Open settings',
+			'Settings: General',
+			'Settings: Connection',
+			'Settings: Standby',
+			'Settings: Opening',
+			'Settings: Secrets',
 			'Open the configuration folder',
 			'Hide or show the sidebar',
 			'Show keyboard shortcuts',
@@ -30,6 +35,16 @@ describe('buildPaletteCommands', () => {
 	it('should give the general commands the General category', () => {
 		expect(new Set(build().map((command) => command.category))).toEqual(
 			new Set(['General'])
+		);
+	});
+
+	it('should offer one settings command per tab', () => {
+		expect(build()).toContainEqual(
+			expect.objectContaining({
+				id: 'general:settings:secrets',
+				category: 'General',
+				action: { kind: 'openSettings', tab: 'secrets' },
+			})
 		);
 	});
 

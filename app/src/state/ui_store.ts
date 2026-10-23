@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import type { TunnelSpecDto } from '#/daemon/protocol';
+import type { SettingsTab } from '#/settings/settings_tab';
 import {
 	readSidebarCollapsed,
 	writeSidebarCollapsed,
@@ -11,7 +12,7 @@ export type Panel =
 	| { kind: 'none' }
 	| { kind: 'tunnelEditor'; tunnelId: string | null; draft?: TunnelSpecDto }
 	| { kind: 'temporaryTunnelEditor' }
-	| { kind: 'settings' }
+	| { kind: 'settings'; tab?: SettingsTab }
 	| { kind: 'x11'; host: string }
 	| { kind: 'tunnelDetails'; tunnelId: string }
 	| { kind: 'hostConfig'; host: string }
@@ -61,7 +62,8 @@ type UiActions = {
 	openTunnelImport: (draft: TunnelSpecDto) => void;
 	/** Opens the form of a tunnel that is not saved. */
 	openTemporaryTunnelEditor: () => void;
-	openSettings: () => void;
+	/** Opens the settings on `tab`, or on the first one. */
+	openSettings: (tab?: SettingsTab) => void;
 	openX11: (host: string) => void;
 	openTunnelDetails: (tunnelId: string) => void;
 	openHostConfig: (host: string) => void;
@@ -115,7 +117,7 @@ export const useUiStore = create<UiState & UiActions>()((set) => ({
 		set({ panel: { kind: 'tunnelEditor', tunnelId: null, draft } }),
 	openTemporaryTunnelEditor: () =>
 		set({ panel: { kind: 'temporaryTunnelEditor' } }),
-	openSettings: () => set({ panel: { kind: 'settings' } }),
+	openSettings: (tab) => set({ panel: { kind: 'settings', tab } }),
 	openX11: (host) => set({ panel: { kind: 'x11', host } }),
 	openTunnelDetails: (tunnelId) =>
 		set({ panel: { kind: 'tunnelDetails', tunnelId } }),

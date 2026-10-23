@@ -36,7 +36,7 @@ export function useRunPaletteAction(): RunPaletteAction {
 			case 'importTunnels':
 				return ui.openImport();
 			case 'openSettings':
-				return ui.openSettings();
+				return ui.openSettings(action.tab);
 			case 'revealConfig':
 				return void runDaemonAction(
 					(gateway) => gateway.revealConfig(),

@@ -1,8 +1,10 @@
+import type { SettingsTab } from '#/settings/settings_tab';
+
 export type PaletteAction =
 	| { kind: 'newTunnel' }
 	| { kind: 'newTemporaryTunnel' }
 	| { kind: 'importTunnels' }
-	| { kind: 'openSettings' }
+	| { kind: 'openSettings'; tab?: SettingsTab }
 	| { kind: 'revealConfig' }
 	| { kind: 'toggleSidebar' }
 	| { kind: 'showShortcuts' }

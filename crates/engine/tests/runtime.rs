@@ -2370,7 +2370,11 @@ async fn should_persist_and_apply_the_settings_when_they_are_updated() {
         ..harness.engine.snapshot().settings
     };
 
-    harness.engine.update_settings(settings).await.unwrap();
+    harness
+        .engine
+        .update_configuration(settings, Vec::new())
+        .await
+        .unwrap();
 
     let stored = std::fs::read_to_string(harness.store_path()).unwrap();
     assert_eq!(
@@ -2395,7 +2399,11 @@ async fn should_write_nothing_when_the_updated_settings_are_invalid() {
         ..harness.engine.snapshot().settings
     };
 
-    let error = harness.engine.update_settings(settings).await.unwrap_err();
+    let error = harness
+        .engine
+        .update_configuration(settings, Vec::new())
+        .await
+        .unwrap_err();
 
     assert!(matches!(
         error,
@@ -2902,7 +2910,11 @@ async fn configure_launch(harness: &Harness, is_restore_enabled: bool, tags: &[&
         start_on_launch_tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
         ..harness.engine.snapshot().settings
     };
-    harness.engine.update_settings(settings).await.unwrap();
+    harness
+        .engine
+        .update_configuration(settings, Vec::new())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -3175,7 +3187,11 @@ async fn should_never_write_a_temporary_tunnel_when_the_store_is_saved_by_other_
     harness.engine.rename_tag("dev", "staging").await.unwrap();
     harness.engine.delete_tag("staging").await.unwrap();
     let settings = harness.engine.snapshot().settings;
-    harness.engine.update_settings(settings).await.unwrap();
+    harness
+        .engine
+        .update_configuration(settings, Vec::new())
+        .await
+        .unwrap();
     let alpha = harness.engine.snapshot().tunnels.remove(0).definition;
     harness.engine.update_tunnel(alpha).await.unwrap();
     harness
@@ -3554,7 +3570,10 @@ async fn should_plan_the_opener_of_the_user_when_it_matches_the_target_port() {
     let target_port = harness.echo.port;
     harness
         .engine
-        .update_openers(vec![viewer(&[target_port])])
+        .update_configuration(
+            harness.engine.snapshot().settings,
+            vec![viewer(&[target_port])],
+        )
         .await
         .unwrap();
 
@@ -3578,7 +3597,10 @@ async fn should_plan_the_browser_when_it_is_asked_for_explicitly() {
     let target_port = harness.echo.port;
     harness
         .engine
-        .update_openers(vec![viewer(&[target_port])])
+        .update_configuration(
+            harness.engine.snapshot().settings,
+            vec![viewer(&[target_port])],
+        )
         .await
         .unwrap();
 
@@ -3595,7 +3617,7 @@ async fn should_list_the_available_ids_when_the_opener_is_unknown() {
     let harness = HarnessBuilder::new(&["alpha"]).start().await;
     harness
         .engine
-        .update_openers(vec![viewer(&[])])
+        .update_configuration(harness.engine.snapshot().settings, vec![viewer(&[])])
         .await
         .unwrap();
 
@@ -3616,7 +3638,7 @@ async fn should_save_the_openers_to_the_store_file() {
 
     harness
         .engine
-        .update_openers(vec![viewer(&[5900])])
+        .update_configuration(harness.engine.snapshot().settings, vec![viewer(&[5900])])
         .await
         .unwrap();
 
@@ -3634,7 +3656,7 @@ async fn should_refuse_openers_that_break_a_rule_and_keep_the_previous_ones() {
 
     let error = harness
         .engine
-        .update_openers(vec![invalid])
+        .update_configuration(harness.engine.snapshot().settings, vec![invalid])
         .await
         .unwrap_err();
 
@@ -3649,7 +3671,7 @@ async fn should_list_detected_presets_after_the_openers_of_the_user_in_the_snaps
     let harness = HarnessBuilder::new(&["alpha"]).start().await;
     harness
         .engine
-        .update_openers(vec![viewer(&[])])
+        .update_configuration(harness.engine.snapshot().settings, vec![viewer(&[])])
         .await
         .unwrap();
 
@@ -3700,7 +3722,11 @@ async fn should_follow_the_open_host_setting_when_building_the_browser_url() {
         open_host: OpenHost::Ip,
         ..harness.engine.snapshot().settings
     };
-    harness.engine.update_settings(settings).await.unwrap();
+    harness
+        .engine
+        .update_configuration(settings, Vec::new())
+        .await
+        .unwrap();
 
     let url = browser_url_of(&harness);
 

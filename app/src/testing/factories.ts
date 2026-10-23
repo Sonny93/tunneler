@@ -6,6 +6,7 @@ import type {
 	X11LauncherDto,
 	ExternalProcessDto,
 	MetricsDto,
+	OpenerSpecDto,
 	SettingsDto,
 	SnapshotDto,
 	TunnelDto,
@@ -55,6 +56,19 @@ export function buildOpener(
 		args: ['-c', 'vnc://{host}:{port}'],
 		ports: [5900],
 		source: 'detected',
+		...overrides,
+	};
+}
+
+export function buildOpenerSpec(
+	overrides: Readonly<Partial<OpenerSpecDto>> = {}
+): OpenerSpecDto {
+	return {
+		id: 'dbeaver',
+		name: 'DBeaver',
+		command: 'dbeaver',
+		args: ['-con', 'host={host}'],
+		ports: [5432],
 		...overrides,
 	};
 }

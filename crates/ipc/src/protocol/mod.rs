@@ -35,8 +35,9 @@ pub use line::{LineRead, MAX_LINE_BYTES, encode_line, read_line};
 pub use request::{
     CredentialAnswer, CredentialResponseParams, HostKeyResponseParams, HostParams,
     ImportScriptParams, MAX_IMPORT_SCRIPT_BYTES, METHOD_NAMES, OpenTunnelParams,
-    OpenersUpdateParams, PreviewSoundParams, ProcessParams, QuitParams, Request, RequestEnvelope,
-    RequestRejection, TagParams, TagRenameParams, TunnelIdParams, X11HostParams, X11LaunchParams,
+    PreviewSoundParams, ProcessParams, QuitParams, Request, RequestEnvelope, RequestRejection,
+    SettingsUpdateParams, TagParams, TagRenameParams, TunnelIdParams, X11HostParams,
+    X11LaunchParams,
 };
 pub use response::{
     AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, EmptyResult,

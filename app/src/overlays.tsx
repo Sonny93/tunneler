@@ -3,7 +3,7 @@ import { ImportDrawer } from '#/import/import_drawer';
 import { CommandPalette } from '#/palette/command_palette';
 import { PromptHost } from '#/prompts/prompt_host';
 import { useQuitRequestListener } from '#/quit/use_quit_request_listener';
-import { SettingsDrawer } from '#/settings/settings_drawer';
+import { SettingsDialogHost } from '#/settings/settings_dialog_host';
 import { ShortcutsHelp } from '#/shortcuts/shortcuts_help';
 import { useGlobalShortcuts } from '#/shortcuts/use_global_shortcuts';
 import { useStandbyRequestListener } from '#/standby/use_standby_request_listener';
@@ -21,7 +21,7 @@ export function Overlays() {
 	return (
 		<>
 			<TunnelFormDrawer />
-			<SettingsDrawer />
+			<SettingsDialogHost />
 			<X11Drawer />
 			<TunnelDetailsDrawer />
 			<HostConfigDrawer />

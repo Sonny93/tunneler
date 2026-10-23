@@ -28,7 +28,7 @@ Dans le menu du tunnel, l'action d'ouverture dit ce qui va se passer : « Ouvrir
 
 ## Applications intégrées
 
-Tunneler cherche ces programmes une seule fois, au démarrage du daemon. Après en avoir installé un, quittez Tunneler et relancez-le. Ceux qu'il trouve apparaissent dans « Paramètres » › « Applications » › « Détectées sur ce poste ».
+Tunneler cherche ces programmes une seule fois, au démarrage du daemon. Après en avoir installé un, quittez Tunneler et relancez-le. Ceux qu'il trouve apparaissent dans « Paramètres » › « Ouverture » › « Applications » › « Détectées sur ce poste ».
 
 ### Windows
 
@@ -51,7 +51,7 @@ Il n'y a pas de client SQL intégré : les arguments dépendent du client et du 
 
 ## Ajouter une application
 
-Ouvrez « Paramètres » et trouvez la section « Applications ». La liste « Détectées sur ce poste » montre ce que Tunneler a trouvé. En dessous, « Ajoutées » liste les vôtres.
+Ouvrez « Paramètres » (la roue dentée de l'en-tête, ou la touche `,`) et allez sur l'onglet « Ouverture ». Il contient la section « Applications ». La liste « Détectées sur ce poste » montre ce que Tunneler a trouvé. En dessous, « Ajoutées » liste les vôtres.
 
 Si le programme voulu est installé là où Tunneler ne regarde pas, comme une copie portable, utilisez « Ajouter une application » :
 
@@ -69,7 +69,9 @@ Comment fonctionnent les arguments :
 - Aucun shell ne lance la commande. Les guillemets et les espaces ne veulent rien dire pour Tunneler : chaque ligne est transmise telle quelle au programme, et les espaces d'un chemin n'ont pas besoin de guillemets.
 - Les variables comme `%USERPROFILE%` ou `~` ne sont pas développées.
 
-Pour modifier une de vos applications, utilisez « Modifier » à côté d'elle. « Supprimer » la retire. Les tunnels réglés pour s'ouvrir avec elle ne peuvent plus s'ouvrir tant que vous n'en choisissez pas une autre.
+Pour modifier une de vos applications, utilisez « Modifier » à côté d'elle, puis « Mettre à jour ». « Supprimer » la retire. Les tunnels réglés pour s'ouvrir avec elle ne peuvent plus s'ouvrir tant que vous n'en choisissez pas une autre.
+
+Rien n'est enregistré au fil de l'eau. Ajouter, modifier et supprimer ne changent que la liste de la fenêtre des paramètres, et les paramètres sont enregistrés d'un coup avec « Enregistrer » en bas. « Annuler » demande confirmation avant d'abandonner vos changements. Le formulaire d'une application qui contient encore une saisie bloque « Enregistrer » tant que vous n'avez pas ajouté l'application ou annulé le formulaire.
 
 ### Remplacer une application intégrée
 
@@ -83,13 +85,13 @@ Sous la liste des applications détectées, une aide dit : « Installée ailleur
 
 Vous avez téléchargé la version portable du client TigerVNC et l'avez placée dans `C:\Tools\TigerVNC\vncviewer64-1.14.1.exe`. Tunneler ne la trouve pas, donc un tunnel VNC s'ouvre dans le navigateur. Pour en faire le client par défaut des tunnels VNC :
 
-1. Dans « Paramètres » › « Applications », cliquez sur « Ajouter une application ».
+1. Dans « Paramètres » › « Ouverture » › « Applications », cliquez sur « Ajouter une application ».
 2. « Nom » : `TigerVNC`.
 3. « Identifiant » : `tigervnc`. C'est l'identifiant du TigerVNC intégré, donc le vôtre le remplace. Avec un autre identifiant, les deux existent côte à côte.
 4. « Commande » : `C:\Tools\TigerVNC\vncviewer64-1.14.1.exe`.
 5. « Arguments » : une seule ligne, `{host}::{port}`. Le double deux-points indique à TigerVNC que le nombre est un port TCP, pas un numéro d'écran.
 6. « Ports suggérés » : `5900, 5901, 5902`, ou les ports de vos serveurs VNC.
-7. Cliquez sur « Ajouter ».
+7. Cliquez sur « Ajouter », puis sur « Enregistrer » dans les paramètres.
 
 Un tunnel de `5999` vers `nova:5901` s'ouvre maintenant avec ce client, qui reçoit `localhost::5999`.
 

@@ -41,6 +41,7 @@ L'interface vise le niveau AA de WCAG 2.2. La ligne de commande suit les convent
 ### Formulaires
 - Des labels visibles.
 - Les erreurs sont liées à leur champ (`aria-describedby`, `aria-invalid`), disent précisément ce qui ne va pas et ne dépendent pas du survol.
+- Dans un formulaire à onglets, chaque onglet en erreur le dit dans son nom (« Connexion 2 erreurs »), jamais par la seule couleur. Un envoi refusé ouvre le premier onglet en erreur et met le focus sur le champ.
 
 ### Préférences du système
 - `prefers-reduced-motion` : aucune animation n'est essentielle.

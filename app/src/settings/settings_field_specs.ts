@@ -2,6 +2,7 @@ import type { MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
 
 import type { SettingsFormValues } from '#/settings/settings_form_values';
+import type { SettingsTab } from '#/settings/settings_tab';
 
 export type SettingsTextField = {
 	[TKey in keyof SettingsFormValues]: string extends SettingsFormValues[TKey]
@@ -43,8 +44,8 @@ export const STANDBY_SECTION: SettingsSectionSpec = {
 	],
 };
 
-/** Validated text fields in display order; the switches and the start-up tags are rendered apart. */
-export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
+/** Validated text fields of the Connection tab in display order. */
+export const CONNECTION_SECTIONS: readonly SettingsSectionSpec[] = [
 	{
 		name: 'addresses',
 		legend: msg`Addresses`,
@@ -60,8 +61,8 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
 		],
 	},
 	{
-		name: 'connection',
-		legend: msg`Connection`,
+		name: 'sessions',
+		legend: msg`Sessions`,
 		fields: [
 			{
 				field: 'keepaliveIntervalSeconds',
@@ -111,3 +112,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionSpec[] = [
 		],
 	},
 ];
+
+/** The tab that shows a validated text field. */
+export function getSettingsFieldTab(field: SettingsTextField): SettingsTab {
+	const isStandbyField = STANDBY_SECTION.fields.some(
+		(spec) => spec.field === field
+	);
+	return isStandbyField ? 'standby' : 'connection';
+}

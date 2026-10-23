@@ -17,7 +17,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 40] = [
+pub const METHOD_NAMES: [&str; 39] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -32,7 +32,6 @@ pub const METHOD_NAMES: [&str; 40] = [
     "tunnel.persist",
     "tunnel.check_target",
     "tunnel.open",
-    "openers.update",
     "hosts.list",
     "hosts.resolve",
     "import.ssh_config",
@@ -90,10 +89,12 @@ pub struct OpenTunnelParams {
     pub with: Option<String>,
 }
 
-/// The parameters of `openers.update`.
+/// The parameters of `settings.update`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OpenersUpdateParams {
+pub struct SettingsUpdateParams {
+    /// The new settings.
+    pub settings: SettingsDto,
     /// The new list of openers of the user.
     pub openers: Vec<OpenerSpecDto>,
 }
@@ -263,11 +264,6 @@ pub enum Request {
     /// ready or the launch failed.
     #[serde(rename = "tunnel.open")]
     TunnelOpen(OpenTunnelParams),
-    /// Replaces the openers of the user with one write of the store, and
-    /// answers with the openers that can be used afterwards; answers
-    /// `validation_failed` when one breaks a rule.
-    #[serde(rename = "openers.update")]
-    OpenersUpdate(OpenersUpdateParams),
     /// Lists the concrete `Host` aliases of the user's `ssh_config`.
     #[serde(rename = "hosts.list")]
     HostsList {},
@@ -293,9 +289,12 @@ pub enum Request {
     /// Sends every awake tunnel back to standby.
     #[serde(rename = "tunnels.standby")]
     TunnelsStandby {},
-    /// Replaces the settings.
+    /// Replaces the settings and the user's openers with one write of the
+    /// store, and answers with the openers that can be used afterwards;
+    /// answers `validation_failed` when an opener breaks a rule and then
+    /// writes nothing.
     #[serde(rename = "settings.update")]
-    SettingsUpdate(SettingsDto),
+    SettingsUpdate(SettingsUpdateParams),
     /// Plays a standby sound now, whatever `standbyNotify` says and without
     /// the wake-failure throttle.
     #[serde(rename = "settings.preview_sound")]

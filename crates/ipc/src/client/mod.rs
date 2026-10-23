@@ -20,8 +20,8 @@ use crate::protocol::{
     DaemonPathsResult, DeleteTagResult, EventMessage, ForgetSecretsResult, Hello,
     HostKeyDecisionDto, HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto,
     ImportScriptParams, LogEntryDto, LogsResult, OpenTunnelParams, OpenTunnelResult, OpenerSpecDto,
-    OpenersResult, OpenersUpdateParams, PreviewSoundParams, ProcessParams, QuitParams, RememberDto,
-    RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, SettingsDto, SnapshotDto,
+    OpenersResult, PreviewSoundParams, ProcessParams, QuitParams, RememberDto, RenameTagResult,
+    Request, RequestEnvelope, ResolvedHostDto, SettingsDto, SettingsUpdateParams, SnapshotDto,
     SoundEventDto, StandbySoundDto, TagParams, TagRenameParams, TargetHealthDto,
     TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelSpecDto,
     UiClaimResult, X11HostParams, X11LaunchParams, encode_line,
@@ -180,22 +180,6 @@ impl IpcClient {
         };
         let result: OpenTunnelResult = self.call(Request::TunnelOpen(params)).await?;
         Ok(result.target)
-    }
-
-    /// Replaces the openers of the user and returns the openers that can be
-    /// used afterwards.
-    ///
-    /// # Errors
-    ///
-    /// Fails when the call fails; see [`ClientError`].
-    pub async fn update_openers(
-        &self,
-        openers: Vec<OpenerSpecDto>,
-    ) -> Result<Vec<AvailableOpenerDto>, ClientError> {
-        let result: OpenersResult = self
-            .call(Request::OpenersUpdate(OpenersUpdateParams { openers }))
-            .await?;
-        Ok(result.openers)
     }
 
     /// Replaces the definition of a tunnel.
@@ -358,14 +342,25 @@ impl IpcClient {
             .await
     }
 
-    /// Replaces the settings.
+    /// Replaces the settings and the openers of the user with one write of the
+    /// store, and returns the openers that can be used afterwards.
     ///
     /// # Errors
     ///
-    /// Fails when the call fails; see [`ClientError`].
-    pub async fn update_settings(&self, settings: SettingsDto) -> Result<(), ClientError> {
-        self.call_without_result(Request::SettingsUpdate(settings))
-            .await
+    /// Fails when the call fails, and with `validation_failed` when an opener
+    /// breaks a rule; see [`ClientError`].
+    pub async fn update_settings(
+        &self,
+        settings: SettingsDto,
+        openers: Vec<OpenerSpecDto>,
+    ) -> Result<Vec<AvailableOpenerDto>, ClientError> {
+        let result: OpenersResult = self
+            .call(Request::SettingsUpdate(SettingsUpdateParams {
+                settings,
+                openers,
+            }))
+            .await?;
+        Ok(result.openers)
     }
 
     /// Plays a standby sound now, whatever the notification mode is.

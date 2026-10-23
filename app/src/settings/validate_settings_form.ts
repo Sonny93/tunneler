@@ -2,7 +2,7 @@ import type { MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
 
 import {
-	SETTINGS_SECTIONS,
+	CONNECTION_SECTIONS,
 	STANDBY_SECTION,
 	type SettingsTextField,
 } from '#/settings/settings_field_specs';
@@ -76,7 +76,7 @@ export function validateSettingsForm(
 export function getFirstInvalidSettingsField(
 	errors: Readonly<SettingsFormErrors>
 ): SettingsTextField | null {
-	const orderedFields = [...SETTINGS_SECTIONS, STANDBY_SECTION].flatMap(
+	const orderedFields = [...CONNECTION_SECTIONS, STANDBY_SECTION].flatMap(
 		(section) => section.fields.map((spec) => spec.field)
 	);
 	return orderedFields.find((field) => errors[field]) ?? null;

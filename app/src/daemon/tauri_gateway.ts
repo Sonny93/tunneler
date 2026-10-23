@@ -49,11 +49,11 @@ export function createTauriGateway(): DaemonGateway {
 		importSshConfig: () => call('import_ssh_config'),
 		importScript: (text) => call('import_script', { text }),
 		openTunnel: (id, opener) => call('open_tunnel', { id, with: opener }),
-		updateOpeners: (openers) => call('update_openers', { openers }),
 		adoptExternal: (id) => call('adopt_external', { id }),
 		killExternal: (pid) => call('kill_external', { pid }),
 		ignoreExternal: (pid) => call('ignore_external', { pid }),
-		updateSettings: (settings) => call('update_settings', { settings }),
+		updateSettings: (settings, openers) =>
+			call('update_settings', { settings, openers }),
 		respondCredential: (promptId, answer, remember) =>
 			call('respond_credential', {
 				promptId,

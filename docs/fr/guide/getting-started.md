@@ -79,7 +79,7 @@ Votre navigateur ouvre `http://localhost:3000/`. Un tunnel arrêté est démarr�
 
 ## Trouver de l'aide
 
-Le bouton « Aide » de l'en-tête de la fenêtre, la touche `F1` et la commande « Ouvrir la documentation » de la palette (`Ctrl+K`) ouvrent ce site. Dans les paramètres, la section « Applications » renvoie vers [Ouvrir un tunnel avec une application](./applications).
+Le bouton « Aide » de l'en-tête de la fenêtre, la touche `F1` et la commande « Ouvrir la documentation » de la palette (`Ctrl+K`) ouvrent ce site. Dans les paramètres, la section « Applications » de l'onglet « Ouverture » renvoie vers [Ouvrir un tunnel avec une application](./applications).
 
 ## Et ensuite
 

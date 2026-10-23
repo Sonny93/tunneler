@@ -34,7 +34,7 @@ pub struct OpenTunnelResult {
     pub target: String,
 }
 
-/// The result of `openers.update`.
+/// The result of `settings.update`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenersResult {
@@ -117,7 +117,7 @@ pub enum ResponsePayload {
     CheckTarget(CheckTargetResult),
     /// The answer to `tunnel.open`.
     OpenTunnel(OpenTunnelResult),
-    /// The answer to `openers.update`.
+    /// The answer to `settings.update`.
     Openers(OpenersResult),
     /// The answer to `hosts.list`.
     Hosts(HostsResult),

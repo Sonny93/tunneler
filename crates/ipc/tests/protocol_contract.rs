@@ -10,14 +10,14 @@ use ipc::protocol::{
     ImportPreviewDto, ImportScriptParams, ImportWarningDto, IpcError, LogEntryDto, LogLevelDto,
     MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, OpenHostDto, OpenOptionsDto,
     OpenSchemeDto, OpenTunnelParams, OpenTunnelResult, OpenerSourceDto, OpenerSpecDto,
-    OpenersResult, OpenersUpdateParams, PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto,
-    PromptResolvedEvent, QuitParams, RememberDto, RenameTagResult, Request, RequestEnvelope,
-    ResolvedHostDto, ResponsePayload, Secret, ServerFrame, SettingsDto, SnapshotDto, TagParams,
-    TagRenameParams, TargetHealthDto, TemporaryTunnelSpecDto, TrayChangedEvent, TrayStatusDto,
-    TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto,
-    TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, UiClaimResult, X11AnchorDto,
-    X11ChangedEvent, X11HostParams, X11LaunchParams, X11LauncherDto, X11StateDto, encode_event,
-    encode_response,
+    OpenersResult, PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent,
+    QuitParams, RememberDto, RenameTagResult, Request, RequestEnvelope, ResolvedHostDto,
+    ResponsePayload, Secret, ServerFrame, SettingsDto, SettingsUpdateParams, SnapshotDto,
+    TagParams, TagRenameParams, TargetHealthDto, TemporaryTunnelSpecDto, TrayChangedEvent,
+    TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelIdParams,
+    TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto,
+    UiClaimResult, X11AnchorDto, X11ChangedEvent, X11HostParams, X11LaunchParams, X11LauncherDto,
+    X11StateDto, encode_event, encode_response,
 };
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -203,9 +203,6 @@ fn every_request() -> Vec<Request> {
             id: TUNNEL_ID.to_owned(),
             with: Some("remmina-vnc".to_owned()),
         }),
-        Request::OpenersUpdate(OpenersUpdateParams {
-            openers: vec![opener_spec()],
-        }),
         Request::HostsList {},
         Request::HostsResolve(HostParams {
             host: "nova".to_owned(),
@@ -218,7 +215,10 @@ fn every_request() -> Vec<Request> {
         Request::TagStop(tag.clone()),
         Request::TagStandby(tag),
         Request::TunnelsStandby {},
-        Request::SettingsUpdate(settings()),
+        Request::SettingsUpdate(SettingsUpdateParams {
+            settings: settings(),
+            openers: vec![opener_spec()],
+        }),
         Request::SettingsPreviewSound(ipc::protocol::PreviewSoundParams {
             sound: ipc::protocol::StandbySoundDto::Chime,
             event: ipc::protocol::SoundEventDto::WakeFailed,
@@ -388,7 +388,7 @@ fn should_serialize_hello_as_documented() {
 
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
-        r#"{"id":1,"method":"hello","params":{"protocolVersion":3,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
+        r#"{"id":1,"method":"hello","params":{"protocolVersion":4,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
     );
 }
 
@@ -496,17 +496,18 @@ fn should_serialize_tunnel_open_with_an_opener_as_documented() {
 }
 
 #[test]
-fn should_serialize_openers_update_as_documented() {
+fn should_serialize_settings_update_as_documented() {
     let envelope = RequestEnvelope {
         id: 8,
-        request: Request::OpenersUpdate(OpenersUpdateParams {
+        request: Request::SettingsUpdate(SettingsUpdateParams {
+            settings: settings(),
             openers: vec![opener_spec()],
         }),
     };
 
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
-        r#"{"id":8,"method":"openers.update","params":{"openers":[{"id":"dbeaver","name":"DBeaver","command":"dbeaver","args":["-con","host={host}"],"ports":[5432]}]}}"#
+        r#"{"id":8,"method":"settings.update","params":{"settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","language":"system","checkForUpdates":true},"openers":[{"id":"dbeaver","name":"DBeaver","command":"dbeaver","args":["-con","host={host}"],"ports":[5432]}]}}"#
     );
 }
 
@@ -1287,7 +1288,7 @@ fn should_serialize_a_protocol_mismatch_with_both_versions() {
     assert_eq!(
         line,
         concat!(
-            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 3, the client protocol 9","data":{"client":9,"daemon":3}}}"#,
+            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 4, the client protocol 9","data":{"client":9,"daemon":4}}}"#,
             "\n"
         )
     );
@@ -1740,8 +1741,8 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_forty_methods() {
-    assert_eq!(METHOD_NAMES.len(), 40);
+fn should_list_thirty_nine_methods() {
+    assert_eq!(METHOD_NAMES.len(), 39);
 }
 
 #[test]

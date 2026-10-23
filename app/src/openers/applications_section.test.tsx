@@ -4,9 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
 
-import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { ApplicationsSection } from '#/openers/applications_section';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { useOpenersDraft } from '#/openers/use_openers_draft';
 import { useDaemonStore } from '#/state/daemon_store';
 import { buildOpener, buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
@@ -21,22 +20,22 @@ const mine = buildOpener({
 	ports: [5432],
 	source: 'user',
 });
-const MINE_SPEC = {
-	id: 'dbeaver',
-	name: 'DBeaver',
-	command: 'dbeaver',
-	args: ['-con', 'host={host}'],
-	ports: [5432],
-};
+
+function SectionWithDraft() {
+	const draft = useOpenersDraft();
+	return <ApplicationsSection draft={draft} />;
+}
 
 const renderSection = (gateway = createFakeGateway()) =>
 	renderWithGateway(
 		<>
-			<ApplicationsSection />
+			<SectionWithDraft />
 			<ModalProvider />
 		</>,
 		gateway
 	);
+
+const getAddedList = () => screen.getByRole('list', { name: 'Added' });
 
 describe('ApplicationsSection', () => {
 	it('should list the detected applications with their command line, read only', () => {
@@ -87,7 +86,7 @@ describe('ApplicationsSection', () => {
 			screen.getByRole('button', { name: 'Customize Remmina (VNC)' })
 		);
 
-		const form = screen.getByRole('form', { name: 'Add an application' });
+		const form = screen.getByRole('group', { name: 'Add an application' });
 		expect(within(form).getByRole('textbox', { name: /^Name/ })).toHaveValue(
 			'Remmina (VNC)'
 		);
@@ -134,11 +133,10 @@ describe('ApplicationsSection', () => {
 		);
 	});
 
-	it('should save the customized application with the identifier of the preset', async () => {
+	it('should move the customized application to the added ones and hide the detected one', async () => {
 		useDaemonStore.setState({ openers: [preset, mine] });
 		const user = userEvent.setup();
-		const gateway = createFakeGateway();
-		renderSection(gateway);
+		const { gateway } = renderSection();
 		await user.click(
 			screen.getByRole('button', { name: 'Customize Remmina (VNC)' })
 		);
@@ -148,16 +146,15 @@ describe('ApplicationsSection', () => {
 
 		await user.click(screen.getByRole('button', { name: 'Add' }));
 
-		expect(gateway.updateOpeners).toHaveBeenCalledWith([
-			MINE_SPEC,
-			{
-				id: 'remmina-vnc',
-				name: 'Remmina (VNC)',
-				command: 'C:\\Tools\\remmina.exe',
-				args: ['-c', 'vnc://{host}:{port}'],
-				ports: [5900],
-			},
-		]);
+		expect(
+			within(getAddedList()).getByText(
+				'C:\\Tools\\remmina.exe -c vnc://{host}:{port}'
+			)
+		).toBeInTheDocument();
+		expect(
+			screen.queryByRole('list', { name: 'Detected on this computer' })
+		).not.toBeInTheDocument();
+		expect(gateway.updateSettings).not.toHaveBeenCalled();
 	});
 
 	it('should spell out the parameters and the command in the field hints', async () => {
@@ -242,11 +239,10 @@ describe('ApplicationsSection', () => {
 		);
 	});
 
-	it('should save the new application after the existing ones', async () => {
+	it('should add the new application after the existing ones without calling the daemon', async () => {
 		useDaemonStore.setState({ openers: [mine] });
 		const user = userEvent.setup();
-		const gateway = createFakeGateway();
-		renderSection(gateway);
+		const { gateway } = renderSection();
 		await user.click(
 			screen.getByRole('button', { name: 'Add an application' })
 		);
@@ -259,26 +255,35 @@ describe('ApplicationsSection', () => {
 			screen.getByRole('textbox', { name: 'Arguments' }),
 			'--host={{host}{enter}--port={{port}'
 		);
-		await user.type(
-			screen.getByRole('textbox', { name: /^Suggested ports/ }),
-			'5900, 5901'
-		);
 
 		await user.click(screen.getByRole('button', { name: 'Add' }));
 
-		expect(gateway.updateOpeners).toHaveBeenCalledWith([
-			MINE_SPEC,
-			{
-				id: 'viewer',
-				name: 'Viewer',
-				command: 'viewer',
-				args: ['--host={host}', '--port={port}'],
-				ports: [5900, 5901],
-			},
+		const names = within(getAddedList())
+			.getAllByRole('listitem')
+			.map((item) => item.textContent);
+		expect(names).toEqual([
+			expect.stringContaining('DBeaver'),
+			expect.stringContaining('viewer --host={host} --port={port}'),
 		]);
+		expect(gateway.updateSettings).not.toHaveBeenCalled();
 	});
 
-	it('should toast and close the form once saved', async () => {
+	it('should add the application when Enter is pressed in a field', async () => {
+		const user = userEvent.setup();
+		renderSection();
+		await user.click(
+			screen.getByRole('button', { name: 'Add an application' })
+		);
+		await user.type(screen.getByRole('textbox', { name: /^Name/ }), 'Viewer');
+		await user.type(
+			screen.getByRole('textbox', { name: /^Command/ }),
+			'viewer{enter}'
+		);
+
+		expect(within(getAddedList()).getByText('viewer')).toBeInTheDocument();
+	});
+
+	it('should close the form and focus the edit button of the added application', async () => {
 		const user = userEvent.setup();
 		renderSection();
 		await user.click(
@@ -292,14 +297,21 @@ describe('ApplicationsSection', () => {
 
 		await user.click(screen.getByRole('button', { name: 'Add' }));
 
-		await waitFor(() =>
-			expect(
-				useToastStore.getState().toasts.map((toast) => toast.message)
-			).toEqual(['Application Viewer added'])
-		);
 		expect(
+			screen.queryByRole('group', { name: 'Add an application' })
+		).not.toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Edit Viewer' })).toHaveFocus();
+	});
+
+	it('should focus the first field when the form opens', async () => {
+		const user = userEvent.setup();
+		renderSection();
+
+		await user.click(
 			screen.getByRole('button', { name: 'Add an application' })
-		).toBeInTheDocument();
+		);
+
+		expect(screen.getByRole('textbox', { name: /^Name/ })).toHaveFocus();
 	});
 
 	it('should flag the invalid fields and not save', async () => {
@@ -314,7 +326,7 @@ describe('ApplicationsSection', () => {
 
 		expect(screen.getByRole('textbox', { name: /^Name/ })).toBeInvalid();
 		expect(screen.getByRole('textbox', { name: /^Command/ })).toBeInvalid();
-		expect(gateway.updateOpeners).not.toHaveBeenCalled();
+		expect(gateway.updateSettings).not.toHaveBeenCalled();
 	});
 
 	it('should refuse an identifier already used by another application', async () => {
@@ -348,75 +360,63 @@ describe('ApplicationsSection', () => {
 		).toHaveAttribute('readonly');
 	});
 
-	it('should replace the edited application and keep the others', async () => {
-		useDaemonStore.setState({ openers: [mine] });
+	it('should replace the edited application in the draft and keep the others', async () => {
+		useDaemonStore.setState({
+			openers: [mine, buildOpener({ id: 'b', name: 'B', source: 'user' })],
+		});
 		const user = userEvent.setup();
-		const gateway = createFakeGateway();
-		renderSection(gateway);
+		const { gateway } = renderSection();
 		await user.click(screen.getByRole('button', { name: 'Edit DBeaver' }));
 		const command = screen.getByRole('textbox', { name: /^Command/ });
 		await user.clear(command);
 		await user.type(command, '/opt/dbeaver');
 
-		await user.click(screen.getByRole('button', { name: 'Save' }));
+		await user.click(screen.getByRole('button', { name: 'Update' }));
 
-		expect(gateway.updateOpeners).toHaveBeenCalledWith([
-			{ ...MINE_SPEC, command: '/opt/dbeaver' },
-		]);
+		const items = within(getAddedList()).getAllByRole('listitem');
+		expect(items).toHaveLength(2);
+		expect(items[0]).toHaveTextContent('/opt/dbeaver -con host={host}');
+		expect(screen.getByRole('button', { name: 'Edit DBeaver' })).toHaveFocus();
+		expect(gateway.updateSettings).not.toHaveBeenCalled();
 	});
 
-	it('should show why the daemon refused the application', async () => {
+	it('should cancel without adding and focus the add button', async () => {
 		const user = userEvent.setup();
-		const gateway = createFakeGateway();
-		gateway.updateOpeners.mockRejectedValue(
-			new DaemonCommandError('validation_failed', 'invalid', ['empty command'])
-		);
-		renderSection(gateway);
-		await user.click(
-			screen.getByRole('button', { name: 'Add an application' })
-		);
-		await user.type(screen.getByRole('textbox', { name: /^Name/ }), 'Viewer');
-		await user.type(
-			screen.getByRole('textbox', { name: /^Command/ }),
-			'viewer'
-		);
-
-		await user.click(screen.getByRole('button', { name: 'Add' }));
-
-		expect(await screen.findByRole('alert')).toHaveTextContent('empty command');
-	});
-
-	it('should cancel without saving', async () => {
-		const user = userEvent.setup();
-		const gateway = createFakeGateway();
-		renderSection(gateway);
+		renderSection();
 		await user.click(
 			screen.getByRole('button', { name: 'Add an application' })
 		);
 
 		await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
-		expect(gateway.updateOpeners).not.toHaveBeenCalled();
 		expect(
-			screen.queryByRole('form', { name: 'Add an application' })
+			screen.queryByRole('group', { name: 'Add an application' })
 		).not.toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: 'Add an application' })
+		).toHaveFocus();
+		expect(screen.getByText('No application added.')).toBeInTheDocument();
 	});
 
-	it('should delete an unused application at once', async () => {
+	it('should remove an unused application from the draft at once and focus the add button', async () => {
 		useDaemonStore.setState({
 			openers: [mine, buildOpener({ id: 'b', name: 'B', source: 'user' })],
 		});
 		const user = userEvent.setup();
-		const gateway = createFakeGateway();
-		renderSection(gateway);
+		const { gateway } = renderSection();
 
 		await user.click(screen.getByRole('button', { name: 'Delete DBeaver' }));
 
 		await waitFor(() =>
-			expect(gateway.updateOpeners).toHaveBeenCalledWith([
-				expect.objectContaining({ id: 'b' }),
-			])
+			expect(
+				screen.queryByRole('button', { name: 'Edit DBeaver' })
+			).not.toBeInTheDocument()
 		);
+		expect(screen.getByRole('button', { name: 'Edit B' })).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: 'Add an application' })
+		).toHaveFocus();
+		expect(gateway.updateSettings).not.toHaveBeenCalled();
 	});
 
 	it('should ask for a confirmation stating how many tunnels use the application', async () => {
@@ -428,8 +428,7 @@ describe('ApplicationsSection', () => {
 			],
 		});
 		const user = userEvent.setup();
-		const gateway = createFakeGateway();
-		renderSection(gateway);
+		renderSection();
 
 		await user.click(screen.getByRole('button', { name: 'Delete DBeaver' }));
 
@@ -437,17 +436,18 @@ describe('ApplicationsSection', () => {
 			name: /Delete the application DBeaver/,
 		});
 		expect(dialog).toHaveTextContent('2 tunnels use this application');
-		expect(gateway.updateOpeners).not.toHaveBeenCalled();
+		expect(
+			screen.getByRole('button', { name: 'Edit DBeaver' })
+		).toBeInTheDocument();
 	});
 
-	it('should delete after the confirmation', async () => {
+	it('should remove the application after the confirmation', async () => {
 		useDaemonStore.setState({
 			openers: [mine],
 			tunnels: [buildTunnel({ open: { with: 'dbeaver' } })],
 		});
 		const user = userEvent.setup();
-		const gateway = createFakeGateway();
-		renderSection(gateway);
+		renderSection();
 		await user.click(screen.getByRole('button', { name: 'Delete DBeaver' }));
 
 		await user.click(
@@ -456,7 +456,9 @@ describe('ApplicationsSection', () => {
 			})
 		);
 
-		await waitFor(() => expect(gateway.updateOpeners).toHaveBeenCalledWith([]));
+		await waitFor(() =>
+			expect(screen.getByText('No application added.')).toBeInTheDocument()
+		);
 	});
 
 	it('should keep the application when the confirmation is declined', async () => {
@@ -465,8 +467,7 @@ describe('ApplicationsSection', () => {
 			tunnels: [buildTunnel({ open: { with: 'dbeaver' } })],
 		});
 		const user = userEvent.setup();
-		const gateway = createFakeGateway();
-		renderSection(gateway);
+		renderSection();
 		await user.click(screen.getByRole('button', { name: 'Delete DBeaver' }));
 
 		await user.click(
@@ -475,7 +476,9 @@ describe('ApplicationsSection', () => {
 			})
 		);
 
-		expect(gateway.updateOpeners).not.toHaveBeenCalled();
+		expect(
+			screen.getByRole('button', { name: 'Edit DBeaver' })
+		).toBeInTheDocument();
 	});
 
 	it('should have no axe violations', async () => {

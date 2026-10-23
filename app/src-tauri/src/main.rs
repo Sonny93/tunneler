@@ -46,7 +46,6 @@ fn main() -> tauri::Result<()> {
             commands::import_script,
             commands::tunnel_logs,
             commands::open_tunnel,
-            commands::update_openers,
             commands::create_tunnel,
             commands::update_tunnel,
             commands::start_temporary_tunnel,

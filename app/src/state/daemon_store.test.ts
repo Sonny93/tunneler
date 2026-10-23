@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { useDaemonStore } from '#/state/daemon_store';
 import {
 	buildExternalProcess,
+	buildOpener,
 	buildSnapshot,
 	buildTunnel,
 	buildX11Anchor,
@@ -26,6 +27,14 @@ describe('useDaemonStore', () => {
 			externals: snapshot.externals,
 			settings: snapshot.settings,
 		});
+	});
+
+	it('should replace the openers', () => {
+		const openers = [buildOpener({ id: 'mine', source: 'user' })];
+
+		useDaemonStore.getState().setOpeners(openers);
+
+		expect(useDaemonStore.getState().openers).toEqual(openers);
 	});
 
 	it('should load the X11 anchors and launchers from a snapshot', () => {

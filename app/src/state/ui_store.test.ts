@@ -60,6 +60,15 @@ describe('useUiStore', () => {
 		expect(useUiStore.getState().panel).toEqual({ kind: 'settings' });
 	});
 
+	it('should open the settings panel on a given tab', () => {
+		useUiStore.getState().openSettings('secrets');
+
+		expect(useUiStore.getState().panel).toEqual({
+			kind: 'settings',
+			tab: 'secrets',
+		});
+	});
+
 	it('should close the panel', () => {
 		useUiStore.getState().openSettings();
 

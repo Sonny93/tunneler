@@ -9,7 +9,7 @@ use std::time::Instant;
 use ipc::ClientError;
 use ipc::protocol::{
     AvailableOpenerDto, ClientKind, ErrorCode, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES,
-    OpenerSourceDto, OpenerSpecDto, TargetHealthDto,
+    OpenerSourceDto, OpenerSpecDto, SettingsDto, TargetHealthDto,
 };
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -334,8 +334,32 @@ async fn should_send_the_requested_opener_when_opening_a_tunnel() {
     assert_eq!(target, "viewer/alpha");
 }
 
+fn settings_dto() -> SettingsDto {
+    serde_json::from_value(json!({
+        "defaultBindAddress": "127.0.0.1",
+        "defaultRemoteBindAddress": "127.0.0.1",
+        "keepaliveIntervalMs": 30000,
+        "keepaliveMax": 3,
+        "sessionIdleGraceMs": 60000,
+        "reconnectInitialDelayMs": 1000,
+        "reconnectMaxDelayMs": 60000,
+        "restoreOnLaunch": true,
+        "startOnLaunchTags": [],
+        "launchAtLogin": false,
+        "useOsKeyring": false,
+        "openHost": "localhost",
+        "standby": false,
+        "standbyIdleS": 300,
+        "standbyNotify": "visual",
+        "standbySound": "pluck",
+        "language": "system",
+        "checkForUpdates": true
+    }))
+    .unwrap()
+}
+
 #[tokio::test]
-async fn should_return_the_openers_when_updating_them() {
+async fn should_return_the_openers_when_updating_the_settings() {
     let daemon = TestDaemon::start();
     let client = daemon.connect(ClientKind::Ui, false).await;
     let spec = OpenerSpecDto {
@@ -346,7 +370,10 @@ async fn should_return_the_openers_when_updating_them() {
         ports: vec![5900],
     };
 
-    let openers = client.update_openers(vec![spec.clone()]).await.unwrap();
+    let openers = client
+        .update_settings(settings_dto(), vec![spec.clone()])
+        .await
+        .unwrap();
 
     assert_eq!(
         openers,

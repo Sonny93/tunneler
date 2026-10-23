@@ -24,6 +24,7 @@ export function HeaderActions() {
 	const setHelpOpen = useUiStore((state) => state.setHelpOpen);
 
 	const handleNewTunnel = () => openTunnelEditor(null);
+	const handleOpenSettings = () => openSettings();
 	const handleOpenPalette = () => setPaletteOpen(true);
 	const handleOpenHelp = () => setHelpOpen(true);
 	const openDocumentation = useOpenDocumentation();
@@ -80,7 +81,7 @@ export function HeaderActions() {
 				tooltip={{ content: formatShortcutTooltip(t`Settings`, ',') }}
 				variant="ghost"
 				color="neutral"
-				onClick={openSettings}
+				onClick={handleOpenSettings}
 			/>
 			<ThemeToggle variant="ghost" tooltip />
 			<IconButton

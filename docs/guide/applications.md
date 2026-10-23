@@ -28,7 +28,7 @@ In the tunnel's menu the open action says what will happen: "Open in the browser
 
 ## Built-in applications
 
-Tunneler looks for these programs once, when the daemon starts. After installing one, quit Tunneler and start it again. The ones it finds appear in "Settings" › "Applications" › "Detected on this computer".
+Tunneler looks for these programs once, when the daemon starts. After installing one, quit Tunneler and start it again. The ones it finds appear in "Settings" › "Opening" › "Applications" › "Detected on this computer".
 
 ### Windows
 
@@ -51,7 +51,7 @@ There is no built-in SQL client: the arguments depend on the client and the driv
 
 ## Add an application
 
-Open "Settings" and find the "Applications" section. The "Detected on this computer" list shows what Tunneler found. Under it, "Added" lists your own.
+Open "Settings" (the cog in the header, or the `,` key) and go to the "Opening" tab. It holds the "Applications" section. The "Detected on this computer" list shows what Tunneler found. Under it, "Added" lists your own.
 
 If the program you want is installed somewhere Tunneler does not look, such as a portable copy, use "Add an application":
 
@@ -69,7 +69,9 @@ How arguments work:
 - No shell runs the command. Quotes and spaces mean nothing to Tunneler: each line is passed to the program as is, and spaces in a path need no quoting.
 - Variables such as `%USERPROFILE%` or `~` are not expanded.
 
-To change one of your applications, use "Edit" next to it. "Delete" removes it. Tunnels that were set to open with it can no longer open until you pick another application.
+To change one of your applications, use "Edit" next to it, then "Update". "Delete" removes it. Tunnels that were set to open with it can no longer open until you pick another application.
+
+Nothing is saved as you go. Adding, editing and deleting only change the list in the settings window, and the settings are saved all at once with "Save" at the bottom. "Cancel" asks before it drops what you changed. An application form that still holds typed input blocks "Save" until you add the application or cancel the form.
 
 ### Replace a built-in application
 
@@ -83,13 +85,13 @@ Under the detected list, a hint says: "Installed somewhere else, like a portable
 
 You downloaded the portable TigerVNC viewer and put it in `C:\Tools\TigerVNC\vncviewer64-1.14.1.exe`. Tunneler does not find it, so a VNC tunnel opens in the browser. To make it the default viewer for VNC tunnels:
 
-1. In "Settings" › "Applications", click "Add an application".
+1. In "Settings" › "Opening" › "Applications", click "Add an application".
 2. "Name": `TigerVNC`.
 3. "Identifier": `tigervnc`. This is the identifier of the built-in TigerVNC, so yours replaces it. If you type another one, both exist side by side.
 4. "Command": `C:\Tools\TigerVNC\vncviewer64-1.14.1.exe`.
 5. "Arguments": one line, `{host}::{port}`. The double colon tells TigerVNC the number is a TCP port, not a display number.
 6. "Suggested ports": `5900, 5901, 5902`, or the ports your VNC servers use.
-7. Click "Add".
+7. Click "Add", then "Save" in the settings.
 
 A tunnel from `5999` to `nova:5901` now opens with it, and the viewer gets `localhost::5999`.
 

@@ -79,7 +79,7 @@ Your browser opens `http://localhost:3000/`. A stopped tunnel is started first. 
 
 ## Find help
 
-The "Documentation" button in the window's header, the `F1` key, and the "Open the documentation" command of the palette (`Ctrl+K`) open this site. In the settings, the "Applications" section links to [Opening tunnels with an application](./applications).
+The "Documentation" button in the window's header, the `F1` key, and the "Open the documentation" command of the palette (`Ctrl+K`) open this site. In the settings, the "Applications" section of the "Opening" tab links to [Opening tunnels with an application](./applications).
 
 ## Next
 

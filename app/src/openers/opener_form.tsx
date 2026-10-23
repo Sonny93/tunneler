@@ -1,6 +1,12 @@
 import { useLingui } from '@lingui/react/macro';
 import { Button, Input, Textarea } from '@minimalstuff/ui';
-import { useId, useState, type ChangeEvent, type SubmitEvent } from 'react';
+import {
+	useEffect,
+	useRef,
+	useState,
+	type ChangeEvent,
+	type KeyboardEvent,
+} from 'react';
 
 import type { AvailableOpenerDto, OpenerSpecDto } from '#/daemon/protocol';
 import {
@@ -15,9 +21,9 @@ import {
 	getFirstInvalidOpenerField,
 	validateOpenerForm,
 	type OpenerFormErrors,
+	type OpenerFormField,
 } from '#/openers/validate_opener_form';
-import { FormErrorSummary } from '#/shared/form_error_summary';
-import { useFormErrorSummary } from '#/shared/use_form_error_summary';
+import { areRecordsEqual } from '#/shared/are_records_equal';
 
 type OpenerFormProps = {
 	/** The application being edited, or `null` to add one. */
@@ -28,13 +34,14 @@ type OpenerFormProps = {
 	detectedOpeners: readonly Readonly<AvailableOpenerDto>[];
 	/** The identifiers of the user's other applications. */
 	takenIds: readonly string[];
-	onSubmit: (spec: OpenerSpecDto) => Promise<void>;
+	onSubmit: (spec: OpenerSpecDto) => void;
 	onCancel: () => void;
+	/** Tells whether the fields differ from the ones the form opened with. */
+	onInputChange: (hasInput: boolean) => void;
 };
 
-function focusField(form: HTMLFormElement, fieldName: string): void {
-	const field = form.elements.namedItem(fieldName);
-	if (field instanceof HTMLElement) field.focus();
+function focusField(container: HTMLElement, field: OpenerFormField): void {
+	container.querySelector<HTMLElement>(`[name="opener-${field}"]`)?.focus();
 }
 
 export function OpenerForm({
@@ -44,25 +51,28 @@ export function OpenerForm({
 	takenIds,
 	onSubmit,
 	onCancel,
+	onInputChange,
 }: Readonly<OpenerFormProps>) {
 	const { t, i18n } = useLingui();
-	const formId = useId();
+	const containerRef = useRef<HTMLFieldSetElement>(null);
 	const { hostPlaceholder, portPlaceholder, urlPlaceholder } =
 		PLACEHOLDER_TEXTS;
 	const isCreation = opener === null;
 	const openerName = opener?.name ?? '';
 	const formLabel = isCreation ? t`Add an application` : t`Edit ${openerName}`;
 	const initialOpener = opener ?? draft;
-	const [values, setValues] = useState<OpenerFormValues>(
+	const [initialValues] = useState<OpenerFormValues>(
 		initialOpener ? toOpenerFormValues(initialOpener) : EMPTY_OPENER_FORM_VALUES
 	);
+	const [values, setValues] = useState(initialValues);
+	const hasInput = !areRecordsEqual(values, initialValues);
 	const [isIdEdited, setIsIdEdited] = useState(draft !== undefined);
 	const replacedName = detectedOpeners.find(
 		({ id }) => id === values.id.trim()
 	)?.name;
 	const [errors, setErrors] = useState<OpenerFormErrors>({});
-	const [isSaving, setIsSaving] = useState(false);
-	const summary = useFormErrorSummary();
+
+	useEffect(() => onInputChange(hasInput), [hasInput, onInputChange]);
 
 	const change = (field: keyof OpenerFormValues, value: string) => {
 		setErrors(({ [field]: _edited, ...others }) => others);
@@ -87,38 +97,33 @@ export function OpenerForm({
 		? t`Lowercase letters, digits and dashes. Cannot be changed after creation.`
 		: t`Cannot be changed: tunnels refer to it by this identifier.`;
 
-	const submit = (event: SubmitEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		if (isSaving) return;
+	const submit = () => {
 		const foundErrors = validateOpenerForm(values, takenIds);
 		setErrors(foundErrors);
 		const firstInvalidField = getFirstInvalidOpenerField(foundErrors);
-		if (firstInvalidField !== null) {
-			focusField(event.currentTarget, firstInvalidField);
+		if (firstInvalidField !== null && containerRef.current !== null) {
+			focusField(containerRef.current, firstInvalidField);
 			return;
 		}
-		summary.clearFailure();
-		setIsSaving(true);
-		void onSubmit(toOpenerSpec(values)).catch((rejection: unknown) => {
-			setIsSaving(false);
-			summary.reportFailure(rejection);
-		});
+		onSubmit(toOpenerSpec(values));
+	};
+
+	const handleEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+		if (event.key !== 'Enter') return;
+		event.preventDefault();
+		submit();
 	};
 
 	return (
-		<form
-			id={formId}
-			noValidate
-			onSubmit={submit}
+		<fieldset
+			ref={containerRef}
+			data-opener-form
 			aria-label={formLabel}
-			className="flex flex-col gap-4 rounded-md border border-tn-border p-3"
+			className="m-0 flex min-w-0 flex-col gap-4 rounded-md border border-tn-border p-3"
 		>
-			<FormErrorSummary
-				messages={summary.messages}
-				attach={summary.attachSummary}
-			/>
 			<Input
-				name="name"
+				name="opener-name"
+				onKeyDown={handleEnter}
 				label={t`Name`}
 				value={values.name}
 				onChange={handleName}
@@ -127,7 +132,8 @@ export function OpenerForm({
 				autoComplete="off"
 			/>
 			<Input
-				name="id"
+				name="opener-id"
+				onKeyDown={handleEnter}
 				label={t`Identifier`}
 				value={values.id}
 				onChange={handleId}
@@ -142,7 +148,8 @@ export function OpenerForm({
 				autoComplete="off"
 			/>
 			<Input
-				name="command"
+				name="opener-command"
+				onKeyDown={handleEnter}
 				label={t`Command`}
 				value={values.command}
 				onChange={handleText('command')}
@@ -152,7 +159,7 @@ export function OpenerForm({
 				autoComplete="off"
 			/>
 			<Textarea
-				name="args"
+				name="opener-args"
 				label={t`Arguments`}
 				value={values.args}
 				onChange={handleArguments}
@@ -161,7 +168,8 @@ export function OpenerForm({
 				rows={4}
 			/>
 			<Input
-				name="ports"
+				name="opener-ports"
+				onKeyDown={handleEnter}
 				label={t`Suggested ports`}
 				value={values.ports}
 				onChange={handleText('ports')}
@@ -174,10 +182,8 @@ export function OpenerForm({
 				<Button variant="outline" color="neutral" onClick={onCancel}>
 					{t`Cancel`}
 				</Button>
-				<Button type="submit" loading={isSaving}>
-					{isCreation ? t`Add` : t`Save`}
-				</Button>
+				<Button onClick={submit}>{isCreation ? t`Add` : t`Update`}</Button>
 			</div>
-		</form>
+		</fieldset>
 	);
 }

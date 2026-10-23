@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// It is bumped on every change that an older peer would misread. Client and
 /// daemon must agree exactly: the handshake refuses any other version.
-pub const PROTOCOL_VERSION: u32 = 3;
+pub const PROTOCOL_VERSION: u32 = 4;
 
 /// What kind of program a client is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

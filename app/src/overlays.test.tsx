@@ -38,13 +38,13 @@ describe('Overlays', () => {
 		).toBeInTheDocument();
 	});
 
-	it('should open the settings drawer from the UI store', () => {
+	it('should open the settings dialog from the UI store', async () => {
 		renderOverlays();
 
 		act(() => useUiStore.getState().openSettings());
 
 		expect(
-			screen.getByRole('dialog', { name: 'Settings' })
+			await screen.findByRole('dialog', { name: 'Settings' })
 		).toBeInTheDocument();
 	});
 

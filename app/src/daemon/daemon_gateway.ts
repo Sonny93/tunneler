@@ -70,14 +70,14 @@ export type DaemonGateway = {
 	importScript(text: string): Promise<ImportPreviewDto>;
 	/** The daemon builds the URL, starts a stopped tunnel and waits until it is ready, then opens it with `opener` (`browser` or an id) or the default action. */
 	openTunnel(id: string, opener?: string): Promise<OpenTunnelResultDto>;
-	/** Replaces the openers added by the user; resolves to every available opener. */
-	updateOpeners(
-		openers: readonly OpenerSpecDto[]
-	): Promise<readonly AvailableOpenerDto[]>;
 	adoptExternal(id: string): Promise<readonly string[]>;
 	killExternal(pid: number): Promise<void>;
 	ignoreExternal(pid: number): Promise<void>;
-	updateSettings(settings: SettingsDto): Promise<void>;
+	/** Replaces the settings and the openers added by the user in one write; resolves to every available opener afterwards. */
+	updateSettings(
+		settings: SettingsDto,
+		openers: readonly OpenerSpecDto[]
+	): Promise<readonly AvailableOpenerDto[]>;
 	respondCredential(
 		promptId: string,
 		answer: CredentialAnswer,

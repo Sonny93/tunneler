@@ -89,12 +89,11 @@ describe('createTauriGateway', () => {
 		['openTunnel', ['1'], 'open_tunnel', { id: '1', with: undefined }],
 		['openTunnel', ['1', 'viewer'], 'open_tunnel', { id: '1', with: 'viewer' }],
 		[
-			'updateOpeners',
-			[[{ id: 'a' }]],
-			'update_openers',
-			{ openers: [{ id: 'a' }] },
+			'updateSettings',
+			[{ a: 1 }, [{ id: 'a' }]],
+			'update_settings',
+			{ settings: { a: 1 }, openers: [{ id: 'a' }] },
 		],
-		['updateSettings', [{ a: 1 }], 'update_settings', { settings: { a: 1 } }],
 		[
 			'respondCredential',
 			['p1', 'secret'],

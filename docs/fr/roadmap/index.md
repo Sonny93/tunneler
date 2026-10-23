@@ -30,7 +30,8 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 - Icône dans la zone de notification dont la forme et l'infobulle disent l'état global, avec un menu pour activer les tags.
 - Fenêtre à la demande : le processus s'arrête à la fermeture de la fenêtre, les tunnels continuent dans le daemon.
 - Liste de tunnels groupée par hôte, avec tags, sélection multiple, menus contextuels et palette de commandes (Ctrl+K).
-- Panneau de détails avec journaux et métriques en direct, import depuis `ssh_config` et depuis des scripts `ssh -L` collés, écran de réglages.
+- Panneau de détails avec journaux et métriques en direct, import depuis `ssh_config` et depuis des scripts `ssh -L` collés. Les tiroirs glissent à l'ouverture et à la fermeture.
+- Une fenêtre de réglages à onglets verticaux (Général, Connexion, Veille, Ouverture, Secrets), un seul « Enregistrer » pour tout, y compris vos applications, le nombre d'erreurs sur chaque onglet, une confirmation avant d'abandonner les changements, et une commande par onglet dans la palette.
 - Ouverture d'un tunnel dans le navigateur ou dans une application choisie d'après le port cible (VNC, RDP, toute commande que vous ajoutez). Une application détectée peut être personnalisée, par exemple pour pointer vers une copie portable.
 - Cette documentation, en anglais et en français, ouverte depuis l'application avec F1.
 - Thèmes clair et sombre qui suivent le système.
@@ -72,7 +73,7 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 ### Les deux systèmes
 - **X11.** VcXsrv sous Windows et Xorg ou Xwayland sous Linux, contre un vrai `sshd` : un `xeyes` distant doit s'afficher sans `xauth`.
 - **SOCKS.** `curl --socks5` à travers un tunnel dynamique vers un vrai `sshd`.
-- **L'interface telle qu'on la voit.** La veille forcée (menu, barre de sélection, clic droit sur « Tous les tunnels », entrée de la zone de notification), les tiroirs, la palette de commandes, le panneau replié, le renommage et la suppression de tag, le formulaire « Ouverture » et la section « Applications », les badges de veille, les infobulles, le clic droit et la sélection multiple.
+- **L'interface telle qu'on la voit.** La veille forcée (menu, barre de sélection, clic droit sur « Tous les tunnels », entrée de la zone de notification), les tiroirs, la fenêtre de réglages et ses onglets, la palette de commandes, le panneau replié, le renommage et la suppression de tag, le formulaire « Ouverture » et la section « Applications », les badges de veille, les infobulles, le clic droit et la sélection multiple.
 - **Invite de passphrase.** Entrée doit la valider. L'environnement de test ne peut pas le vérifier.
 - **Passe d'accessibilité sur les binaires de release.** WCAG 2.2 AA, sur les deux systèmes. En plus des points ci-dessus : visibilité de l'anneau de focus dans les deux thèmes, les flèches et Entrée dans la palette, l'invite de passphrase qui prend le focus, les erreurs de champ lues quand le champ reçoit le focus, les cases et avertissements de l'import, le thème clair ou sombre du système, la taille des cibles, et la CLI avec `NO_COLOR=1`, `TERM=dumb` et sans terminal. Les [règles d'accessibilité](/fr/contributing/accessibility) disent ce qui est attendu.
 
@@ -102,6 +103,7 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 - Un `tunnels.toml` en fins de ligne CRLF n'est pas garanti identique après réécriture en dehors des lignes que Tunneler modifie.
 - Les bordures de certains contrôles de la bibliothèque de composants sont sous 3:1 de contraste (WCAG 1.4.11). C'est accepté pour l'instant.
 - WebKitGTK expose le bouton du menu d'actions comme une liste déroulante (« combo box »).
+- Échap, un clic à l'extérieur et le bouton de fermeture de la fenêtre des réglages abandonnent les changements non enregistrés sans demander. Seul « Annuler » demande d'abord, en attendant que la bibliothèque de composants permette d'intercepter la fermeture.
 - Les choix « English » et « Français » du réglage de langue ne portent pas leur langue pour les lecteurs d'écran : la bibliothèque de composants ne permet pas encore de poser `lang` sur une option.
 - Les toasts Windows portent le nom Tunneler mais pas d'icône.
 - Les binaires et installeurs ne sont pas signés : Windows SmartScreen avertit au premier lancement.

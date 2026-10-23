@@ -78,16 +78,6 @@ pub async fn open_tunnel(
     Ok(OpenTunnelResult { target })
 }
 
-/// Replaces the openers of the user; answers with the openers that can be
-/// used afterwards.
-#[tauri::command]
-pub async fn update_openers(
-    state: State<'_, BridgeState>,
-    openers: Vec<OpenerSpecDto>,
-) -> CommandResult<Vec<AvailableOpenerDto>> {
-    Ok(state.client()?.update_openers(openers).await?)
-}
-
 #[tauri::command]
 pub async fn create_tunnel(
     state: State<'_, BridgeState>,
@@ -251,12 +241,15 @@ pub async fn ignore_external(state: State<'_, BridgeState>, pid: u32) -> Command
     Ok(state.client()?.ignore_external(pid).await?)
 }
 
+/// Replaces the settings and the openers of the user with one write; answers
+/// with the openers that can be used afterwards.
 #[tauri::command]
 pub async fn update_settings(
     state: State<'_, BridgeState>,
     settings: SettingsDto,
-) -> CommandResult<()> {
-    Ok(state.client()?.update_settings(settings).await?)
+    openers: Vec<OpenerSpecDto>,
+) -> CommandResult<Vec<AvailableOpenerDto>> {
+    Ok(state.client()?.update_settings(settings, openers).await?)
 }
 
 #[tauri::command]

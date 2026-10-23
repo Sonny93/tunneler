@@ -41,6 +41,7 @@ The UI targets WCAG 2.2 level AA. The command line follows the `NO_COLOR` and no
 ### Forms
 - Visible labels.
 - Errors are linked to their field (`aria-describedby`, `aria-invalid`), say precisely what is wrong, and do not depend on hover.
+- In a form split into tabs, each tab with errors says so in its name ("Connection 2 errors"), never by colour alone. A failed submit opens the first tab with an error and focuses the field.
 
 ### System preferences
 - `prefers-reduced-motion`: no animation is essential.

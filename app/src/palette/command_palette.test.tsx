@@ -152,11 +152,11 @@ describe('CommandPalette', () => {
 		renderPalette();
 		await openPalette(user);
 
-		await user.type(getInput(), 'SETTINGS');
+		await user.type(getInput(), 'SETTINGS: SECRETS');
 
 		expect(screen.getAllByRole('option')).toHaveLength(1);
 		expect(
-			screen.getByRole('option', { name: /Open settings/ })
+			screen.getByRole('option', { name: /Settings: Secrets/ })
 		).toBeInTheDocument();
 	});
 
@@ -280,6 +280,24 @@ describe('CommandPalette', () => {
 				host: 'nova',
 			})
 		);
+	});
+
+	it('should open the settings on the tab of a settings command', async () => {
+		const user = userEvent.setup();
+		renderPalette();
+		await openPalette(user);
+
+		await user.type(getInput(), 'Settings: Standby{Enter}');
+
+		await waitFor(() =>
+			expect(useUiStore.getState().panel).toEqual({
+				kind: 'settings',
+				tab: 'standby',
+			})
+		);
+		expect(
+			await screen.findByRole('tab', { name: 'Standby', selected: true })
+		).toBeInTheDocument();
 	});
 
 	it('should close on Escape and give the focus back', async () => {
