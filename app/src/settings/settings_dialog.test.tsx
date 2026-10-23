@@ -129,9 +129,7 @@ describe('SettingsDialog', () => {
 	it.each([
 		['General', ['Language', 'Startup', 'Updates']],
 		['Connection', ['Addresses', 'Sessions', 'Reconnection', 'X11']],
-		['Standby', ['Standby']],
 		['Opening', ['Opening']],
-		['Secrets', ['Secrets']],
 	])('should group the %s fields in labelled sections', async (tab, groups) => {
 		openSettings();
 		const user = userEvent.setup();
@@ -279,11 +277,11 @@ describe('SettingsDialog', () => {
 		);
 	});
 
-	it('should offer the standby switch and delay in a labelled section', async () => {
+	it('should offer the standby switch and delay in the labelled tab panel', async () => {
 		openSettings(buildSettings(), 'standby');
 		await renderDialog();
 
-		const section = screen.getByRole('group', { name: 'Standby' });
+		const section = screen.getByRole('tabpanel', { name: 'Standby' });
 		expect(
 			within(section).getByRole('switch', { name: 'Put tunnels on standby' })
 		).not.toBeChecked();
@@ -293,6 +291,22 @@ describe('SettingsDialog', () => {
 			})
 		).toHaveValue('300');
 	});
+
+	it.each<[string, SettingsTab]>([
+		['Standby', 'standby'],
+		['Secrets', 'secrets'],
+	])(
+		'should not repeat the %s tab name as a group title',
+		async (tabName, tab) => {
+			openSettings(buildSettings(), tab);
+			await renderDialog();
+
+			const panel = screen.getByRole('tabpanel', { name: tabName });
+			expect(
+				within(panel).queryByRole('group', { name: tabName })
+			).not.toBeInTheDocument();
+		}
+	);
 
 	it('should save the standby switch and delay', async () => {
 		const settings = buildSettings();

@@ -26,14 +26,13 @@ export type SettingsFieldSpec = {
 
 export type SettingsSectionSpec = {
 	name: string;
-	legend: MessageDescriptor;
+	legend?: MessageDescriptor;
 	fields: readonly SettingsFieldSpec[];
 };
 
 /** The standby switch is rendered apart, above the idle delay. */
 export const STANDBY_SECTION: SettingsSectionSpec = {
 	name: 'standby',
-	legend: msg`Standby`,
 	fields: [
 		{
 			field: 'standbyIdleSeconds',

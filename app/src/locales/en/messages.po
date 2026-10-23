@@ -206,7 +206,7 @@ msgstr "{tunnelCount, plural, one {The tag will be removed from # tunnel. The tu
 msgid "{usageCount, plural, one {# tunnel uses this application and will not be able to open until another one is chosen.} other {# tunnels use this application and will not be able to open until another one is chosen.}}"
 msgstr "{usageCount, plural, one {# tunnel uses this application and will not be able to open until another one is chosen.} other {# tunnels use this application and will not be able to open until another one is chosen.}}"
 
-#: src/settings/settings_field_specs.ts:70
+#: src/settings/settings_field_specs.ts:69
 msgid "0 to disable"
 msgstr "0 to disable"
 
@@ -273,7 +273,7 @@ msgstr "Add an application"
 msgid "Added"
 msgstr "Added"
 
-#: src/settings/settings_field_specs.ts:51
+#: src/settings/settings_field_specs.ts:50
 msgid "Addresses"
 msgstr "Addresses"
 
@@ -362,7 +362,7 @@ msgstr "Available when the tunnel is started."
 msgid "B"
 msgstr "B"
 
-#: src/settings/settings_field_specs.ts:76
+#: src/settings/settings_field_specs.ts:75
 msgid "Beyond this, the connection is considered lost"
 msgstr "Beyond this, the connection is considered lost"
 
@@ -681,11 +681,11 @@ msgstr "Daemon unreachable: {reason}"
 msgid "dark"
 msgstr "dark"
 
-#: src/settings/settings_field_specs.ts:55
+#: src/settings/settings_field_specs.ts:54
 msgid "Default listen address (local)"
 msgstr "Default listen address (local)"
 
-#: src/settings/settings_field_specs.ts:59
+#: src/settings/settings_field_specs.ts:58
 msgid "Default listen address (remote)"
 msgstr "Default listen address (remote)"
 
@@ -827,7 +827,7 @@ msgstr "Effective options of {host}"
 msgid "Empty: /"
 msgstr "Empty: /"
 
-#: src/settings/settings_field_specs.ts:109
+#: src/settings/settings_field_specs.ts:108
 msgid "Empty: DISPLAY variable (127.0.0.1:0.0 on Windows)"
 msgstr "Empty: DISPLAY variable (127.0.0.1:0.0 on Windows)"
 
@@ -893,7 +893,7 @@ msgstr "Follows the listen port"
 msgid "Forget"
 msgstr "Forget"
 
-#: src/settings/settings_secrets_fieldset.tsx:38
+#: src/settings/settings_secrets_section.tsx:37
 msgid "Forget remembered passphrases"
 msgstr "Forget remembered passphrases"
 
@@ -1053,7 +1053,7 @@ msgstr "In the system keyring"
 msgid "Info"
 msgstr "Info"
 
-#: src/settings/settings_field_specs.ts:92
+#: src/settings/settings_field_specs.ts:91
 msgid "Initial reconnect delay (seconds)"
 msgstr "Initial reconnect delay (seconds)"
 
@@ -1093,7 +1093,7 @@ msgstr "KB"
 msgid "Keep editing"
 msgstr "Keep editing"
 
-#: src/settings/settings_field_specs.ts:69
+#: src/settings/settings_field_specs.ts:68
 msgid "Keepalive interval (seconds)"
 msgstr "Keepalive interval (seconds)"
 
@@ -1208,7 +1208,7 @@ msgstr "Local display: DISPLAY variable (127.0.0.1:0.0 on Windows) (general sett
 msgid "Local forward {route}"
 msgstr "Local forward {route}"
 
-#: src/settings/settings_field_specs.ts:108
+#: src/settings/settings_field_specs.ts:107
 msgid "Local X11 display"
 msgstr "Local X11 display"
 
@@ -1249,7 +1249,7 @@ msgstr "Marimba"
 msgid "Maximum of {maxSelectedValues} reached"
 msgstr "Maximum of {maxSelectedValues} reached"
 
-#: src/settings/settings_field_specs.ts:97
+#: src/settings/settings_field_specs.ts:96
 msgid "Maximum reconnect delay (seconds)"
 msgstr "Maximum reconnect delay (seconds)"
 
@@ -1545,7 +1545,7 @@ msgstr "Received"
 msgid "Reconnecting (attempt {attempt})"
 msgstr "Reconnecting (attempt {attempt})"
 
-#: src/settings/settings_field_specs.ts:88
+#: src/settings/settings_field_specs.ts:87
 msgid "Reconnection"
 msgstr "Reconnection"
 
@@ -1557,7 +1557,7 @@ msgstr "Reject"
 msgid "Release notes"
 msgstr "Release notes"
 
-#: src/settings/settings_secrets_fieldset.tsx:26
+#: src/settings/settings_secrets_section.tsx:25
 msgid "Remember passphrases in the system keyring"
 msgstr "Remember passphrases in the system keyring"
 
@@ -1633,7 +1633,7 @@ msgstr "Restore active tunnels on launch"
 msgid "Retry"
 msgstr "Retry"
 
-#: src/settings/settings_field_specs.ts:40
+#: src/settings/settings_field_specs.ts:39
 msgid "Return to standby after (seconds)"
 msgstr "Return to standby after (seconds)"
 
@@ -1672,7 +1672,6 @@ msgstr "Search"
 msgid "Search a command"
 msgstr "Search a command"
 
-#: src/settings/settings_secrets_fieldset.tsx:23
 #: src/settings/settings_tabs.tsx:46
 msgid "Secrets"
 msgstr "Secrets"
@@ -1754,7 +1753,7 @@ msgstr "Separated by commas. A tunnel whose target port is one of them offers th
 msgid "Separated by commas. Existing tags: {existingTagsText}."
 msgstr "Separated by commas. Existing tags: {existingTagsText}."
 
-#: src/settings/settings_field_specs.ts:65
+#: src/settings/settings_field_specs.ts:64
 msgid "Sessions"
 msgstr "Sessions"
 
@@ -1838,7 +1837,6 @@ msgstr "Space"
 msgid "SSH connection failed: {message}"
 msgstr "SSH connection failed: {message}"
 
-#: src/settings/settings_field_specs.ts:36
 #: src/settings/settings_tabs.tsx:44
 #: src/tunnel_form/standby_field.tsx:41
 #: src/tunnels/tunnel_state_label.ts:14
@@ -2205,11 +2203,11 @@ msgstr "They will restart after the update, because active tunnels are restored 
 msgid "This identifier is already used by one of your applications."
 msgstr "This identifier is already used by one of your applications."
 
-#: src/settings/settings_field_specs.ts:81
+#: src/settings/settings_field_specs.ts:80
 msgid "Time before an unused session is closed (seconds)"
 msgstr "Time before an unused session is closed (seconds)"
 
-#: src/settings/settings_field_specs.ts:41
+#: src/settings/settings_field_specs.ts:40
 msgid "Time without connections before the SSH session is released"
 msgstr "Time without connections before the SSH session is released"
 
@@ -2270,7 +2268,7 @@ msgstr "Tunnel type"
 msgid "Tunneler keeps running when you close this window. To reopen it, run “tunneler” again. On GNOME, install the “AppIndicator and KStatusNotifierItem Support” extension to show the icon."
 msgstr "Tunneler keeps running when you close this window. To reopen it, run “tunneler” again. On GNOME, install the “AppIndicator and KStatusNotifierItem Support” extension to show the icon."
 
-#: src/settings/settings_field_specs.ts:75
+#: src/settings/settings_field_specs.ts:74
 msgid "Unanswered keepalives tolerated"
 msgstr "Unanswered keepalives tolerated"
 
@@ -2343,11 +2341,11 @@ msgstr "Warnings"
 msgid "When a tunnel wakes up, and when waking fails."
 msgstr "When a tunnel wakes up, and when waking fails."
 
-#: src/settings/settings_secrets_fieldset.tsx:27
+#: src/settings/settings_secrets_section.tsx:26
 msgid "Windows: Credential Manager; Linux: Secret Service (GNOME Keyring, KWallet). When off, passphrases are remembered only until Tunneler is closed."
 msgstr "Windows: Credential Manager; Linux: Secret Service (GNOME Keyring, KWallet). When off, passphrases are remembered only until Tunneler is closed."
 
-#: src/settings/settings_field_specs.ts:104
+#: src/settings/settings_field_specs.ts:103
 msgid "X11"
 msgstr "X11"
 

@@ -43,6 +43,8 @@ function SettingsField({
 	);
 }
 
+const FIELDSET_CLASS_NAME = 'flex flex-col gap-4 border-0 p-0';
+
 type SettingsFieldsetProps = {
 	section: SettingsSectionSpec;
 	values: SettingsFormValues;
@@ -61,11 +63,8 @@ export function SettingsFieldset({
 }: Readonly<SettingsFieldsetProps>) {
 	const { i18n } = useLingui();
 
-	return (
-		<fieldset className="flex flex-col gap-4 border-0 p-0">
-			<legend className="mb-3 text-sm font-semibold">
-				{i18n._(section.legend)}
-			</legend>
+	const fields = (
+		<>
 			{children}
 			{section.fields.map((spec) => (
 				<SettingsField
@@ -76,6 +75,19 @@ export function SettingsFieldset({
 					onChange={onChange}
 				/>
 			))}
+		</>
+	);
+
+	if (section.legend === undefined) {
+		return <div className={FIELDSET_CLASS_NAME}>{fields}</div>;
+	}
+
+	return (
+		<fieldset className={FIELDSET_CLASS_NAME}>
+			<legend className="mb-3 text-sm font-semibold">
+				{i18n._(section.legend)}
+			</legend>
+			{fields}
 		</fieldset>
 	);
 }

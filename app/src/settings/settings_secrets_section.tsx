@@ -6,21 +6,20 @@ import type { SettingsFormValues } from '#/settings/settings_form_values';
 import { SettingsSwitch } from '#/settings/settings_switch';
 import { useForgetSecrets } from '#/settings/use_forget_secrets';
 
-type SettingsSecretsFieldsetProps = {
+type SettingsSecretsSectionProps = {
 	values: SettingsFormValues;
 	onChangeToggle: (field: SettingsToggleField, isEnabled: boolean) => void;
 };
 
-export function SettingsSecretsFieldset({
+export function SettingsSecretsSection({
 	values,
 	onChangeToggle,
-}: Readonly<SettingsSecretsFieldsetProps>) {
+}: Readonly<SettingsSecretsSectionProps>) {
 	const { t } = useLingui();
 	const forgetSecrets = useForgetSecrets();
 
 	return (
-		<fieldset className="flex flex-col gap-4 border-0 p-0">
-			<legend className="mb-3 text-sm font-semibold">{t`Secrets`}</legend>
+		<div className="flex flex-col gap-4">
 			<SettingsSwitch
 				field="useOsKeyring"
 				label={t`Remember passphrases in the system keyring`}
@@ -38,6 +37,6 @@ export function SettingsSecretsFieldset({
 					{t`Forget remembered passphrases`}
 				</Button>
 			</div>
-		</fieldset>
+		</div>
 	);
 }
