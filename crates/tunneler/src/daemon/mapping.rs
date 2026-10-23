@@ -448,6 +448,7 @@ pub(crate) fn snapshot_to_dto(snapshot: &EngineSnapshot, tray: &TrayStatus) -> S
             .iter()
             .map(x11_launcher_to_dto)
             .collect(),
+        x11_host_displays: snapshot.x11_host_displays.clone(),
         openers: snapshot
             .openers
             .iter()
@@ -661,6 +662,7 @@ pub(crate) fn rejection_to_alert(rejection: &RejectedHostKey) -> HostKeyRequestE
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::path::PathBuf;
 
     use pretty_assertions::assert_eq;
@@ -1110,6 +1112,7 @@ mod tests {
             externals: vec![unmanaged()],
             x11_anchors: Vec::new(),
             x11_launchers: Vec::new(),
+            x11_host_displays: BTreeMap::new(),
             openers: Vec::new(),
         };
 
@@ -1133,6 +1136,7 @@ mod tests {
                 name: "Editor".to_owned(),
                 command: "code --wait".to_owned(),
             }],
+            x11_host_displays: [("nova".to_owned(), ":1".to_owned())].into(),
             openers: Vec::new(),
         }
     }
@@ -1157,6 +1161,14 @@ mod tests {
                 name: "Editor".to_owned(),
                 command: "code --wait".to_owned()
             }]
+        );
+    }
+
+    #[test]
+    fn should_include_the_x11_host_displays_when_converting_a_snapshot() {
+        assert_eq!(
+            snapshot_to_dto(&x11_snapshot(), &TrayStatus::Disabled).x11_host_displays,
+            [("nova".to_owned(), ":1".to_owned())].into()
         );
     }
 

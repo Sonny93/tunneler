@@ -1,5 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use std::collections::BTreeMap;
+
 use ipc::protocol::{
     AdoptResult, AvailableOpenerDto, CheckTargetResult, ClientKind, ConfigInvalidEvent,
     CredentialAnswer, CredentialRequestDto, CredentialRequestEvent, CredentialResponseParams,
@@ -1188,6 +1190,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
         externals: Vec::new(),
         x11_anchors: Vec::new(),
         x11_launchers: Vec::new(),
+        x11_host_displays: BTreeMap::new(),
         openers: Vec::new(),
     };
 
@@ -1235,6 +1238,7 @@ fn should_deserialize_a_snapshot_without_tray_as_disabled() {
         externals: Vec::new(),
         x11_anchors: Vec::new(),
         x11_launchers: Vec::new(),
+        x11_host_displays: BTreeMap::new(),
         openers: Vec::new(),
     });
     snapshot.as_object_mut().unwrap().remove("tray");
@@ -1631,6 +1635,7 @@ fn should_serialize_a_snapshot_with_its_externals() {
         externals: vec![external_process()],
         x11_anchors: Vec::new(),
         x11_launchers: Vec::new(),
+        x11_host_displays: BTreeMap::new(),
         openers: Vec::new(),
     };
 
@@ -1657,6 +1662,7 @@ fn should_deserialize_a_snapshot_without_externals_as_empty() {
         externals: vec![external_process()],
         x11_anchors: Vec::new(),
         x11_launchers: Vec::new(),
+        x11_host_displays: BTreeMap::new(),
         openers: Vec::new(),
     });
     snapshot.as_object_mut().unwrap().remove("externals");
@@ -1797,6 +1803,7 @@ fn should_serialize_a_snapshot_with_its_x11_anchors_and_launchers() {
         externals: Vec::new(),
         x11_anchors: vec![x11_anchor()],
         x11_launchers: vec![x11_launcher()],
+        x11_host_displays: BTreeMap::new(),
         openers: Vec::new(),
     };
 
@@ -1812,6 +1819,22 @@ fn should_serialize_a_snapshot_with_its_x11_anchors_and_launchers() {
 }
 
 #[test]
+fn should_serialize_the_x11_host_displays_of_a_snapshot_by_alias() {
+    let snapshot = SnapshotDto {
+        tunnels: Vec::new(),
+        settings: settings(),
+        tray: TrayStatusDto::Active,
+        externals: Vec::new(),
+        x11_anchors: Vec::new(),
+        x11_launchers: Vec::new(),
+        x11_host_displays: [("nova".to_owned(), ":1".to_owned())].into(),
+        openers: Vec::new(),
+    };
+
+    assert_eq!(to_json(&snapshot)["x11HostDisplays"], json!({"nova": ":1"}));
+}
+
+#[test]
 fn should_deserialize_a_snapshot_without_x11_keys_as_empty() {
     let mut snapshot = to_json(&SnapshotDto {
         tunnels: Vec::new(),
@@ -1820,17 +1843,23 @@ fn should_deserialize_a_snapshot_without_x11_keys_as_empty() {
         externals: Vec::new(),
         x11_anchors: vec![x11_anchor()],
         x11_launchers: vec![x11_launcher()],
+        x11_host_displays: BTreeMap::new(),
         openers: Vec::new(),
     });
     let fields = snapshot.as_object_mut().unwrap();
     fields.remove("x11Anchors");
     fields.remove("x11Launchers");
+    fields.remove("x11HostDisplays");
 
     let parsed: SnapshotDto = serde_json::from_value(snapshot).unwrap();
 
     assert_eq!(
-        (parsed.x11_anchors, parsed.x11_launchers),
-        (Vec::new(), Vec::new())
+        (
+            parsed.x11_anchors,
+            parsed.x11_launchers,
+            parsed.x11_host_displays
+        ),
+        (Vec::new(), Vec::new(), BTreeMap::new())
     );
 }
 

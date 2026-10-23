@@ -8,7 +8,11 @@ import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
-import { buildX11Anchor, buildX11Launcher } from '#/testing/factories';
+import {
+	buildSettings,
+	buildX11Anchor,
+	buildX11Launcher,
+} from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { X11Drawer } from '#/x11/x11_drawer';
@@ -60,6 +64,45 @@ describe('X11Drawer', () => {
 		expect(
 			screen.getByRole('button', { name: 'Start X11' })
 		).toBeInTheDocument();
+	});
+
+	it('should show the configured local display', () => {
+		useDaemonStore.setState({
+			settings: buildSettings({ x11Display: '192.0.2.5:1.0' }),
+		});
+		renderDrawer();
+
+		expect(screen.getByText(/Local display:/)).toHaveTextContent(
+			'Local display: 192.0.2.5:1.0 (general setting)'
+		);
+	});
+
+	it('should show the display overridden for the host before the general setting', () => {
+		useDaemonStore.setState({
+			settings: buildSettings({ x11Display: '192.0.2.5:1.0' }),
+			x11HostDisplays: { nova: ':7' },
+		});
+		renderDrawer();
+
+		expect(screen.getByText(/Local display:/)).toHaveTextContent(
+			'Local display: :7 (this host, in tunnels.toml)'
+		);
+	});
+
+	it('should show the DISPLAY fallback when no local display is configured', () => {
+		useDaemonStore.setState({ settings: buildSettings() });
+		renderDrawer();
+
+		expect(screen.getByText(/Local display:/)).toHaveTextContent(
+			'Local display: DISPLAY variable (127.0.0.1:0.0 on Windows) (general setting)'
+		);
+	});
+
+	it('should show no local display while the settings are not loaded', () => {
+		useDaemonStore.setState({ settings: null });
+		renderDrawer();
+
+		expect(screen.queryByText(/Local display:/)).not.toBeInTheDocument();
 	});
 
 	it('should show the message of a failed anchor', () => {
@@ -250,6 +293,7 @@ describe('X11Drawer', () => {
 		useDaemonStore.setState({
 			x11Anchors: [buildX11Anchor()],
 			x11Launchers: [buildX11Launcher()],
+			settings: buildSettings({ x11Display: '192.0.2.5:1.0' }),
 		});
 		renderDrawer();
 

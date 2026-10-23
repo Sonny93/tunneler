@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
@@ -218,6 +218,8 @@ pub struct EngineSnapshot {
     pub x11_anchors: Vec<X11AnchorSnapshot>,
     /// The saved X11 launchers.
     pub x11_launchers: Vec<X11Launcher>,
+    /// The local X display each host overrides in the store, by alias.
+    pub x11_host_displays: BTreeMap<String, String>,
     /// The openers that can be used: the ones of the user, then the detected
     /// presets they do not replace.
     pub openers: Vec<AvailableOpener>,
@@ -405,12 +407,18 @@ impl Engine {
     /// The tunnels with their state, health and metrics, and the settings.
     pub fn snapshot(&self) -> EngineSnapshot {
         let document = self.inner.store.document();
+        let x11_host_displays = document
+            .hosts
+            .iter()
+            .filter_map(|(alias, overrides)| Some((alias.clone(), overrides.x11_display.clone()?)))
+            .collect();
         EngineSnapshot {
             tunnels: self.inner.catalog().snapshots(),
             settings: self.inner.settings.borrow().clone(),
             externals: self.inner.port_watch.externals(),
             x11_anchors: self.inner.x11_anchors.snapshots(),
             x11_launchers: document.x11_launchers,
+            x11_host_displays,
             openers: available_openers(&self.inner.detected_openers, &document.openers),
         }
     }

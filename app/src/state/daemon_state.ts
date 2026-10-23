@@ -44,6 +44,8 @@ export type DaemonState = {
 	externals: readonly ExternalProcessDto[];
 	x11Anchors: readonly X11AnchorDto[];
 	x11Launchers: readonly X11LauncherDto[];
+	/** The local X display a host overrides in tunnels.toml, by alias. */
+	x11HostDisplays: Readonly<Record<string, string>>;
 	openers: readonly AvailableOpenerDto[];
 	settings: SettingsDto | null;
 	hosts: readonly string[];
@@ -62,6 +64,7 @@ export const INITIAL_DAEMON_STATE: DaemonState = {
 	externals: [],
 	x11Anchors: [],
 	x11Launchers: [],
+	x11HostDisplays: {},
 	openers: [],
 	settings: null,
 	hosts: [],

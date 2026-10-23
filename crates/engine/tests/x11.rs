@@ -46,6 +46,7 @@ struct HarnessBuilder {
     authority: Authority,
     has_x_server: bool,
     has_display_variable: bool,
+    host_display: Option<&'static str>,
 }
 
 struct Harness {
@@ -64,7 +65,13 @@ impl HarnessBuilder {
             authority: Authority::Cookie,
             has_x_server: true,
             has_display_variable: true,
+            host_display: None,
         }
+    }
+
+    fn with_host_display(mut self, display: &'static str) -> Self {
+        self.host_display = Some(display);
+        self
     }
 
     fn without_display_variable(mut self) -> Self {
@@ -110,7 +117,11 @@ impl HarnessBuilder {
         let environment = self.environment(&workspace, &x_server).await;
         let store_directory = tempfile::tempdir().unwrap();
         let store_path = store_directory.path().join("tunnels.toml");
-        std::fs::write(&store_path, store_text(free_port().await)).unwrap();
+        std::fs::write(
+            &store_path,
+            store_text(free_port().await, self.host_display),
+        )
+        .unwrap();
         let (store, _) = Store::open(store_path).unwrap();
         let connector = workspace.connector_dependencies(
             &config_path,
@@ -188,11 +199,17 @@ impl HarnessBuilder {
     }
 }
 
-fn store_text(plain_tunnel_port: u16) -> String {
+fn store_text(plain_tunnel_port: u16, host_display: Option<&str>) -> String {
+    let host_overrides = host_display.map_or_else(String::new, |display| {
+        format!(
+            "\n[hosts.{host}]\nx11_display = \"{display}\"\n",
+            host = support::ALIAS
+        )
+    });
     format!(
         "version = 1\n\n[settings]\nreconnect_initial_delay_ms = {RECONNECT_INITIAL_MILLISECONDS}\nreconnect_max_delay_ms = {RECONNECT_MAXIMUM_MILLISECONDS}\nsession_idle_grace_s = 0\n\n\
 [[tunnels]]\nhost = \"{host}\"\nkind = \"local\"\nlisten_port = {plain_tunnel_port}\ntarget_port = 9\n\n\
-[[x11_launchers]]\nhost = \"{host}\"\nname = \"{LAUNCHER_NAME}\"\ncommand = \"{LAUNCHER_COMMAND}\"\n",
+[[x11_launchers]]\nhost = \"{host}\"\nname = \"{LAUNCHER_NAME}\"\ncommand = \"{LAUNCHER_COMMAND}\"\n{host_overrides}",
         host = support::ALIAS
     )
 }
@@ -573,6 +590,23 @@ async fn should_list_the_saved_launchers_in_the_snapshot() {
             command: LAUNCHER_COMMAND.to_owned(),
         }]
     );
+}
+
+#[tokio::test]
+async fn should_list_the_host_display_overrides_in_the_snapshot() {
+    let harness = HarnessBuilder::new().with_host_display(":7").start().await;
+
+    assert_eq!(
+        harness.engine.snapshot().x11_host_displays,
+        [(support::ALIAS.to_owned(), ":7".to_owned())].into()
+    );
+}
+
+#[tokio::test]
+async fn should_list_no_host_display_override_when_none_is_set() {
+    let harness = HarnessBuilder::new().start().await;
+
+    assert!(harness.engine.snapshot().x11_host_displays.is_empty());
 }
 
 #[tokio::test]

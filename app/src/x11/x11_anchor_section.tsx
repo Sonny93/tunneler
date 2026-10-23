@@ -3,6 +3,7 @@ import { Button } from '@minimalstuff/ui';
 
 import { useX11AnchorActions } from '#/x11/use_x11_anchor_actions';
 import { useX11State } from '#/x11/use_x11_state';
+import { X11LocalDisplay } from '#/x11/x11_local_display';
 import { X11StateBadge } from '#/x11/x11_state_badge';
 import { getX11StateDetail } from '#/x11/x11_state_label';
 
@@ -29,6 +30,7 @@ export function X11AnchorSection({ host }: Readonly<X11AnchorSectionProps>) {
 					<span className="text-sm text-tn-danger">{detail}</span>
 				)}
 			</div>
+			<X11LocalDisplay host={host} />
 			<div>
 				{isStartable ? (
 					<Button startIcon="i-mdi-play" onClick={handleStart}>

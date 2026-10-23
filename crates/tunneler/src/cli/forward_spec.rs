@@ -239,6 +239,8 @@ fn tcp_parts(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use ipc::protocol::{
         MetricsDto, SettingsDto, TargetHealthDto, TrayStatusDto, TunnelDefinitionDto,
         TunnelSpecDto, TunnelStateDto,
@@ -450,6 +452,7 @@ mod tests {
             externals: Vec::new(),
             x11_anchors: Vec::new(),
             x11_launchers: Vec::new(),
+            x11_host_displays: BTreeMap::new(),
             openers: Vec::new(),
         }
     }

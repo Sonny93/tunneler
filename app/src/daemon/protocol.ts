@@ -229,6 +229,8 @@ export type SnapshotDto = {
 	externals: ExternalProcessDto[];
 	x11Anchors: X11AnchorDto[];
 	x11Launchers: X11LauncherDto[];
+	/** Absent when no host overrides its local X display. */
+	x11HostDisplays?: Record<string, string>;
 	openers: AvailableOpenerDto[];
 	settings: SettingsDto;
 	tray: TrayStatusDto;

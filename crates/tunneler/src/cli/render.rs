@@ -478,6 +478,8 @@ pub fn render_list_json(snapshot: &SnapshotDto) -> Result<String, serde_json::Er
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use ipc::protocol::{TrayStatusDto, TunnelSpecDto};
     use pretty_assertions::assert_eq;
 
@@ -557,6 +559,7 @@ mod tests {
             externals: Vec::new(),
             x11_anchors: Vec::new(),
             x11_launchers: Vec::new(),
+            x11_host_displays: BTreeMap::new(),
             openers: Vec::new(),
         }
     }

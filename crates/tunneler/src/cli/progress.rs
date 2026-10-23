@@ -158,6 +158,8 @@ pub fn describe_step(tunnel_label: &str, state: &TunnelStateDto, style: Style) -
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use ipc::protocol::{
         FailureReasonDto, MetricsDto, PortOwnerDto, SettingsDto, TargetHealthDto, TrayStatusDto,
         TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelSpecDto,
@@ -215,6 +217,7 @@ mod tests {
             externals: Vec::new(),
             x11_anchors: Vec::new(),
             x11_launchers: Vec::new(),
+            x11_host_displays: BTreeMap::new(),
             openers: Vec::new(),
             tunnels,
             settings: SettingsDto {

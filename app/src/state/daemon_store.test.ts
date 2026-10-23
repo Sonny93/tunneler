@@ -51,6 +51,19 @@ describe('useDaemonStore', () => {
 		});
 	});
 
+	it('should load the host displays from a snapshot and clear them when absent', () => {
+		const { applySnapshot } = useDaemonStore.getState();
+
+		applySnapshot(buildSnapshot({ x11HostDisplays: { nova: ':7' } }));
+		const loaded = useDaemonStore.getState().x11HostDisplays;
+		applySnapshot(buildSnapshot());
+
+		expect([loaded, useDaemonStore.getState().x11HostDisplays]).toEqual([
+			{ nova: ':7' },
+			{},
+		]);
+	});
+
 	it('should load the tray status from a snapshot', () => {
 		useDaemonStore
 			.getState()

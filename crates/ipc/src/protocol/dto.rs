@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 /// The default of `standby_idle_s`, in seconds.
@@ -613,6 +615,10 @@ pub struct SnapshotDto {
     /// The saved X11 launchers.
     #[serde(default)]
     pub x11_launchers: Vec<X11LauncherDto>,
+    /// The local X display that a host alias overrides in `tunnels.toml`, by
+    /// alias. Hosts without an override are absent.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub x11_host_displays: BTreeMap<String, String>,
     /// The openers that can be used: the ones of the user, then the detected
     /// presets they do not replace.
     #[serde(default)]

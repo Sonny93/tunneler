@@ -352,6 +352,8 @@ pub fn all_tunnels(snapshot: &SnapshotDto, style: Style) -> Vec<ResolvedTunnel> 
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use ipc::protocol::{
         SettingsDto, TrayStatusDto, TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto,
     };
@@ -429,6 +431,7 @@ mod tests {
             externals: Vec::new(),
             x11_anchors: Vec::new(),
             x11_launchers: Vec::new(),
+            x11_host_displays: BTreeMap::new(),
             openers: Vec::new(),
         }
     }

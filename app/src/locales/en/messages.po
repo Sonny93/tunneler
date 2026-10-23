@@ -1192,6 +1192,18 @@ msgstr "Local (-L)"
 msgid "Local and dynamic tunnels keep their port without an SSH session until the first connection. Takes effect the next time each tunnel starts."
 msgstr "Local and dynamic tunnels keep their port without an SSH session until the first connection. Takes effect the next time each tunnel starts."
 
+#: src/x11/x11_local_display.tsx:19
+msgid "Local display: <0>{hostDisplay}</0> (this host, in tunnels.toml)"
+msgstr "Local display: <0>{hostDisplay}</0> (this host, in tunnels.toml)"
+
+#: src/x11/x11_local_display.tsx:24
+msgid "Local display: <0>{settingsDisplay}</0> (general setting)"
+msgstr "Local display: <0>{settingsDisplay}</0> (general setting)"
+
+#: src/x11/x11_local_display.tsx:29
+msgid "Local display: DISPLAY variable (127.0.0.1:0.0 on Windows) (general setting)"
+msgstr "Local display: DISPLAY variable (127.0.0.1:0.0 on Windows) (general setting)"
+
 #: src/externals/external_forward_label.ts:59
 msgid "Local forward {route}"
 msgstr "Local forward {route}"
@@ -1854,7 +1866,7 @@ msgstr "Start tag {tag}"
 msgid "Start the tag"
 msgstr "Start the tag"
 
-#: src/x11/x11_anchor_section.tsx:35
+#: src/x11/x11_anchor_section.tsx:37
 msgid "Start X11"
 msgstr "Start X11"
 
@@ -1925,7 +1937,7 @@ msgstr "Stop the process…"
 msgid "Stop the tag"
 msgstr "Stop the tag"
 
-#: src/x11/x11_anchor_section.tsx:44
+#: src/x11/x11_anchor_section.tsx:46
 msgid "Stop X11"
 msgstr "Stop X11"
 
@@ -2351,7 +2363,7 @@ msgstr "X11 {host}: {label} ({detail})"
 msgid "X11 active: {display}"
 msgstr "X11 active: {display}"
 
-#: src/x11/x11_anchor_section.tsx:25
+#: src/x11/x11_anchor_section.tsx:26
 msgid "X11 anchor"
 msgstr "X11 anchor"
 

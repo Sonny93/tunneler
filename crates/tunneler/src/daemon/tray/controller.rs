@@ -264,6 +264,7 @@ impl TrayController {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
@@ -369,6 +370,7 @@ mod tests {
                 externals: Vec::new(),
                 x11_anchors: Vec::new(),
                 x11_launchers: Vec::new(),
+                x11_host_displays: BTreeMap::new(),
                 openers: Vec::new(),
             }
         }

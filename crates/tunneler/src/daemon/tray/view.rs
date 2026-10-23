@@ -297,6 +297,7 @@ mod tests {
                 externals: Vec::new(),
                 x11_anchors: Vec::new(),
                 x11_launchers: Vec::new(),
+                x11_host_displays: BTreeMap::new(),
                 openers: Vec::new(),
             },
             language,
