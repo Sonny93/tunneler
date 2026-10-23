@@ -751,11 +751,11 @@ msgstr "Détectées sur ce poste"
 msgid "Detected tunnels ({candidateCount})"
 msgstr "Tunnels détectés ({candidateCount})"
 
-#: src/settings/use_confirm_discard.ts:20
+#: src/settings/use_confirm_discard.ts:27
 msgid "Discard"
 msgstr "Abandonner"
 
-#: src/settings/use_confirm_discard.ts:18
+#: src/settings/use_confirm_discard.ts:25
 msgid "Discard your changes?"
 msgstr "Abandonner vos modifications ?"
 
@@ -1089,7 +1089,7 @@ msgstr "Il sera aussi retiré des « Tags démarrés au lancement »."
 msgid "KB"
 msgstr "Ko"
 
-#: src/settings/use_confirm_discard.ts:21
+#: src/settings/use_confirm_discard.ts:28
 msgid "Keep editing"
 msgstr "Continuer la modification"
 
@@ -2045,7 +2045,7 @@ msgstr "Tunnel temporaire…"
 msgid "The address is required."
 msgstr "L'adresse est obligatoire."
 
-#: src/settings/use_confirm_discard.ts:19
+#: src/settings/use_confirm_discard.ts:26
 msgid "The changes you made to the settings are not saved yet."
 msgstr "Les modifications apportées aux paramètres ne sont pas encore enregistrées."
 

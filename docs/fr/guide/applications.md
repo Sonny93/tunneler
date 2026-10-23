@@ -71,7 +71,7 @@ Comment fonctionnent les arguments :
 
 Pour modifier une de vos applications, utilisez « Modifier » à côté d'elle, puis « Mettre à jour ». « Supprimer » la retire. Les tunnels réglés pour s'ouvrir avec elle ne peuvent plus s'ouvrir tant que vous n'en choisissez pas une autre.
 
-Rien n'est enregistré au fil de l'eau. Ajouter, modifier et supprimer ne changent que la liste de la fenêtre des paramètres, et les paramètres sont enregistrés d'un coup avec « Enregistrer » en bas. « Annuler » demande confirmation avant d'abandonner vos changements. Le formulaire d'une application qui contient encore une saisie bloque « Enregistrer » tant que vous n'avez pas ajouté l'application ou annulé le formulaire.
+Rien n'est enregistré au fil de l'eau. Ajouter, modifier et supprimer ne changent que la liste de la fenêtre des paramètres, et les paramètres sont enregistrés d'un coup avec « Enregistrer » en bas. Fermer la fenêtre, de n'importe quelle façon (« Annuler », Échap, un clic à l'extérieur ou le bouton de fermeture), demande confirmation avant d'abandonner vos changements. Le formulaire d'une application qui contient encore une saisie bloque « Enregistrer » tant que vous n'avez pas ajouté l'application ou annulé le formulaire.
 
 ### Remplacer une application intégrée
 

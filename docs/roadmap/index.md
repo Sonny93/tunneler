@@ -31,7 +31,7 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 - On-demand window: the process exits when the window closes, the tunnels keep running in the daemon.
 - Tunnel list grouped by host, with tags, multi-selection, context menus and a command palette (Ctrl+K).
 - Detail drawer with live logs and metrics, an import from `ssh_config` and from pasted `ssh -L` scripts. The drawers slide in and out.
-- A settings window with vertical tabs (General, Connection, Standby, Opening, Secrets), one "Save" for everything including your applications, a count of errors on each tab, a confirmation before discarding changes, and one command per tab in the palette.
+- A settings window with vertical tabs (General, Connection, Standby, Opening, Secrets), one "Save" for everything including your applications, a count of errors on each tab, a confirmation before discarding changes however you close the window (Cancel, Escape, a click outside or the close button), and one command per tab in the palette.
 - Open a tunnel in the browser or in an application picked from the target port (VNC, RDP, any command you add). A detected application can be customized, for example to point at a portable copy.
 - This documentation, in English and French, opened from the app with F1.
 - Dark and light themes that follow the system.
@@ -74,6 +74,7 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 - **X11.** VcXsrv on Windows and Xorg or Xwayland on Linux, against a real `sshd`: a remote `xeyes` should show up without `xauth`.
 - **SOCKS.** `curl --socks5` through a dynamic tunnel to a real `sshd`.
 - **The UI as a person sees it.** Forced standby (menu, selection bar, right-click on "All tunnels", tray entry), the drawers, the settings window and its tabs, the command palette, the collapsed side panel, tag rename and delete, the opening form and the applications section, standby badges, tooltips, right-click and multi-selection.
+- **Closing the settings window with unsaved changes.** Escape, a click outside and the close button should each ask "Discard your changes?". "Keep editing" should put the focus back on the field you were editing.
 - **Passphrase prompt.** Pressing Enter should submit it. The test environment cannot check it.
 - **Accessibility pass on the release binaries.** WCAG 2.2 AA, on both systems. Beyond the points above: focus ring visibility in both themes, the arrow keys and Enter in the palette, the passphrase prompt taking focus, field errors being read when the field gets focus, the import checkboxes and warnings, system colour scheme, touch target size, and the CLI with `NO_COLOR=1`, `TERM=dumb` and without a terminal. The [accessibility rules](/contributing/accessibility) say what is expected.
 
@@ -103,7 +104,6 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 - A `tunnels.toml` with CRLF line endings is not guaranteed to be rewritten identically outside the lines Tunneler changes.
 - The borders of some controls from the component library are below 3:1 contrast (WCAG 1.4.11). This is accepted for now.
 - WebKitGTK exposes the actions menu button as a combo box.
-- Escape, a click outside and the close button of the settings window drop unsaved changes without asking. Only "Cancel" asks first, until the component library can intercept the dismissal.
 - The "English" and "Français" choices of the language setting are not marked with their language for screen readers: the component library cannot set `lang` on an option yet.
 - Windows toasts carry the name Tunneler but no icon.
 - Binaries and installers are not signed: Windows SmartScreen warns on first run.

@@ -751,11 +751,11 @@ msgstr "Detected on this computer"
 msgid "Detected tunnels ({candidateCount})"
 msgstr "Detected tunnels ({candidateCount})"
 
-#: src/settings/use_confirm_discard.ts:20
+#: src/settings/use_confirm_discard.ts:27
 msgid "Discard"
 msgstr "Discard"
 
-#: src/settings/use_confirm_discard.ts:18
+#: src/settings/use_confirm_discard.ts:25
 msgid "Discard your changes?"
 msgstr "Discard your changes?"
 
@@ -1089,7 +1089,7 @@ msgstr "It will also be removed from the \"Tags to start on launch\"."
 msgid "KB"
 msgstr "KB"
 
-#: src/settings/use_confirm_discard.ts:21
+#: src/settings/use_confirm_discard.ts:28
 msgid "Keep editing"
 msgstr "Keep editing"
 
@@ -2045,7 +2045,7 @@ msgstr "Temporary tunnel…"
 msgid "The address is required."
 msgstr "The address is required."
 
-#: src/settings/use_confirm_discard.ts:19
+#: src/settings/use_confirm_discard.ts:26
 msgid "The changes you made to the settings are not saved yet."
 msgstr "The changes you made to the settings are not saved yet."
 

@@ -920,6 +920,81 @@ describe('SettingsDialog', () => {
 			expect(gateway.updateSettings).not.toHaveBeenCalled();
 		});
 
+		it.each([
+			['Escape', () => userEvent.keyboard('{Escape}')],
+			[
+				'the close button',
+				() => userEvent.click(screen.getByRole('button', { name: 'Close' })),
+			],
+		])(
+			'should ask to confirm when dismissed with %s and a setting changed',
+			async (_label, dismiss) => {
+				openSettings();
+				const user = userEvent.setup();
+				await renderDialog();
+				await changeLanguage(user);
+
+				await dismiss();
+
+				expect(
+					await screen.findByRole('alertdialog', {
+						name: 'Discard your changes?',
+					})
+				).toBeInTheDocument();
+				expect(useUiStore.getState().panel.kind).toBe('settings');
+			}
+		);
+
+		it('should keep the dialog, the changes and the focus when Keep editing follows Escape', async () => {
+			openSettings();
+			const user = userEvent.setup();
+			await renderDialog();
+			await changeLanguage(user);
+			await user.keyboard('{Escape}');
+
+			await user.click(
+				await screen.findByRole('button', { name: 'Keep editing' })
+			);
+
+			await waitFor(() =>
+				expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+			);
+			expect(useUiStore.getState().panel.kind).toBe('settings');
+			const languageSelect = screen.getByRole('combobox', {
+				name: 'Display language',
+			});
+			expect(languageSelect).toHaveValue('fr');
+			expect(languageSelect).toHaveFocus();
+		});
+
+		it('should close on Discard after Escape', async () => {
+			openSettings();
+			const user = userEvent.setup();
+			const { gateway } = await renderDialog();
+			await changeLanguage(user);
+			await user.keyboard('{Escape}');
+
+			await user.click(await screen.findByRole('button', { name: 'Discard' }));
+
+			await waitFor(() =>
+				expect(useUiStore.getState().panel.kind).toBe('none')
+			);
+			expect(gateway.updateSettings).not.toHaveBeenCalled();
+		});
+
+		it('should close at once with Escape and no changes', async () => {
+			openSettings();
+			const user = userEvent.setup();
+			await renderDialog();
+
+			await user.keyboard('{Escape}');
+
+			await waitFor(() =>
+				expect(useUiStore.getState().panel.kind).toBe('none')
+			);
+			expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+		});
+
 		it('should ask to confirm when only an application was added', async () => {
 			openSettings(buildSettings(), 'opening');
 			const user = userEvent.setup();

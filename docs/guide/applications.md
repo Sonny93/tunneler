@@ -71,7 +71,7 @@ How arguments work:
 
 To change one of your applications, use "Edit" next to it, then "Update". "Delete" removes it. Tunnels that were set to open with it can no longer open until you pick another application.
 
-Nothing is saved as you go. Adding, editing and deleting only change the list in the settings window, and the settings are saved all at once with "Save" at the bottom. "Cancel" asks before it drops what you changed. An application form that still holds typed input blocks "Save" until you add the application or cancel the form.
+Nothing is saved as you go. Adding, editing and deleting only change the list in the settings window, and the settings are saved all at once with "Save" at the bottom. Closing the window by any means ("Cancel", Escape, a click outside or the close button) asks before it drops what you changed. An application form that still holds typed input blocks "Save" until you add the application or cancel the form.
 
 ### Replace a built-in application
 
