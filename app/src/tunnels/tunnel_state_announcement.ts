@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { plural, t } from '@lingui/core/macro';
+import { plural, msg } from '@lingui/core/macro';
 
 import type { TunnelDto } from '#/daemon/protocol';
 import { getTunnelAccessibleEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
@@ -12,8 +12,8 @@ function describeChange(tunnel: Readonly<TunnelDto>, i18n: I18n): string {
 	const label = getTunnelAccessibleEndpointLabel(tunnel, i18n);
 	const stateLabel = getTunnelStateLabel(tunnel.state, i18n);
 	const detail = getTunnelStateDetail(tunnel.state, i18n);
-	if (detail === null) return t(i18n)`${label}: ${stateLabel}`;
-	return t(i18n)`${label}: ${stateLabel}, ${detail}`;
+	if (detail === null) return i18n._(msg`${label}: ${stateLabel}`);
+	return i18n._(msg`${label}: ${stateLabel}, ${detail}`);
 }
 
 /** One line for a single change; a count, plus the details when there are few, for several. */
@@ -25,10 +25,12 @@ export function buildStateAnnouncement(
 	if (!firstTunnel) return '';
 	if (changedTunnels.length === 1) return describeChange(firstTunnel, i18n);
 	const changedCount = changedTunnels.length;
-	const summary = t(i18n)`${plural(changedCount, {
-		one: '# tunnel changed state',
-		other: '# tunnels changed state',
-	})}`;
+	const summary = i18n._(
+		msg`${plural(changedCount, {
+			one: '# tunnel changed state',
+			other: '# tunnels changed state',
+		})}`
+	);
 	if (changedTunnels.length > MAXIMUM_DETAILED_CHANGES) return summary;
 	const details = changedTunnels
 		.map((tunnel) => describeChange(tunnel, i18n))

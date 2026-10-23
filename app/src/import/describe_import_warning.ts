@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { ImportWarningDto } from '#/daemon/protocol';
 
@@ -16,21 +16,21 @@ function describeUnsupportedForward(
 ): string {
 	const { line, host } = warning;
 	if (line !== undefined && host !== undefined) {
-		return t(
-			i18n
-		)`Line ${line}: ${host}: unsupported forward (Unix socket or remote SOCKS): `;
+		return i18n._(
+			msg`Line ${line}: ${host}: unsupported forward (Unix socket or remote SOCKS): `
+		);
 	}
 	if (line !== undefined) {
-		return t(
-			i18n
-		)`Line ${line}: unsupported forward (Unix socket or remote SOCKS): `;
+		return i18n._(
+			msg`Line ${line}: unsupported forward (Unix socket or remote SOCKS): `
+		);
 	}
 	if (host !== undefined) {
-		return t(
-			i18n
-		)`${host}: unsupported forward (Unix socket or remote SOCKS): `;
+		return i18n._(
+			msg`${host}: unsupported forward (Unix socket or remote SOCKS): `
+		);
 	}
-	return t(i18n)`Unsupported forward (Unix socket or remote SOCKS): `;
+	return i18n._(msg`Unsupported forward (Unix socket or remote SOCKS): `);
 }
 
 export function describeImportWarning(
@@ -41,7 +41,7 @@ export function describeImportWarning(
 		case 'malformedForward': {
 			const { line } = warning;
 			return {
-				before: t(i18n)`Line ${line}: option ignored, unreadable: `,
+				before: i18n._(msg`Line ${line}: option ignored, unreadable: `),
 				raw: warning.text,
 				after: '',
 			};
@@ -54,14 +54,14 @@ export function describeImportWarning(
 			};
 		case 'unknownDestination':
 			return {
-				before: t(i18n)`No ssh_config alias matches `,
+				before: i18n._(msg`No ssh_config alias matches `),
 				raw: warning.destination,
-				after: t(i18n)`: choose the host below.`,
+				after: i18n._(msg`: choose the host below.`),
 			};
 		case 'hostResolutionFailed': {
 			const { host } = warning;
 			return {
-				before: t(i18n)`Couldn't read ${host}: `,
+				before: i18n._(msg`Couldn't read ${host}: `),
 				raw: warning.message,
 				after: '',
 			};

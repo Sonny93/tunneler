@@ -1,7 +1,7 @@
 import { render, type RenderResult } from '@testing-library/react';
 import type { ReactElement } from 'react';
 
-import { DaemonGatewayProvider } from '#/daemon/daemon_gateway_context';
+import { DaemonGatewayProvider } from '#/daemon/daemon_gateway_provider';
 import { AppUIProvider } from '#/shared/app_ui_provider';
 import { createFakeGateway, type FakeGateway } from '#/testing/fake_gateway';
 import { I18nTestProvider } from '#/testing/i18n_test_provider';

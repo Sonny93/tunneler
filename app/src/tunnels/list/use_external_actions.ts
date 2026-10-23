@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { plural, t } from '@lingui/core/macro';
+import { plural, msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 
 import type { TunnelDto } from '#/daemon/protocol';
@@ -26,12 +26,12 @@ function describeAdoption(
 ): string {
 	const adoptedCount = adoptedIds.length;
 	if (adoptedCount > 1) {
-		return t(
-			i18n
-		)`${plural(adoptedCount, { one: '# tunnel adopted', other: '# tunnels adopted' })}`;
+		return i18n._(
+			msg`${plural(adoptedCount, { one: '# tunnel adopted', other: '# tunnels adopted' })}`
+		);
 	}
 	const endpoint = getTunnelEndpointLabel(tunnel);
-	return t(i18n)`Tunnel ${endpoint} adopted`;
+	return i18n._(msg`Tunnel ${endpoint} adopted`);
 }
 
 /** Actions on a tunnel held by an external ssh process or blocked by another process. */
@@ -53,7 +53,7 @@ export function useExternalActions(
 					message: describeAdoption(tunnel, adoptedIds, i18n),
 				});
 			},
-			t(i18n)`Couldn't adopt the tunnel`
+			i18n._(msg`Couldn't adopt the tunnel`)
 		);
 	};
 

@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { UpdateProgressDto } from '#/daemon/protocol';
 import { formatBytes } from '#/shared/format_bytes';
@@ -13,7 +13,7 @@ export type UpdateProgressView = {
 };
 
 export function getDownloadStartText(i18n: I18n): string {
-	return t(i18n)`Downloading the update…`;
+	return i18n._(msg`Downloading the update…`);
 }
 
 export function describeUpdateProgress(
@@ -26,13 +26,13 @@ export function describeUpdateProgress(
 	if (progress.kind === 'installing') {
 		return {
 			percent: null,
-			text: t(i18n)`Installing, Tunneler will restart.`,
+			text: i18n._(msg`Installing, Tunneler will restart.`),
 		};
 	}
 	const { downloadedBytes, totalBytes } = progress;
 	const downloaded = formatBytes(downloadedBytes);
 	if (totalBytes === undefined || totalBytes === 0) {
-		return { percent: null, text: t(i18n)`Downloading: ${downloaded}` };
+		return { percent: null, text: i18n._(msg`Downloading: ${downloaded}`) };
 	}
 	const percent = Math.min(
 		PERCENT_SCALE,
@@ -41,6 +41,6 @@ export function describeUpdateProgress(
 	const total = formatBytes(totalBytes);
 	return {
 		percent,
-		text: t(i18n)`Downloading: ${percent}% (${downloaded} of ${total})`,
+		text: i18n._(msg`Downloading: ${percent}% (${downloaded} of ${total})`),
 	};
 }

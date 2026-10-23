@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { CredentialRequestDto, RememberDto } from '#/daemon/protocol';
 
@@ -15,13 +15,13 @@ export function getCredentialTitle(
 ): string {
 	switch (request.kind) {
 		case 'passphrase':
-			return t(i18n)`Passphrase`;
+			return i18n._(msg`Passphrase`);
 		case 'password':
-			return t(i18n)`Password`;
+			return i18n._(msg`Password`);
 		case 'keyboardInteractive': {
 			const { alias } = request;
 			return request.name === ''
-				? t(i18n)`Authentication for ${alias}`
+				? i18n._(msg`Authentication for ${alias}`)
 				: request.name;
 		}
 	}
@@ -35,11 +35,13 @@ export function getCredentialDescription(
 	switch (request.kind) {
 		case 'passphrase': {
 			const { keyPath, alias } = request;
-			return t(i18n)`The key ${keyPath} is encrypted (connecting to ${alias}).`;
+			return i18n._(
+				msg`The key ${keyPath} is encrypted (connecting to ${alias}).`
+			);
 		}
 		case 'password': {
 			const { user, host, alias } = request;
-			return t(i18n)`Password for ${user}@${host} (${alias}).`;
+			return i18n._(msg`Password for ${user}@${host} (${alias}).`);
 		}
 		case 'keyboardInteractive':
 			return request.instructions;
@@ -52,9 +54,9 @@ export function getCredentialFields(
 ): CredentialField[] {
 	switch (request.kind) {
 		case 'passphrase':
-			return [{ id: 'secret', label: t(i18n)`Passphrase`, isSecret: true }];
+			return [{ id: 'secret', label: i18n._(msg`Passphrase`), isSecret: true }];
 		case 'password':
-			return [{ id: 'secret', label: t(i18n)`Password`, isSecret: true }];
+			return [{ id: 'secret', label: i18n._(msg`Password`), isSecret: true }];
 		case 'keyboardInteractive':
 			return request.prompts.map((prompt, position) => ({
 				id: `prompt-${position}`,
@@ -70,7 +72,7 @@ export function getCredentialSubmitLabel(
 ): string {
 	const isWithoutInput =
 		request.kind === 'keyboardInteractive' && request.prompts.length === 0;
-	return isWithoutInput ? t(i18n)`Continue` : t(i18n)`Submit`;
+	return isWithoutInput ? i18n._(msg`Continue`) : i18n._(msg`Submit`);
 }
 
 /** A string for single-secret requests, the answers in prompt order for keyboard-interactive. */
@@ -99,13 +101,13 @@ export function getRememberOptions(
 	i18n: I18n
 ): RememberOption[] {
 	const options: RememberOption[] = [
-		{ value: 'none', label: t(i18n)`Don't remember` },
-		{ value: 'session', label: t(i18n)`Until Tunneler closes` },
+		{ value: 'none', label: i18n._(msg`Don't remember`) },
+		{ value: 'session', label: i18n._(msg`Until Tunneler closes`) },
 	];
 	if (!isKeyringEnabled) return options;
 	return [
 		...options,
-		{ value: 'keyring', label: t(i18n)`In the system keyring` },
+		{ value: 'keyring', label: i18n._(msg`In the system keyring`) },
 	];
 }
 

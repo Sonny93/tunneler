@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { TunnelFilter } from '#/state/ui_store';
 
@@ -9,14 +9,14 @@ export function describeTunnelFilter(
 ): string {
 	switch (filter.kind) {
 		case 'all':
-			return t(i18n)`All tunnels`;
+			return i18n._(msg`All tunnels`);
 		case 'tag': {
 			const { tag } = filter;
-			return t(i18n)`Tag ${tag}`;
+			return i18n._(msg`Tag ${tag}`);
 		}
 		case 'host': {
 			const { host } = filter;
-			return t(i18n)`Host ${host}`;
+			return i18n._(msg`Host ${host}`);
 		}
 	}
 }

@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 import { useState } from 'react';
 
@@ -23,18 +23,18 @@ function describeHealth(
 } {
 	switch (health.kind) {
 		case 'reachable':
-			return { tone: 'success', message: t(i18n)`Target reachable` };
+			return { tone: 'success', message: i18n._(msg`Target reachable`) };
 		case 'unreachable': {
 			const { error } = health;
 			return {
 				tone: 'error',
-				message: t(i18n)`Target unreachable: ${error}`,
+				message: i18n._(msg`Target unreachable: ${error}`),
 			};
 		}
 		case 'unknown':
 			return {
 				tone: 'error',
-				message: t(i18n)`Target check inconclusive`,
+				message: i18n._(msg`Target check inconclusive`),
 			};
 	}
 }
@@ -62,7 +62,7 @@ export function useCheckTarget(
 				);
 				useToastStore.getState().pushToast({
 					tone: 'error',
-					message: t(i18n)`Couldn't check the target: ${errorMessage}`,
+					message: i18n._(msg`Couldn't check the target: ${errorMessage}`),
 				});
 			} finally {
 				setIsChecking(false);

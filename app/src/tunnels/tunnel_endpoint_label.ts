@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { msg, t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { TunnelDefinitionDto } from '#/daemon/protocol';
 
@@ -60,11 +60,11 @@ export function getTunnelAccessibleEndpointLabel(
 		case 'remote': {
 			const { listenPort, host } = tunnel;
 			const target = buildRemoteTarget(tunnel);
-			return t(i18n)`port ${listenPort} of server ${host} to ${target}`;
+			return i18n._(msg`port ${listenPort} of server ${host} to ${target}`);
 		}
 		case 'dynamic': {
 			const { listenPort, host } = tunnel;
-			return t(i18n)`SOCKS proxy on port ${listenPort} via ${host}`;
+			return i18n._(msg`SOCKS proxy on port ${listenPort} via ${host}`);
 		}
 	}
 }

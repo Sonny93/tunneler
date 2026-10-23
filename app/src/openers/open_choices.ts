@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { AvailableOpenerDto, DefaultOpenerDto } from '#/daemon/protocol';
 
@@ -9,7 +9,7 @@ export const BROWSER_OPENER_ID = 'browser';
 export type OpenChoice = { id: string; name: string };
 
 export function getBrowserChoice(i18n: I18n): OpenChoice {
-	return { id: BROWSER_OPENER_ID, name: t(i18n)`Browser` };
+	return { id: BROWSER_OPENER_ID, name: i18n._(msg`Browser`) };
 }
 
 /** The default action of a tunnel as a choice; the browser name is worded here, not by the daemon. */
@@ -49,9 +49,9 @@ export function describeOpenAction(
 	choice: Readonly<OpenChoice>,
 	i18n: I18n
 ): string {
-	if (choice.id === BROWSER_OPENER_ID) return t(i18n)`Open in the browser`;
+	if (choice.id === BROWSER_OPENER_ID) return i18n._(msg`Open in the browser`);
 	const { name } = choice;
-	return t(i18n)`Open with ${name}`;
+	return i18n._(msg`Open with ${name}`);
 }
 
 /** The palette label of an open action on a tunnel. */
@@ -61,8 +61,8 @@ export function describeTunnelOpenCommand(
 	i18n: I18n
 ): string {
 	if (choice.id === BROWSER_OPENER_ID) {
-		return t(i18n)`Open ${endpointLabel} in the browser`;
+		return i18n._(msg`Open ${endpointLabel} in the browser`);
 	}
 	const { name } = choice;
-	return t(i18n)`Open ${endpointLabel} with ${name}`;
+	return i18n._(msg`Open ${endpointLabel} with ${name}`);
 }

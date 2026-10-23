@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { TunnelDto } from '#/daemon/protocol';
 import { getTunnelAccessibleEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
@@ -24,7 +24,7 @@ export function getTunnelAccessibleName(
 	const endpoint = getTunnelAccessibleEndpointLabel(tunnel, i18n);
 	const stateLabel = getTunnelStateLabel(tunnel.state, i18n).toLowerCase();
 	if (tunnel.isTemporary) {
-		return t(i18n)`Tunnel ${endpoint}, temporary, ${stateLabel}`;
+		return i18n._(msg`Tunnel ${endpoint}, temporary, ${stateLabel}`);
 	}
-	return t(i18n)`Tunnel ${endpoint}, ${stateLabel}`;
+	return i18n._(msg`Tunnel ${endpoint}, ${stateLabel}`);
 }

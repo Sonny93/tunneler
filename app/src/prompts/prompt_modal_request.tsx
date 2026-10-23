@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 import { createRef } from 'react';
 
 import { CredentialPromptContent } from '#/prompts/credential_prompt_content';
@@ -42,7 +42,7 @@ export function buildPromptModalRequest(
 			return {
 				id,
 				props: {
-					title: t(i18n)`Unknown host`,
+					title: i18n._(msg`Unknown host`),
 					initialFocusRef: rejectButtonRef,
 					children: (
 						<HostKeyPromptContent

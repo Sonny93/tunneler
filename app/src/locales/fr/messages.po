@@ -15,7 +15,7 @@ msgstr " : choisissez l'hôte ci-dessous."
 msgid "\"browser\" is reserved for the browser."
 msgstr "« browser » est réservé au navigateur."
 
-#: src/tunnels/list/use_external_actions.ts:29
+#: src/tunnels/list/use_external_actions.ts:30
 msgid "{adoptedCount, plural, one {# tunnel adopted} other {# tunnels adopted}}"
 msgstr "{adoptedCount, plural, one {# tunnel adopté} other {# tunnels adoptés}}"
 
@@ -23,7 +23,7 @@ msgstr "{adoptedCount, plural, one {# tunnel adopté} other {# tunnels adoptés}
 msgid "{awakeCount, plural, one {Send # tunnel to standby?} other {Send # tunnels to standby?}}"
 msgstr "{awakeCount, plural, one {Mettre en veille # tunnel ?} other {Mettre en veille # tunnels ?}}"
 
-#: src/tunnels/tunnel_state_announcement.ts:28
+#: src/tunnels/tunnel_state_announcement.ts:29
 msgid "{changedCount, plural, one {# tunnel changed state} other {# tunnels changed state}}"
 msgstr "{changedCount, plural, one {# tunnel a changé d'état} other {# tunnels ont changé d'état}}"
 
@@ -35,31 +35,31 @@ msgstr "{connectionCount, plural, one {# connexion} other {# connexions}}"
 msgid "{connections}, {received} received, {sent} sent"
 msgstr "{connections}, {received} reçus, {sent} envoyés"
 
-#: src/palette/describe_command_count.ts:5
+#: src/palette/describe_command_count.ts:6
 msgid "{count, plural, =0 {No commands} one {# command} other {# commands}}"
 msgstr "{count, plural, =0 {Aucune commande} one {# commande} other {# commandes}}"
 
-#: src/host_config/describe_option_count.ts:6
+#: src/host_config/describe_option_count.ts:7
 msgid "{count, plural, =0 {No options shown} one {# option shown} other {# options shown}}"
 msgstr "{count, plural, =0 {Aucune option affichée} one {# option affichée} other {# options affichées}}"
 
-#: src/import/import_texts.ts:5
+#: src/import/import_texts.ts:6
 msgid "{count, plural, =0 {No tunnel detected} one {# tunnel detected} other {# tunnels detected}}"
 msgstr "{count, plural, =0 {Aucun tunnel détecté} one {# tunnel détecté} other {# tunnels détectés}}"
 
-#: src/tunnels/selection/describe_selection_count.ts:11
+#: src/tunnels/selection/describe_selection_count.ts:12
 msgid "{count, plural, =0 {No tunnels selected} one {# tunnel selected} other {# tunnels selected}}"
 msgstr "{count, plural, =0 {Aucun tunnel sélectionné} one {# tunnel sélectionné} other {# tunnels sélectionnés}}"
 
-#: src/standby/describe_cut_connections.ts:6
+#: src/standby/describe_cut_connections.ts:7
 msgid "{count, plural, one {# open connection will be cut.} other {# open connections will be cut.}}"
 msgstr "{count, plural, one {# connexion ouverte sera coupée.} other {# connexions ouvertes seront coupées.}}"
 
-#: src/quit/describe_running_tunnels.ts:5
+#: src/quit/describe_running_tunnels.ts:6
 msgid "{count, plural, one {# running tunnel or X11 session will be stopped.} other {# running tunnels or X11 sessions will be stopped.}}"
 msgstr "{count, plural, one {# tunnel ou session X11 en cours sera arrêté.} other {# tunnels ou sessions X11 en cours seront arrêtés.}}"
 
-#: src/import/import_texts.ts:28
+#: src/import/import_texts.ts:33
 msgid "{count, plural, one {# tunnel imported} other {# tunnels imported}}"
 msgstr "{count, plural, =0 {0 tunnels importés} one {# tunnel importé} other {# tunnels importés}}"
 
@@ -67,7 +67,7 @@ msgstr "{count, plural, =0 {0 tunnels importés} one {# tunnel importé} other {
 msgid "{count, plural, one {# tunnel} other {# tunnels}}"
 msgstr "{count, plural, one {# tunnel} other {# tunnels}}"
 
-#: src/import/import_texts.ts:13
+#: src/import/import_texts.ts:16
 msgid "{count, plural, one {Import # tunnel} other {Import # tunnels}}"
 msgstr "{count, plural, =0 {Importer 0 tunnels} one {Importer # tunnel} other {Importer # tunnels}}"
 
@@ -78,11 +78,11 @@ msgstr "{count, plural, =0 {Importer 0 tunnels} one {Importer # tunnel} other {I
 msgid "{failureMessage}: {errorMessage}"
 msgstr "{failureMessage} : {errorMessage}"
 
-#: src/settings/forgotten_secrets_message.ts:9
+#: src/settings/forgotten_secrets_message.ts:10
 msgid "{forgottenCount, plural, =0 {No passphrase was remembered} one {# passphrase forgotten} other {# passphrases forgotten}}"
 msgstr "{forgottenCount, plural, =0 {Aucune passphrase mémorisée} one {# passphrase oubliée} other {# passphrases oubliées}}"
 
-#: src/import/describe_import_warning.ts:29
+#: src/import/describe_import_warning.ts:30
 msgid "{host}: unsupported forward (Unix socket or remote SOCKS): "
 msgstr "{host} : forward non pris en charge (socket Unix ou SOCKS distant) : "
 
@@ -114,11 +114,11 @@ msgstr "{process} (pid {pid})"
 msgid "{process} to {destination} (pid {pid})"
 msgstr "{process} vers {destination} (pid {pid})"
 
-#: src/tag_delete/describe_tag_deletion.ts:27
+#: src/tag_delete/describe_tag_deletion.ts:30
 msgid "{removedCount, plural, one {Tag {tag} removed from # tunnel} other {Tag {tag} removed from # tunnels}}"
 msgstr "{removedCount, plural, one {Tag {tag} retiré de # tunnel} other {Tag {tag} retiré de # tunnels}}"
 
-#: src/tag_rename/describe_tag_rename.ts:11
+#: src/tag_rename/describe_tag_rename.ts:12
 msgid "{renamedCount, plural, one {Tag {from} renamed to {to} (# tunnel)} other {Tag {from} renamed to {to} (# tunnels)}}"
 msgstr "{renamedCount, plural, one {Tag {from} renommé en {to} (# tunnel)} other {Tag {from} renommé en {to} (# tunnels)}}"
 
@@ -134,55 +134,55 @@ msgstr "{running}/{total} actifs"
 msgid "{selected} (unavailable)"
 msgstr "{selected} (indisponible)"
 
-#: src/shared/app_ui_provider.tsx:22
+#: src/shared/app_ui_provider.tsx:23
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {# sélectionné} other {# sélectionnés}}"
 
-#: src/tunnels/selection/describe_bulk_outcome.ts:85
+#: src/tunnels/selection/describe_bulk_outcome.ts:86
 msgid "{succeededCount} of {total} deleted; failed: {failureList}"
 msgstr "{succeededCount} sur {total} {total, plural, one {supprimé} other {supprimés}} ; échec : {failureList}"
 
-#: src/tunnels/selection/describe_bulk_outcome.ts:77
+#: src/tunnels/selection/describe_bulk_outcome.ts:78
 msgid "{succeededCount} of {total} restarted; failed: {failureList}"
 msgstr "{succeededCount} sur {total} {total, plural, one {redémarré} other {redémarrés}} ; échec : {failureList}"
 
-#: src/tunnels/selection/describe_bulk_outcome.ts:81
+#: src/tunnels/selection/describe_bulk_outcome.ts:82
 msgid "{succeededCount} of {total} sent to standby; failed: {failureList}"
 msgstr "{succeededCount} sur {total} mis en veille ; échec : {failureList}"
 
-#: src/tunnels/selection/describe_bulk_outcome.ts:69
+#: src/tunnels/selection/describe_bulk_outcome.ts:70
 msgid "{succeededCount} of {total} started; failed: {failureList}"
 msgstr "{succeededCount} sur {total} {total, plural, one {démarré} other {démarrés}} ; échec : {failureList}"
 
-#: src/tunnels/selection/describe_bulk_outcome.ts:73
+#: src/tunnels/selection/describe_bulk_outcome.ts:74
 msgid "{succeededCount} of {total} stopped; failed: {failureList}"
 msgstr "{succeededCount} sur {total} {total, plural, one {arrêté} other {arrêtés}} ; échec : {failureList}"
 
-#: src/tunnels/selection/describe_bulk_outcome.ts:89
+#: src/tunnels/selection/describe_bulk_outcome.ts:90
 msgid "{succeededCount} of {total} updated; failed: {failureList}"
 msgstr "{succeededCount} sur {total} mis à jour ; échec : {failureList}"
 
-#: src/tunnels/selection/describe_bulk_outcome.ts:52
+#: src/tunnels/selection/describe_bulk_outcome.ts:53
 msgid "{total, plural, one {# tunnel deleted} other {# tunnels deleted}}"
 msgstr "{total, plural, one {# tunnel supprimé} other {# tunnels supprimés}}"
 
-#: src/tunnels/selection/describe_bulk_outcome.ts:44
+#: src/tunnels/selection/describe_bulk_outcome.ts:45
 msgid "{total, plural, one {# tunnel restarted} other {# tunnels restarted}}"
 msgstr "{total, plural, one {# tunnel redémarré} other {# tunnels redémarrés}}"
 
-#: src/tunnels/selection/describe_bulk_outcome.ts:48
+#: src/tunnels/selection/describe_bulk_outcome.ts:49
 msgid "{total, plural, one {# tunnel sent to standby} other {# tunnels sent to standby}}"
 msgstr "{total, plural, one {# tunnel mis en veille} other {# tunnels mis en veille}}"
 
-#: src/tunnels/selection/describe_bulk_outcome.ts:36
+#: src/tunnels/selection/describe_bulk_outcome.ts:37
 msgid "{total, plural, one {# tunnel started} other {# tunnels started}}"
 msgstr "{total, plural, one {# tunnel démarré} other {# tunnels démarrés}}"
 
-#: src/tunnels/selection/describe_bulk_outcome.ts:40
+#: src/tunnels/selection/describe_bulk_outcome.ts:41
 msgid "{total, plural, one {# tunnel stopped} other {# tunnels stopped}}"
 msgstr "{total, plural, one {# tunnel arrêté} other {# tunnels arrêtés}}"
 
-#: src/tunnels/selection/describe_bulk_outcome.ts:56
+#: src/tunnels/selection/describe_bulk_outcome.ts:57
 msgid "{total, plural, one {# tunnel updated} other {# tunnels updated}}"
 msgstr "{total, plural, one {# tunnel mis à jour} other {# tunnels mis à jour}}"
 
@@ -194,7 +194,7 @@ msgstr "{tunnelCount, plural, one {Supprimer # tunnel ?} other {Supprimer # tunn
 msgid "{tunnelCount, plural, one {Tags for # tunnel} other {Tags for # tunnels}}"
 msgstr "{tunnelCount, plural, one {Tags de # tunnel} other {Tags de # tunnels}}"
 
-#: src/tag_delete/describe_tag_deletion.ts:10
+#: src/tag_delete/describe_tag_deletion.ts:11
 msgid "{tunnelCount, plural, one {The tag will be removed from # tunnel. The tunnels are kept.} other {The tag will be removed from # tunnels. The tunnels are kept.}}"
 msgstr "{tunnelCount, plural, one {Le tag sera retiré de # tunnel. Les tunnels sont conservés.} other {Le tag sera retiré de # tunnels. Les tunnels sont conservés.}}"
 
@@ -505,7 +505,7 @@ msgstr "Connexion"
 msgid "Connection to {alias} refused."
 msgstr "Connexion à {alias} refusée."
 
-#: src/prompts/credential_prompt_text.ts:73
+#: src/prompts/credential_prompt_text.ts:75
 msgid "Continue"
 msgstr "Continuer"
 
@@ -768,7 +768,7 @@ msgstr "Langue d'affichage"
 msgid "Documentation"
 msgstr "Aide"
 
-#: src/prompts/credential_prompt_text.ts:102
+#: src/prompts/credential_prompt_text.ts:104
 msgid "Don't remember"
 msgstr "Ne pas mémoriser"
 
@@ -993,7 +993,7 @@ msgstr "Comment ajouter une application"
 msgid "Identifier"
 msgstr "Identifiant"
 
-#: src/prompts/host_key_alert_text.ts:58
+#: src/prompts/host_key_alert_text.ts:65
 msgid "If the change is legitimate, delete line {line} of {path} and try again."
 msgstr "Si le changement est légitime, supprimez la ligne {line} de {path} puis réessayez."
 
@@ -1026,7 +1026,7 @@ msgstr "Importer comme tunnel : {route}"
 msgid "Import failed:"
 msgstr "Import impossible :"
 
-#: src/import/import_texts.ts:24
+#: src/import/import_texts.ts:28
 msgid "Import in progress: {doneCount} of {totalCount}"
 msgstr "Import en cours : {doneCount} sur {totalCount}"
 
@@ -1044,7 +1044,7 @@ msgstr "Import indisponible."
 msgid "Imports the LocalForward, RemoteForward and DynamicForward options declared in <0>~/.ssh/config</0>."
 msgstr "Importe les options LocalForward, RemoteForward et DynamicForward déclarées dans <0>~/.ssh/config</0>."
 
-#: src/prompts/credential_prompt_text.ts:108
+#: src/prompts/credential_prompt_text.ts:110
 msgid "In the system keyring"
 msgstr "Dans le trousseau du système"
 
@@ -1080,7 +1080,7 @@ msgstr "Erreur interne"
 msgid "IP address"
 msgstr "Adresse IP"
 
-#: src/tag_delete/describe_tag_deletion.ts:15
+#: src/tag_delete/describe_tag_deletion.ts:18
 msgid "It will also be removed from the \"Tags to start on launch\"."
 msgstr "Il sera aussi retiré des « Tags démarrés au lancement »."
 
@@ -1138,7 +1138,7 @@ msgstr "clair"
 msgid "line {line}"
 msgstr "ligne {line}"
 
-#: src/import/describe_import_warning.ts:19
+#: src/import/describe_import_warning.ts:20
 msgid "Line {line}: {host}: unsupported forward (Unix socket or remote SOCKS): "
 msgstr "Ligne {line} : {host} : forward non pris en charge (socket Unix ou SOCKS distant) : "
 
@@ -1146,7 +1146,7 @@ msgstr "Ligne {line} : {host} : forward non pris en charge (socket Unix ou SOCKS
 msgid "Line {line}: option ignored, unreadable: "
 msgstr "Ligne {line} : option ignorée, illisible : "
 
-#: src/import/describe_import_warning.ts:24
+#: src/import/describe_import_warning.ts:25
 msgid "Line {line}: unsupported forward (Unix socket or remote SOCKS): "
 msgstr "Ligne {line} : forward non pris en charge (socket Unix ou SOCKS distant) : "
 
@@ -1199,8 +1199,8 @@ msgstr "Display X11 local"
 msgid "localhost"
 msgstr "localhost"
 
-#: src/prompts/host_key_alert_text.ts:39
-#: src/prompts/host_key_alert_text.ts:44
+#: src/prompts/host_key_alert_text.ts:40
+#: src/prompts/host_key_alert_text.ts:48
 msgid "Location"
 msgstr "Emplacement"
 
@@ -1409,7 +1409,7 @@ msgid "Other ways to create a tunnel"
 msgstr "Autres façons de créer un tunnel"
 
 #: src/prompts/credential_prompt_text.ts:18
-#: src/prompts/credential_prompt_text.ts:55
+#: src/prompts/credential_prompt_text.ts:57
 msgid "Passphrase"
 msgstr "Phrase de passe"
 
@@ -1418,11 +1418,11 @@ msgid "Passphrases kept in memory and in the system keyring will be erased; they
 msgstr "Les passphrases gardées en mémoire et dans le trousseau du système seront effacées ; elles seront redemandées à la prochaine connexion."
 
 #: src/prompts/credential_prompt_text.ts:20
-#: src/prompts/credential_prompt_text.ts:57
+#: src/prompts/credential_prompt_text.ts:59
 msgid "Password"
 msgstr "Mot de passe"
 
-#: src/prompts/credential_prompt_text.ts:42
+#: src/prompts/credential_prompt_text.ts:44
 msgid "Password for {user}@{host} ({alias})."
 msgstr "Mot de passe de {user}@{host} ({alias})."
 
@@ -1812,7 +1812,7 @@ msgstr "Démarrer"
 msgid "Start {endpointLabel}"
 msgstr "Démarrer {endpointLabel}"
 
-#: src/shortcuts/shortcut_definitions.ts:36
+#: src/shortcuts/shortcut_definitions.ts:37
 msgid "Start or stop the tunnel, check or uncheck the checkbox"
 msgstr "Démarrer ou arrêter le tunnel, cocher ou décocher la case"
 
@@ -1908,11 +1908,11 @@ msgstr "Arrêté"
 msgid "Stored fingerprint"
 msgstr "Empreinte enregistrée"
 
-#: src/prompts/host_key_alert_text.ts:65
+#: src/prompts/host_key_alert_text.ts:72
 msgid "StrictHostKeyChecking forbids accepting an unknown key for this host."
 msgstr "StrictHostKeyChecking interdit d'accepter une clé inconnue pour cet hôte."
 
-#: src/prompts/credential_prompt_text.ts:73
+#: src/prompts/credential_prompt_text.ts:75
 msgid "Submit"
 msgstr "Valider"
 
@@ -2035,7 +2035,7 @@ msgstr "La durée doit être un nombre de secondes positif ou nul."
 msgid "The host is required."
 msgstr "L'hôte est obligatoire."
 
-#: src/tray/tray_status_notice_text.ts:32
+#: src/tray/tray_status_notice_text.ts:33
 msgid "The icon could not be created: {message}. Tunneler keeps running when you close this window; run “tunneler” again to reopen it."
 msgstr "L’icône n’a pas pu être créée : {message}. Tunneler continue de tourner quand vous fermez cette fenêtre ; relancez « tunneler » pour la rouvrir."
 
@@ -2047,11 +2047,11 @@ msgstr "L'identifiant ne peut contenir que des minuscules, des chiffres et des t
 msgid "The identifier is required."
 msgstr "L'identifiant est obligatoire."
 
-#: src/prompts/credential_prompt_text.ts:38
+#: src/prompts/credential_prompt_text.ts:39
 msgid "The key {keyPath} is encrypted (connecting to {alias})."
 msgstr "La clé {keyPath} est chiffrée (connexion à {alias})."
 
-#: src/tunnel_form/build_open_preview.ts:118
+#: src/tunnel_form/build_open_preview.ts:119
 msgid "The listen address is a host name: the tunnel can't be opened."
 msgstr "L'adresse d'écoute est un nom d'hôte : le tunnel ne peut pas être ouvert."
 
@@ -2095,7 +2095,7 @@ msgstr "Les ports doivent être des entiers entre 1 et 65535, séparés par des 
 msgid "The program to run, without its arguments: a name found in the PATH, or the full path of the executable."
 msgstr "Le programme à lancer, sans ses arguments : un nom trouvé dans le PATH, ou le chemin complet de l’exécutable."
 
-#: src/x11/use_x11_anchor_actions.ts:19
+#: src/x11/use_x11_anchor_actions.ts:20
 msgid "The server {host} will have full access to your local display (it can capture the keyboard and the screen). Only enable X11 for a trusted host."
 msgstr "Le serveur {host} aura un accès complet à votre affichage local (capture du clavier et de l'écran possible). N'activez X11 que pour un hôte de confiance."
 
@@ -2103,7 +2103,7 @@ msgstr "Le serveur {host} aura un accès complet à votre affichage local (captu
 msgid "The server refuses to listen on {address}"
 msgstr "Le serveur refuse d'écouter sur {address}"
 
-#: src/tunnels/failure_reason_label.ts:33
+#: src/tunnels/failure_reason_label.ts:34
 msgid "The SSH agent is not responding (no answer in {timeoutSeconds} s): is it waiting for a confirmation?"
 msgstr "L'agent SSH ne répond pas (aucune réponse en {timeoutSeconds} s) : attend-il une confirmation ?"
 
@@ -2147,11 +2147,11 @@ msgstr "Thème : {themeLabel}, changer"
 msgid "They open a tunnel instead of the browser. Commands run without a shell, with the arguments as is."
 msgstr "Elles ouvrent un tunnel à la place du navigateur. Les commandes sont lancées sans shell, avec les arguments tels quels."
 
-#: src/updates/use_install_update.ts:18
+#: src/updates/use_install_update.ts:19
 msgid "They will not restart after the update: \"Restore active tunnels on launch\" is turned off in the settings."
 msgstr "Ils ne redémarreront pas après la mise à jour : « Rétablir les tunnels actifs au lancement » est désactivé dans les paramètres."
 
-#: src/updates/use_install_update.ts:15
+#: src/updates/use_install_update.ts:16
 msgid "They will restart after the update, because active tunnels are restored on launch."
 msgstr "Ils redémarreront après la mise à jour, car les tunnels actifs sont rétablis au lancement."
 
@@ -2220,7 +2220,7 @@ msgstr "Liste des tunnels"
 msgid "Tunnel type"
 msgstr "Type de tunnel"
 
-#: src/tray/tray_status_notice_text.ts:24
+#: src/tray/tray_status_notice_text.ts:25
 msgid "Tunneler keeps running when you close this window. To reopen it, run “tunneler” again. On GNOME, install the “AppIndicator and KStatusNotifierItem Support” extension to show the icon."
 msgstr "Tunneler continue de tourner quand vous fermez cette fenêtre. Pour la rouvrir, relancez « tunneler ». Sous GNOME, installez l’extension « AppIndicator and KStatusNotifierItem Support » pour afficher l’icône."
 
@@ -2252,7 +2252,7 @@ msgstr "Externes non gérés ({externalCount})"
 msgid "Unsupported forward (Unix socket or remote SOCKS): "
 msgstr "forward non pris en charge (socket Unix ou SOCKS distant) : "
 
-#: src/prompts/credential_prompt_text.ts:103
+#: src/prompts/credential_prompt_text.ts:105
 msgid "Until Tunneler closes"
 msgstr "Jusqu'à la fermeture de Tunneler"
 

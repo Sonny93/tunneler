@@ -1,5 +1,5 @@
 import { useLingui } from '@lingui/react/macro';
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 
 import type {
 	OpenHostDto,
@@ -39,7 +39,7 @@ type UseSettingsFormReturn = {
 	changeStandbyNotify: (mode: StandbyNotifyDto) => void;
 	changeStandbySound: (sound: StandbySoundDto) => void;
 	changeLanguage: (language: LanguageSettingDto) => void;
-	submit: (event: FormEvent<HTMLFormElement>) => void;
+	submit: (event: SubmitEvent<HTMLFormElement>) => void;
 };
 
 function focusField(form: HTMLFormElement, fieldName: string): void {
@@ -92,7 +92,7 @@ export function useSettingsForm(
 		useUiStore.getState().closePanel();
 	};
 
-	const submit = (event: FormEvent<HTMLFormElement>) => {
+	const submit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (isSaving) return;
 		const foundErrors = validateSettingsForm(values);

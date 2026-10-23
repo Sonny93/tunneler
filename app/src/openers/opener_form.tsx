@@ -1,6 +1,6 @@
 import { useLingui } from '@lingui/react/macro';
 import { Button, Input, Textarea } from '@minimalstuff/ui';
-import { useId, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useId, useState, type ChangeEvent, type SubmitEvent } from 'react';
 
 import type { AvailableOpenerDto, OpenerSpecDto } from '#/daemon/protocol';
 import {
@@ -87,7 +87,7 @@ export function OpenerForm({
 		? t`Lowercase letters, digits and dashes. Cannot be changed after creation.`
 		: t`Cannot be changed: tunnels refer to it by this identifier.`;
 
-	const submit = (event: FormEvent<HTMLFormElement>) => {
+	const submit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (isSaving) return;
 		const foundErrors = validateOpenerForm(values, takenIds);

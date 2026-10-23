@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 import { Button, Input, ModalFooter } from '@minimalstuff/ui';
 import {
@@ -7,7 +7,7 @@ import {
 	useRef,
 	useState,
 	type ChangeEvent,
-	type FormEvent,
+	type SubmitEvent,
 } from 'react';
 
 import {
@@ -34,7 +34,7 @@ type TagRenameContentProps = {
 };
 
 function describeMerge(name: string, i18n: I18n): string {
-	return t(i18n)`The tag ${name} already exists: the two will be merged.`;
+	return i18n._(msg`The tag ${name} already exists: the two will be merged.`);
 }
 
 /** Content of the rename dialog: one text field prefilled with the current name. */
@@ -86,11 +86,11 @@ export function TagRenameContent({
 			rejectName(getSubmissionErrorMessages(failure, i18n));
 			return;
 		}
-		const failureMessage = t(i18n)`Couldn't rename the tag`;
+		const failureMessage = i18n._(msg`Couldn't rename the tag`);
 		const errorMessage = describeDaemonError(failure, i18n);
 		useToastStore.getState().pushToast({
 			tone: 'error',
-			message: t(i18n)`${failureMessage}: ${errorMessage}`,
+			message: i18n._(msg`${failureMessage}: ${errorMessage}`),
 		});
 	};
 
@@ -107,7 +107,7 @@ export function TagRenameContent({
 
 	const handleCancel = () => useUiStore.getState().closeTagRename();
 
-	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+	const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (isSaving) return;
 		const validationError = validateTagName(name, tag);
@@ -127,7 +127,7 @@ export function TagRenameContent({
 				/>
 				<Input
 					ref={inputRef}
-					label={t(i18n)`New tag name`}
+					label={i18n._(msg`New tag name`)}
 					value={name}
 					onChange={handleChange}
 					error={error}
@@ -138,10 +138,10 @@ export function TagRenameContent({
 			</form>
 			<ModalFooter>
 				<Button variant="outline" color="neutral" onClick={handleCancel}>
-					{t(i18n)`Cancel`}
+					{i18n._(msg`Cancel`)}
 				</Button>
 				<Button type="submit" form={formId} loading={isSaving}>
-					{t(i18n)`Rename`}
+					{i18n._(msg`Rename`)}
 				</Button>
 			</ModalFooter>
 		</>

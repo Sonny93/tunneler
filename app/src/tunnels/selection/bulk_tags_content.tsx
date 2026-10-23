@@ -13,7 +13,7 @@ import {
 	useRef,
 	useState,
 	type ChangeEvent,
-	type FormEvent,
+	type SubmitEvent,
 } from 'react';
 
 import { parseTags } from '#/tunnel_form/parse_tags';
@@ -71,7 +71,7 @@ export function BulkTagsContent({
 	const handleRemovedTagChange = (event: ChangeEvent<HTMLSelectElement>) =>
 		setTagToRemove(event.target.value);
 
-	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+	const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (mode === 'remove') {
 			onApply({ kind: 'remove', tag: tagToRemove });

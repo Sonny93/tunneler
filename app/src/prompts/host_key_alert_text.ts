@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { HostKeyAlertReasonDto } from '#/daemon/protocol';
 
@@ -11,11 +11,11 @@ export function getHostKeyAlertTitle(
 ): string {
 	switch (reason.kind) {
 		case 'changed':
-			return t(i18n)`Host key changed`;
+			return i18n._(msg`Host key changed`);
 		case 'revoked':
-			return t(i18n)`Host key revoked`;
+			return i18n._(msg`Host key revoked`);
 		case 'unknownRejectedByPolicy':
-			return t(i18n)`Unknown host rejected`;
+			return i18n._(msg`Unknown host rejected`);
 	}
 }
 
@@ -25,7 +25,7 @@ export function getHostKeyAlertFacts(
 	i18n: I18n
 ): HostKeyAlertFact[] {
 	const presented = {
-		label: t(i18n)`Presented fingerprint`,
+		label: i18n._(msg`Presented fingerprint`),
 		value: presentedFingerprint,
 	};
 	switch (reason.kind) {
@@ -33,15 +33,21 @@ export function getHostKeyAlertFacts(
 			return [
 				presented,
 				{
-					label: t(i18n)`Stored fingerprint`,
+					label: i18n._(msg`Stored fingerprint`),
 					value: reason.knownFingerprint,
 				},
-				{ label: t(i18n)`Location`, value: `${reason.path}:${reason.line}` },
+				{
+					label: i18n._(msg`Location`),
+					value: `${reason.path}:${reason.line}`,
+				},
 			];
 		case 'revoked':
 			return [
 				presented,
-				{ label: t(i18n)`Location`, value: `${reason.path}:${reason.line}` },
+				{
+					label: i18n._(msg`Location`),
+					value: `${reason.path}:${reason.line}`,
+				},
 			];
 		case 'unknownRejectedByPolicy':
 			return [presented];
@@ -55,15 +61,15 @@ export function getHostKeyAlertAdvice(
 	switch (reason.kind) {
 		case 'changed': {
 			const { line, path } = reason;
-			return t(
-				i18n
-			)`If the change is legitimate, delete line ${line} of ${path} and try again.`;
+			return i18n._(
+				msg`If the change is legitimate, delete line ${line} of ${path} and try again.`
+			);
 		}
 		case 'revoked':
 			return null;
 		case 'unknownRejectedByPolicy':
-			return t(
-				i18n
-			)`StrictHostKeyChecking forbids accepting an unknown key for this host.`;
+			return i18n._(
+				msg`StrictHostKeyChecking forbids accepting an unknown key for this host.`
+			);
 	}
 }

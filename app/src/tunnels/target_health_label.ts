@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { TargetHealthDto } from '#/daemon/protocol';
 
@@ -9,11 +9,11 @@ export function getTargetHealthLabel(
 ): string {
 	switch (health.kind) {
 		case 'unknown':
-			return t(i18n)`Health unknown`;
+			return i18n._(msg`Health unknown`);
 		case 'reachable':
-			return t(i18n)`Target reachable`;
+			return i18n._(msg`Target reachable`);
 		case 'unreachable':
-			return t(i18n)`Target unreachable`;
+			return i18n._(msg`Target unreachable`);
 	}
 }
 

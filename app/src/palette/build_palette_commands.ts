@@ -1,5 +1,5 @@
 import type { I18n, MessageDescriptor } from '@lingui/core';
-import { msg, t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { AvailableOpenerDto, TunnelDto } from '#/daemon/protocol';
 import {
@@ -34,49 +34,49 @@ function buildGeneralCommands(i18n: I18n): PaletteCommand[] {
 	return [
 		{
 			id: 'general:new-tunnel',
-			label: t(i18n)`New tunnel`,
+			label: i18n._(msg`New tunnel`),
 			category,
 			action: { kind: 'newTunnel' },
 		},
 		{
 			id: 'general:new-temporary-tunnel',
-			label: t(i18n)`New temporary tunnel…`,
+			label: i18n._(msg`New temporary tunnel…`),
 			category,
 			action: { kind: 'newTemporaryTunnel' },
 		},
 		{
 			id: 'general:import',
-			label: t(i18n)`Import tunnels`,
+			label: i18n._(msg`Import tunnels`),
 			category,
 			action: { kind: 'importTunnels' },
 		},
 		{
 			id: 'general:settings',
-			label: t(i18n)`Open settings`,
+			label: i18n._(msg`Open settings`),
 			category,
 			action: { kind: 'openSettings' },
 		},
 		{
 			id: 'general:reveal-config',
-			label: t(i18n)`Open the configuration folder`,
+			label: i18n._(msg`Open the configuration folder`),
 			category,
 			action: { kind: 'revealConfig' },
 		},
 		{
 			id: 'general:sidebar',
-			label: t(i18n)`Hide or show the sidebar`,
+			label: i18n._(msg`Hide or show the sidebar`),
 			category,
 			action: { kind: 'toggleSidebar' },
 		},
 		{
 			id: 'general:shortcuts',
-			label: t(i18n)`Show keyboard shortcuts`,
+			label: i18n._(msg`Show keyboard shortcuts`),
 			category,
 			action: { kind: 'showShortcuts' },
 		},
 		{
 			id: 'general:documentation',
-			label: t(i18n)`Open the documentation`,
+			label: i18n._(msg`Open the documentation`),
 			category,
 			action: { kind: 'openDocumentation' },
 		},
@@ -93,13 +93,13 @@ function buildToggleCommand(
 	return isTunnelRunning(tunnel.state)
 		? {
 				id: `tunnel:${tunnelId}:stop`,
-				label: t(i18n)`Stop ${endpointLabel}`,
+				label: i18n._(msg`Stop ${endpointLabel}`),
 				category,
 				action: { kind: 'stopTunnel', tunnelId },
 			}
 		: {
 				id: `tunnel:${tunnelId}:start`,
-				label: t(i18n)`Start ${endpointLabel}`,
+				label: i18n._(msg`Start ${endpointLabel}`),
 				category,
 				action: { kind: 'startTunnel', tunnelId },
 			};
@@ -114,7 +114,7 @@ function buildStandbyCommands(
 	return [
 		{
 			id: `tunnel:${tunnel.id}:standby`,
-			label: t(i18n)`Send ${endpointLabel} to standby`,
+			label: i18n._(msg`Send ${endpointLabel} to standby`),
 			category: i18n._(CATEGORY_LABELS.tunnel),
 			action: { kind: 'standbyTunnel', tunnelId: tunnel.id },
 		},
@@ -164,13 +164,13 @@ function buildTunnelCommands(
 		...buildStandbyCommands(tunnel, i18n),
 		{
 			id: `tunnel:${tunnelId}:details`,
-			label: t(i18n)`Details of ${endpointLabel}`,
+			label: i18n._(msg`Details of ${endpointLabel}`),
 			category,
 			action: { kind: 'showTunnelDetails', tunnelId },
 		},
 		{
 			id: `tunnel:${tunnelId}:edit`,
-			label: t(i18n)`Edit ${endpointLabel}`,
+			label: i18n._(msg`Edit ${endpointLabel}`),
 			category,
 			action: { kind: 'editTunnel', tunnelId },
 		},
@@ -195,7 +195,7 @@ function buildTagCommands(
 		if (started < total) {
 			commands.push({
 				id: `tag:${tag}:start`,
-				label: t(i18n)`Start tag ${tag}`,
+				label: i18n._(msg`Start tag ${tag}`),
 				category,
 				action: { kind: 'startTag', tag },
 			});
@@ -203,7 +203,7 @@ function buildTagCommands(
 		if (started > 0) {
 			commands.push({
 				id: `tag:${tag}:stop`,
-				label: t(i18n)`Stop tag ${tag}`,
+				label: i18n._(msg`Stop tag ${tag}`),
 				category,
 				action: { kind: 'stopTag', tag },
 			});
@@ -211,20 +211,20 @@ function buildTagCommands(
 		if (hasAwakeTunnel(tunnels, tag)) {
 			commands.push({
 				id: `tag:${tag}:standby`,
-				label: t(i18n)`Send tag ${tag} to standby`,
+				label: i18n._(msg`Send tag ${tag} to standby`),
 				category,
 				action: { kind: 'standbyTag', tag },
 			});
 		}
 		commands.push({
 			id: `tag:${tag}:rename`,
-			label: t(i18n)`Rename tag ${tag}…`,
+			label: i18n._(msg`Rename tag ${tag}…`),
 			category,
 			action: { kind: 'renameTag', tag },
 		});
 		commands.push({
 			id: `tag:${tag}:delete`,
-			label: t(i18n)`Delete tag ${tag}…`,
+			label: i18n._(msg`Delete tag ${tag}…`),
 			category,
 			action: { kind: 'deleteTag', tag },
 		});
@@ -245,13 +245,13 @@ function buildHostCommands(host: string, i18n: I18n): PaletteCommand[] {
 	return [
 		{
 			id: `host:${host}:config`,
-			label: t(i18n)`Configuration of ${host}`,
+			label: i18n._(msg`Configuration of ${host}`),
 			category,
 			action: { kind: 'showHostConfig', host },
 		},
 		{
 			id: `host:${host}:x11`,
-			label: t(i18n)`X11 for ${host}`,
+			label: i18n._(msg`X11 for ${host}`),
 			category,
 			action: { kind: 'showX11', host },
 		},
@@ -266,7 +266,7 @@ function buildStandbyAllCommands(
 	return [
 		{
 			id: 'general:standby-all',
-			label: t(i18n)`Send awake tunnels to standby`,
+			label: i18n._(msg`Send awake tunnels to standby`),
 			category: i18n._(CATEGORY_LABELS.general),
 			action: { kind: 'standbyAll' },
 		},

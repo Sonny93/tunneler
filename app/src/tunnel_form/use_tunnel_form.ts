@@ -1,5 +1,5 @@
 import { useLingui } from '@lingui/react/macro';
-import { useReducer, useState, type FormEvent } from 'react';
+import { useReducer, useState, type SubmitEvent } from 'react';
 
 import type {
 	TunnelDefinitionDto,
@@ -36,7 +36,7 @@ type UseTunnelFormReturn = {
 	isSaving: boolean;
 	summary: ReturnType<typeof useFormErrorSummary>;
 	dispatch: (action: TunnelFormAction) => void;
-	submit: (event: FormEvent<HTMLFormElement>) => void;
+	submit: (event: SubmitEvent<HTMLFormElement>) => void;
 };
 
 function focusField(form: HTMLFormElement, fieldName: string): void {
@@ -101,7 +101,7 @@ export function useTunnelForm(
 		else useUiStore.getState().closePanelFocusingTunnel(savedTunnel.id);
 	};
 
-	const submit = (event: FormEvent<HTMLFormElement>) => {
+	const submit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (isSaving) return;
 		const foundErrors = validateTunnelForm(values);

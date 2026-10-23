@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { FailureReasonDto } from '#/daemon/protocol';
 
@@ -12,27 +12,27 @@ export function getFailureReasonLabel(
 	switch (reason.kind) {
 		case 'portInUse': {
 			const { address } = reason;
-			return t(i18n)`Port already in use (${address})`;
+			return i18n._(msg`Port already in use (${address})`);
 		}
 		case 'listenFailed': {
 			const { address, message } = reason;
-			return t(i18n)`Cannot listen on ${address}: ${message}`;
+			return i18n._(msg`Cannot listen on ${address}: ${message}`);
 		}
 		case 'connect': {
 			const { message } = reason;
-			return t(i18n)`SSH connection failed: ${message}`;
+			return i18n._(msg`SSH connection failed: ${message}`);
 		}
 		case 'remoteForwardRefused': {
 			const { address } = reason;
-			return t(i18n)`The server refuses to listen on ${address}`;
+			return i18n._(msg`The server refuses to listen on ${address}`);
 		}
 		case 'agentUnresponsive': {
 			const timeoutSeconds = Math.round(
 				reason.timeoutMs / MILLISECONDS_PER_SECOND
 			);
-			return t(
-				i18n
-			)`The SSH agent is not responding (no answer in ${timeoutSeconds} s): is it waiting for a confirmation?`;
+			return i18n._(
+				msg`The SSH agent is not responding (no answer in ${timeoutSeconds} s): is it waiting for a confirmation?`
+			);
 		}
 	}
 }

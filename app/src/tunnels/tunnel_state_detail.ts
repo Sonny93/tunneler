@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { TunnelStateDto } from '#/daemon/protocol';
 import { describeProcess } from '#/externals/describe_process';
@@ -16,16 +16,16 @@ export function getTunnelStateDetail(
 		case 'standby': {
 			if (!state.lastFailure) return null;
 			const failure = getFailureReasonLabel(state.lastFailure, i18n);
-			return t(i18n)`last wake-up failed: ${failure}`;
+			return i18n._(msg`last wake-up failed: ${failure}`);
 		}
 		case 'external': {
 			const owner = describeProcess(state.owner);
-			return t(i18n)`provided by ${owner}`;
+			return i18n._(msg`provided by ${owner}`);
 		}
 		case 'conflict': {
-			if (!state.owner) return t(i18n)`port in use by an unknown process`;
+			if (!state.owner) return i18n._(msg`port in use by an unknown process`);
 			const owner = describeProcess(state.owner);
-			return t(i18n)`port in use by ${owner}`;
+			return i18n._(msg`port in use by ${owner}`);
 		}
 		case 'stopped':
 		case 'starting':

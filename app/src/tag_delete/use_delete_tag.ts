@@ -1,4 +1,4 @@
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 import { ConfirmModal } from '@minimalstuff/ui';
 
@@ -25,9 +25,9 @@ export function useDeleteTag(): (tag: string) => Promise<void> {
 		const tunnelCount = tunnels.filter(({ tags }) => tags.includes(tag)).length;
 		const isLaunchTag = settings?.startOnLaunchTags.includes(tag) ?? false;
 		const isConfirmed = await ConfirmModal.call({
-			title: t(i18n)`Delete tag ${tag}?`,
+			title: i18n._(msg`Delete tag ${tag}?`),
 			children: describeTagDeletionWarning(tunnelCount, isLaunchTag, i18n),
-			confirmLabel: t(i18n)`Delete the tag`,
+			confirmLabel: i18n._(msg`Delete the tag`),
 			confirmColor: 'danger',
 		});
 		if (!isConfirmed) return;
@@ -44,7 +44,7 @@ export function useDeleteTag(): (tag: string) => Promise<void> {
 				}
 				ui.focusAllFilter();
 			},
-			t(i18n)`Couldn't delete the tag`
+			i18n._(msg`Couldn't delete the tag`)
 		);
 	};
 }

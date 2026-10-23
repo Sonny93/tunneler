@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { X11StateDto } from '#/daemon/protocol';
 import { getX11StateLabel } from '#/x11/x11_state_label';
@@ -12,8 +12,8 @@ export function getX11HeaderStatus(
 	if (state.kind === 'stopped') return null;
 	if (state.kind === 'active') {
 		const { display } = state;
-		return t(i18n)`X11 active: ${display}`;
+		return i18n._(msg`X11 active: ${display}`);
 	}
 	const label = getX11StateLabel(state, i18n).toLowerCase();
-	return t(i18n)`X11: ${label}`;
+	return i18n._(msg`X11: ${label}`);
 }

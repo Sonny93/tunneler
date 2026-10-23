@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { ExternalForwardDto, TunnelKindDto } from '#/daemon/protocol';
 import {
@@ -56,10 +56,10 @@ export function getExternalForwardAccessibleLabel(
 	const route = getExternalForwardSpokenRoute(forward, i18n);
 	switch (forward.kind) {
 		case 'local':
-			return t(i18n)`Local forward ${route}`;
+			return i18n._(msg`Local forward ${route}`);
 		case 'remote':
-			return t(i18n)`Remote forward ${route}`;
+			return i18n._(msg`Remote forward ${route}`);
 		case 'dynamic':
-			return t(i18n)`Dynamic proxy ${route}`;
+			return i18n._(msg`Dynamic proxy ${route}`);
 	}
 }

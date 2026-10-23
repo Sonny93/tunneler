@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { DaemonCommandError } from '#/daemon/daemon_command_error';
 
@@ -14,13 +14,13 @@ export function describeDaemonError(
 ): string {
 	switch (error.code) {
 		case 'disconnected':
-			return t(i18n)`The daemon is not reachable`;
+			return i18n._(msg`The daemon is not reachable`);
 		case 'internal':
-			return t(i18n)`Internal error`;
+			return i18n._(msg`Internal error`);
 		case 'update_failed':
-			return t(i18n)`The update failed`;
+			return i18n._(msg`The update failed`);
 		case 'update_unavailable':
-			return t(i18n)`No update is available`;
+			return i18n._(msg`No update is available`);
 		default:
 			return error.message;
 	}

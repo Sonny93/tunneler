@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type {
 	AvailableOpenerDto,
@@ -115,15 +115,15 @@ export function buildOpenPreview(
 	const address = buildAddress(values, settings);
 	if (address === null) return null;
 	if (address === 'hostname') {
-		return t(
-			i18n
-		)`The listen address is a host name: the tunnel can't be opened.`;
+		return i18n._(
+			msg`The listen address is a host name: the tunnel can't be opened.`
+		);
 	}
 	const opener = findChosenOpener(values, openers);
 	if (opener === null) {
 		const { url } = address;
-		return t(i18n)`Opens ${url}`;
+		return i18n._(msg`Opens ${url}`);
 	}
 	const command = describeCommand(opener, address);
-	return t(i18n)`Runs ${command}`;
+	return i18n._(msg`Runs ${command}`);
 }

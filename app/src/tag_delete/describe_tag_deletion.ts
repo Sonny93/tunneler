@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { plural, t } from '@lingui/core/macro';
+import { plural, msg } from '@lingui/core/macro';
 
 /** "The tag will be removed from 3 tunnels. The tunnels are kept.", plus the launch tags when the tag is one of them. */
 export function describeTagDeletionWarning(
@@ -7,14 +7,16 @@ export function describeTagDeletionWarning(
 	isLaunchTag: boolean,
 	i18n: I18n
 ): string {
-	const warning = t(i18n)`${plural(tunnelCount, {
-		one: 'The tag will be removed from # tunnel. The tunnels are kept.',
-		other: 'The tag will be removed from # tunnels. The tunnels are kept.',
-	})}`;
+	const warning = i18n._(
+		msg`${plural(tunnelCount, {
+			one: 'The tag will be removed from # tunnel. The tunnels are kept.',
+			other: 'The tag will be removed from # tunnels. The tunnels are kept.',
+		})}`
+	);
 	if (!isLaunchTag) return warning;
-	const launchNote = t(
-		i18n
-	)`It will also be removed from the "Tags to start on launch".`;
+	const launchNote = i18n._(
+		msg`It will also be removed from the "Tags to start on launch".`
+	);
 	return `${warning} ${launchNote}`;
 }
 
@@ -24,8 +26,10 @@ export function describeTagDeletion(
 	removedCount: number,
 	i18n: I18n
 ): string {
-	return t(i18n)`${plural(removedCount, {
-		one: `Tag ${tag} removed from # tunnel`,
-		other: `Tag ${tag} removed from # tunnels`,
-	})}`;
+	return i18n._(
+		msg`${plural(removedCount, {
+			one: `Tag ${tag} removed from # tunnel`,
+			other: `Tag ${tag} removed from # tunnels`,
+		})}`
+	);
 }

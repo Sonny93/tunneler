@@ -1,7 +1,7 @@
 import { render, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DaemonGatewayProvider } from '#/daemon/daemon_gateway_context';
+import { DaemonGatewayProvider } from '#/daemon/daemon_gateway_provider';
 import { MissingDaemonGatewayError } from '#/daemon/missing_daemon_gateway_error';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { createFakeGateway } from '#/testing/fake_gateway';

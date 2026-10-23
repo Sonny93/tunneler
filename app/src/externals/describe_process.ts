@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { ExternalProcessDto, ProcessOwnerDto } from '#/daemon/protocol';
 
@@ -16,6 +16,6 @@ export function describeProcessHeading(
 	{ process, pid, destination }: Readonly<ExternalProcessDto>,
 	i18n: I18n
 ): string {
-	if (!destination) return t(i18n)`${process} (pid ${pid})`;
-	return t(i18n)`${process} to ${destination} (pid ${pid})`;
+	if (!destination) return i18n._(msg`${process} (pid ${pid})`);
+	return i18n._(msg`${process} to ${destination} (pid ${pid})`);
 }

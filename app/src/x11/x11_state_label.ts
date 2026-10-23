@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { X11StateDto } from '#/daemon/protocol';
 
@@ -9,17 +9,17 @@ export function getX11StateLabel(
 ): string {
 	switch (state.kind) {
 		case 'stopped':
-			return t(i18n)`Stopped`;
+			return i18n._(msg`Stopped`);
 		case 'starting':
-			return t(i18n)`Starting…`;
+			return i18n._(msg`Starting…`);
 		case 'active':
-			return t(i18n)`Active`;
+			return i18n._(msg`Active`);
 		case 'reconnecting': {
 			const { attempt } = state;
-			return t(i18n)`Reconnecting (attempt ${attempt})`;
+			return i18n._(msg`Reconnecting (attempt ${attempt})`);
 		}
 		case 'failed':
-			return t(i18n)`Failed`;
+			return i18n._(msg`Failed`);
 	}
 }
 

@@ -1,6 +1,6 @@
 import { useLingui } from '@lingui/react/macro';
 import { Button, Input, ModalFooter, RadioOptions } from '@minimalstuff/ui';
-import { useId, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useId, useState, type ChangeEvent, type SubmitEvent } from 'react';
 
 import type { CredentialAnswer } from '#/daemon/daemon_gateway';
 import type { CredentialRequestDto, RememberDto } from '#/daemon/protocol';
@@ -56,7 +56,7 @@ export function CredentialPromptContent({
 		const option = rememberOptions.find(({ value }) => value === selected);
 		if (option) setRememberChoice(option.value);
 	};
-	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+	const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		const answer = buildCredentialAnswer(request, answers);
 		if (!canRemember(request)) {

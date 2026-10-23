@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 import { ConfirmModal } from '@minimalstuff/ui';
 
@@ -15,11 +15,11 @@ async function confirmRisk(host: string, i18n: I18n): Promise<boolean> {
 	const { confirmedX11Hosts, confirmX11Host } = useUiStore.getState();
 	if (confirmedX11Hosts.includes(host)) return true;
 	const isConfirmed = await ConfirmModal.call({
-		title: t(i18n)`Enable X11 for ${host}?`,
-		children: t(
-			i18n
-		)`The server ${host} will have full access to your local display (it can capture the keyboard and the screen). Only enable X11 for a trusted host.`,
-		confirmLabel: t(i18n)`Enable X11`,
+		title: i18n._(msg`Enable X11 for ${host}?`),
+		children: i18n._(
+			msg`The server ${host} will have full access to your local display (it can capture the keyboard and the screen). Only enable X11 for a trusted host.`
+		),
+		confirmLabel: i18n._(msg`Enable X11`),
 		confirmColor: 'danger',
 	});
 	if (isConfirmed) confirmX11Host(host);
@@ -35,13 +35,13 @@ export function useX11AnchorActions(host: string): UseX11AnchorActionsReturn {
 		if (!(await confirmRisk(host, i18n))) return;
 		await runDaemonAction(
 			(gateway) => gateway.startX11(host),
-			t(i18n)`Couldn't start X11 for ${host}`
+			i18n._(msg`Couldn't start X11 for ${host}`)
 		);
 	};
 	const stop = async () => {
 		await runDaemonAction(
 			(gateway) => gateway.stopX11(host),
-			t(i18n)`Couldn't stop X11 for ${host}`
+			i18n._(msg`Couldn't stop X11 for ${host}`)
 		);
 	};
 

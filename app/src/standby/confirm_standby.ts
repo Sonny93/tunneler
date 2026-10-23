@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 import { ConfirmModal } from '@minimalstuff/ui';
 
 import type { TunnelDto } from '#/daemon/protocol';
@@ -20,6 +20,6 @@ export async function confirmStandby(
 	return ConfirmModal.call({
 		title,
 		children: describeCutConnections(openConnectionCount, i18n),
-		confirmLabel: t(i18n)`Send to standby`,
+		confirmLabel: i18n._(msg`Send to standby`),
 	});
 }

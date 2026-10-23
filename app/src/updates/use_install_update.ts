@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 import { useCallback } from 'react';
 
@@ -12,12 +12,12 @@ import { useUpdateStore } from '#/updates/update_store';
 
 function describeConsequence(isRestoredOnLaunch: boolean, i18n: I18n): string {
 	return isRestoredOnLaunch
-		? t(
-				i18n
-			)`They will restart after the update, because active tunnels are restored on launch.`
-		: t(
-				i18n
-			)`They will not restart after the update: "Restore active tunnels on launch" is turned off in the settings.`;
+		? i18n._(
+				msg`They will restart after the update, because active tunnels are restored on launch.`
+			)
+		: i18n._(
+				msg`They will not restart after the update: "Restore active tunnels on launch" is turned off in the settings.`
+			);
 }
 
 async function confirmStoppingTunnels(i18n: I18n): Promise<boolean> {
@@ -25,8 +25,8 @@ async function confirmStoppingTunnels(i18n: I18n): Promise<boolean> {
 	const runningCount = countRunningSessions(tunnels, x11Anchors);
 	if (runningCount === 0) return true;
 	return confirmTunnelsStop({
-		title: t(i18n)`Install the update?`,
-		confirmLabel: t(i18n)`Stop everything and install`,
+		title: i18n._(msg`Install the update?`),
+		confirmLabel: i18n._(msg`Stop everything and install`),
 		runningCount,
 		consequence: describeConsequence(settings?.restoreOnLaunch ?? false, i18n),
 	});
@@ -54,7 +54,7 @@ export function useInstallUpdate(): () => Promise<void> {
 					reportProgress(progress);
 					announcer.report(progress);
 				}),
-			t(i18n)`Couldn't install the update`
+			i18n._(msg`Couldn't install the update`)
 		);
 		if (!isInstalled) endInstallation();
 	}, [run, i18n]);

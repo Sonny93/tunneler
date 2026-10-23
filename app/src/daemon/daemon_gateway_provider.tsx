@@ -1,8 +1,7 @@
-import { createContext, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
-
-export const DaemonGatewayContext = createContext<DaemonGateway | null>(null);
+import { DaemonGatewayContext } from '#/daemon/daemon_gateway_context';
 
 type DaemonGatewayProviderProps = {
 	gateway: DaemonGateway;

@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { ImportCandidateDto } from '#/daemon/protocol';
 import { getTunnelAccessibleEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
@@ -15,7 +15,7 @@ export function describeImportCandidateLabel(
 	return getTunnelAccessibleEndpointLabel(
 		{
 			...candidate,
-			host: candidate.host ?? (fallbackHost || t(i18n)`host to choose`),
+			host: candidate.host ?? (fallbackHost || i18n._(msg`host to choose`)),
 		},
 		i18n
 	);
@@ -30,7 +30,7 @@ export function describeImportCandidateDetails(
 	const { line } = candidate;
 	const parts = [
 		candidate.comment ?? null,
-		line === undefined ? null : t(i18n)`line ${line}`,
+		line === undefined ? null : i18n._(msg`line ${line}`),
 		conflictNote,
 	];
 	return parts.filter((part) => part !== null).join(PARTS_SEPARATOR);

@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { X11StateDto } from '#/daemon/protocol';
 import { getX11StateDetail, getX11StateLabel } from '#/x11/x11_state_label';
@@ -12,6 +12,6 @@ export function buildX11Announcement(
 ): string {
 	const label = getX11StateLabel(state, i18n).toLowerCase();
 	const detail = getX11StateDetail(state);
-	if (detail === null) return t(i18n)`X11 ${host}: ${label}`;
-	return t(i18n)`X11 ${host}: ${label} (${detail})`;
+	if (detail === null) return i18n._(msg`X11 ${host}: ${label}`);
+	return i18n._(msg`X11 ${host}: ${label} (${detail})`);
 }

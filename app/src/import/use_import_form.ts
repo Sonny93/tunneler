@@ -1,7 +1,7 @@
 import type { I18n } from '@lingui/core';
-import { msg, t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 
 import type { ImportPreviewDto, SettingsDto } from '#/daemon/protocol';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
@@ -42,7 +42,7 @@ type UseImportFormReturn = {
 	summaryTitle: string;
 	changeDefaultHost: (host: string) => void;
 	changeTags: (text: string) => void;
-	submit: (event: FormEvent<HTMLFormElement>) => void;
+	submit: (event: SubmitEvent<HTMLFormElement>) => void;
 };
 
 function describeFailure(
@@ -50,7 +50,7 @@ function describeFailure(
 	i18n: I18n
 ): string {
 	const messageList = messages.join(', ');
-	return t(i18n)`${label}: ${messageList}`;
+	return i18n._(msg`${label}: ${messageList}`);
 }
 
 function describeSummaryTitle(
@@ -58,9 +58,9 @@ function describeSummaryTitle(
 	failedCount: number,
 	i18n: I18n
 ): string {
-	if (createdCount === 0) return t(i18n)`Import failed:`;
+	if (createdCount === 0) return i18n._(msg`Import failed:`);
 	const importedText = describeImportedCount(createdCount, i18n);
-	return t(i18n)`${importedText}, ${failedCount} failed:`;
+	return i18n._(msg`${importedText}, ${failedCount} failed:`);
 }
 
 export function useImportForm(
@@ -151,7 +151,7 @@ export function useImportForm(
 		useUiStore.getState().closePanel();
 	};
 
-	const submit = (event: FormEvent<HTMLFormElement>) => {
+	const submit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (progress !== null || selection.selectedIndexes.size === 0) return;
 		const isHostMissing =

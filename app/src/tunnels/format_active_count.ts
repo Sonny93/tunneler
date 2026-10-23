@@ -1,5 +1,5 @@
 import type { I18n } from '@lingui/core';
-import { t } from '@lingui/core/macro';
+import { msg } from '@lingui/core/macro';
 
 import type { ActiveCount } from '#/tunnels/active_count';
 
@@ -8,5 +8,5 @@ export function formatActiveCount(
 	{ running, total }: Readonly<ActiveCount>,
 	i18n: I18n
 ): string {
-	return t(i18n)`${running}/${total} active`;
+	return i18n._(msg`${running}/${total} active`);
 }
