@@ -1,5 +1,5 @@
 import { useLingui } from '@lingui/react/macro';
-import { Button, Menu, MenuItem } from '@minimalstuff/ui';
+import { Button, Card, Menu, MenuItem } from '@minimalstuff/ui';
 import { useId } from 'react';
 
 import type { TunnelDto } from '#/daemon/protocol';
@@ -20,7 +20,6 @@ export function TunnelActionsSection({
 	tunnel,
 }: Readonly<TunnelActionsSectionProps>) {
 	const { t } = useLingui();
-	const headingId = useId();
 	const commandId = useId();
 	const runningReasonId = useId();
 	const restartReasonId = useId();
@@ -39,138 +38,140 @@ export function TunnelActionsSection({
 	const handleStandby = () => void sendTunnel(tunnel);
 
 	return (
-		<section aria-labelledby={headingId} className="flex flex-col gap-3">
-			<h3 id={headingId} className="m-0 text-sm font-semibold">
-				{t`Actions`}
-			</h3>
-			{hasTarget && (
-				<div className="flex flex-col gap-1">
-					<div className="flex flex-wrap gap-2">
-						{isOpenable && (
+		<Card title={t`Actions`} headingLevel={3} padding="sm">
+			<div className="flex flex-col gap-3">
+				{hasTarget && (
+					<div className="flex flex-col gap-1">
+						<div className="flex flex-wrap gap-2">
+							{isOpenable && (
+								<Button
+									startIcon="i-mdi-open-in-new"
+									variant="outline"
+									color="neutral"
+									onClick={open}
+								>
+									{label}
+								</Button>
+							)}
+							{isOpenable && alternatives.length > 0 && (
+								<Menu
+									trigger={
+										<Button
+											startIcon="i-mdi-open-in-app"
+											variant="outline"
+											color="neutral"
+										>
+											{t`Open with…`}
+										</Button>
+									}
+								>
+									{alternatives.map((choice) => (
+										<MenuItem
+											key={choice.id}
+											onClick={() => openWith(choice.id)}
+										>
+											{choice.name}
+										</MenuItem>
+									))}
+								</Menu>
+							)}
 							<Button
-								startIcon="i-mdi-open-in-new"
+								startIcon="i-mdi-stethoscope"
 								variant="outline"
 								color="neutral"
-								onClick={open}
+								loading={isChecking}
+								disabled={!isRunning}
+								aria-describedby={isRunning ? undefined : runningReasonId}
+								onClick={check}
 							>
-								{label}
+								{t`Check the target`}
 							</Button>
+						</div>
+						{!isRunning && (
+							<p id={runningReasonId} className="m-0 text-xs text-tn-muted">
+								{t`Available when the tunnel is started.`}
+							</p>
 						)}
-						{isOpenable && alternatives.length > 0 && (
-							<Menu
-								trigger={
-									<Button
-										startIcon="i-mdi-open-in-app"
-										variant="outline"
-										color="neutral"
-									>
-										{t`Open with…`}
-									</Button>
-								}
-							>
-								{alternatives.map((choice) => (
-									<MenuItem key={choice.id} onClick={() => openWith(choice.id)}>
-										{choice.name}
-									</MenuItem>
-								))}
-							</Menu>
-						)}
+					</div>
+				)}
+				<div className="flex flex-col gap-1">
+					<div>
 						<Button
-							startIcon="i-mdi-stethoscope"
+							startIcon="i-mdi-content-copy"
 							variant="outline"
 							color="neutral"
-							loading={isChecking}
-							disabled={!isRunning}
-							aria-describedby={isRunning ? undefined : runningReasonId}
-							onClick={check}
+							aria-describedby={commandId}
+							onClick={handleCopy}
 						>
-							{t`Check the target`}
+							{t`Copy the ssh command`}
 						</Button>
 					</div>
+					<code
+						id={commandId}
+						className="block break-all rounded-md bg-tn-surface-raised p-2 font-mono text-xs select-all"
+					>
+						{command}
+					</code>
+				</div>
+				<div className="flex flex-col gap-1">
+					<div className="flex flex-wrap gap-2">
+						<Button
+							startIcon="i-mdi-restart"
+							variant="outline"
+							color="neutral"
+							disabled={!isRunning}
+							aria-describedby={isRunning ? undefined : restartReasonId}
+							onClick={restart}
+						>
+							{t`Restart`}
+						</Button>
+						{tunnel.isAwake && (
+							<Button
+								startIcon="i-mdi-sleep"
+								variant="outline"
+								color="neutral"
+								onClick={handleStandby}
+							>
+								{t`Send to standby`}
+							</Button>
+						)}
+						{tunnel.isTemporary ? (
+							<>
+								<Button
+									startIcon="i-mdi-content-save-outline"
+									variant="outline"
+									color="neutral"
+									onClick={persist}
+								>
+									{t`Save tunnel`}
+								</Button>
+								<Button
+									startIcon="i-mdi-stop"
+									variant="outline"
+									color="danger"
+									onClick={stopAndRemove}
+								>
+									{t`Stop and remove`}
+								</Button>
+							</>
+						) : (
+							<Button
+								startIcon="i-mdi-pencil-outline"
+								variant="outline"
+								color="neutral"
+								onClick={handleEdit}
+							>
+								{t`Edit`}
+							</Button>
+						)}
+					</div>
 					{!isRunning && (
-						<p id={runningReasonId} className="m-0 text-xs text-tn-muted">
-							{t`Available when the tunnel is started.`}
+						<p id={restartReasonId} className="m-0 text-xs text-tn-muted">
+							{t`Restarting is possible when the tunnel is started.`}
 						</p>
 					)}
 				</div>
-			)}
-			<div className="flex flex-col gap-1">
-				<div>
-					<Button
-						startIcon="i-mdi-content-copy"
-						variant="outline"
-						color="neutral"
-						aria-describedby={commandId}
-						onClick={handleCopy}
-					>
-						{t`Copy the ssh command`}
-					</Button>
-				</div>
-				<code
-					id={commandId}
-					className="block break-all rounded-md bg-tn-surface-raised p-2 font-mono text-xs select-all"
-				>
-					{command}
-				</code>
 			</div>
-			<div className="flex flex-col gap-1">
-				<div className="flex flex-wrap gap-2">
-					<Button
-						startIcon="i-mdi-restart"
-						variant="outline"
-						color="neutral"
-						disabled={!isRunning}
-						aria-describedby={isRunning ? undefined : restartReasonId}
-						onClick={restart}
-					>
-						{t`Restart`}
-					</Button>
-					{tunnel.isAwake && (
-						<Button
-							startIcon="i-mdi-sleep"
-							variant="outline"
-							color="neutral"
-							onClick={handleStandby}
-						>
-							{t`Send to standby`}
-						</Button>
-					)}
-					{tunnel.isTemporary ? (
-						<>
-							<Button
-								startIcon="i-mdi-content-save-outline"
-								variant="outline"
-								color="neutral"
-								onClick={persist}
-							>
-								{t`Save tunnel`}
-							</Button>
-							<Button
-								startIcon="i-mdi-stop"
-								variant="outline"
-								color="danger"
-								onClick={stopAndRemove}
-							>
-								{t`Stop and remove`}
-							</Button>
-						</>
-					) : (
-						<Button
-							startIcon="i-mdi-pencil-outline"
-							variant="outline"
-							color="neutral"
-							onClick={handleEdit}
-						>
-							{t`Edit`}
-						</Button>
-					)}
-				</div>
-				{!isRunning && (
-					<p id={restartReasonId} className="m-0 text-xs text-tn-muted">
-						{t`Restarting is possible when the tunnel is started.`}
-					</p>
-				)}
-			</div>
-		</section>
+		</Card>
 	);
 }

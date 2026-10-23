@@ -1,5 +1,5 @@
 import { useLingui } from '@lingui/react/macro';
-import { useId } from 'react';
+import { Card } from '@minimalstuff/ui';
 
 import type { TunnelDto } from '#/daemon/protocol';
 import { TargetHealthBadge } from '#/shared/health_badge';
@@ -15,19 +15,17 @@ export function TunnelStateSection({
 	tunnel,
 }: Readonly<TunnelStateSectionProps>) {
 	const { t } = useLingui();
-	const headingId = useId();
 
 	return (
-		<section aria-labelledby={headingId} className="flex flex-col gap-2">
-			<h3 id={headingId} className="m-0 text-sm font-semibold">
-				{t`State`}
-			</h3>
-			<div className="flex flex-wrap gap-1">
-				{tunnel.isTemporary && <TemporaryBadge />}
-				<TunnelStatusBadge state={tunnel.state} />
-				<TargetHealthBadge health={tunnel.health} />
+		<Card title={t`State`} headingLevel={3} padding="sm">
+			<div className="flex flex-col gap-2">
+				<div className="flex flex-wrap gap-1">
+					{tunnel.isTemporary && <TemporaryBadge />}
+					<TunnelStatusBadge state={tunnel.state} />
+					<TargetHealthBadge health={tunnel.health} />
+				</div>
+				<TunnelEndpoint tunnel={tunnel} />
 			</div>
-			<TunnelEndpoint tunnel={tunnel} />
-		</section>
+		</Card>
 	);
 }

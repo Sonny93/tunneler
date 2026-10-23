@@ -1,5 +1,5 @@
 import { useLingui } from '@lingui/react/macro';
-import { Tabs } from '@minimalstuff/ui';
+import { Drawer, Tabs } from '@minimalstuff/ui';
 import { useState } from 'react';
 
 import type { SettingsDto } from '#/daemon/protocol';
@@ -7,16 +7,20 @@ import { ImportConfigTab } from '#/import/import_config_tab';
 import { ImportPreview } from '#/import/import_preview';
 import { ImportScriptTab } from '#/import/import_script_tab';
 import { useImportAnalysis } from '#/import/use_import_analysis';
-import { Drawer } from '#/shared/drawer';
 import { FormErrorSummary } from '#/shared/form_error_summary';
 import { useUiStore } from '#/state/ui_store';
 
 type ImportPanelProps = {
 	title: string;
 	settings: SettingsDto;
+	isOpen: boolean;
 };
 
-export function ImportPanel({ title, settings }: Readonly<ImportPanelProps>) {
+export function ImportPanel({
+	title,
+	settings,
+	isOpen,
+}: Readonly<ImportPanelProps>) {
 	const { t } = useLingui();
 	const closePanel = useUiStore((state) => state.closePanel);
 	const [scriptText, setScriptText] = useState('');
@@ -47,7 +51,7 @@ export function ImportPanel({ title, settings }: Readonly<ImportPanelProps>) {
 	];
 
 	return (
-		<Drawer isOpen title={title} onClose={closePanel}>
+		<Drawer isOpen={isOpen} title={title} onClose={closePanel}>
 			<div className="flex flex-col gap-6">
 				<Tabs items={tabs} />
 				<FormErrorSummary

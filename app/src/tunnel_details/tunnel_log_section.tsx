@@ -1,6 +1,5 @@
 import { useLingui } from '@lingui/react/macro';
-import { Button } from '@minimalstuff/ui';
-import { useId } from 'react';
+import { Button, Card } from '@minimalstuff/ui';
 
 import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { TunnelLogList } from '#/tunnel_details/tunnel_log_list';
@@ -16,20 +15,17 @@ export function TunnelLogSection({
 	tunnelLabel,
 }: Readonly<TunnelLogSectionProps>) {
 	const { t, i18n } = useLingui();
-	const headingId = useId();
 	const { state, retry } = useTunnelLogs(tunnelId);
 	const errorMessage =
 		state.error === null ? '' : describeDaemonError(state.error, i18n);
 
 	return (
-		<section
-			aria-labelledby={headingId}
-			aria-busy={state.status === 'loading'}
-			className="flex flex-col gap-2"
+		<Card
+			title={t`Log`}
+			headingLevel={3}
+			padding="sm"
+			className="flex flex-1 flex-col"
 		>
-			<h3 id={headingId} className="m-0 text-sm font-semibold">
-				{t`Log`}
-			</h3>
 			{state.status === 'loading' && (
 				<p className="m-0 text-sm text-tn-muted">{t`Loading the log…`}</p>
 			)}
@@ -51,6 +47,6 @@ export function TunnelLogSection({
 			{state.status === 'ready' && (
 				<TunnelLogList entries={state.entries} tunnelLabel={tunnelLabel} />
 			)}
-		</section>
+		</Card>
 	);
 }

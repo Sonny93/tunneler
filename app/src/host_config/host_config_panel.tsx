@@ -1,17 +1,20 @@
 import { Trans, useLingui } from '@lingui/react/macro';
-import { Button } from '@minimalstuff/ui';
+import { Button, Drawer } from '@minimalstuff/ui';
 
 import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { HostConfigView } from '#/host_config/host_config_view';
 import { useResolvedHost } from '#/host_config/use_resolved_host';
-import { Drawer } from '#/shared/drawer';
 import { useUiStore } from '#/state/ui_store';
 
 type HostConfigPanelProps = {
 	host: string;
+	isOpen: boolean;
 };
 
-export function HostConfigPanel({ host }: Readonly<HostConfigPanelProps>) {
+export function HostConfigPanel({
+	host,
+	isOpen,
+}: Readonly<HostConfigPanelProps>) {
 	const { t, i18n } = useLingui();
 	const closePanel = useUiStore((state) => state.closePanel);
 	const { state, retry } = useResolvedHost(host);
@@ -19,7 +22,11 @@ export function HostConfigPanel({ host }: Readonly<HostConfigPanelProps>) {
 		state.status === 'error' ? describeDaemonError(state.error, i18n) : '';
 
 	return (
-		<Drawer isOpen title={t`Configuration of ${host}`} onClose={closePanel}>
+		<Drawer
+			isOpen={isOpen}
+			title={t`Configuration of ${host}`}
+			onClose={closePanel}
+		>
 			<div
 				aria-busy={state.status === 'loading'}
 				className="flex flex-col gap-4"

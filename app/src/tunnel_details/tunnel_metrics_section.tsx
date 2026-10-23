@@ -1,7 +1,7 @@
 import type { I18n } from '@lingui/core';
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
-import { useId } from 'react';
+import { Card } from '@minimalstuff/ui';
 
 import type { MetricsDto } from '#/daemon/protocol';
 import { formatBytes } from '#/shared/format_bytes';
@@ -42,21 +42,22 @@ export function TunnelMetricsSection({
 	metrics,
 }: Readonly<TunnelMetricsSectionProps>) {
 	const { i18n } = useLingui();
-	const headingId = useId();
 
 	return (
-		<section aria-labelledby={headingId} className="flex flex-col gap-2">
-			<h3 id={headingId} className="m-0 text-sm font-semibold">
-				{t(i18n)`Metrics`}
-			</h3>
-			<dl className="m-0 flex flex-col gap-1 text-sm">
+		<Card title={t(i18n)`Metrics`} headingLevel={3} padding="sm">
+			<dl className="m-0 grid grid-cols-2 gap-2 sm:grid-cols-3">
 				{buildMetricRows(metrics, i18n).map(({ label, value }) => (
-					<div key={label} className="flex justify-between gap-4">
-						<dt className="text-tn-muted">{label}</dt>
-						<dd className="m-0 font-mono">{value}</dd>
+					<div
+						key={label}
+						className="flex min-w-0 flex-col gap-1 rounded-md border border-tn-divider bg-tn-surface p-3"
+					>
+						<dt className="text-xs text-tn-muted">{label}</dt>
+						<dd className="m-0 break-words font-mono text-xl font-semibold text-tn-text">
+							{value}
+						</dd>
 					</div>
 				))}
 			</dl>
-		</section>
+		</Card>
 	);
 }

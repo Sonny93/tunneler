@@ -1,5 +1,5 @@
 import { useLingui } from '@lingui/react/macro';
-import { Button } from '@minimalstuff/ui';
+import { Button, Drawer } from '@minimalstuff/ui';
 import { useId } from 'react';
 
 import type { SettingsDto } from '#/daemon/protocol';
@@ -19,15 +19,18 @@ import { SettingsUpdatesFieldset } from '#/settings/settings_updates_fieldset';
 import { StandbyNotifyOptions } from '#/settings/standby_notify_options';
 import { StandbySoundOptions } from '#/settings/standby_sound_options';
 import { useSettingsForm } from '#/settings/use_settings_form';
-import { Drawer } from '#/shared/drawer';
 import { FormErrorSummary } from '#/shared/form_error_summary';
 import { useUiStore } from '#/state/ui_store';
 
 type SettingsPanelProps = {
 	settings: SettingsDto;
+	isOpen: boolean;
 };
 
-export function SettingsPanel({ settings }: Readonly<SettingsPanelProps>) {
+export function SettingsPanel({
+	settings,
+	isOpen,
+}: Readonly<SettingsPanelProps>) {
 	const { t } = useLingui();
 	const formId = useId();
 	const closePanel = useUiStore((state) => state.closePanel);
@@ -46,7 +49,12 @@ export function SettingsPanel({ settings }: Readonly<SettingsPanelProps>) {
 	);
 
 	return (
-		<Drawer isOpen title={t`Settings`} onClose={closePanel} footer={footer}>
+		<Drawer
+			isOpen={isOpen}
+			title={t`Settings`}
+			onClose={closePanel}
+			footer={footer}
+		>
 			<form
 				id={formId}
 				noValidate

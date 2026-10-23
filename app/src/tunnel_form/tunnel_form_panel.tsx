@@ -1,9 +1,8 @@
 import { useLingui } from '@lingui/react/macro';
-import { Button } from '@minimalstuff/ui';
+import { Button, Drawer } from '@minimalstuff/ui';
 import { useId } from 'react';
 
 import type { TunnelDefinitionDto, TunnelSpecDto } from '#/daemon/protocol';
-import { Drawer } from '#/shared/drawer';
 import { FormErrorSummary } from '#/shared/form_error_summary';
 import { useUiStore } from '#/state/ui_store';
 import { TunnelFormFields } from '#/tunnel_form/tunnel_form_fields';
@@ -17,12 +16,14 @@ type TunnelFormPanelProps = {
 	tunnel: TunnelDefinitionDto | null;
 	draft?: TunnelSpecDto;
 	mode?: TunnelFormMode;
+	isOpen: boolean;
 };
 
 export function TunnelFormPanel({
 	tunnel,
 	draft,
 	mode = 'saved',
+	isOpen,
 }: Readonly<TunnelFormPanelProps>) {
 	const { t } = useLingui();
 	const formId = useId();
@@ -56,7 +57,12 @@ export function TunnelFormPanel({
 	);
 
 	return (
-		<Drawer isOpen title={getTitle()} onClose={closePanel} footer={footer}>
+		<Drawer
+			isOpen={isOpen}
+			title={getTitle()}
+			onClose={closePanel}
+			footer={footer}
+		>
 			<form id={formId} noValidate onSubmit={submit}>
 				<FormErrorSummary
 					messages={summary.messages}
