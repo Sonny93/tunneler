@@ -2,14 +2,7 @@ import { useLingui } from '@lingui/react/macro';
 import { Button, Input, Textarea } from '@minimalstuff/ui';
 import { useId, useState, type ChangeEvent, type FormEvent } from 'react';
 
-import { FormErrorSummary } from '#/shared/form_error_summary';
-import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import type { AvailableOpenerDto, OpenerSpecDto } from '#/daemon/protocol';
-import {
-	getFirstInvalidOpenerField,
-	validateOpenerForm,
-	type OpenerFormErrors,
-} from '#/openers/validate_opener_form';
 import {
 	EMPTY_OPENER_FORM_VALUES,
 	PLACEHOLDER_TEXTS,
@@ -18,6 +11,13 @@ import {
 	toOpenerSpec,
 	type OpenerFormValues,
 } from '#/openers/opener_form_values';
+import {
+	getFirstInvalidOpenerField,
+	validateOpenerForm,
+	type OpenerFormErrors,
+} from '#/openers/validate_opener_form';
+import { FormErrorSummary } from '#/shared/form_error_summary';
+import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 
 type OpenerFormProps = {
 	/** The application being edited, or `null` to add one. */

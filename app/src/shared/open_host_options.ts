@@ -1,5 +1,5 @@
-import { msg } from '@lingui/core/macro';
 import type { I18n, MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 
 import type { OpenHostDto } from '#/daemon/protocol';
 

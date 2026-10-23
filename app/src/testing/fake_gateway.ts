@@ -1,8 +1,8 @@
 import { vi, type Mock } from 'vitest';
 
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
-import { buildSnapshot, buildTunnel } from '#/testing/factories';
 import type { EventMessage, SnapshotDto } from '#/daemon/protocol';
+import { buildSnapshot, buildTunnel } from '#/testing/factories';
 
 export type FakeGateway = {
 	[Method in keyof DaemonGateway]: Mock<DaemonGateway[Method]>;

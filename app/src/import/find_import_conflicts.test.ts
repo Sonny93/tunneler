@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildSettings, buildTunnel } from '#/testing/factories';
 import { findImportConflicts } from '#/import/find_import_conflicts';
+import { buildSettings, buildTunnel } from '#/testing/factories';
 
 const SETTINGS = buildSettings();
 

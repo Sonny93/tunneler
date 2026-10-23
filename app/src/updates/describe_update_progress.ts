@@ -1,8 +1,8 @@
-import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
+import { t } from '@lingui/core/macro';
 
-import { formatBytes } from '#/shared/format_bytes';
 import type { UpdateProgressDto } from '#/daemon/protocol';
+import { formatBytes } from '#/shared/format_bytes';
 
 const PERCENT_SCALE = 100;
 

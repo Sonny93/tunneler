@@ -1,8 +1,8 @@
+import { useLingui } from '@lingui/react/macro';
+import { useDisableHotkeysWhileMounted, IconButton } from '@minimalstuff/ui';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 /* oxlint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/prefer-tag-over-role -- modal dialog: the focus trap needs a keydown handler and a native <dialog> cannot be a non-native-modal aria-modal portal panel */
 import { createPortal } from 'react-dom';
-import { useLingui } from '@lingui/react/macro';
-import { useEffect, useId, useRef, type ReactNode } from 'react';
-import { useDisableHotkeysWhileMounted, IconButton } from '@minimalstuff/ui';
 
 import { useDrawerFocus } from '#/shared/use_drawer_focus';
 

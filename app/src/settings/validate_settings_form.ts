@@ -1,12 +1,12 @@
-import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 
-import type { SettingsFormValues } from '#/settings/settings_form_values';
 import {
 	SETTINGS_SECTIONS,
 	STANDBY_SECTION,
 	type SettingsTextField,
 } from '#/settings/settings_field_specs';
+import type { SettingsFormValues } from '#/settings/settings_form_values';
 
 export type SettingsFormErrors = Partial<
 	Record<SettingsTextField, MessageDescriptor>

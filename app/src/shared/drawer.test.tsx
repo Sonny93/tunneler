@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { axe } from 'vitest-axe';
-import { screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { useGlobalHotkeysStore } from '@minimalstuff/ui';
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
+import { describe, expect, it, vi } from 'vitest';
+import { axe } from 'vitest-axe';
 
 import { Drawer } from '#/shared/drawer';
 import { renderWithI18n } from '#/testing/render_with_i18n';

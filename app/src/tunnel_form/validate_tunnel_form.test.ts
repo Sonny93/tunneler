@@ -1,11 +1,11 @@
 import { msg } from '@lingui/core/macro';
 import { describe, expect, it } from 'vitest';
 
-import { EMPTY_TUNNEL_FORM_VALUES } from '#/tunnel_form/tunnel_form_values';
 import {
 	COLON_TAG_MESSAGE,
 	DIGITS_TAG_MESSAGE,
 } from '#/shared/reserved_tag_problem';
+import { EMPTY_TUNNEL_FORM_VALUES } from '#/tunnel_form/tunnel_form_values';
 import {
 	getFirstInvalidField,
 	validateTunnelForm,

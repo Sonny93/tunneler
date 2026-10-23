@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react';
 import type { I18n } from '@lingui/core';
 import { t, plural } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 import { UIProvider, type UILabels } from '@minimalstuff/ui';
+import type { ReactNode } from 'react';
 
 import { getThemeAriaLabel } from '#/header/theme_aria_label';
 

@@ -1,19 +1,19 @@
 import { useLingui } from '@lingui/react/macro';
-import { useEffect, useMemo, useRef } from 'react';
 import { ContextMenu, MenuItem } from '@minimalstuff/ui';
+import { useEffect, useMemo, useRef } from 'react';
 
-import { useUiStore } from '#/state/ui_store';
-import { SIDEBAR_ID } from '#/sidebar/sidebar_id';
-import { useDaemonStore } from '#/state/daemon_store';
 import { FilterButton } from '#/sidebar/filter_button';
-import { TagFilterRow } from '#/sidebar/tag_filter_row';
-import { summarizeTags } from '#/sidebar/summarize_tags';
 import { HostFilterRow } from '#/sidebar/host_filter_row';
+import { SIDEBAR_ID } from '#/sidebar/sidebar_id';
 import { summarizeHosts } from '#/sidebar/summarize_hosts';
+import { summarizeTags } from '#/sidebar/summarize_tags';
+import { TagFilterRow } from '#/sidebar/tag_filter_row';
 import { listAwakeTunnels } from '#/standby/list_awake_tunnels';
 import { useSendToStandby } from '#/standby/use_send_to_standby';
-import { useResolvedFilter } from '#/tunnels/use_resolved_filter';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
 import { countActiveTunnels } from '#/tunnels/count_active_tunnels';
+import { useResolvedFilter } from '#/tunnels/use_resolved_filter';
 
 const SECTION_HEADING_CLASS_NAME =
 	'mb-1 px-2 text-xs font-semibold text-tn-muted';

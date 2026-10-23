@@ -1,5 +1,5 @@
-import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import type { TunnelDto, X11AnchorDto } from '#/daemon/protocol';
+import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 
 const RUNNING_X11_STATE_KINDS: readonly X11AnchorDto['state']['kind'][] = [
 	'starting',

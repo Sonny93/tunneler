@@ -1,8 +1,8 @@
 import type { MessageDescriptor } from '@lingui/core';
 
-import { parseTags } from '#/tunnel_form/parse_tags';
 import { findReservedTagProblem } from '#/shared/reserved_tag_problem';
 import { WHITESPACE_TAG_MESSAGE } from '#/tag_rename/validate_tag_name';
+import { parseTags } from '#/tunnel_form/parse_tags';
 
 const WHITESPACE_PATTERN = /\s/u;
 

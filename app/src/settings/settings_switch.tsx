@@ -1,5 +1,5 @@
-import type { ChangeEvent } from 'react';
 import { Switch } from '@minimalstuff/ui';
+import type { ChangeEvent } from 'react';
 
 import type { SettingsToggleField } from '#/settings/settings_field_specs';
 

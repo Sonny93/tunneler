@@ -1,11 +1,11 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { act, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { useUiStore } from '#/state/ui_store';
-import { useDaemonStore } from '#/state/daemon_store';
 import type { TrayStatusDto } from '#/daemon/protocol';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
 import { renderWithI18n } from '#/testing/render_with_i18n';
 import { TrayStatusNotice } from '#/tray/tray_status_notice';
 

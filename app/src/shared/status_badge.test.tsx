@@ -1,6 +1,6 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
 import { screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
 import type { TunnelStateDto } from '#/daemon/protocol';
 import { TunnelStatusBadge } from '#/shared/status_badge';

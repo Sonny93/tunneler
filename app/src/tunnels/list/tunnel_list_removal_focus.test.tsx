@@ -1,13 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { screen } from '@testing-library/react';
 import { ModalProvider } from '@minimalstuff/ui';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
 
-import { buildTunnel } from '#/testing/factories';
 import { useDaemonStore } from '#/state/daemon_store';
-import { TunnelList } from '#/tunnels/list/tunnel_list';
+import { buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { TunnelList } from '#/tunnels/list/tunnel_list';
 
 const PORTS_BY_ID = { a: 3001, b: 3002, c: 3003 } as const;
 const ALPHA = '3001 to nova:3001';

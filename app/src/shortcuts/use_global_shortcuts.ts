@@ -1,11 +1,11 @@
-import { useEffect } from 'react';
 import { useGlobalHotkeysStore } from '@minimalstuff/ui';
+import { useEffect } from 'react';
 
-import { useUiStore } from '#/state/ui_store';
-import { isPaletteChord } from '#/shortcuts/is_palette_chord';
-import { shouldHandleShortcut } from '#/shortcuts/should_handle_shortcut';
-import type { GlobalShortcutKey } from '#/shortcuts/shortcut_definitions';
 import { useOpenDocumentation } from '#/documentation/use_open_documentation';
+import { isPaletteChord } from '#/shortcuts/is_palette_chord';
+import type { GlobalShortcutKey } from '#/shortcuts/shortcut_definitions';
+import { shouldHandleShortcut } from '#/shortcuts/should_handle_shortcut';
+import { useUiStore } from '#/state/ui_store';
 
 const UI_SHORTCUT_ACTIONS: Readonly<
 	Record<Exclude<GlobalShortcutKey, 'F1'>, () => void>

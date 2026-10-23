@@ -1,17 +1,17 @@
-import { axe } from 'vitest-axe';
 import { ModalProvider } from '@minimalstuff/ui';
-import userEvent from '@testing-library/user-event';
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { X11Drawer } from '#/x11/x11_drawer';
-import { useUiStore } from '#/state/ui_store';
-import { useDaemonStore } from '#/state/daemon_store';
-import { createFakeGateway } from '#/testing/fake_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
 import { buildX11Anchor, buildX11Launcher } from '#/testing/factories';
+import { createFakeGateway } from '#/testing/fake_gateway';
+import { renderWithGateway } from '#/testing/render_with_gateway';
+import { X11Drawer } from '#/x11/x11_drawer';
 
 const renderDrawer = (gateway = createFakeGateway()) =>
 	renderWithGateway(

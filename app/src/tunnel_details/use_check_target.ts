@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
+import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
+import { useState } from 'react';
 
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import type { TargetHealthDto, TunnelDto } from '#/daemon/protocol';
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import { describeDaemonError } from '#/daemon/describe_daemon_error';
+import type { TargetHealthDto, TunnelDto } from '#/daemon/protocol';
+import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
+import { useToastStore } from '#/shared/toasts/toast_store';
 
 type UseCheckTargetReturn = {
 	isChecking: boolean;

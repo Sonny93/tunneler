@@ -1,5 +1,5 @@
-import { Button } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
 
 import { useCopyDisplayCommand } from '#/x11/use_copy_display_command';
 

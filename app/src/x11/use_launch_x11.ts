@@ -1,8 +1,8 @@
 import { useLingui } from '@lingui/react/macro';
 
 import type { X11LauncherDto } from '#/daemon/protocol';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
+import { useToastStore } from '#/shared/toasts/toast_store';
 
 export function useLaunchX11(): (
 	launcher: Readonly<X11LauncherDto>

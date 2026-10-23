@@ -1,5 +1,5 @@
-import { IconButton } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { IconButton } from '@minimalstuff/ui';
 
 import { useUiStore } from '#/state/ui_store';
 

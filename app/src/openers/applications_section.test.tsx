@@ -1,16 +1,16 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
 import { ModalProvider } from '@minimalstuff/ui';
-import userEvent from '@testing-library/user-event';
 import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { useDaemonStore } from '#/state/daemon_store';
-import { createFakeGateway } from '#/testing/fake_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { buildOpener, buildTunnel } from '#/testing/factories';
-import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { ApplicationsSection } from '#/openers/applications_section';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { useDaemonStore } from '#/state/daemon_store';
+import { buildOpener, buildTunnel } from '#/testing/factories';
+import { createFakeGateway } from '#/testing/fake_gateway';
+import { renderWithGateway } from '#/testing/render_with_gateway';
 
 const preset = buildOpener();
 const mine = buildOpener({

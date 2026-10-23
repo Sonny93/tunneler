@@ -1,10 +1,10 @@
-import { useCallback, useState } from 'react';
-import { IconButton } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { IconButton } from '@minimalstuff/ui';
+import { useCallback, useState } from 'react';
 
 import { cn } from '#/shared/cn';
-import { useAutoDismiss } from '#/shared/toasts/use_auto_dismiss';
 import type { Toast, ToastTone } from '#/shared/toasts/toast_store';
+import { useAutoDismiss } from '#/shared/toasts/use_auto_dismiss';
 
 type ToastAppearance = { icon: string; iconClassName: string };
 

@@ -1,12 +1,12 @@
 import { i18n } from '@lingui/core';
-import { useCallback } from 'react';
 import { t } from '@lingui/core/macro';
+import { useCallback } from 'react';
 
-import { useToastStore } from '#/shared/toasts/toast_store';
-import type { DaemonGateway } from '#/daemon/daemon_gateway';
-import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
+import type { DaemonGateway } from '#/daemon/daemon_gateway';
+import { describeDaemonError } from '#/daemon/describe_daemon_error';
+import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
+import { useToastStore } from '#/shared/toasts/toast_store';
 
 type DaemonAction = (gateway: DaemonGateway) => Promise<unknown>;
 

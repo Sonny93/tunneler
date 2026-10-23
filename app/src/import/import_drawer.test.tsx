@@ -1,25 +1,25 @@
-import { axe } from 'vitest-axe';
 import { i18n } from '@lingui/core';
-import { describe, expect, it } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { act, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { useUiStore } from '#/state/ui_store';
-import { useDaemonStore } from '#/state/daemon_store';
-import { ImportDrawer } from '#/import/import_drawer';
-import type { ImportPreviewDto } from '#/daemon/protocol';
-import { createFakeGateway } from '#/testing/fake_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
-import { DIGITS_TAG_MESSAGE } from '#/shared/reserved_tag_problem';
+import type { ImportPreviewDto } from '#/daemon/protocol';
+import { ImportDrawer } from '#/import/import_drawer';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
+import { DIGITS_TAG_MESSAGE } from '#/shared/reserved_tag_problem';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
 import {
 	buildImportCandidate,
 	buildImportPreview,
 	buildSettings,
 	buildTunnel,
 } from '#/testing/factories';
+import { createFakeGateway } from '#/testing/fake_gateway';
+import { renderWithGateway } from '#/testing/render_with_gateway';
 
 const POWERSHELL_PORTS = [3333, 3334, 3335, 3336, 3337, 3338, 3339, 3340];
 const SCRIPT = 'ssh -L 3333:localhost:3333 nova';

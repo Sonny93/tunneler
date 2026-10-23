@@ -1,10 +1,10 @@
+import { useLingui } from '@lingui/react/macro';
 import { Button } from '@minimalstuff/ui';
 import { useId, type MouseEvent } from 'react';
-import { useLingui } from '@lingui/react/macro';
 
-import { useUpdateStore } from '#/updates/update_store';
-import { UpdateProgress } from '#/updates/update_progress';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
+import { UpdateProgress } from '#/updates/update_progress';
+import { useUpdateStore } from '#/updates/update_store';
 import { useInstallUpdate } from '#/updates/use_install_update';
 
 export function UpdateNotice() {

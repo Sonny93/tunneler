@@ -2,9 +2,9 @@ import type { I18n } from '@lingui/core';
 import { plural, t } from '@lingui/core/macro';
 
 import type { TunnelDto } from '#/daemon/protocol';
-import { getTunnelStateLabel } from '#/tunnels/tunnel_state_label';
-import { getTunnelStateDetail } from '#/tunnels/tunnel_state_detail';
 import { getTunnelAccessibleEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
+import { getTunnelStateDetail } from '#/tunnels/tunnel_state_detail';
+import { getTunnelStateLabel } from '#/tunnels/tunnel_state_label';
 
 const MAXIMUM_DETAILED_CHANGES = 3;
 

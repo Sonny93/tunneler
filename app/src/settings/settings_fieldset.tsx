@@ -1,15 +1,15 @@
-import { Input } from '@minimalstuff/ui';
-import { useLingui } from '@lingui/react/macro';
-import type { ChangeEvent, ReactNode } from 'react';
 import type { MessageDescriptor } from '@lingui/core';
+import { useLingui } from '@lingui/react/macro';
+import { Input } from '@minimalstuff/ui';
+import type { ChangeEvent, ReactNode } from 'react';
 
-import type { SettingsFormValues } from '#/settings/settings_form_values';
-import type { SettingsFormErrors } from '#/settings/validate_settings_form';
 import type {
 	SettingsFieldSpec,
 	SettingsSectionSpec,
 	SettingsTextField,
 } from '#/settings/settings_field_specs';
+import type { SettingsFormValues } from '#/settings/settings_form_values';
+import type { SettingsFormErrors } from '#/settings/validate_settings_form';
 
 type SettingsFieldProps = {
 	spec: SettingsFieldSpec;

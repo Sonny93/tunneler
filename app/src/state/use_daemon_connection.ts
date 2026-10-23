@@ -1,12 +1,12 @@
 import { useCallback, useEffect } from 'react';
 
-import type { EventMessage } from '#/daemon/protocol';
-import { useDaemonStore } from '#/state/daemon_store';
-import type { ConnectionState } from '#/state/daemon_state';
-import { loadDaemonState } from '#/state/load_daemon_state';
-import type { DaemonGateway } from '#/daemon/daemon_gateway';
-import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
+import type { DaemonGateway } from '#/daemon/daemon_gateway';
+import type { EventMessage } from '#/daemon/protocol';
+import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
+import type { ConnectionState } from '#/state/daemon_state';
+import { useDaemonStore } from '#/state/daemon_store';
+import { loadDaemonState } from '#/state/load_daemon_state';
 
 type UseDaemonConnectionReturn = {
 	connection: ConnectionState;

@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import { useEffect, useRef } from 'react';
 
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 import { describeSelectionCount } from '#/tunnels/selection/describe_selection_count';

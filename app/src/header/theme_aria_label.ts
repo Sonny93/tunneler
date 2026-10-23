@@ -1,6 +1,6 @@
+import type { I18n, MessageDescriptor } from '@lingui/core';
 import { msg, t } from '@lingui/core/macro';
 import type { Theme } from '@minimalstuff/ui';
-import type { I18n, MessageDescriptor } from '@lingui/core';
 
 const THEME_LABELS: Readonly<Record<Theme, MessageDescriptor>> = {
 	system: msg`system`,

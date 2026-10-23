@@ -1,4 +1,3 @@
-import type { Locale } from '#/i18n/supported_locales';
 import type {
 	EventMessage,
 	HostKeyDecisionDto,
@@ -24,6 +23,7 @@ import type {
 	UpdateOfferDto,
 	UpdateProgressDto,
 } from '#/daemon/protocol';
+import type { Locale } from '#/i18n/supported_locales';
 
 export type Unsubscribe = () => void;
 

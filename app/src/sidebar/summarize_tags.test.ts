@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildTunnel } from '#/testing/factories';
 import { summarizeTags } from '#/sidebar/summarize_tags';
+import { buildTunnel } from '#/testing/factories';
 
 describe('summarizeTags', () => {
 	it('should count running and total tunnels per tag, sorted ignoring case', () => {

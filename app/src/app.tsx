@@ -1,23 +1,23 @@
 import { ModalProvider } from '@minimalstuff/ui';
 
-import { Overlays } from '#/overlays';
 import { AppLayout } from '#/app_layout';
-import { Sidebar } from '#/sidebar/sidebar';
-import { useUiStore } from '#/state/ui_store';
 import { ConnectingScreen } from '#/connecting_screen';
-import { UpdateNotice } from '#/updates/update_notice';
-import { HeaderActions } from '#/header/header_actions';
-import { TunnelList } from '#/tunnels/list/tunnel_list';
-import { SidebarToggle } from '#/sidebar/sidebar_toggle';
 import { DisconnectedScreen } from '#/disconnected_screen';
-import { ToastRegion } from '#/shared/toasts/toast_region';
-import { useUpdateCheck } from '#/updates/use_update_check';
-import { TrayStatusNotice } from '#/tray/tray_status_notice';
 import { ExternalSection } from '#/externals/external_section';
+import { HeaderActions } from '#/header/header_actions';
+import { Overlays } from '#/overlays';
 import { LiveAnnouncer } from '#/shared/announcer/live_announcer';
-import { useX11Announcements } from '#/x11/use_x11_announcements';
+import { ToastRegion } from '#/shared/toasts/toast_region';
+import { Sidebar } from '#/sidebar/sidebar';
+import { SidebarToggle } from '#/sidebar/sidebar_toggle';
+import { useUiStore } from '#/state/ui_store';
 import { useDaemonConnection } from '#/state/use_daemon_connection';
+import { TrayStatusNotice } from '#/tray/tray_status_notice';
+import { TunnelList } from '#/tunnels/list/tunnel_list';
 import { useTunnelStateAnnouncements } from '#/tunnels/use_tunnel_state_announcements';
+import { UpdateNotice } from '#/updates/update_notice';
+import { useUpdateCheck } from '#/updates/use_update_check';
+import { useX11Announcements } from '#/x11/use_x11_announcements';
 
 export function App() {
 	const { connection, retry } = useDaemonConnection();

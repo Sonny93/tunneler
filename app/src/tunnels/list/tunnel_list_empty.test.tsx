@@ -1,7 +1,7 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
 import { useUiStore } from '#/state/ui_store';
 import { renderWithI18n } from '#/testing/render_with_i18n';

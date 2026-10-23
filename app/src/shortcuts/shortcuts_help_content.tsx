@@ -1,5 +1,5 @@
-import { Kbd } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Kbd } from '@minimalstuff/ui';
 
 import {
 	getGlobalShortcuts,

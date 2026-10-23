@@ -1,16 +1,16 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
 import { ModalProvider } from '@minimalstuff/ui';
-import userEvent from '@testing-library/user-event';
 import { act, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { useUiStore } from '#/state/ui_store';
-import { useDaemonStore } from '#/state/daemon_store';
-import { createFakeGateway } from '#/testing/fake_gateway';
-import { buildExternalProcess } from '#/testing/factories';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import type { ExternalProcessDto } from '#/daemon/protocol';
 import { ExternalSection } from '#/externals/external_section';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
+import { buildExternalProcess } from '#/testing/factories';
+import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { TunnelFormDrawer } from '#/tunnel_form/tunnel_form_drawer';
 

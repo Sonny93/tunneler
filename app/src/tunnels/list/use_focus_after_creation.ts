@@ -1,7 +1,7 @@
 import { useEffect, type RefObject } from 'react';
 
-import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
 import { focusRowSwitch } from '#/tunnels/list/use_focus_after_removal';
 
 /**

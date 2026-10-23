@@ -7,10 +7,10 @@ import {
 	ThemeToggle,
 } from '@minimalstuff/ui';
 
-import { useUiStore } from '#/state/ui_store';
+import { useOpenDocumentation } from '#/documentation/use_open_documentation';
 import { QuitButton } from '#/quit/quit_button';
 import { formatShortcutTooltip } from '#/shared/shortcut_tooltip';
-import { useOpenDocumentation } from '#/documentation/use_open_documentation';
+import { useUiStore } from '#/state/ui_store';
 
 export function HeaderActions() {
 	const { t } = useLingui();

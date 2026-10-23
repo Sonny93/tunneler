@@ -1,10 +1,10 @@
-import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import type {
 	ImportCandidateDto,
 	SettingsDto,
 	TunnelDto,
 	TunnelKindDto,
 } from '#/daemon/protocol';
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 const DEFAULT_TARGET_HOST = '127.0.0.1';
 

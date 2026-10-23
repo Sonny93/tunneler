@@ -1,16 +1,16 @@
-import { useId } from 'react';
 import { useLingui } from '@lingui/react/macro';
 import { Button, Menu, MenuItem } from '@minimalstuff/ui';
+import { useId } from 'react';
 
-import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
 import { copyTextWithToast } from '#/shared/copy_text';
-import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { useSendToStandby } from '#/standby/use_send_to_standby';
-import { useOpenTunnel } from '#/tunnel_details/use_open_tunnel';
-import { useCheckTarget } from '#/tunnel_details/use_check_target';
-import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
+import { useUiStore } from '#/state/ui_store';
 import { buildSshCommand } from '#/tunnel_details/build_ssh_command';
+import { useCheckTarget } from '#/tunnel_details/use_check_target';
+import { useOpenTunnel } from '#/tunnel_details/use_open_tunnel';
+import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
+import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
 
 type TunnelActionsSectionProps = {
 	tunnel: TunnelDto;

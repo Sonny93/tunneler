@@ -1,9 +1,9 @@
-import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
+import { t } from '@lingui/core/macro';
 
 import type { TunnelDto } from '#/daemon/protocol';
-import { getTunnelStateLabel } from '#/tunnels/tunnel_state_label';
 import { getTunnelAccessibleEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
+import { getTunnelStateLabel } from '#/tunnels/tunnel_state_label';
 
 /** Example: `Tunnel 3333 to nova:3333, active`, or `Tunnel 3333 to nova:3333, temporary, active`. */
 export function getTunnelAccessibleName(

@@ -1,15 +1,15 @@
-import { useState } from 'react';
-import { Tabs } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Tabs } from '@minimalstuff/ui';
+import { useState } from 'react';
 
-import { Drawer } from '#/shared/drawer';
-import { useUiStore } from '#/state/ui_store';
 import type { SettingsDto } from '#/daemon/protocol';
-import { ImportPreview } from '#/import/import_preview';
 import { ImportConfigTab } from '#/import/import_config_tab';
+import { ImportPreview } from '#/import/import_preview';
 import { ImportScriptTab } from '#/import/import_script_tab';
-import { FormErrorSummary } from '#/shared/form_error_summary';
 import { useImportAnalysis } from '#/import/use_import_analysis';
+import { Drawer } from '#/shared/drawer';
+import { FormErrorSummary } from '#/shared/form_error_summary';
+import { useUiStore } from '#/state/ui_store';
 
 type ImportPanelProps = {
 	title: string;

@@ -1,11 +1,11 @@
 import { t } from '@lingui/core/macro';
-import { ConfirmModal } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { ConfirmModal } from '@minimalstuff/ui';
 
-import { useUiStore } from '#/state/ui_store';
-import { useDaemonStore } from '#/state/daemon_store';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
 import {
 	describeTagDeletion,
 	describeTagDeletionWarning,

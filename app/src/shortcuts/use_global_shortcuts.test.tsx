@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { useDisableHotkeysWhileMounted } from '@minimalstuff/ui';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useDisableHotkeysWhileMounted } from '@minimalstuff/ui';
+import { describe, expect, it } from 'vitest';
 
-import { useUiStore } from '#/state/ui_store';
 import { useGlobalShortcuts } from '#/shortcuts/use_global_shortcuts';
+import { useUiStore } from '#/state/ui_store';
 import { renderWithGateway as render } from '#/testing/render_with_gateway';
 
 function Harness({ isModalOpen = false }: Readonly<{ isModalOpen?: boolean }>) {

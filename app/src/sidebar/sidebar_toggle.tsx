@@ -1,10 +1,10 @@
-import { useLayoutEffect } from 'react';
-import { IconButton } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { IconButton } from '@minimalstuff/ui';
+import { useLayoutEffect } from 'react';
 
-import { useUiStore } from '#/state/ui_store';
 import { formatShortcutTooltip } from '#/shared/shortcut_tooltip';
 import { SIDEBAR_ID, SIDEBAR_TOGGLE_ID } from '#/sidebar/sidebar_id';
+import { useUiStore } from '#/state/ui_store';
 
 /** Keeps the keyboard user's place: a collapsing sidebar cannot keep the focus. */
 function isFocusInSidebar(): boolean {

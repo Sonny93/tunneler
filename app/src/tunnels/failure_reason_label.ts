@@ -1,5 +1,5 @@
-import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
+import { t } from '@lingui/core/macro';
 
 import type { FailureReasonDto } from '#/daemon/protocol';
 

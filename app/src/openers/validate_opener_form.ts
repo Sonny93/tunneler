@@ -1,5 +1,5 @@
-import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 
 import { BROWSER_OPENER_ID } from '#/openers/open_choices';
 import {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildExternalProcess } from '#/testing/factories';
 import { buildImportDraft } from '#/externals/build_import_draft';
+import { buildExternalProcess } from '#/testing/factories';
 
 describe('buildImportDraft', () => {
 	it('should take the host from the destination and link the target port when it equals the listen port', () => {

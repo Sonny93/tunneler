@@ -1,7 +1,6 @@
 import { useLingui } from '@lingui/react/macro';
 
 import type { TunnelDto } from '#/daemon/protocol';
-import { useDaemonStore } from '#/state/daemon_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import {
 	describeOpenAction,
@@ -9,6 +8,7 @@ import {
 	toDefaultChoice,
 	type OpenChoice,
 } from '#/openers/open_choices';
+import { useDaemonStore } from '#/state/daemon_store';
 
 type UseOpenTunnelReturn = {
 	/** Only a local forward has something to open; the daemon starts it when stopped. */

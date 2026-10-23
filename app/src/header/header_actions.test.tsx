@@ -1,11 +1,11 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
-import { screen } from '@testing-library/react';
 import { ModalProvider } from '@minimalstuff/ui';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { useUiStore } from '#/state/ui_store';
 import { HeaderActions } from '#/header/header_actions';
+import { useUiStore } from '#/state/ui_store';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 
 const renderActions = () =>

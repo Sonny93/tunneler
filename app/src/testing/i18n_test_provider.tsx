@@ -1,6 +1,6 @@
 import { i18n } from '@lingui/core';
-import type { ReactNode } from 'react';
 import { I18nProvider } from '@lingui/react';
+import type { ReactNode } from 'react';
 
 type I18nTestProviderProps = {
 	children: ReactNode;

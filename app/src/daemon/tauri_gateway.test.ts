@@ -2,8 +2,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createTauriGateway } from '#/daemon/tauri_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
+import { createTauriGateway } from '#/daemon/tauri_gateway';
 
 vi.mock('@tauri-apps/api/core', () => ({
 	invoke: vi.fn(),

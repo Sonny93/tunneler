@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 
+import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUpdateStore } from '#/updates/update_store';
-import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 
 /**
  * Looks for a newer version once per UI session, when the connection is up

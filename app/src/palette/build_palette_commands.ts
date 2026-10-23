@@ -1,18 +1,18 @@
-import { msg, t } from '@lingui/core/macro';
 import type { I18n, MessageDescriptor } from '@lingui/core';
+import { msg, t } from '@lingui/core/macro';
 
-import { summarizeTags } from '#/sidebar/summarize_tags';
-import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
-import { listAwakeTunnels } from '#/standby/list_awake_tunnels';
-import type { PaletteCommand } from '#/palette/palette_command';
 import type { AvailableOpenerDto, TunnelDto } from '#/daemon/protocol';
-import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
-import { compareTextCaseInsensitively } from '#/tunnels/compare_text_case_insensitively';
 import {
 	describeTunnelOpenCommand,
 	listAlternativeChoices,
 	toDefaultChoice,
 } from '#/openers/open_choices';
+import type { PaletteCommand } from '#/palette/palette_command';
+import { summarizeTags } from '#/sidebar/summarize_tags';
+import { listAwakeTunnels } from '#/standby/list_awake_tunnels';
+import { compareTextCaseInsensitively } from '#/tunnels/compare_text_case_insensitively';
+import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 type PaletteSources = {
 	tunnels: readonly Readonly<TunnelDto>[];

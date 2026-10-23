@@ -1,28 +1,28 @@
 import { useLingui } from '@lingui/react/macro';
-import { useContext, useId, type ChangeEvent } from 'react';
 import { Checkbox, ContextMenu, Switch } from '@minimalstuff/ui';
+import { useContext, useId, type ChangeEvent } from 'react';
 
-import { cn } from '#/shared/cn';
 import type { TunnelDto } from '#/daemon/protocol';
+import { cn } from '#/shared/cn';
+import { TargetHealthBadge } from '#/shared/health_badge';
 import { TunnelStatusBadge } from '#/shared/status_badge';
 import { TemporaryBadge } from '#/shared/temporary_badge';
-import { TargetHealthBadge } from '#/shared/health_badge';
-import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
-import { TunnelEndpoint } from '#/tunnels/list/tunnel_endpoint';
-import { TunnelTagChips } from '#/tunnels/list/tunnel_tag_chips';
-import { TunnelMenuItems } from '#/tunnels/list/tunnel_menu_items';
-import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
-import { TunnelMetricsLine } from '#/tunnels/list/tunnel_metrics_line';
-import { TunnelActionsMenu } from '#/tunnels/list/tunnel_actions_menu';
-import { SelectionMenuItems } from '#/tunnels/list/selection_menu_items';
-import { getTunnelAccessibleName } from '#/tunnels/tunnel_accessible_name';
 import { describeTunnelProblems } from '#/tunnels/describe_tunnel_problems';
-import { getTunnelAccessibleEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
-import { TunnelSelectionContext } from '#/tunnels/selection/tunnel_selection_context';
+import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
+import { SelectionMenuItems } from '#/tunnels/list/selection_menu_items';
+import { TunnelActionsMenu } from '#/tunnels/list/tunnel_actions_menu';
+import { TunnelEndpoint } from '#/tunnels/list/tunnel_endpoint';
+import { TunnelMenuItems } from '#/tunnels/list/tunnel_menu_items';
+import { TunnelMetricsLine } from '#/tunnels/list/tunnel_metrics_line';
+import { TunnelTagChips } from '#/tunnels/list/tunnel_tag_chips';
 import {
 	ROVING_CONTROL_ATTRIBUTE,
 	ROVING_ROW_ATTRIBUTE,
 } from '#/tunnels/list/use_roving_rows';
+import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
+import { TunnelSelectionContext } from '#/tunnels/selection/tunnel_selection_context';
+import { getTunnelAccessibleName } from '#/tunnels/tunnel_accessible_name';
+import { getTunnelAccessibleEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 type TunnelRowProps = {
 	tunnel: TunnelDto;

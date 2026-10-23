@@ -1,13 +1,6 @@
+import type { MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
-import type { MessageDescriptor } from '@lingui/core';
-import {
-	useId,
-	useRef,
-	useState,
-	type ChangeEvent,
-	type FormEvent,
-} from 'react';
 import {
 	Button,
 	Input,
@@ -15,6 +8,13 @@ import {
 	RadioOptions,
 	Select,
 } from '@minimalstuff/ui';
+import {
+	useId,
+	useRef,
+	useState,
+	type ChangeEvent,
+	type FormEvent,
+} from 'react';
 
 import { parseTags } from '#/tunnel_form/parse_tags';
 import { validateTags } from '#/tunnel_form/validate_tags';

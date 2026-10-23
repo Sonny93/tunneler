@@ -1,16 +1,16 @@
+import type { MessageDescriptor } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
-import { useId, type ChangeEvent } from 'react';
 import { useLingui } from '@lingui/react/macro';
 import { Button, Select } from '@minimalstuff/ui';
-import type { MessageDescriptor } from '@lingui/core';
+import { useId, type ChangeEvent } from 'react';
 
-import { translateOptions } from '#/i18n/translate_options';
-import { useDaemonAction } from '#/daemon/use_daemon_action';
 import type {
 	SoundEventDto,
 	StandbyNotifyDto,
 	StandbySoundDto,
 } from '#/daemon/protocol';
+import { useDaemonAction } from '#/daemon/use_daemon_action';
+import { translateOptions } from '#/i18n/translate_options';
 
 const OPTIONS: readonly {
 	value: StandbySoundDto;

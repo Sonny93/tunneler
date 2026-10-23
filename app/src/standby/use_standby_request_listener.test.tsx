@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest';
 import { ModalProvider } from '@minimalstuff/ui';
 import { act, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
+import { useStandbyRequestListener } from '#/standby/use_standby_request_listener';
 import { useDaemonStore } from '#/state/daemon_store';
 import { buildMetrics, buildTunnel } from '#/testing/factories';
 import { renderWithGateway } from '#/testing/render_with_gateway';
-import { useStandbyRequestListener } from '#/standby/use_standby_request_listener';
 
 function Harness() {
 	useStandbyRequestListener();

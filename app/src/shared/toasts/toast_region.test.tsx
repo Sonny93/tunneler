@@ -1,12 +1,12 @@
-import { axe } from 'vitest-axe';
-import userEvent from '@testing-library/user-event';
 import { act, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { axe } from 'vitest-axe';
 
 import { ToastRegion } from '#/shared/toasts/toast_region';
 import { useToastStore } from '#/shared/toasts/toast_store';
-import { renderWithI18n } from '#/testing/render_with_i18n';
 import { TOAST_AUTO_DISMISS_DELAY_MS } from '#/shared/toasts/use_auto_dismiss';
+import { renderWithI18n } from '#/testing/render_with_i18n';
 
 const pushToast = (
 	...args: Parameters<ReturnType<typeof useToastStore.getState>['pushToast']>

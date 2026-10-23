@@ -1,21 +1,21 @@
-import { axe } from 'vitest-axe';
 import { i18n } from '@lingui/core';
-import { describe, expect, it } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { useUiStore } from '#/state/ui_store';
-import { useDaemonStore } from '#/state/daemon_store';
-import { createFakeGateway } from '#/testing/fake_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
-import { TunnelFormDrawer } from '#/tunnel_form/tunnel_form_drawer';
-import { buildOpener, buildSettings, buildTunnel } from '#/testing/factories';
 import {
 	COLON_TAG_MESSAGE,
 	DIGITS_TAG_MESSAGE,
 } from '#/shared/reserved_tag_problem';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
+import { buildOpener, buildSettings, buildTunnel } from '#/testing/factories';
+import { createFakeGateway } from '#/testing/fake_gateway';
+import { renderWithGateway } from '#/testing/render_with_gateway';
+import { TunnelFormDrawer } from '#/tunnel_form/tunnel_form_drawer';
 
 function openEditor(tunnelId: string | null = null) {
 	useUiStore.getState().openTunnelEditor(tunnelId);
@@ -86,7 +86,7 @@ describe('TunnelFormDrawer', () => {
 			renderDrawer();
 
 			expect(
-				screen.queryByRole('group', { name: 'Standby' })
+				screen.queryByRole('radiogroup', { name: 'Standby' })
 			).not.toBeInTheDocument();
 		});
 
@@ -383,12 +383,12 @@ describe('TunnelFormDrawer', () => {
 describe('TunnelFormDrawer kind selector', () => {
 	const kindRadio = (name: RegExp) => screen.getByRole('radio', { name });
 
-	it('should offer the three kinds in a group named "Tunnel type"', () => {
+	it('should offer the three kinds in a radio group named "Tunnel type"', () => {
 		openEditor();
 		renderDrawer();
 
 		expect(
-			within(screen.getByRole('group', { name: 'Tunnel type' }))
+			within(screen.getByRole('radiogroup', { name: 'Tunnel type' }))
 				.getAllByRole('radio')
 				.map((radio) => radio.getAttribute('value'))
 		).toEqual(['local', 'remote', 'dynamic']);
@@ -559,7 +559,7 @@ describe('TunnelFormDrawer opening options', () => {
 			screen.queryByRole('group', { name: 'Opening' })
 		).not.toBeInTheDocument();
 		expect(
-			screen.queryByRole('group', { name: 'Standby' })
+			screen.queryByRole('radiogroup', { name: 'Standby' })
 		).not.toBeInTheDocument();
 	});
 
@@ -586,7 +586,7 @@ describe('TunnelFormDrawer opening options', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('group', { name: 'Standby' })
+			screen.getByRole('radiogroup', { name: 'Standby' })
 		).toHaveAccessibleDescription(/Takes effect on the next start/);
 	});
 
@@ -597,7 +597,9 @@ describe('TunnelFormDrawer opening options', () => {
 
 		await user.click(screen.getByRole('radio', { name: /Dynamic/ }));
 
-		expect(screen.getByRole('group', { name: 'Standby' })).toBeInTheDocument();
+		expect(
+			screen.getByRole('radiogroup', { name: 'Standby' })
+		).toBeInTheDocument();
 	});
 
 	it('should send the chosen standby when creating', async () => {

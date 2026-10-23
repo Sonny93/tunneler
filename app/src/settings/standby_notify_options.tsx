@@ -1,8 +1,8 @@
-import { msg } from '@lingui/core/macro';
-import { Select } from '@minimalstuff/ui';
-import { useLingui } from '@lingui/react/macro';
-import { useId, type ChangeEvent } from 'react';
 import type { MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
+import { useLingui } from '@lingui/react/macro';
+import { Select } from '@minimalstuff/ui';
+import { useId, type ChangeEvent } from 'react';
 
 import type { StandbyNotifyDto } from '#/daemon/protocol';
 import { translateOptions } from '#/i18n/translate_options';

@@ -1,5 +1,5 @@
-import { useUiStore } from '#/state/ui_store';
 import { HostConfigPanel } from '#/host_config/host_config_panel';
+import { useUiStore } from '#/state/ui_store';
 
 /** The resolved host configuration drawer, open while the UI panel is `hostConfig`. */
 export function HostConfigDrawer() {

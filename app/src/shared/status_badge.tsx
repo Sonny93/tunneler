@@ -1,10 +1,10 @@
 import { useLingui } from '@lingui/react/macro';
 
-import { cn } from '#/shared/cn';
-import { BadgeDetail } from '#/shared/badge_detail';
 import type { TunnelStateDto } from '#/daemon/protocol';
-import { getTunnelStateLabel } from '#/tunnels/tunnel_state_label';
+import { BadgeDetail } from '#/shared/badge_detail';
+import { cn } from '#/shared/cn';
 import { getTunnelStateDetail } from '#/tunnels/tunnel_state_detail';
+import { getTunnelStateLabel } from '#/tunnels/tunnel_state_label';
 
 type StateAppearance = { icon: string; toneClassName: string };
 

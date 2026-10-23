@@ -1,27 +1,27 @@
-import { useId } from 'react';
-import { Button } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
+import { useId } from 'react';
 
-import { Drawer } from '#/shared/drawer';
-import { useUiStore } from '#/state/ui_store';
 import type { SettingsDto } from '#/daemon/protocol';
-import { SettingsSwitch } from '#/settings/settings_switch';
-import { FormErrorSummary } from '#/shared/form_error_summary';
-import { useSettingsForm } from '#/settings/use_settings_form';
-import { SettingsFieldset } from '#/settings/settings_fieldset';
 import { ApplicationsSection } from '#/openers/applications_section';
-import { StandbySoundOptions } from '#/settings/standby_sound_options';
-import { StandbyNotifyOptions } from '#/settings/standby_notify_options';
-import { SettingsOpenFieldset } from '#/settings/settings_open_fieldset';
 import { OpenConfigFolderButton } from '#/settings/open_config_folder_button';
-import { SettingsSecretsFieldset } from '#/settings/settings_secrets_fieldset';
-import { SettingsStartupFieldset } from '#/settings/settings_startup_fieldset';
-import { SettingsUpdatesFieldset } from '#/settings/settings_updates_fieldset';
-import { SettingsLanguageFieldset } from '#/settings/settings_language_fieldset';
 import {
 	SETTINGS_SECTIONS,
 	STANDBY_SECTION,
 } from '#/settings/settings_field_specs';
+import { SettingsFieldset } from '#/settings/settings_fieldset';
+import { SettingsLanguageFieldset } from '#/settings/settings_language_fieldset';
+import { SettingsOpenFieldset } from '#/settings/settings_open_fieldset';
+import { SettingsSecretsFieldset } from '#/settings/settings_secrets_fieldset';
+import { SettingsStartupFieldset } from '#/settings/settings_startup_fieldset';
+import { SettingsSwitch } from '#/settings/settings_switch';
+import { SettingsUpdatesFieldset } from '#/settings/settings_updates_fieldset';
+import { StandbyNotifyOptions } from '#/settings/standby_notify_options';
+import { StandbySoundOptions } from '#/settings/standby_sound_options';
+import { useSettingsForm } from '#/settings/use_settings_form';
+import { Drawer } from '#/shared/drawer';
+import { FormErrorSummary } from '#/shared/form_error_summary';
+import { useUiStore } from '#/state/ui_store';
 
 type SettingsPanelProps = {
 	settings: SettingsDto;

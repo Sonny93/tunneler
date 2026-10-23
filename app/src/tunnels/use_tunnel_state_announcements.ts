@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import { useEffect } from 'react';
 
 import type { TunnelDto } from '#/daemon/protocol';
-import { useDaemonStore } from '#/state/daemon_store';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
+import { useDaemonStore } from '#/state/daemon_store';
 import { buildStateAnnouncement } from '#/tunnels/tunnel_state_announcement';
 
 export const ANNOUNCEMENT_THROTTLE_MS = 1000;

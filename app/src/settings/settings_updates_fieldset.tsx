@@ -1,8 +1,8 @@
 import { useLingui } from '@lingui/react/macro';
 
-import { SettingsSwitch } from '#/settings/settings_switch';
-import type { SettingsFormValues } from '#/settings/settings_form_values';
 import type { SettingsToggleField } from '#/settings/settings_field_specs';
+import type { SettingsFormValues } from '#/settings/settings_form_values';
+import { SettingsSwitch } from '#/settings/settings_switch';
 
 type SettingsUpdatesFieldsetProps = {
 	values: SettingsFormValues;

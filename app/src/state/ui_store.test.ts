@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { useUiStore } from '#/state/ui_store';
 import type { TunnelSpecDto } from '#/daemon/protocol';
+import { useUiStore } from '#/state/ui_store';
 
 describe('useUiStore', () => {
 	it('should toggle the sidebar and remember it', () => {

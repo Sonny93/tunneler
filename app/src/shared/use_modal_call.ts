@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
 import { Modal, type ModalProps } from '@minimalstuff/ui';
+import { useEffect, useRef } from 'react';
 
 export type ModalCallRequest = {
 	id: string;

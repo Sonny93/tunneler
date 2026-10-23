@@ -1,13 +1,13 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { TunnelRow } from '#/tunnels/list/tunnel_row';
-import { createFakeGateway } from '#/testing/fake_gateway';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { buildMetrics, buildTunnel } from '#/testing/factories';
+import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { TunnelRow } from '#/tunnels/list/tunnel_row';
 import { TunnelSelectionContext } from '#/tunnels/selection/tunnel_selection_context';
 
 function renderRow(

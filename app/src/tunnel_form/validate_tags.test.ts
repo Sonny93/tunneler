@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateTags } from '#/tunnel_form/validate_tags';
-import { WHITESPACE_TAG_MESSAGE } from '#/tag_rename/validate_tag_name';
 import {
 	COLON_TAG_MESSAGE,
 	DIGITS_TAG_MESSAGE,
 } from '#/shared/reserved_tag_problem';
+import { WHITESPACE_TAG_MESSAGE } from '#/tag_rename/validate_tag_name';
+import { validateTags } from '#/tunnel_form/validate_tags';
 
 describe('validateTags', () => {
 	it('should accept no tag at all', () => {

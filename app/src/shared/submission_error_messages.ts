@@ -1,7 +1,7 @@
 import type { I18n } from '@lingui/core';
 
-import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import type { DaemonCommandError } from '#/daemon/daemon_command_error';
+import { describeDaemonError } from '#/daemon/describe_daemon_error';
 
 const VALIDATION_FAILED_CODE = 'validation_failed';
 

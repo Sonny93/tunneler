@@ -1,16 +1,16 @@
 import { useLingui } from '@lingui/react/macro';
-import { useEffect, useId, useRef } from 'react';
 import { ContextMenu, MenuItem, Switch } from '@minimalstuff/ui';
+import { useEffect, useId, useRef } from 'react';
 
-import { useUiStore } from '#/state/ui_store';
-import { useDaemonStore } from '#/state/daemon_store';
+import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { FilterButton } from '#/sidebar/filter_button';
 import type { TagSummary } from '#/sidebar/summarize_tags';
-import { useDeleteTag } from '#/tag_delete/use_delete_tag';
-import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { useSendToStandby } from '#/standby/use_send_to_standby';
-import { useResolvedFilter } from '#/tunnels/use_resolved_filter';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
+import { useDeleteTag } from '#/tag_delete/use_delete_tag';
 import { describeActiveCount } from '#/tunnels/describe_active_count';
+import { useResolvedFilter } from '#/tunnels/use_resolved_filter';
 
 type TagFilterRowProps = {
 	summary: TagSummary;

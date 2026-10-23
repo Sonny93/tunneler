@@ -1,9 +1,9 @@
 import { i18n } from '@lingui/core';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createFakeGateway } from '#/testing/fake_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { createImportedTunnels } from '#/import/create_imported_tunnels';
+import { createFakeGateway } from '#/testing/fake_gateway';
 
 const buildImportSpec = (index: number) => ({
 	index,

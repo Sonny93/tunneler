@@ -1,12 +1,12 @@
 import { useLingui } from '@lingui/react/macro';
 
-import { useUiStore } from '#/state/ui_store';
-import { useDaemonStore } from '#/state/daemon_store';
-import { useDeleteTag } from '#/tag_delete/use_delete_tag';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
+import { useOpenDocumentation } from '#/documentation/use_open_documentation';
 import type { PaletteAction } from '#/palette/palette_command';
 import { useSendToStandby } from '#/standby/use_send_to_standby';
-import { useOpenDocumentation } from '#/documentation/use_open_documentation';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
+import { useDeleteTag } from '#/tag_delete/use_delete_tag';
 
 type RunPaletteAction = (action: PaletteAction) => void;
 

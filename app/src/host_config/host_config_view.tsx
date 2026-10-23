@@ -2,13 +2,13 @@ import { useLingui } from '@lingui/react/macro';
 import { Button, Input } from '@minimalstuff/ui';
 import { useState, type ChangeEvent } from 'react';
 
-import { copyTextWithToast } from '#/shared/copy_text';
 import type { ResolvedHostDto } from '#/daemon/protocol';
-import { filterOptions } from '#/host_config/filter_options';
-import { HostConfigTable } from '#/host_config/host_config_table';
-import { formatConfigLines } from '#/host_config/format_config_lines';
-import { HostConfigWarnings } from '#/host_config/host_config_warnings';
 import { describeOptionCount } from '#/host_config/describe_option_count';
+import { filterOptions } from '#/host_config/filter_options';
+import { formatConfigLines } from '#/host_config/format_config_lines';
+import { HostConfigTable } from '#/host_config/host_config_table';
+import { HostConfigWarnings } from '#/host_config/host_config_warnings';
+import { copyTextWithToast } from '#/shared/copy_text';
 
 type HostConfigViewProps = {
 	resolvedHost: ResolvedHostDto;

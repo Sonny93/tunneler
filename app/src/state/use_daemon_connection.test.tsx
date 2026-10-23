@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import { StrictMode, type ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { StrictMode, type ReactNode } from 'react';
+import { describe, expect, it } from 'vitest';
 
-import { useDaemonStore } from '#/state/daemon_store';
-import { buildSnapshot, buildTunnel } from '#/testing/factories';
-import { useDaemonConnection } from '#/state/use_daemon_connection';
 import { DaemonGatewayProvider } from '#/daemon/daemon_gateway_context';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useDaemonConnection } from '#/state/use_daemon_connection';
+import { buildSnapshot, buildTunnel } from '#/testing/factories';
 import { createFakeGateway, type FakeGateway } from '#/testing/fake_gateway';
 
 const renderConnection = (gateway: FakeGateway, isStrict = false) => {

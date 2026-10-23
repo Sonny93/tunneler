@@ -1,5 +1,5 @@
-import { Checkbox } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Checkbox } from '@minimalstuff/ui';
 
 type SelectAllCheckboxProps = {
 	visibleCount: number;

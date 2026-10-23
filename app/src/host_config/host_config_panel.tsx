@@ -1,11 +1,11 @@
-import { Button } from '@minimalstuff/ui';
 import { Trans, useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
 
-import { Drawer } from '#/shared/drawer';
-import { useUiStore } from '#/state/ui_store';
+import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { HostConfigView } from '#/host_config/host_config_view';
 import { useResolvedHost } from '#/host_config/use_resolved_host';
-import { describeDaemonError } from '#/daemon/describe_daemon_error';
+import { Drawer } from '#/shared/drawer';
+import { useUiStore } from '#/state/ui_store';
 
 type HostConfigPanelProps = {
 	host: string;

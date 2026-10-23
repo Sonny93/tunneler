@@ -1,9 +1,9 @@
 import { useLingui } from '@lingui/react/macro';
 
-import { Drawer } from '#/shared/drawer';
-import { useUiStore } from '#/state/ui_store';
 import { ImportPanel } from '#/import/import_panel';
+import { Drawer } from '#/shared/drawer';
 import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
 
 /** The import drawer, open while the UI panel is `import`. */
 export function ImportDrawer() {

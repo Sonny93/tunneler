@@ -1,4 +1,3 @@
-import { parseTags } from '#/tunnel_form/parse_tags';
 import type {
 	OpenHostDto,
 	SettingsDto,
@@ -6,6 +5,7 @@ import type {
 	StandbySoundDto,
 	LanguageSettingDto,
 } from '#/daemon/protocol';
+import { parseTags } from '#/tunnel_form/parse_tags';
 
 const MILLISECONDS_PER_SECOND = 1000;
 const TAGS_SEPARATOR = ', ';

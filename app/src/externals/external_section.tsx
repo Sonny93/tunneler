@@ -1,8 +1,8 @@
-import { useId } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import { useId } from 'react';
 
-import { useDaemonStore } from '#/state/daemon_store';
 import { ExternalProcessItem } from '#/externals/external_process_item';
+import { useDaemonStore } from '#/state/daemon_store';
 
 export function ExternalSection() {
 	const { t } = useLingui();

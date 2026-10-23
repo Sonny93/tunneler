@@ -2,8 +2,8 @@ import { useLingui } from '@lingui/react/macro';
 import { MenuGroup, MenuItem } from '@minimalstuff/ui';
 
 import type { TunnelDto } from '#/daemon/protocol';
-import { useBulkTunnelActions } from '#/tunnels/selection/use_bulk_tunnel_actions';
 import { describeSelectionCount } from '#/tunnels/selection/describe_selection_count';
+import { useBulkTunnelActions } from '#/tunnels/selection/use_bulk_tunnel_actions';
 
 type SelectionMenuItemsProps = {
 	tunnels: readonly TunnelDto[];

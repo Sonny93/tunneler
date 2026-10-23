@@ -1,6 +1,6 @@
 import { i18n } from '@lingui/core';
-import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 
 const UNITS: readonly MessageDescriptor[] = [msg`B`, msg`KB`, msg`MB`, msg`GB`];
 const BYTES_PER_UNIT = 1024;

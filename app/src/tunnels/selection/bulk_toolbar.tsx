@@ -1,10 +1,10 @@
 import { useLingui } from '@lingui/react/macro';
 import { Button, IconButton, Toolbar } from '@minimalstuff/ui';
 
-import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
-import { useBulkTunnelActions } from '#/tunnels/selection/use_bulk_tunnel_actions';
+import { useUiStore } from '#/state/ui_store';
 import { describeSelectionCount } from '#/tunnels/selection/describe_selection_count';
+import { useBulkTunnelActions } from '#/tunnels/selection/use_bulk_tunnel_actions';
 
 type BulkToolbarProps = {
 	selectedTunnels: readonly TunnelDto[];

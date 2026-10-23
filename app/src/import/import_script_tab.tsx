@@ -1,6 +1,6 @@
 import { useLingui } from '@lingui/react/macro';
-import { useState, type ChangeEvent } from 'react';
 import { Button, Textarea } from '@minimalstuff/ui';
+import { useState, type ChangeEvent } from 'react';
 
 type ImportScriptTabProps = {
 	text: string;

@@ -1,7 +1,7 @@
 import { useLingui } from '@lingui/react/macro';
 
-import { cn } from '#/shared/cn';
 import type { TunnelDto } from '#/daemon/protocol';
+import { cn } from '#/shared/cn';
 import {
 	getTunnelAccessibleEndpointLabel,
 	getTunnelEndpointLabel,

@@ -1,10 +1,10 @@
-import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 
 import { parsePort } from '#/tunnel_form/parse_port';
-import { validateTags } from '#/tunnel_form/validate_tags';
-import { validateOpenPath } from '#/tunnel_form/validate_open_path';
 import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
+import { validateOpenPath } from '#/tunnel_form/validate_open_path';
+import { validateTags } from '#/tunnel_form/validate_tags';
 
 /** Fields that can be invalid, in the order they appear in the form. */
 export const TUNNEL_FORM_FIELD_ORDER = [

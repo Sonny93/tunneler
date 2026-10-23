@@ -1,7 +1,7 @@
 import { useLingui } from '@lingui/react/macro';
 
-import { formatTime } from '#/shared/format_time';
 import type { LogEntryDto } from '#/daemon/protocol';
+import { formatTime } from '#/shared/format_time';
 import { LOG_LEVEL_APPEARANCES } from '#/tunnel_details/log_level_appearance';
 
 type LogEntryItemProps = {

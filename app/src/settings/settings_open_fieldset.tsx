@@ -1,5 +1,5 @@
-import { RadioOptions } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { RadioOptions } from '@minimalstuff/ui';
 
 import type { OpenHostDto } from '#/daemon/protocol';
 import { getOpenHostOptions } from '#/shared/open_host_options';

@@ -2,10 +2,10 @@ import { i18n } from '@lingui/core';
 import { I18nProvider } from '@lingui/react';
 import { useEffect, useState, type ReactNode } from 'react';
 
-import { useDaemonStore } from '#/state/daemon_store';
-import { resolveLocale } from '#/i18n/resolve_locale';
 import { activateLocale } from '#/i18n/activate_locale';
+import { resolveLocale } from '#/i18n/resolve_locale';
 import { usePreferredLanguages } from '#/i18n/use_preferred_languages';
+import { useDaemonStore } from '#/state/daemon_store';
 
 type LocaleProviderProps = {
 	children: ReactNode;

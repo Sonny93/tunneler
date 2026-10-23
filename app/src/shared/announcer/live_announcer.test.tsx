@@ -1,9 +1,9 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { LiveAnnouncer } from '#/shared/announcer/live_announcer';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
+import { LiveAnnouncer } from '#/shared/announcer/live_announcer';
 
 const announce = (
 	...args: Parameters<ReturnType<typeof useAnnouncerStore.getState>['announce']>

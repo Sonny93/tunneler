@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
+import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { I18nTestProvider } from '#/testing/i18n_test_provider';
 import { useX11Announcements } from '#/x11/use_x11_announcements';
-import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 
 const politeMessage = () => useAnnouncerStore.getState().polite.message;
 

@@ -2,8 +2,8 @@ import { useLingui } from '@lingui/react/macro';
 
 import { cn } from '#/shared/cn';
 import type { ActiveCount } from '#/tunnels/active_count';
-import { formatActiveCount } from '#/tunnels/format_active_count';
 import { describeActiveCount } from '#/tunnels/describe_active_count';
+import { formatActiveCount } from '#/tunnels/format_active_count';
 
 type FilterButtonProps = {
 	label: string;

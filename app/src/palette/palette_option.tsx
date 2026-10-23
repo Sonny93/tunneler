@@ -1,8 +1,8 @@
 /* oxlint-disable jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-element-to-interactive-role, jsx-a11y/prefer-tag-over-role -- ARIA combobox: the input keeps the focus and handles the keys, an option only needs the mouse */
 import { useEffect, useRef } from 'react';
 
-import { cn } from '#/shared/cn';
 import type { PaletteAction, PaletteCommand } from '#/palette/palette_command';
+import { cn } from '#/shared/cn';
 
 type PaletteOptionProps = {
 	id: string;

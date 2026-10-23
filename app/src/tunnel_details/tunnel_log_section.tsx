@@ -1,10 +1,10 @@
-import { useId } from 'react';
-import { Button } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
+import { useId } from 'react';
 
+import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { TunnelLogList } from '#/tunnel_details/tunnel_log_list';
 import { useTunnelLogs } from '#/tunnel_details/use_tunnel_logs';
-import { describeDaemonError } from '#/daemon/describe_daemon_error';
 
 type TunnelLogSectionProps = {
 	tunnelId: string;

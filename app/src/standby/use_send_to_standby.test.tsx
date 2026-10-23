@@ -1,15 +1,15 @@
-import { describe, expect, it } from 'vitest';
 import { ModalProvider } from '@minimalstuff/ui';
-import userEvent from '@testing-library/user-event';
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
 
-import { useDaemonStore } from '#/state/daemon_store';
-import { createFakeGateway } from '#/testing/fake_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { buildMetrics, buildTunnel } from '#/testing/factories';
-import { useSendToStandby } from '#/standby/use_send_to_standby';
-import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { useSendToStandby } from '#/standby/use_send_to_standby';
+import { useDaemonStore } from '#/state/daemon_store';
+import { buildMetrics, buildTunnel } from '#/testing/factories';
+import { createFakeGateway } from '#/testing/fake_gateway';
+import { renderWithGateway } from '#/testing/render_with_gateway';
 
 const connected = (activeConnections: number) =>
 	buildMetrics({ activeConnections });

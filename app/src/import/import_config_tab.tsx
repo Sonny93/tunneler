@@ -1,5 +1,5 @@
-import { Button } from '@minimalstuff/ui';
 import { Trans, useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
 
 type ImportConfigTabProps = {
 	isAnalyzing: boolean;

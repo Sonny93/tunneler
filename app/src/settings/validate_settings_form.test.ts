@@ -2,12 +2,12 @@ import { i18n } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
 import { describe, expect, it } from 'vitest';
 
-import { buildSettings } from '#/testing/factories';
 import { toSettingsFormValues } from '#/settings/settings_form_values';
 import {
 	getFirstInvalidSettingsField,
 	validateSettingsForm,
 } from '#/settings/validate_settings_form';
+import { buildSettings } from '#/testing/factories';
 
 const valid = toSettingsFormValues(buildSettings());
 

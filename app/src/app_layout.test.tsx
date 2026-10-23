@@ -1,6 +1,6 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
 import { screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
 import { AppLayout } from '#/app_layout';
 import { renderWithI18n } from '#/testing/render_with_i18n';

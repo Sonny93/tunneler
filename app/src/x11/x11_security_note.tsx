@@ -1,5 +1,5 @@
-import { useId } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import { useId } from 'react';
 
 export function X11SecurityNote() {
 	const { t } = useLingui();

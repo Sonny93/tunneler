@@ -1,5 +1,5 @@
-import type { ReactElement } from 'react';
 import { render, type RenderResult } from '@testing-library/react';
+import type { ReactElement } from 'react';
 
 import { I18nTestProvider } from '#/testing/i18n_test_provider';
 

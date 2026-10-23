@@ -1,14 +1,14 @@
 import { useLingui } from '@lingui/react/macro';
 import { MenuGroup, MenuItem } from '@minimalstuff/ui';
 
-import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
-import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { useSendToStandby } from '#/standby/use_send_to_standby';
+import { useUiStore } from '#/state/ui_store';
 import { useOpenTunnel } from '#/tunnel_details/use_open_tunnel';
-import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
+import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { ExternalMenuItems } from '#/tunnels/list/external_menu_items';
 import { OpenWithMenuItems } from '#/tunnels/list/open_with_menu_items';
+import { useTunnelActions } from '#/tunnels/list/use_tunnel_actions';
 
 type TunnelMenuItemsProps = {
 	tunnel: TunnelDto;

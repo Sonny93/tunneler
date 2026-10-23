@@ -1,5 +1,5 @@
-import { useDaemonStore } from '#/state/daemon_store';
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
+import { useDaemonStore } from '#/state/daemon_store';
 
 async function loadHosts(gateway: DaemonGateway): Promise<readonly string[]> {
 	try {

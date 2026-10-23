@@ -1,8 +1,7 @@
 import { useLingui } from '@lingui/react/macro';
-import { useId, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Button, Input, ModalFooter, RadioOptions } from '@minimalstuff/ui';
+import { useId, useState, type ChangeEvent, type FormEvent } from 'react';
 
-import { useDaemonStore } from '#/state/daemon_store';
 import type { CredentialAnswer } from '#/daemon/daemon_gateway';
 import type { CredentialRequestDto, RememberDto } from '#/daemon/protocol';
 import {
@@ -16,6 +15,7 @@ import {
 	toRemember,
 	type RememberChoice,
 } from '#/prompts/credential_prompt_text';
+import { useDaemonStore } from '#/state/daemon_store';
 
 type CredentialPromptContentProps = {
 	request: CredentialRequestDto;

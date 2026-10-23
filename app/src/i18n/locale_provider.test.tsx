@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
 import { useLingui } from '@lingui/react/macro';
 import { act, render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
-import { buildSettings } from '#/testing/factories';
-import { useDaemonStore } from '#/state/daemon_store';
 import { LocaleProvider } from '#/i18n/locale_provider';
+import { useDaemonStore } from '#/state/daemon_store';
+import { buildSettings } from '#/testing/factories';
 
 function Greeting() {
 	const { t } = useLingui();

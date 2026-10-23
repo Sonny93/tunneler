@@ -1,12 +1,12 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
 import { ModalProvider } from '@minimalstuff/ui';
-import userEvent from '@testing-library/user-event';
 import { act, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { useUiStore } from '#/state/ui_store';
 import { AppUIProvider } from '#/shared/app_ui_provider';
 import { ShortcutsHelp } from '#/shortcuts/shortcuts_help';
+import { useUiStore } from '#/state/ui_store';
 import { renderWithI18n } from '#/testing/render_with_i18n';
 
 function renderHelp() {

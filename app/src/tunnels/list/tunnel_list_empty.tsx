@@ -1,6 +1,6 @@
-import type { Ref } from 'react';
-import { Button } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
+import type { Ref } from 'react';
 
 import { useUiStore } from '#/state/ui_store';
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildMetrics, buildTunnel } from '#/testing/factories';
 import { countOpenConnections } from '#/standby/count_open_connections';
+import { buildMetrics, buildTunnel } from '#/testing/factories';
 
 describe('countOpenConnections', () => {
 	it('should add up the open connections of every tunnel', () => {

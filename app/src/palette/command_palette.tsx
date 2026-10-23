@@ -1,11 +1,11 @@
-import { useRef } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import { useRef } from 'react';
 
-import { useUiStore } from '#/state/ui_store';
-import { useModalCall } from '#/shared/use_modal_call';
-import { PaletteContent } from '#/palette/palette_content';
 import type { PaletteAction } from '#/palette/palette_command';
+import { PaletteContent } from '#/palette/palette_content';
 import { useRunPaletteAction } from '#/palette/use_run_palette_action';
+import { useModalCall } from '#/shared/use_modal_call';
+import { useUiStore } from '#/state/ui_store';
 
 const PALETTE_MODAL_ID = 'command-palette';
 

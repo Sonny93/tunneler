@@ -1,10 +1,10 @@
-import type { RefObject } from 'react';
 import { useLingui } from '@lingui/react/macro';
 import { Button, CopyButton, ModalFooter } from '@minimalstuff/ui';
+import type { RefObject } from 'react';
 
-import type { PendingPrompt } from '#/state/daemon_state';
 import type { HostKeyDecisionDto } from '#/daemon/protocol';
 import { useToastStore } from '#/shared/toasts/toast_store';
+import type { PendingPrompt } from '#/state/daemon_state';
 
 type HostKeyPrompt = Extract<PendingPrompt, { kind: 'hostKey' }>;
 

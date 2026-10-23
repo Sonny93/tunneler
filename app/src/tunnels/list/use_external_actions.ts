@@ -3,15 +3,15 @@ import { plural, t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 
 import type { TunnelDto } from '#/daemon/protocol';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
-import { useKillProcess } from '#/externals/use_kill_process';
-import { useIgnoreProcess } from '#/externals/use_ignore_process';
-import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import {
 	KILL_CONFLICT_CONSEQUENCE,
 	KILL_EXTERNAL_CONSEQUENCE,
 } from '#/externals/kill_consequences';
+import { useIgnoreProcess } from '#/externals/use_ignore_process';
+import { useKillProcess } from '#/externals/use_kill_process';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 type UseExternalActionsReturn = {
 	adopt: () => void;

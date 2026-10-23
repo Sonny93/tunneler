@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildSettings } from '#/testing/factories';
 import {
 	secondsToMilliseconds,
 	toSettings,
 	toSettingsFormValues,
 } from '#/settings/settings_form_values';
+import { buildSettings } from '#/testing/factories';
 
 describe('secondsToMilliseconds', () => {
 	it.each([

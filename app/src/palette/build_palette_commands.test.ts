@@ -1,8 +1,8 @@
 import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
-import { buildOpener, buildTunnel } from '#/testing/factories';
 import { buildPaletteCommands } from '#/palette/build_palette_commands';
+import { buildOpener, buildTunnel } from '#/testing/factories';
 
 const labelsOf = (commands: ReturnType<typeof buildPaletteCommands>) =>
 	commands.map((command) => command.label);

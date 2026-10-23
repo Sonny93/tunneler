@@ -1,6 +1,6 @@
-import type { ChangeEvent } from 'react';
-import { Select } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Select } from '@minimalstuff/ui';
+import type { ChangeEvent } from 'react';
 
 import type { LanguageSettingDto } from '#/daemon/protocol';
 import { isSupportedLocale } from '#/i18n/supported_locales';

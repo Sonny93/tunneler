@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
-import { useDaemonStore } from '#/state/daemon_store';
 import { useSendToStandby } from '#/standby/use_send_to_standby';
+import { useDaemonStore } from '#/state/daemon_store';
 
 /** Sends the awake tunnels back to standby when another part of the app (the tray) requests it. */
 export function useStandbyRequestListener(): void {

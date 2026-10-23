@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 
 import type { TunnelSpecDto } from '#/daemon/protocol';
-import { getRangeIds } from '#/tunnels/selection/get_range_ids';
 import {
 	readSidebarCollapsed,
 	writeSidebarCollapsed,
 } from '#/state/sidebar_collapsed_storage';
+import { getRangeIds } from '#/tunnels/selection/get_range_ids';
 
 export type Panel =
 	| { kind: 'none' }

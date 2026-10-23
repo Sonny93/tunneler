@@ -1,6 +1,6 @@
-import { useUiStore } from '#/state/ui_store';
 import { FilterButton } from '#/sidebar/filter_button';
 import type { HostSummary } from '#/sidebar/summarize_hosts';
+import { useUiStore } from '#/state/ui_store';
 import { useResolvedFilter } from '#/tunnels/use_resolved_filter';
 
 type HostFilterRowProps = {

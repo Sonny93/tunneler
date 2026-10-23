@@ -1,5 +1,5 @@
-import { RadioOptions } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { RadioOptions } from '@minimalstuff/ui';
 
 import type { TunnelKindDto } from '#/daemon/protocol';
 import { TUNNEL_KIND_OPTIONS } from '#/tunnel_form/tunnel_kind_texts';

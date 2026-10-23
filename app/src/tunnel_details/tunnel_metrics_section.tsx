@@ -1,11 +1,11 @@
-import { useId } from 'react';
-import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
+import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
+import { useId } from 'react';
 
-import { formatTime } from '#/shared/format_time';
 import type { MetricsDto } from '#/daemon/protocol';
 import { formatBytes } from '#/shared/format_bytes';
+import { formatTime } from '#/shared/format_time';
 
 type TunnelMetricsSectionProps = {
 	metrics: MetricsDto;

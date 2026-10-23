@@ -1,15 +1,15 @@
-import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
+import { t } from '@lingui/core/macro';
 
-import { parsePort } from '#/tunnel_form/parse_port';
-import { BROWSER_OPENER_ID } from '#/openers/open_choices';
-import { suggestOpener } from '#/tunnel_form/suggest_opener';
-import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 import type {
 	AvailableOpenerDto,
 	OpenHostDto,
 	SettingsDto,
 } from '#/daemon/protocol';
+import { BROWSER_OPENER_ID } from '#/openers/open_choices';
+import { parsePort } from '#/tunnel_form/parse_port';
+import { suggestOpener } from '#/tunnel_form/suggest_opener';
+import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 
 const LOCALHOST = 'localhost';
 const IPV4_LOOPBACK = '127.0.0.1';

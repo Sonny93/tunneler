@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { findX11State } from '#/x11/find_x11_state';
 import { buildX11Anchor } from '#/testing/factories';
+import { findX11State } from '#/x11/find_x11_state';
 
 describe('findX11State', () => {
 	it('should give the state of the anchor of the host', () => {

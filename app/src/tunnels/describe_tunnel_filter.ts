@@ -1,5 +1,5 @@
-import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
+import { t } from '@lingui/core/macro';
 
 import type { TunnelFilter } from '#/state/ui_store';
 

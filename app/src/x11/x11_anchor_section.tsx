@@ -1,10 +1,10 @@
-import { Button } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
 
+import { useX11AnchorActions } from '#/x11/use_x11_anchor_actions';
 import { useX11State } from '#/x11/use_x11_state';
 import { X11StateBadge } from '#/x11/x11_state_badge';
 import { getX11StateDetail } from '#/x11/x11_state_label';
-import { useX11AnchorActions } from '#/x11/use_x11_anchor_actions';
 
 type X11AnchorSectionProps = {
 	host: string;

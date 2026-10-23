@@ -1,9 +1,9 @@
 import { useId } from 'react';
 
-import { TunnelRow } from '#/tunnels/list/tunnel_row';
-import { X11HeaderControls } from '#/x11/x11_header_controls';
 import { HostConfigButton } from '#/host_config/host_config_button';
 import type { TunnelGroup as TunnelGroupModel } from '#/tunnels/group_tunnels_by_host';
+import { TunnelRow } from '#/tunnels/list/tunnel_row';
+import { X11HeaderControls } from '#/x11/x11_header_controls';
 
 type TunnelGroupProps = {
 	group: TunnelGroupModel;

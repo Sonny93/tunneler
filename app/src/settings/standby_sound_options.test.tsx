@@ -1,14 +1,14 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it, vi } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { createFakeGateway } from '#/testing/fake_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
-import { StandbySoundOptions } from '#/settings/standby_sound_options';
 import type { StandbyNotifyDto, StandbySoundDto } from '#/daemon/protocol';
+import { StandbySoundOptions } from '#/settings/standby_sound_options';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { createFakeGateway } from '#/testing/fake_gateway';
+import { renderWithGateway } from '#/testing/render_with_gateway';
 
 const HINT = /Not played with the chosen signal/;
 

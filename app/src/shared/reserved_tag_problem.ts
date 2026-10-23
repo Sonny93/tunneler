@@ -1,5 +1,5 @@
-import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 
 const PORT_SELECTOR_SEPARATOR = ':';
 const ONLY_DIGITS_PATTERN = /^\d+$/u;

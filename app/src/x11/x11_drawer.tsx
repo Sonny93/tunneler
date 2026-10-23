@@ -1,5 +1,5 @@
-import { X11Panel } from '#/x11/x11_panel';
 import { useUiStore } from '#/state/ui_store';
+import { X11Panel } from '#/x11/x11_panel';
 
 /** The X11 drawer, open while the UI panel is `x11`. */
 export function X11Drawer() {

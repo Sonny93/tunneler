@@ -1,13 +1,13 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { createFakeGateway } from '#/testing/fake_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { OpenConfigFolderButton } from '#/settings/open_config_folder_button';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { createFakeGateway } from '#/testing/fake_gateway';
+import { renderWithGateway } from '#/testing/render_with_gateway';
 
 const BUTTON_NAME = 'Open the configuration folder';
 

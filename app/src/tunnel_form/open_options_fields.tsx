@@ -1,22 +1,22 @@
 import type { I18n } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
-import { useId, type ChangeEvent } from 'react';
 import { useLingui } from '@lingui/react/macro';
 import { Input, RadioOptions, Select } from '@minimalstuff/ui';
+import { useId, type ChangeEvent } from 'react';
 
-import { useDaemonStore } from '#/state/daemon_store';
-import { suggestOpener } from '#/tunnel_form/suggest_opener';
-import { getRadioOrientation } from '#/shared/radio_orientation';
-import { buildOpenPreview } from '#/tunnel_form/build_open_preview';
-import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
-import type { TunnelFormAction } from '#/tunnel_form/tunnel_form_reducer';
 import type { AvailableOpenerDto, OpenSchemeDto } from '#/daemon/protocol';
-import type { TunnelFormErrors } from '#/tunnel_form/validate_tunnel_form';
 import { getBrowserChoice, BROWSER_OPENER_ID } from '#/openers/open_choices';
 import {
 	describeOpenHost,
 	getOpenHostOptions,
 } from '#/shared/open_host_options';
+import { getRadioOrientation } from '#/shared/radio_orientation';
+import { useDaemonStore } from '#/state/daemon_store';
+import { buildOpenPreview } from '#/tunnel_form/build_open_preview';
+import { suggestOpener } from '#/tunnel_form/suggest_opener';
+import type { TunnelFormAction } from '#/tunnel_form/tunnel_form_reducer';
+import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
+import type { TunnelFormErrors } from '#/tunnel_form/validate_tunnel_form';
 
 const SCHEME_OPTIONS = [
 	{ value: 'http', label: 'http' },

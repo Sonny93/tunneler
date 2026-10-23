@@ -1,10 +1,10 @@
-import { Button } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
 
+import type { SettingsToggleField } from '#/settings/settings_field_specs';
+import type { SettingsFormValues } from '#/settings/settings_form_values';
 import { SettingsSwitch } from '#/settings/settings_switch';
 import { useForgetSecrets } from '#/settings/use_forget_secrets';
-import type { SettingsFormValues } from '#/settings/settings_form_values';
-import type { SettingsToggleField } from '#/settings/settings_field_specs';
 
 type SettingsSecretsFieldsetProps = {
 	values: SettingsFormValues;

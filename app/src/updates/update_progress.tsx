@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import { useEffect, useRef } from 'react';
 
-import { useUpdateStore } from '#/updates/update_store';
 import { describeUpdateProgress } from '#/updates/describe_update_progress';
+import { useUpdateStore } from '#/updates/update_store';
 
 /**
  * The progress of the installation, as a labelled progress bar and the same

@@ -1,8 +1,8 @@
 import type { TunnelDto } from '#/daemon/protocol';
 import type { ActiveCount } from '#/tunnels/active_count';
-import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
-import { countActiveTunnels } from '#/tunnels/count_active_tunnels';
 import { compareTextCaseInsensitively } from '#/tunnels/compare_text_case_insensitively';
+import { countActiveTunnels } from '#/tunnels/count_active_tunnels';
+import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 
 /** `running` counts active tunnels only; `started` also counts those in standby. */
 export type TagSummary = ActiveCount & { tag: string; started: number };

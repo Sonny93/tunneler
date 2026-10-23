@@ -1,8 +1,8 @@
-import { Button } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
 
-import { useLaunchX11 } from '#/x11/use_launch_x11';
 import type { X11LauncherDto } from '#/daemon/protocol';
+import { useLaunchX11 } from '#/x11/use_launch_x11';
 
 type X11LauncherItemProps = {
 	launcher: X11LauncherDto;

@@ -2,12 +2,12 @@ import { useLingui } from '@lingui/react/macro';
 import { Button, Checkbox } from '@minimalstuff/ui';
 
 import type { ImportCandidateDto } from '#/daemon/protocol';
-import type { ImportConflict } from '#/import/find_import_conflicts';
-import { describeImportConflict } from '#/import/describe_import_conflict';
 import {
 	describeImportCandidateDetails,
 	describeImportCandidateLabel,
 } from '#/import/describe_import_candidate';
+import { describeImportConflict } from '#/import/describe_import_conflict';
+import type { ImportConflict } from '#/import/find_import_conflicts';
 
 type ImportCandidateListProps = {
 	candidates: readonly ImportCandidateDto[];

@@ -1,6 +1,6 @@
+import type { TunnelDefinitionDto, TunnelDto } from '#/daemon/protocol';
 import { toTunnelSpec } from '#/tunnel_form/to_tunnel_spec';
 import { toTunnelFormValues } from '#/tunnel_form/tunnel_form_values';
-import type { TunnelDefinitionDto, TunnelDto } from '#/daemon/protocol';
 
 export type TagChange =
 	| { kind: 'add'; tags: readonly string[] }

@@ -1,11 +1,11 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
 import { App } from '#/app';
-import { createFakeGateway } from '#/testing/fake_gateway';
 import { buildSnapshot, buildTunnel } from '#/testing/factories';
+import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 
 const renderConnectedApp = async () => {

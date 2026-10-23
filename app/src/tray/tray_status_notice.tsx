@@ -1,9 +1,9 @@
+import { useLingui } from '@lingui/react/macro';
 import { Button } from '@minimalstuff/ui';
 import { useId, type MouseEvent } from 'react';
-import { useLingui } from '@lingui/react/macro';
 
-import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
 import {
 	describeTrayProblem,
 	isTrayProblem,

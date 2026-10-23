@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { reduceDaemonEvent } from '#/state/reduce_daemon_event';
 import { INITIAL_DAEMON_STATE, type DaemonState } from '#/state/daemon_state';
+import { reduceDaemonEvent } from '#/state/reduce_daemon_event';
 import {
 	buildExternalProcess,
 	buildMetrics,

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PaletteCommand } from '#/palette/palette_command';
 import {
 	filterPaletteCommands,
 	MAXIMUM_PALETTE_RESULTS,
 } from '#/palette/filter_palette_commands';
+import type { PaletteCommand } from '#/palette/palette_command';
 
 const buildCommand = (
 	label: string,

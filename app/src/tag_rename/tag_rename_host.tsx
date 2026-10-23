@@ -1,7 +1,7 @@
 import { useLingui } from '@lingui/react/macro';
 
-import { useUiStore } from '#/state/ui_store';
 import { useModalCall } from '#/shared/use_modal_call';
+import { useUiStore } from '#/state/ui_store';
 import { TagRenameContent } from '#/tag_rename/tag_rename_content';
 
 const TAG_RENAME_MODAL_ID = 'tag-rename';

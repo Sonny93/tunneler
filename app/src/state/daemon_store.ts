@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 
-import { getPromptId } from '#/state/prompt_id';
-import { reduceDaemonEvent } from '#/state/reduce_daemon_event';
 import type { EventMessage, SettingsDto, SnapshotDto } from '#/daemon/protocol';
 import {
 	INITIAL_DAEMON_STATE,
 	type ConnectionState,
 	type DaemonState,
 } from '#/state/daemon_state';
+import { getPromptId } from '#/state/prompt_id';
+import { reduceDaemonEvent } from '#/state/reduce_daemon_event';
 
 type DaemonActions = {
 	setConnection: (connection: ConnectionState) => void;

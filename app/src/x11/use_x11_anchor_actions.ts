@@ -1,10 +1,10 @@
-import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
-import { ConfirmModal } from '@minimalstuff/ui';
+import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
+import { ConfirmModal } from '@minimalstuff/ui';
 
-import { useUiStore } from '#/state/ui_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
+import { useUiStore } from '#/state/ui_store';
 
 type UseX11AnchorActionsReturn = {
 	start: () => Promise<void>;

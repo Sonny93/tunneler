@@ -1,21 +1,21 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { act, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { useUiStore } from '#/state/ui_store';
-import { useDaemonStore } from '#/state/daemon_store';
-import { createFakeGateway } from '#/testing/fake_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
-import { TunnelDetailsDrawer } from '#/tunnel_details/tunnel_details_drawer';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
 import {
 	buildMetrics,
 	buildOpener,
 	buildSettings,
 	buildTunnel,
 } from '#/testing/factories';
+import { createFakeGateway } from '#/testing/fake_gateway';
+import { renderWithGateway } from '#/testing/render_with_gateway';
+import { TunnelDetailsDrawer } from '#/tunnel_details/tunnel_details_drawer';
 
 const LOG_NAME = 'Log of tunnel 3333 to nova:3333';
 

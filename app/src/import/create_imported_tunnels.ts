@@ -1,10 +1,10 @@
 import type { I18n } from '@lingui/core';
 
+import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
 import type { ImportSpec } from '#/import/build_import_specs';
-import { toDaemonCommandError } from '#/daemon/daemon_command_error';
-import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 import { getSubmissionErrorMessages } from '#/shared/submission_error_messages';
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 export type ImportFailure = {
 	index: number;

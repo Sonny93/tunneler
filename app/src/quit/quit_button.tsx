@@ -1,5 +1,5 @@
-import { Button } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
 
 import { useQuitFlow } from '#/quit/use_quit_flow';
 

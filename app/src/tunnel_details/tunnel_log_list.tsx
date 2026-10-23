@@ -1,6 +1,6 @@
+import { useLingui } from '@lingui/react/macro';
 /* oxlint-disable jsx-a11y/no-noninteractive-tabindex -- a scrollable region must be focusable so the keyboard can scroll it */
 import { useRef } from 'react';
-import { useLingui } from '@lingui/react/macro';
 
 import type { LogEntryDto } from '#/daemon/protocol';
 import { LogEntryItem } from '#/tunnel_details/log_entry_item';

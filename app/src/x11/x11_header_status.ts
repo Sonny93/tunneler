@@ -1,5 +1,5 @@
-import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
+import { t } from '@lingui/core/macro';
 
 import type { X11StateDto } from '#/daemon/protocol';
 import { getX11StateLabel } from '#/x11/x11_state_label';

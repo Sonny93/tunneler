@@ -1,10 +1,10 @@
-import { useId } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import { useId } from 'react';
 
 import type { TunnelDto } from '#/daemon/protocol';
-import { TemporaryBadge } from '#/shared/temporary_badge';
-import { TunnelStatusBadge } from '#/shared/status_badge';
 import { TargetHealthBadge } from '#/shared/health_badge';
+import { TunnelStatusBadge } from '#/shared/status_badge';
+import { TemporaryBadge } from '#/shared/temporary_badge';
 import { TunnelEndpoint } from '#/tunnels/list/tunnel_endpoint';
 
 type TunnelStateSectionProps = {

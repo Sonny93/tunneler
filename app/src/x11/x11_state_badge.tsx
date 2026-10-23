@@ -1,7 +1,7 @@
 import { useLingui } from '@lingui/react/macro';
 
-import { cn } from '#/shared/cn';
 import type { X11StateDto } from '#/daemon/protocol';
+import { cn } from '#/shared/cn';
 import { getX11StateLabel } from '#/x11/x11_state_label';
 
 type StateAppearance = { icon: string; toneClassName: string };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildTunnel } from '#/testing/factories';
 import { summarizeHosts } from '#/sidebar/summarize_hosts';
+import { buildTunnel } from '#/testing/factories';
 
 describe('summarizeHosts', () => {
 	it('should count running and total tunnels per host, sorted', () => {

@@ -1,16 +1,16 @@
-import { useId } from 'react';
-import { Button } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
+import { useId } from 'react';
 
 import type { ExternalProcessDto } from '#/daemon/protocol';
-import { useKillProcess } from '#/externals/use_kill_process';
-import { useIgnoreProcess } from '#/externals/use_ignore_process';
-import { ExternalForwardItem } from '#/externals/external_forward_item';
-import { KILL_EXTERNAL_CONSEQUENCE } from '#/externals/kill_consequences';
 import {
 	describeProcess,
 	describeProcessHeading,
 } from '#/externals/describe_process';
+import { ExternalForwardItem } from '#/externals/external_forward_item';
+import { KILL_EXTERNAL_CONSEQUENCE } from '#/externals/kill_consequences';
+import { useIgnoreProcess } from '#/externals/use_ignore_process';
+import { useKillProcess } from '#/externals/use_kill_process';
 
 type ExternalProcessItemProps = {
 	process: ExternalProcessDto;

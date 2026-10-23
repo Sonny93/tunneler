@@ -1,16 +1,16 @@
-import { createRef } from 'react';
-import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
+import { t } from '@lingui/core/macro';
+import { createRef } from 'react';
 
-import { getPromptId } from '#/state/prompt_id';
-import type { PendingPrompt } from '#/state/daemon_state';
-import type { ModalCallRequest } from '#/shared/use_modal_call';
-import type { PromptActions } from '#/prompts/use_prompt_actions';
-import { getHostKeyAlertTitle } from '#/prompts/host_key_alert_text';
+import { CredentialPromptContent } from '#/prompts/credential_prompt_content';
 import { getCredentialTitle } from '#/prompts/credential_prompt_text';
 import { HostKeyAlertContent } from '#/prompts/host_key_alert_content';
+import { getHostKeyAlertTitle } from '#/prompts/host_key_alert_text';
 import { HostKeyPromptContent } from '#/prompts/host_key_prompt_content';
-import { CredentialPromptContent } from '#/prompts/credential_prompt_content';
+import type { PromptActions } from '#/prompts/use_prompt_actions';
+import type { ModalCallRequest } from '#/shared/use_modal_call';
+import type { PendingPrompt } from '#/state/daemon_state';
+import { getPromptId } from '#/state/prompt_id';
 
 /** The lib modal showing `prompt`; each answer goes through `actions` and removes the prompt from the store. */
 export function buildPromptModalRequest(

@@ -1,8 +1,8 @@
 import { useLingui } from '@lingui/react/macro';
 
-import { useUiStore } from '#/state/ui_store';
 import { useModalCall } from '#/shared/use_modal_call';
 import { ShortcutsHelpContent } from '#/shortcuts/shortcuts_help_content';
+import { useUiStore } from '#/state/ui_store';
 
 const HELP_MODAL_ID = 'shortcuts-help';
 

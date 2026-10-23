@@ -1,14 +1,14 @@
+import type {
+	OpenOptionsDto,
+	TemporaryTunnelSpecDto,
+	TunnelSpecDto,
+} from '#/daemon/protocol';
 import { parsePort } from '#/tunnel_form/parse_port';
 import { parseTags } from '#/tunnel_form/parse_tags';
 import {
 	DEFAULT_OPEN_SCHEME,
 	type TunnelFormValues,
 } from '#/tunnel_form/tunnel_form_values';
-import type {
-	OpenOptionsDto,
-	TemporaryTunnelSpecDto,
-	TunnelSpecDto,
-} from '#/daemon/protocol';
 
 function toOptionalText(text: string): string | undefined {
 	const trimmed = text.trim();

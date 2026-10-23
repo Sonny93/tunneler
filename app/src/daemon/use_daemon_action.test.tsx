@@ -1,11 +1,11 @@
+import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
-import { act, renderHook } from '@testing-library/react';
 
-import { createFakeGateway } from '#/testing/fake_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { DaemonGatewayProvider } from '#/daemon/daemon_gateway_context';
+import { useDaemonAction } from '#/daemon/use_daemon_action';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { createFakeGateway } from '#/testing/fake_gateway';
 
 function renderDaemonAction() {
 	const gateway = createFakeGateway();

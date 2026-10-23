@@ -1,18 +1,18 @@
+import { useLingui } from '@lingui/react/macro';
 /* oxlint-disable jsx-a11y/prefer-tag-over-role, jsx-a11y/no-noninteractive-element-to-interactive-role -- ARIA combobox pattern: a custom palette cannot use a native <select> or <datalist> */
 import { Input } from '@minimalstuff/ui';
-import { useLingui } from '@lingui/react/macro';
 import { useId, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 
-import { useDaemonStore } from '#/state/daemon_store';
-import { PaletteOption } from '#/palette/palette_option';
-import type { PaletteAction } from '#/palette/palette_command';
-import { describeCommandCount } from '#/palette/describe_command_count';
 import { buildPaletteCommands } from '#/palette/build_palette_commands';
+import { describeCommandCount } from '#/palette/describe_command_count';
 import { filterPaletteCommands } from '#/palette/filter_palette_commands';
 import {
 	moveActiveIndex,
 	type ActiveIndexMove,
 } from '#/palette/move_active_index';
+import type { PaletteAction } from '#/palette/palette_command';
+import { PaletteOption } from '#/palette/palette_option';
+import { useDaemonStore } from '#/state/daemon_store';
 
 const MOVE_BY_KEY: Readonly<Record<string, ActiveIndexMove>> = {
 	ArrowDown: 'next',

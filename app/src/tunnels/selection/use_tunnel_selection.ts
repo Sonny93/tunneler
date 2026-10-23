@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 
-import { useUiStore } from '#/state/ui_store';
 import type { TunnelDto } from '#/daemon/protocol';
+import { useUiStore } from '#/state/ui_store';
 import type { TunnelSelection } from '#/tunnels/selection/tunnel_selection_context';
 
 /**

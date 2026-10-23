@@ -1,7 +1,6 @@
 import { i18n } from '@lingui/core';
 import { describe, expect, it } from 'vitest';
 
-import { buildOpener } from '#/testing/factories';
 import {
 	describeOpenAction,
 	describeTunnelOpenCommand,
@@ -10,6 +9,7 @@ import {
 	listOpenChoices,
 	toDefaultChoice,
 } from '#/openers/open_choices';
+import { buildOpener } from '#/testing/factories';
 
 const vnc = buildOpener();
 const rdp = buildOpener({ id: 'freerdp', name: 'FreeRDP' });

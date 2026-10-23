@@ -1,15 +1,15 @@
+import { useLingui } from '@lingui/react/macro';
 import { Input } from '@minimalstuff/ui';
 import type { ChangeEvent } from 'react';
-import { useLingui } from '@lingui/react/macro';
 
-import { useDaemonStore } from '#/state/daemon_store';
-import { summarizeTags } from '#/sidebar/summarize_tags';
-import { SettingsSwitch } from '#/settings/settings_switch';
-import type { SettingsFormValues } from '#/settings/settings_form_values';
 import type {
 	SettingsTextField,
 	SettingsToggleField,
 } from '#/settings/settings_field_specs';
+import type { SettingsFormValues } from '#/settings/settings_form_values';
+import { SettingsSwitch } from '#/settings/settings_switch';
+import { summarizeTags } from '#/sidebar/summarize_tags';
+import { useDaemonStore } from '#/state/daemon_store';
 
 type SettingsStartupFieldsetProps = {
 	values: SettingsFormValues;

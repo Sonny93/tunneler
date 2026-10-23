@@ -1,9 +1,9 @@
 import { useLingui } from '@lingui/react/macro';
 
-import { Drawer } from '#/shared/drawer';
-import { useUiStore } from '#/state/ui_store';
-import { useDaemonStore } from '#/state/daemon_store';
 import { SettingsPanel } from '#/settings/settings_panel';
+import { Drawer } from '#/shared/drawer';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
 
 /** The settings drawer, open while the UI panel is `settings`. */
 export function SettingsDrawer() {

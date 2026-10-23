@@ -1,12 +1,12 @@
-import { useCallback } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import { useCallback } from 'react';
 
-import type { TunnelDto } from '#/daemon/protocol';
-import { useDaemonStore } from '#/state/daemon_store';
-import { confirmStandby } from '#/standby/confirm_standby';
-import { useDaemonAction } from '#/daemon/use_daemon_action';
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
+import type { TunnelDto } from '#/daemon/protocol';
+import { useDaemonAction } from '#/daemon/use_daemon_action';
+import { confirmStandby } from '#/standby/confirm_standby';
 import { listAwakeTunnels } from '#/standby/list_awake_tunnels';
+import { useDaemonStore } from '#/state/daemon_store';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 type UseSendToStandbyReturn = {

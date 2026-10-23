@@ -1,9 +1,9 @@
-import { useId } from 'react';
-import { RadioOptions } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { RadioOptions } from '@minimalstuff/ui';
+import { useId } from 'react';
 
-import { useDaemonStore } from '#/state/daemon_store';
 import { getRadioOrientation } from '#/shared/radio_orientation';
+import { useDaemonStore } from '#/state/daemon_store';
 import type { StandbyChoice } from '#/tunnel_form/tunnel_form_values';
 
 const INHERITED_VALUE = '';

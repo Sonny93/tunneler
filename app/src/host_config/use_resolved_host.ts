@@ -1,11 +1,11 @@
 import { useEffect, useReducer, useState } from 'react';
 
-import type { ResolvedHostDto } from '#/daemon/protocol';
-import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import {
 	toDaemonCommandError,
 	type DaemonCommandError,
 } from '#/daemon/daemon_command_error';
+import type { ResolvedHostDto } from '#/daemon/protocol';
+import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 
 export type ResolvedHostState =
 	| { status: 'loading' }

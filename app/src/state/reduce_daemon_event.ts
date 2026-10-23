@@ -1,6 +1,6 @@
-import { getPromptId } from '#/state/prompt_id';
 import type { EventMessage, TunnelDto } from '#/daemon/protocol';
 import type { DaemonState, PendingPrompt } from '#/state/daemon_state';
+import { getPromptId } from '#/state/prompt_id';
 
 type EventOf<TName extends EventMessage['event']> = Extract<
 	EventMessage,

@@ -1,8 +1,8 @@
-import { useCallback } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import { useCallback } from 'react';
 
-import { useDaemonAction } from '#/daemon/use_daemon_action';
 import type { DocumentationPageDto } from '#/daemon/protocol';
+import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { SOURCE_LOCALE, isSupportedLocale } from '#/i18n/supported_locales';
 
 type OpenDocumentation = (page: DocumentationPageDto) => Promise<boolean>;

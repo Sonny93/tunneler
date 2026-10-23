@@ -1,12 +1,12 @@
-import { useCallback } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import { useCallback } from 'react';
 
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { toDaemonCommandError } from '#/daemon/daemon_command_error';
+import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { confirmTunnelsStop } from '#/quit/confirm_tunnels_stop';
-import { toDaemonCommandError } from '#/daemon/daemon_command_error';
-import { describeDaemonError } from '#/daemon/describe_daemon_error';
+import { useToastStore } from '#/shared/toasts/toast_store';
 
 const TUNNELS_RUNNING_CODE = 'tunnels_running';
 

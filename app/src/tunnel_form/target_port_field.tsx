@@ -1,6 +1,6 @@
-import type { ChangeEvent } from 'react';
 import { useLingui } from '@lingui/react/macro';
 import { Button, Input } from '@minimalstuff/ui';
+import type { ChangeEvent } from 'react';
 
 type TargetPortFieldProps = {
 	value: string;

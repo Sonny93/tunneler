@@ -1,14 +1,14 @@
-import { useContext } from 'react';
 import { useLingui } from '@lingui/react/macro';
 import { ConfirmModal } from '@minimalstuff/ui';
+import { useContext } from 'react';
 
 import type { TunnelDto } from '#/daemon/protocol';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
-import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
-import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { RemovalFocusContext } from '#/tunnels/list/removal_focus_context';
+import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 type UseTunnelActionsReturn = {
 	toggleRunning: () => void;

@@ -1,10 +1,10 @@
 import { useLingui } from '@lingui/react/macro';
 
-import { getPromptId } from '#/state/prompt_id';
-import { useDaemonStore } from '#/state/daemon_store';
-import { useModalCall } from '#/shared/use_modal_call';
-import { usePromptActions } from '#/prompts/use_prompt_actions';
 import { buildPromptModalRequest } from '#/prompts/prompt_modal_request';
+import { usePromptActions } from '#/prompts/use_prompt_actions';
+import { useModalCall } from '#/shared/use_modal_call';
+import { useDaemonStore } from '#/state/daemon_store';
+import { getPromptId } from '#/state/prompt_id';
 
 /**
  * Shows the first pending prompt in a lib modal, one at a time (a

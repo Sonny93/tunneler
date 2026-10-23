@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import { ThemeToggle } from '@minimalstuff/ui';
 import { screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
 import { activateLocale } from '#/i18n/activate_locale';
 import { AppUIProvider } from '#/shared/app_ui_provider';

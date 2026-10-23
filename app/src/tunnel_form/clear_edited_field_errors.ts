@@ -1,5 +1,5 @@
-import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 import type { TunnelFormAction } from '#/tunnel_form/tunnel_form_reducer';
+import type { TunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 import type { TunnelFormErrors } from '#/tunnel_form/validate_tunnel_form';
 
 function getEditedErrorFields(

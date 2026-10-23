@@ -1,5 +1,5 @@
-import { useId } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import { useId } from 'react';
 
 type HostConfigWarningsProps = {
 	warnings: readonly string[];

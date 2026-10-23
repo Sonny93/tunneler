@@ -1,14 +1,14 @@
-import { useCallback } from 'react';
-import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
+import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
+import { useCallback } from 'react';
 
-import { useDaemonStore } from '#/state/daemon_store';
-import { useUpdateStore } from '#/updates/update_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { confirmTunnelsStop } from '#/quit/confirm_tunnels_stop';
 import { countRunningSessions } from '#/quit/count_running_sessions';
+import { useDaemonStore } from '#/state/daemon_store';
 import { createProgressAnnouncer } from '#/updates/create_progress_announcer';
+import { useUpdateStore } from '#/updates/update_store';
 
 function describeConsequence(isRestoredOnLaunch: boolean, i18n: I18n): string {
 	return isRestoredOnLaunch

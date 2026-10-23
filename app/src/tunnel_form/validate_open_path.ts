@@ -1,5 +1,5 @@
-import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
+import { msg } from '@lingui/core/macro';
 
 const WHITESPACE_PATTERN = /\s/u;
 const CONTROL_CHARACTER_PATTERN = /\p{Cc}/u;

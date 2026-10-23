@@ -1,11 +1,11 @@
 import { useLingui } from '@lingui/react/macro';
 import { Button, ModalFooter } from '@minimalstuff/ui';
 
-import type { PendingPrompt } from '#/state/daemon_state';
 import {
 	getHostKeyAlertAdvice,
 	getHostKeyAlertFacts,
 } from '#/prompts/host_key_alert_text';
+import type { PendingPrompt } from '#/state/daemon_state';
 
 type HostKeyAlert = Extract<PendingPrompt, { kind: 'hostKeyAlert' }>;
 

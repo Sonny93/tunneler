@@ -1,5 +1,5 @@
-import { Button } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
 
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 

@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import type { ReactNode } from 'react';
 
 const MAIN_ID = 'main-content';
 

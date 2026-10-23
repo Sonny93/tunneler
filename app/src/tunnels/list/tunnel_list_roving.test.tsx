@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { act, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
 
-import { buildTunnel } from '#/testing/factories';
 import { useDaemonStore } from '#/state/daemon_store';
-import { TunnelList } from '#/tunnels/list/tunnel_list';
+import { buildTunnel } from '#/testing/factories';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { TunnelList } from '#/tunnels/list/tunnel_list';
 
 function seedTunnels() {
 	useDaemonStore.setState({

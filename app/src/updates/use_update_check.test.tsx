@@ -1,12 +1,12 @@
-import { describe, expect, it } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
 import { App } from '#/app';
-import { useUpdateStore } from '#/updates/update_store';
 import type { UpdateOfferDto } from '#/daemon/protocol';
+import { buildSettings, buildSnapshot } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
-import { buildSettings, buildSnapshot } from '#/testing/factories';
+import { useUpdateStore } from '#/updates/update_store';
 
 const OFFER: UpdateOfferDto = {
 	version: '0.2.0',

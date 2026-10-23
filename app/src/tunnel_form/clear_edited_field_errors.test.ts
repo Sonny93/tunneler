@@ -1,8 +1,8 @@
 import { msg } from '@lingui/core/macro';
 import { describe, expect, it } from 'vitest';
 
-import { toTunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 import { clearEditedFieldErrors } from '#/tunnel_form/clear_edited_field_errors';
+import { toTunnelFormValues } from '#/tunnel_form/tunnel_form_values';
 
 const ALL_ERRORS = {
 	host: msg`host error`,

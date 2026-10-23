@@ -1,9 +1,9 @@
-import { listen } from '@tauri-apps/api/event';
 import { Channel, invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
-import type { EventMessage, UpdateProgressDto } from '#/daemon/protocol';
 import type { DaemonGateway, Unsubscribe } from '#/daemon/daemon_gateway';
+import type { EventMessage, UpdateProgressDto } from '#/daemon/protocol';
 
 const EVENT_CHANNEL = 'daemon-event';
 const DISCONNECTED_CHANNEL = 'daemon-disconnected';

@@ -1,14 +1,14 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
 import { ModalProvider } from '@minimalstuff/ui';
-import userEvent from '@testing-library/user-event';
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
+import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildTunnel } from '#/testing/factories';
-import { useDaemonStore } from '#/state/daemon_store';
-import { TunnelList } from '#/tunnels/list/tunnel_list';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { TunnelList } from '#/tunnels/list/tunnel_list';
 
 function seedTunnels() {
 	useDaemonStore.setState({

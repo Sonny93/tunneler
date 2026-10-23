@@ -1,11 +1,11 @@
-import { useEffect } from 'react';
 import { useLingui } from '@lingui/react/macro';
+import { useEffect } from 'react';
 
-import { findX11State } from '#/x11/find_x11_state';
 import type { X11AnchorDto } from '#/daemon/protocol';
-import { useDaemonStore } from '#/state/daemon_store';
-import { buildX11Announcement } from '#/x11/x11_announcement';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
+import { useDaemonStore } from '#/state/daemon_store';
+import { findX11State } from '#/x11/find_x11_state';
+import { buildX11Announcement } from '#/x11/x11_announcement';
 
 function findChangedHosts(
 	previousAnchors: readonly X11AnchorDto[],

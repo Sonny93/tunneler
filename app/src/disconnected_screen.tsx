@@ -1,8 +1,8 @@
-import { Button } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
 
-import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import type { DaemonCommandError } from '#/daemon/daemon_command_error';
+import { describeDaemonError } from '#/daemon/describe_daemon_error';
 
 type DisconnectedScreenProps = {
 	error: Readonly<DaemonCommandError>;

@@ -1,13 +1,13 @@
-import { useState } from 'react';
 import { plural } from '@lingui/core/macro';
-import { ConfirmModal } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { ConfirmModal } from '@minimalstuff/ui';
+import { useState } from 'react';
 
-import { useDaemonStore } from '#/state/daemon_store';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import type { AvailableOpenerDto, OpenerSpecDto } from '#/daemon/protocol';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import type { AvailableOpenerDto, OpenerSpecDto } from '#/daemon/protocol';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { useDaemonStore } from '#/state/daemon_store';
 
 /** The form is hidden, adds an application (empty or prefilled with a `draft`), or edits the one with this identifier. */
 export type OpenerEditing =

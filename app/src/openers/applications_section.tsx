@@ -1,11 +1,11 @@
-import { useId } from 'react';
-import { Button } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { Button } from '@minimalstuff/ui';
+import { useId } from 'react';
 
-import { OpenerForm } from '#/openers/opener_form';
 import type { AvailableOpenerDto } from '#/daemon/protocol';
-import { useOpenersEditor } from '#/openers/use_openers_editor';
 import { DocumentationHint } from '#/openers/documentation_hint';
+import { OpenerForm } from '#/openers/opener_form';
+import { useOpenersEditor } from '#/openers/use_openers_editor';
 
 function describeCommandLine(opener: Readonly<AvailableOpenerDto>): string {
 	return [opener.command, ...opener.args]

@@ -1,8 +1,8 @@
 import type { I18n } from '@lingui/core';
 
-import type { TunnelDto } from '#/daemon/protocol';
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import { describeDaemonError } from '#/daemon/describe_daemon_error';
+import type { TunnelDto } from '#/daemon/protocol';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 export type BulkFailure = { label: string; message: string };

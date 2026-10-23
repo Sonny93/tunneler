@@ -3,10 +3,10 @@ import { useLingui } from '@lingui/react/macro';
 import { Drawer } from '#/shared/drawer';
 import { useUiStore } from '#/state/ui_store';
 import { useX11State } from '#/x11/use_x11_state';
-import { X11SecurityNote } from '#/x11/x11_security_note';
 import { X11AnchorSection } from '#/x11/x11_anchor_section';
 import { X11DisplaySection } from '#/x11/x11_display_section';
 import { X11LaunchersSection } from '#/x11/x11_launchers_section';
+import { X11SecurityNote } from '#/x11/x11_security_note';
 
 type X11PanelProps = {
 	host: string;

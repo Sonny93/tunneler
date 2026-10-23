@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { EMPTY_TUNNEL_FORM_VALUES } from '#/tunnel_form/tunnel_form_values';
 import {
 	toTemporaryTunnelSpec,
 	toTunnelSpec,
 } from '#/tunnel_form/to_tunnel_spec';
+import { EMPTY_TUNNEL_FORM_VALUES } from '#/tunnel_form/tunnel_form_values';
 
 const valid = {
 	...EMPTY_TUNNEL_FORM_VALUES,

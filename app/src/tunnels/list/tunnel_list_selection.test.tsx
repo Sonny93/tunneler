@@ -1,19 +1,19 @@
-import { axe } from 'vitest-axe';
 import { i18n } from '@lingui/core';
-import { describe, expect, it } from 'vitest';
 import { ModalProvider } from '@minimalstuff/ui';
-import userEvent from '@testing-library/user-event';
 import { act, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
+import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
+import { DIGITS_TAG_MESSAGE } from '#/shared/reserved_tag_problem';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildTunnel } from '#/testing/factories';
-import { useDaemonStore } from '#/state/daemon_store';
-import { TunnelList } from '#/tunnels/list/tunnel_list';
 import { createFakeGateway } from '#/testing/fake_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { renderWithGateway } from '#/testing/render_with_gateway';
-import { DIGITS_TAG_MESSAGE } from '#/shared/reserved_tag_problem';
-import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
+import { TunnelList } from '#/tunnels/list/tunnel_list';
 
 const ACTIVE = { kind: 'active' } as const;
 const ALPHA = '3001 to nova:3001';

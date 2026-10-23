@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildTunnel } from '#/testing/factories';
 import { countRunningSessions } from '#/quit/count_running_sessions';
+import { buildTunnel } from '#/testing/factories';
 
 describe('countRunningSessions', () => {
 	it('should count zero when nothing runs', () => {

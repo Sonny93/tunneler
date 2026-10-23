@@ -1,8 +1,8 @@
 import { useLingui } from '@lingui/react/macro';
 
-import { cn } from '#/shared/cn';
-import { BadgeDetail } from '#/shared/badge_detail';
 import type { TargetHealthDto } from '#/daemon/protocol';
+import { BadgeDetail } from '#/shared/badge_detail';
+import { cn } from '#/shared/cn';
 import {
 	getTargetHealthError,
 	getTargetHealthLabel,

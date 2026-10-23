@@ -1,18 +1,18 @@
-import { cleanup } from '@testing-library/react';
-import * as axeMatchers from 'vitest-axe/matchers';
-import { afterEach, beforeEach, expect, vi } from 'vitest';
 import * as jestDomMatchers from '@testing-library/jest-dom/matchers';
+import { cleanup } from '@testing-library/react';
+import { afterEach, beforeEach, expect, vi } from 'vitest';
+import * as axeMatchers from 'vitest-axe/matchers';
 
-import { useDaemonStore } from '#/state/daemon_store';
 import { activateLocale } from '#/i18n/activate_locale';
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { INITIAL_DAEMON_STATE } from '#/state/daemon_state';
-import { INITIAL_UI_STATE, useUiStore } from '#/state/ui_store';
-import { INITIAL_UPDATE_STATE, useUpdateStore } from '#/updates/update_store';
 import {
 	INITIAL_ANNOUNCER_STATE,
 	useAnnouncerStore,
 } from '#/shared/announcer/announcer_store';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { INITIAL_DAEMON_STATE } from '#/state/daemon_state';
+import { useDaemonStore } from '#/state/daemon_store';
+import { INITIAL_UI_STATE, useUiStore } from '#/state/ui_store';
+import { INITIAL_UPDATE_STATE, useUpdateStore } from '#/updates/update_store';
 
 expect.extend(jestDomMatchers);
 expect.extend(axeMatchers);

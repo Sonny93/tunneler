@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 
-import { useUiStore } from '#/state/ui_store';
-import { useDaemonStore } from '#/state/daemon_store';
 import type { TunnelSpecDto } from '#/daemon/protocol';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
 import { TunnelFormPanel } from '#/tunnel_form/tunnel_form_panel';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 

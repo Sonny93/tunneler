@@ -1,9 +1,9 @@
-import { ConfirmModal } from '@minimalstuff/ui';
 import { useLingui } from '@lingui/react/macro';
+import { ConfirmModal } from '@minimalstuff/ui';
 
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { getForgottenSecretsMessage } from '#/settings/forgotten_secrets_message';
+import { useToastStore } from '#/shared/toasts/toast_store';
 
 /** Asks for confirmation, then erases every remembered passphrase and toasts how many. */
 export function useForgetSecrets(): () => Promise<void> {

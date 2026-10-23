@@ -1,12 +1,12 @@
 import { useEffect, useReducer } from 'react';
 
-import type { LogEntryDto } from '#/daemon/protocol';
-import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { appendLogEntry, mergeLogEntries } from '#/tunnel_details/log_entries';
 import {
 	toDaemonCommandError,
 	type DaemonCommandError,
 } from '#/daemon/daemon_command_error';
+import type { LogEntryDto } from '#/daemon/protocol';
+import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
+import { appendLogEntry, mergeLogEntries } from '#/tunnel_details/log_entries';
 
 export type TunnelLogsState = {
 	status: 'loading' | 'ready' | 'error';

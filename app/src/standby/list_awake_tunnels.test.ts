@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildTunnel } from '#/testing/factories';
 import { listAwakeTunnels } from '#/standby/list_awake_tunnels';
+import { buildTunnel } from '#/testing/factories';
 
 describe('listAwakeTunnels', () => {
 	it('should keep only the awake tunnels', () => {

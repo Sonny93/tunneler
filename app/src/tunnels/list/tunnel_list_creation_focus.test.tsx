@@ -1,14 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
 
-import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
-import { TunnelList } from '#/tunnels/list/tunnel_list';
-import { createFakeGateway } from '#/testing/fake_gateway';
+import { useUiStore } from '#/state/ui_store';
 import { buildSettings, buildTunnel } from '#/testing/factories';
+import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { TunnelFormDrawer } from '#/tunnel_form/tunnel_form_drawer';
+import { TunnelList } from '#/tunnels/list/tunnel_list';
 
 const CREATED_ID = 'created-tunnel';
 

@@ -1,15 +1,15 @@
-import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
-import userEvent from '@testing-library/user-event';
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { axe } from 'vitest-axe';
 
-import { useUiStore } from '#/state/ui_store';
-import type { ResolvedHostDto } from '#/daemon/protocol';
-import { createFakeGateway } from '#/testing/fake_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { renderWithGateway } from '#/testing/render_with_gateway';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
+import type { ResolvedHostDto } from '#/daemon/protocol';
 import { HostConfigDrawer } from '#/host_config/host_config_drawer';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { useUiStore } from '#/state/ui_store';
+import { createFakeGateway } from '#/testing/fake_gateway';
+import { renderWithGateway } from '#/testing/render_with_gateway';
 
 const RESOLVED_HOST: ResolvedHostDto = {
 	host: 'nova',

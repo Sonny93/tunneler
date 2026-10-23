@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
-import { useUiStore } from '#/state/ui_store';
 import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
 import { TunnelDetailsPanel } from '#/tunnel_details/tunnel_details_panel';
 
 type TunnelDetailsProps = {

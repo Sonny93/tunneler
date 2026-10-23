@@ -1,5 +1,5 @@
-import { t } from '@lingui/core/macro';
 import type { I18n } from '@lingui/core';
+import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 import { Button, Input, ModalFooter } from '@minimalstuff/ui';
 import {
@@ -10,20 +10,20 @@ import {
 	type FormEvent,
 } from 'react';
 
-import { useUiStore } from '#/state/ui_store';
-import { useDaemonStore } from '#/state/daemon_store';
-import { useToastStore } from '#/shared/toasts/toast_store';
-import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { FormErrorSummary } from '#/shared/form_error_summary';
-import { validateTagName } from '#/tag_rename/validate_tag_name';
-import { describeDaemonError } from '#/daemon/describe_daemon_error';
-import { describeTagRename } from '#/tag_rename/describe_tag_rename';
-import { useFormErrorSummary } from '#/shared/use_form_error_summary';
-import { getSubmissionErrorMessages } from '#/shared/submission_error_messages';
 import {
 	toDaemonCommandError,
 	type DaemonCommandError,
 } from '#/daemon/daemon_command_error';
+import { describeDaemonError } from '#/daemon/describe_daemon_error';
+import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
+import { FormErrorSummary } from '#/shared/form_error_summary';
+import { getSubmissionErrorMessages } from '#/shared/submission_error_messages';
+import { useToastStore } from '#/shared/toasts/toast_store';
+import { useFormErrorSummary } from '#/shared/use_form_error_summary';
+import { useDaemonStore } from '#/state/daemon_store';
+import { useUiStore } from '#/state/ui_store';
+import { describeTagRename } from '#/tag_rename/describe_tag_rename';
+import { validateTagName } from '#/tag_rename/validate_tag_name';
 
 const VALIDATION_FAILED_CODE = 'validation_failed';
 

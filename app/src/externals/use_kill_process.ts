@@ -1,11 +1,11 @@
-import { ConfirmModal } from '@minimalstuff/ui';
-import { useLingui } from '@lingui/react/macro';
 import type { MessageDescriptor } from '@lingui/core';
+import { useLingui } from '@lingui/react/macro';
+import { ConfirmModal } from '@minimalstuff/ui';
 
 import type { ProcessOwnerDto } from '#/daemon/protocol';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { describeProcess } from '#/externals/describe_process';
+import { useToastStore } from '#/shared/toasts/toast_store';
 
 /** Asks for confirmation, spelling out `consequence`, then terminates the process. */
 type ConfirmKillProcess = (
