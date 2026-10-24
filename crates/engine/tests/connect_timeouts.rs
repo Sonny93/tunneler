@@ -30,7 +30,7 @@ const PASSWORD: &str = "hunter2";
 
 fn short_timeouts() -> ConnectTimeouts {
     ConnectTimeouts {
-        connect: STEP_LIMIT,
+        connect: LONG_LIMIT,
         authentication_step: STEP_LIMIT,
         agent_response: STEP_LIMIT,
     }
@@ -112,10 +112,13 @@ async fn should_report_an_unresponsive_agent_when_the_agent_never_signs() {
 
     let error = connector.connect(ALIAS).await.err().unwrap();
 
-    assert!(matches!(
-        error,
-        ConnectError::AgentUnresponsive { timeout } if timeout == STEP_LIMIT
-    ));
+    assert!(
+        matches!(
+            error,
+            ConnectError::AgentUnresponsive { timeout } if timeout == STEP_LIMIT
+        ),
+        "unexpected error: {error:?}"
+    );
 }
 
 #[tokio::test]
@@ -133,10 +136,13 @@ async fn should_report_the_authentication_timeout_when_the_server_never_answers(
 
     let error = connector.connect(ALIAS).await.err().unwrap();
 
-    assert!(matches!(
-        error,
-        ConnectError::AuthenticationTimeout { timeout } if timeout == STEP_LIMIT
-    ));
+    assert!(
+        matches!(
+            error,
+            ConnectError::AuthenticationTimeout { timeout } if timeout == STEP_LIMIT
+        ),
+        "unexpected error: {error:?}"
+    );
 }
 
 #[tokio::test]
