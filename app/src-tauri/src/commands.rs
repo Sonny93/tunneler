@@ -120,8 +120,9 @@ pub async fn preview_sound(
     state: State<'_, BridgeState>,
     sound: StandbySoundDto,
     event: SoundEventDto,
+    volume: Option<u8>,
 ) -> CommandResult<()> {
-    Ok(state.client()?.preview_sound(sound, event).await?)
+    Ok(state.client()?.preview_sound(sound, event, volume).await?)
 }
 
 #[tauri::command]

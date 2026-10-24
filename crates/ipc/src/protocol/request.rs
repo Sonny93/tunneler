@@ -75,6 +75,9 @@ pub struct PreviewSoundParams {
     pub sound: StandbySoundDto,
     /// What the sound announces.
     pub event: SoundEventDto,
+    /// The volume to play it at, in percent; the saved setting when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub volume: Option<u8>,
 }
 
 /// The parameters of `tunnel.open`.

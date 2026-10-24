@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 /// The default of `standby_idle_s`, in seconds.
 pub const DEFAULT_STANDBY_IDLE_S: u64 = 300;
 
+/// The default of `standby_volume`, in percent.
+pub const DEFAULT_STANDBY_VOLUME: u8 = 50;
+
 /// A point in time: milliseconds since the Unix epoch, UTC.
 pub type EpochMillis = u64;
 
@@ -481,6 +484,10 @@ pub struct SettingsDto {
     /// The sound played when a wake-up, or its failure, is signalled by sound.
     #[serde(default)]
     pub standby_sound: StandbySoundDto,
+    /// The volume of the synthesized sounds, in percent. The sound of the
+    /// system follows the system volume.
+    #[serde(default = "default_standby_volume")]
+    pub standby_volume: u8,
     /// The language of the UI, the tray and the notifications.
     #[serde(default)]
     pub language: LanguageDto,
@@ -495,6 +502,10 @@ fn default_check_for_updates() -> bool {
 
 fn default_standby_idle_s() -> u64 {
     DEFAULT_STANDBY_IDLE_S
+}
+
+fn default_standby_volume() -> u8 {
+    DEFAULT_STANDBY_VOLUME
 }
 
 /// Whether the daemon shows its notification-area (tray) icon.

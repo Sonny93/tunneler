@@ -41,6 +41,8 @@ export function SettingsStandbyTab({
 					value={values.standbySound}
 					notifyMode={values.standbyNotify}
 					onChange={form.changeStandbySound}
+					volume={values.standbyVolume}
+					onVolumeChange={form.changeStandbyVolume}
 				/>
 			</SettingsFieldset>
 		</SettingsTabContent>

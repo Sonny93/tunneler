@@ -67,6 +67,7 @@ fn settings() -> SettingsDto {
         standby_idle_s: 300,
         standby_notify: ipc::protocol::StandbyNotifyDto::Visual,
         standby_sound: ipc::protocol::StandbySoundDto::Pluck,
+        standby_volume: 50,
         language: ipc::protocol::LanguageDto::System,
         check_for_updates: true,
     }
@@ -225,6 +226,7 @@ fn every_request() -> Vec<Request> {
         Request::SettingsPreviewSound(ipc::protocol::PreviewSoundParams {
             sound: ipc::protocol::StandbySoundDto::Chime,
             event: ipc::protocol::SoundEventDto::WakeFailed,
+            volume: Some(35),
         }),
         Request::CredentialRespond(CredentialResponseParams {
             prompt_id: "p1".to_owned(),
@@ -520,7 +522,7 @@ fn should_serialize_settings_update_as_documented() {
 
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
-        r#"{"id":8,"method":"settings.update","params":{"settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","language":"system","checkForUpdates":true},"openers":[{"id":"dbeaver","name":"DBeaver","command":"dbeaver","args":["-con","host={host}"],"ports":[5432]}]}}"#
+        r#"{"id":8,"method":"settings.update","params":{"settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","standbyVolume":50,"language":"system","checkForUpdates":true},"openers":[{"id":"dbeaver","name":"DBeaver","command":"dbeaver","args":["-con","host={host}"],"ports":[5432]}]}}"#
     );
 }
 
@@ -1214,7 +1216,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isAwake":false,"isTemporary":false,"defaultOpener":{"id":"browser","name":"Browser"}}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","language":"system","checkForUpdates":true},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","standbyVolume":50,"language":"system","checkForUpdates":true},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
             "\n"
         )
     );
@@ -1469,6 +1471,33 @@ fn should_deserialize_settings_without_standby_sound_as_pluck() {
 }
 
 #[test]
+fn should_deserialize_settings_without_standby_volume_as_half() {
+    let mut value = to_json(&settings());
+    value.as_object_mut().unwrap().remove("standbyVolume");
+
+    let parsed: SettingsDto = serde_json::from_value(value).unwrap();
+
+    assert_eq!(parsed.standby_volume, 50);
+}
+
+#[test]
+fn should_serialize_settings_preview_sound_with_a_volume_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 5,
+        request: Request::SettingsPreviewSound(ipc::protocol::PreviewSoundParams {
+            sound: ipc::protocol::StandbySoundDto::Pluck,
+            event: ipc::protocol::SoundEventDto::Woke,
+            volume: Some(35),
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":5,"method":"settings.preview_sound","params":{"sound":"pluck","event":"woke","volume":35}}"#
+    );
+}
+
+#[test]
 fn should_deserialize_settings_without_language_as_system() {
     let mut value = to_json(&settings());
     value.as_object_mut().unwrap().remove("language");
@@ -1519,6 +1548,7 @@ fn should_serialize_settings_preview_sound_as_documented() {
         request: Request::SettingsPreviewSound(ipc::protocol::PreviewSoundParams {
             sound: ipc::protocol::StandbySoundDto::Pluck,
             event: ipc::protocol::SoundEventDto::WakeFailed,
+            volume: None,
         }),
     };
 

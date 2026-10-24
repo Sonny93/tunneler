@@ -5,8 +5,8 @@ use std::time::Duration;
 use thiserror::Error;
 
 use super::model::{
-    BROWSER_OPENER_ID, Opener, Settings, StoreDocument, TunnelDefinition, TunnelId, TunnelKind,
-    X11Launcher,
+    BROWSER_OPENER_ID, MAX_STANDBY_VOLUME, MIN_STANDBY_VOLUME, Opener, Settings, StoreDocument,
+    TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
 };
 
 const MIN_PORT: u16 = 1;
@@ -246,6 +246,16 @@ pub enum ValidationError {
     /// standby the moment it wakes.
     #[error("settings: standby_idle_s must be greater than 0")]
     ZeroStandbyIdle,
+    /// The volume of the standby sounds is outside the allowed range.
+    #[error(
+        "settings: standby_volume ({volume}) must be between {} and {}",
+        MIN_STANDBY_VOLUME,
+        MAX_STANDBY_VOLUME
+    )]
+    StandbyVolumeOutOfRange {
+        /// The configured volume, in percent.
+        volume: u8,
+    },
     /// A default bind address is empty.
     #[error("settings: {setting} must not be empty")]
     EmptyBindAddress {
@@ -320,6 +330,11 @@ fn validate_settings(settings: &Settings) -> Vec<ValidationError> {
     }
     if settings.standby_idle.is_zero() {
         errors.push(ValidationError::ZeroStandbyIdle);
+    }
+    if !(MIN_STANDBY_VOLUME..=MAX_STANDBY_VOLUME).contains(&settings.standby_volume) {
+        errors.push(ValidationError::StandbyVolumeOutOfRange {
+            volume: settings.standby_volume,
+        });
     }
     errors.extend(validate_bind_addresses(settings));
     errors.extend(settings.start_on_launch_tags.iter().filter_map(|tag| {
@@ -1244,6 +1259,33 @@ mod tests {
         });
 
         assert_eq!(errors_of(&document), vec![ValidationError::ZeroStandbyIdle]);
+    }
+
+    #[test]
+    fn should_reject_a_standby_volume_outside_the_range() {
+        for volume in [0, 4, 101] {
+            let document = document_with_settings(Settings {
+                standby_volume: volume,
+                ..Settings::default()
+            });
+
+            assert_eq!(
+                errors_of(&document),
+                vec![ValidationError::StandbyVolumeOutOfRange { volume }]
+            );
+        }
+    }
+
+    #[test]
+    fn should_accept_the_bounds_of_the_standby_volume() {
+        for volume in [5, 100] {
+            let document = document_with_settings(Settings {
+                standby_volume: volume,
+                ..Settings::default()
+            });
+
+            assert_eq!(validate(&document), Ok(()));
+        }
     }
 
     #[test]

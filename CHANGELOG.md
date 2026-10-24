@@ -4,6 +4,10 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Added
+
+- A volume setting for the standby sounds (Settings › Standby): a slider from 5 to 100 %, 50 % by default, for the chime, marimba and plucked string. The preview plays at the slider's value before you save. The system sound keeps following the system volume. `standby_volume` in `[settings]`.
+
 ### Changed
 
 - The tunnel form groups its fields into cards: General, Forwarding, Opening and Standby.
@@ -11,6 +15,7 @@ All notable changes to Tunneler are written here for the people who use it. The 
 ### Fixed
 
 - The window no longer shows a second scrollbar next to the tunnel list's.
+- The standby sounds are no longer cut before their end: each note rings until it has faded, followed by a short silence so the player does not clip it.
 
 ## [0.3.0] - 2026-10-24
 

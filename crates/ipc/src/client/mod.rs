@@ -363,7 +363,8 @@ impl IpcClient {
         Ok(result.openers)
     }
 
-    /// Plays a standby sound now, whatever the notification mode is.
+    /// Plays a standby sound now, whatever the notification mode is, at
+    /// `volume` percent or at the saved volume when `None`.
     ///
     /// # Errors
     ///
@@ -372,10 +373,12 @@ impl IpcClient {
         &self,
         sound: StandbySoundDto,
         event: SoundEventDto,
+        volume: Option<u8>,
     ) -> Result<(), ClientError> {
         self.call_without_result(Request::SettingsPreviewSound(PreviewSoundParams {
             sound,
             event,
+            volume,
         }))
         .await
     }

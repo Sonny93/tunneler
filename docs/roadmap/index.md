@@ -11,7 +11,7 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 - Per-tunnel state, byte counters, active connections and a live log.
 - A passive health mark: a refused connection to the target marks it unreachable. A one-off check on request (`tunneler check`, or "Check the target" in the UI).
 - Temporary tunnels, started from the CLI with OpenSSH syntax (`tunneler up <host> -L 3333`), kept only while the daemon runs and savable into the config.
-- Standby: a tunnel holds its local port and opens the SSH session on the first connection, then goes back to standby after a quiet period. Optional notification or sound when it wakes or fails to wake. Awake tunnels can be sent back to standby by hand, one at a time, by tag or all at once.
+- Standby: a tunnel holds its local port and opens the SSH session on the first connection, then goes back to standby after a quiet period. Optional notification or sound when it wakes or fails to wake, with a volume setting for the synthesized sounds. Awake tunnels can be sent back to standby by hand, one at a time, by tag or all at once.
 - X11 forwarding without the `xauth` binary, with an anchor per host and saved launchers.
 
 ### SSH
@@ -60,7 +60,7 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 - **Installer.** Install for the current user and for all users, with and without the shortcuts. Update from the previous version (the tunnels should come back). Uninstall with and without the "remove my tunnels and settings" box: nothing should be left behind.
 - **Everything the daemon does on Windows.** It compiles and passes lint but has not been exercised on every path: the named pipe, the tray, launch at login, the credential manager, the OpenSSH agent and Pageant, `ProxyCommand` and `Match exec`, detection of VNC and RDP clients, detached launch.
 - **Notifications.** A toast should appear under the name Tunneler without a Start menu shortcut.
-- **Standby sounds.** Listen to all of them, including with the "Notification" sound set to "(None)" in the Windows sound scheme.
+- **Standby sounds.** Listen to all of them, including with the "Notification" sound set to "(None)" in the Windows sound scheme. Check that none ends abruptly (each rings out, then 150 ms of silence) and that the volume slider is neither too quiet at 5 % nor too loud at 100 %.
 - **Screen reader and display.** NVDA with the UI, Windows high contrast mode, and 200% zoom with no horizontal scrolling.
 
 ### Linux

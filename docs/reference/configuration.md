@@ -52,6 +52,7 @@ standby = false                     # local and dynamic tunnels wait in standby 
 standby_idle_s = 300                # back to standby after this long without a connection
 standby_notify = "visual"           # none | visual | sound | both
 standby_sound = "pluck"             # system | chime | marimba | pluck
+standby_volume = 50                 # 5 to 100 (%), for chime, marimba and pluck
 language = "system"                 # system | en | fr
 check_for_updates = true            # look for a newer release when the window opens
 
@@ -117,6 +118,7 @@ command = "code --wait"
 | `standby_idle_s` | integer | `300` | Seconds without a connection before a tunnel goes back to standby. Greater than 0. |
 | `standby_notify` | `"none"`, `"visual"`, `"sound"` or `"both"` | `"visual"` | How a wake-up from standby, or its failure, is signalled. |
 | `standby_sound` | `"system"`, `"chime"`, `"marimba"` or `"pluck"` | `"pluck"` | The sound played in `sound` and `both` modes. |
+| `standby_volume` | integer | `50` | The volume of the `chime`, `marimba` and `pluck` sounds, in percent, from 5 to 100. The `system` sound ignores it and follows the system volume. |
 | `language` | `"system"`, `"en"` or `"fr"` | `"system"` | Language of the window, the tray and the notifications. `system` follows the operating system. |
 | `check_for_updates` | boolean | `true` | Look for a newer release when the window opens. |
 

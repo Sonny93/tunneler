@@ -43,8 +43,12 @@ export type DaemonGateway = {
 	persistTunnel(id: string): Promise<void>;
 	/** Tries the target of a running local or remote tunnel once, and resolves to its health. */
 	checkTarget(id: string): Promise<TargetHealthDto>;
-	/** Asks the daemon to play a standby sound now. */
-	previewSound(sound: StandbySoundDto, event: SoundEventDto): Promise<void>;
+	/** Asks the daemon to play a standby sound now, at `volume` percent or at the saved volume. */
+	previewSound(
+		sound: StandbySoundDto,
+		event: SoundEventDto,
+		volume?: number
+	): Promise<void>;
 	deleteTunnel(id: string): Promise<void>;
 	startTunnel(id: string): Promise<void>;
 	stopTunnel(id: string): Promise<void>;

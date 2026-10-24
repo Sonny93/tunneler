@@ -9,11 +9,11 @@ use super::{SoundEvent, SoundPlayer};
 /// Records the sounds it is asked to play instead of playing them.
 #[derive(Default)]
 pub(crate) struct RecordingSoundPlayer {
-    pub(crate) played: Mutex<Vec<(StandbySound, SoundEvent)>>,
+    pub(crate) played: Mutex<Vec<(StandbySound, SoundEvent, u8)>>,
 }
 
 impl SoundPlayer for RecordingSoundPlayer {
-    fn play(&self, sound: StandbySound, event: SoundEvent) {
-        self.played.lock().unwrap().push((sound, event));
+    fn play(&self, sound: StandbySound, event: SoundEvent, volume: u8) {
+        self.played.lock().unwrap().push((sound, event, volume));
     }
 }

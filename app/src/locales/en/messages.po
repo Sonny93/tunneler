@@ -206,6 +206,10 @@ msgstr "{tunnelCount, plural, one {The tag will be removed from # tunnel. The tu
 msgid "{usageCount, plural, one {# tunnel uses this application and will not be able to open until another one is chosen.} other {# tunnels use this application and will not be able to open until another one is chosen.}}"
 msgstr "{usageCount, plural, one {# tunnel uses this application and will not be able to open until another one is chosen.} other {# tunnels use this application and will not be able to open until another one is chosen.}}"
 
+#: src/settings/standby_volume_slider.tsx:25
+msgid "{value} %"
+msgstr "{value} %"
+
 #: src/settings/settings_field_specs.ts:69
 msgid "0 to disable"
 msgstr "0 to disable"
@@ -2197,6 +2201,10 @@ msgstr "The server refuses to listen on {address}"
 msgid "The SSH agent is not responding (no answer in {timeoutSeconds} s): is it waiting for a confirmation?"
 msgstr "The SSH agent is not responding (no answer in {timeoutSeconds} s): is it waiting for a confirmation?"
 
+#: src/settings/standby_sound_options.tsx:87
+msgid "The system sound follows the system volume."
+msgstr "The system sound follows the system volume."
+
 #: src/tag_rename/tag_rename_content.tsx:37
 msgid "The tag {name} already exists: the two will be merged."
 msgstr "The tag {name} already exists: the two will be merged."
@@ -2381,6 +2389,10 @@ msgstr "Version {version} is available: see the banner above the list"
 #: src/updates/update_notice.tsx:71
 msgid "View release"
 msgstr "View release"
+
+#: src/settings/standby_volume_slider.tsx:33
+msgid "Volume"
+msgstr "Volume"
 
 #: src/tunnel_form/standby_field.tsx:41
 msgid "Wait in standby"

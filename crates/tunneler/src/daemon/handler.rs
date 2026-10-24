@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use engine::{
-    Engine, EngineError, HostConfigResolver, OpenPlan, StoreError, TunnelId, X11Error,
-    preview_script, preview_ssh_config,
+    Engine, EngineError, HostConfigResolver, MAX_STANDBY_VOLUME, MIN_STANDBY_VOLUME, OpenPlan,
+    StoreError, TunnelId, X11Error, preview_script, preview_ssh_config,
 };
 use ipc::protocol::{
     AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, ForgetSecretsResult,
@@ -454,9 +454,14 @@ impl DaemonHandler {
     }
 
     fn preview_sound(&self, params: PreviewSoundParams) -> ResponsePayload {
+        let volume = params
+            .volume
+            .unwrap_or_else(|| self.engine.snapshot().settings.standby_volume)
+            .clamp(MIN_STANDBY_VOLUME, MAX_STANDBY_VOLUME);
         self.sound_player.play(
             standby_sound_from_dto(params.sound),
             sound_event_from_dto(params.event),
+            volume,
         );
         ResponsePayload::empty()
     }
@@ -1583,6 +1588,7 @@ mod tests {
                 Request::SettingsPreviewSound(PreviewSoundParams {
                     sound: StandbySoundDto::Chime,
                     event: SoundEventDto::WakeFailed,
+                    volume: Some(35),
                 }),
             )
             .await;
@@ -1594,8 +1600,31 @@ mod tests {
             ),
             (
                 Ok(ResponsePayload::empty()),
-                vec![(StandbySound::Chime, SoundEvent::WakeFailed)]
+                vec![(StandbySound::Chime, SoundEvent::WakeFailed, 35)]
             )
+        );
+    }
+
+    #[tokio::test]
+    async fn should_preview_at_the_saved_volume_when_no_volume_is_given() {
+        let fixture = fixture();
+
+        fixture
+            .handler
+            .dispatch(
+                None,
+                Request::SettingsPreviewSound(PreviewSoundParams {
+                    sound: StandbySoundDto::Pluck,
+                    event: SoundEventDto::Woke,
+                    volume: None,
+                }),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            fixture.sound_player.played.lock().unwrap().clone(),
+            vec![(StandbySound::Pluck, SoundEvent::Woke, 50)]
         );
     }
 

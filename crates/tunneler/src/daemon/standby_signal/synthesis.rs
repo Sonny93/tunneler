@@ -4,10 +4,14 @@
 //! when it could not. The audio is built once per sound and event and lives
 //! for the rest of the process, so a player may keep a pointer to it while it
 //! plays asynchronously.
+//!
+//! A note rings until it has decayed to silence: the sound is cut where its
+//! amplitude falls under [`DECAYED_AMPLITUDE`] of its peak, never earlier.
 
-use std::sync::OnceLock;
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex, OnceLock, PoisonError};
 
-use engine::StandbySound;
+use engine::{MAX_STANDBY_VOLUME, MIN_STANDBY_VOLUME, StandbySound};
 
 use super::SoundEvent;
 
@@ -19,6 +23,22 @@ const PCM_FORMAT: u16 = 1;
 const PEAK_AMPLITUDE: f64 = 0.5;
 const FULL_SCALE: f64 = 32_767.0;
 const END_FADE_SECONDS: f64 = 0.02;
+const PERCENT: f64 = 100.0;
+
+/// The amplitude, relative to the peak of the sound, under which a sound is
+/// taken as over: -50 dB.
+const DECAYED_AMPLITUDE: f64 = 0.003_162_277_7;
+
+/// The longest a note is rendered, so that a mistake in a decay cannot make a
+/// huge buffer. A note that is still ringing at this point is cut. The slowest
+/// note, the chime, needs about 1.7 seconds to decay.
+const MAX_NOTE_SECONDS: f64 = 3.0;
+
+/// The silence appended after the sound. Some players and drivers (`PlaySound`
+/// in asynchronous mode, `pw-play`) stop as soon as they have consumed the
+/// data, before the device buffer has drained, which eats the last
+/// milliseconds of the sound; the silence is what they eat instead.
+const PLAYBACK_PADDING_SECONDS: f64 = 0.15;
 
 const E4: f64 = 329.63;
 const G4: f64 = 392.00;
@@ -31,17 +51,15 @@ const G5: f64 = 783.99;
 const B5: f64 = 987.77;
 const B3: f64 = 246.94;
 
-const CHIME_NOTE_SECONDS: f64 = 0.9;
 const CHIME_ATTACK_SECONDS: f64 = 0.004;
-/// Ratio to the fundamental, amplitude, and decay as a fraction of the note.
+/// Ratio to the fundamental, amplitude, and decay time constant in seconds.
 const CHIME_PARTIALS: [(f64, f64, f64); 4] = [
-    (1.0, 1.0, 0.9),
-    (2.0, 0.35, 0.45),
-    (3.01, 0.12, 0.25),
-    (4.2, 0.05, 0.15),
+    (1.0, 1.0, 0.3),
+    (2.0, 0.35, 0.15),
+    (3.01, 0.12, 0.083),
+    (4.2, 0.05, 0.05),
 ];
 
-const MARIMBA_NOTE_SECONDS: f64 = 0.7;
 const MARIMBA_BODY_ATTACK_SECONDS: f64 = 0.002;
 const MARIMBA_BODY_DECAY_SECONDS: f64 = 0.22;
 const MARIMBA_KNOCK_RATIO: f64 = 3.93;
@@ -49,7 +67,6 @@ const MARIMBA_KNOCK_AMPLITUDE: f64 = 0.25;
 const MARIMBA_KNOCK_ATTACK_SECONDS: f64 = 0.001;
 const MARIMBA_KNOCK_DECAY_SECONDS: f64 = 0.03;
 
-const PLUCK_NOTE_SECONDS: f64 = 1.0;
 const PLUCK_ATTACK_SECONDS: f64 = 0.003;
 const PLUCK_DAMPING: f64 = 0.996;
 const PLUCK_SMOOTHING_PASSES: u32 = 3;
@@ -106,14 +123,6 @@ fn melody(voice: Voice, event: SoundEvent) -> Melody {
     }
 }
 
-fn note_seconds(voice: Voice) -> f64 {
-    match voice {
-        Voice::Chime => CHIME_NOTE_SECONDS,
-        Voice::Marimba => MARIMBA_NOTE_SECONDS,
-        Voice::Pluck => PLUCK_NOTE_SECONDS,
-    }
-}
-
 /// Where the noise of a plucked string starts, for each note of each event.
 fn pluck_seeds(event: SoundEvent) -> [u64; 2] {
     match event {
@@ -122,41 +131,71 @@ fn pluck_seeds(event: SoundEvent) -> [u64; 2] {
     }
 }
 
-/// The WAV file of `sound` for `event`, built on first use and kept for the
-/// rest of the process; `None` for the sound of the operating system, which
-/// is not synthesized.
-pub(super) fn synthesized_wav(sound: StandbySound, event: SoundEvent) -> Option<&'static [u8]> {
-    static CACHE: [OnceLock<Vec<u8>>; SOUND_COUNT * EVENT_COUNT] =
-        [const { OnceLock::new() }; SOUND_COUNT * EVENT_COUNT];
+type WavKey = (usize, usize, u8);
+
+/// The WAV file of `sound` for `event` at `volume` percent, built on first use
+/// and kept for the rest of the process; `None` for the sound of the operating
+/// system, which is not synthesized.
+///
+/// The volume is brought into its allowed range. A WAV is kept per sound,
+/// event and volume because a player may read the buffer after this returns,
+/// so it can never be freed. The cache is bounded: 3 sounds, 2 events and
+/// 96 volumes make 576 files of about 100 KiB at most.
+pub(super) fn synthesized_wav(
+    sound: StandbySound,
+    event: SoundEvent,
+    volume: u8,
+) -> Option<&'static [u8]> {
+    static WAVS: LazyLock<Mutex<HashMap<WavKey, &'static [u8]>>> = LazyLock::new(Mutex::default);
 
     let voice = Voice::of(sound)?;
-    let event_index = match event {
-        SoundEvent::Woke => 0,
-        SoundEvent::WakeFailed => 1,
-    };
-    let slot = &CACHE[voice.index() * EVENT_COUNT + event_index];
-    Some(slot.get_or_init(|| wav_bytes(voice, event)))
+    let volume = volume.clamp(MIN_STANDBY_VOLUME, MAX_STANDBY_VOLUME);
+    let key = (voice.index(), event_index(event), volume);
+    let mut wavs = WAVS.lock().unwrap_or_else(PoisonError::into_inner);
+    let wav = *wavs.entry(key).or_insert_with(|| {
+        let bytes = encode_wav(rendered(voice, event), gain_of(volume));
+        Box::leak(bytes.into_boxed_slice())
+    });
+    Some(wav)
 }
 
-fn wav_bytes(voice: Voice, event: SoundEvent) -> Vec<u8> {
-    encode_wav(&render(voice, event))
+fn event_index(event: SoundEvent) -> usize {
+    match event {
+        SoundEvent::Woke => 0,
+        SoundEvent::WakeFailed => 1,
+    }
+}
+
+/// The samples of `voice` for `event`, at full volume, built on first use.
+fn rendered(voice: Voice, event: SoundEvent) -> &'static [f64] {
+    static SAMPLES: [OnceLock<Vec<f64>>; SOUND_COUNT * EVENT_COUNT] =
+        [const { OnceLock::new() }; SOUND_COUNT * EVENT_COUNT];
+
+    SAMPLES[voice.index() * EVENT_COUNT + event_index(event)].get_or_init(|| render(voice, event))
+}
+
+/// The factor applied to the samples for `volume` percent. It is the square
+/// of the ratio, because loudness is perceived on a curve: half the
+/// percentage then sounds about half as loud.
+fn gain_of(volume: u8) -> f64 {
+    let ratio = f64::from(volume) / PERCENT;
+    ratio * ratio
 }
 
 fn render(voice: Voice, event: SoundEvent) -> Vec<f64> {
     let melody = melody(voice, event);
-    let seconds = note_seconds(voice);
     let [first_seed, second_seed] = pluck_seeds(event);
-    let first = note(voice, melody.first_hertz, seconds, first_seed);
-    let second = note(voice, melody.second_hertz, seconds, second_seed);
+    let first = note(voice, melody.first_hertz, first_seed);
+    let second = note(voice, melody.second_hertz, second_seed);
     let mixed = mix(&[first, second], melody.gap_seconds);
-    normalize(fade_out(mixed))
+    pad_with_silence(normalize(fade_out(trim_decayed(mixed))))
 }
 
-fn note(voice: Voice, hertz: f64, seconds: f64, seed: u64) -> Vec<f64> {
+fn note(voice: Voice, hertz: f64, seed: u64) -> Vec<f64> {
     match voice {
-        Voice::Chime => chime_note(hertz, seconds),
-        Voice::Marimba => marimba_note(hertz, seconds),
-        Voice::Pluck => pluck_note(hertz, seconds, seed),
+        Voice::Chime => chime_note(hertz, MAX_NOTE_SECONDS),
+        Voice::Marimba => marimba_note(hertz, MAX_NOTE_SECONDS),
+        Voice::Pluck => pluck_note(hertz, MAX_NOTE_SECONDS, seed),
     }
 }
 
@@ -182,7 +221,7 @@ fn chime_note(hertz: f64, length: f64) -> Vec<f64> {
                 .iter()
                 .map(|&(ratio, amplitude, decay)| {
                     amplitude
-                        * envelope(time, CHIME_ATTACK_SECONDS, length * decay)
+                        * envelope(time, CHIME_ATTACK_SECONDS, decay)
                         * (std::f64::consts::TAU * hertz * ratio * time).sin()
                 })
                 .sum()
@@ -293,6 +332,24 @@ fn index_to_u32(index: usize) -> u32 {
     u32::try_from(index).unwrap_or(u32::MAX)
 }
 
+/// Cuts the sound where it has decayed: shortly after its last sample louder
+/// than [`DECAYED_AMPLITUDE`] of its peak, leaving room for the end fade.
+fn trim_decayed(mut samples: Vec<f64>) -> Vec<f64> {
+    let threshold = peak_of(&samples) * DECAYED_AMPLITUDE;
+    let audible_length = samples
+        .iter()
+        .rposition(|value| value.abs() > threshold)
+        .map_or(0, |last_audible| last_audible + 1);
+    samples.truncate(audible_length + sample_count(END_FADE_SECONDS) as usize);
+    samples
+}
+
+fn pad_with_silence(mut samples: Vec<f64>) -> Vec<f64> {
+    let padded_length = samples.len() + sample_count(PLAYBACK_PADDING_SECONDS) as usize;
+    samples.resize(padded_length, 0.0);
+    samples
+}
+
 /// Brings the end of the sound down to silence, so that it does not click.
 fn fade_out(mut samples: Vec<f64>) -> Vec<f64> {
     let fade_length = sample_count(END_FADE_SECONDS) as usize;
@@ -304,10 +361,14 @@ fn fade_out(mut samples: Vec<f64>) -> Vec<f64> {
     samples
 }
 
-fn normalize(samples: Vec<f64>) -> Vec<f64> {
-    let peak = samples
+fn peak_of(samples: &[f64]) -> f64 {
+    samples
         .iter()
-        .fold(0.0_f64, |peak, value| peak.max(value.abs()));
+        .fold(0.0_f64, |peak, value| peak.max(value.abs()))
+}
+
+fn normalize(samples: Vec<f64>) -> Vec<f64> {
+    let peak = peak_of(&samples);
     if peak == 0.0 {
         return samples;
     }
@@ -322,7 +383,7 @@ fn to_pcm(value: f64) -> i16 {
     (value * FULL_SCALE) as i16
 }
 
-fn encode_wav(samples: &[f64]) -> Vec<u8> {
+fn encode_wav(samples: &[f64], gain: f64) -> Vec<u8> {
     let bytes_per_sample = BITS_PER_SAMPLE / 8;
     let data_bytes =
         u32::try_from(samples.len() * usize::from(bytes_per_sample)).unwrap_or(u32::MAX);
@@ -341,7 +402,7 @@ fn encode_wav(samples: &[f64]) -> Vec<u8> {
     wav.extend_from_slice(b"data");
     wav.extend_from_slice(&data_bytes.to_le_bytes());
     for sample in samples {
-        wav.extend_from_slice(&to_pcm(*sample).to_le_bytes());
+        wav.extend_from_slice(&to_pcm(sample * gain).to_le_bytes());
     }
     wav
 }
@@ -356,8 +417,18 @@ mod tests {
         StandbySound::Pluck,
     ];
 
+    const FULL_VOLUME: u8 = 100;
+
     fn wav(sound: StandbySound, event: SoundEvent) -> &'static [u8] {
-        synthesized_wav(sound, event).unwrap()
+        synthesized_wav(sound, event, FULL_VOLUME).unwrap()
+    }
+
+    fn peak_of_pcm(samples: &[i16]) -> i32 {
+        samples
+            .iter()
+            .map(|sample| i32::from(*sample).abs())
+            .max()
+            .unwrap()
     }
 
     fn samples(wav: &[u8]) -> Vec<i16> {
@@ -412,13 +483,113 @@ mod tests {
         );
     }
 
+    fn padding_samples() -> usize {
+        sample_count(PLAYBACK_PADDING_SECONDS) as usize
+    }
+
+    fn all_sounds() -> impl Iterator<Item = (StandbySound, SoundEvent)> {
+        SYNTHESIZED.into_iter().flat_map(|sound| {
+            [SoundEvent::Woke, SoundEvent::WakeFailed]
+                .into_iter()
+                .map(move |event| (sound, event))
+        })
+    }
+
     #[test]
-    fn should_last_the_gap_plus_one_note_when_synthesizing() {
-        let sample_total = samples(wav(StandbySound::Chime, SoundEvent::Woke)).len();
+    fn should_have_decayed_under_minus_50_db_when_the_end_fade_starts() {
+        for (sound, event) in all_sounds() {
+            let samples = samples(wav(sound, event));
+            let peak = f64::from(peak_of_pcm(&samples));
+            let sound_length = samples.len() - padding_samples();
+            let fade_start = sound_length - sample_count(END_FADE_SECONDS) as usize;
 
-        let expected = sample_count(0.13) as usize + sample_count(0.9) as usize + 1;
+            let loudest_in_fade = samples[fade_start..sound_length]
+                .iter()
+                .map(|sample| f64::from(*sample).abs())
+                .fold(0.0, f64::max);
 
-        assert_eq!(sample_total, expected);
+            assert!(
+                loudest_in_fade <= peak * DECAYED_AMPLITUDE,
+                "{sound:?} {event:?} is still at {loudest_in_fade} of {peak} when its fade starts"
+            );
+        }
+    }
+
+    #[test]
+    fn should_decay_before_the_cap_instead_of_being_cut_when_synthesizing() {
+        for (sound, event) in all_sounds() {
+            let sound_length = samples(wav(sound, event)).len() - padding_samples();
+
+            let cap = sample_count(MAX_NOTE_SECONDS) as usize;
+
+            assert!(
+                sound_length < cap,
+                "{sound:?} {event:?} lasts {sound_length} samples, the cap is {cap}"
+            );
+        }
+    }
+
+    #[test]
+    fn should_end_with_the_padding_silence_when_synthesizing() {
+        for (sound, event) in all_sounds() {
+            let samples = samples(wav(sound, event));
+
+            let tail = &samples[samples.len() - padding_samples()..];
+
+            assert!(
+                tail.iter().all(|sample| *sample == 0),
+                "{sound:?} {event:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn should_stay_under_the_cap_plus_the_gap_and_the_padding_when_synthesizing() {
+        for (sound, event) in all_sounds() {
+            let voice = Voice::of(sound).unwrap();
+            let longest = sample_count(MAX_NOTE_SECONDS + melody(voice, event).gap_seconds)
+                as usize
+                + padding_samples();
+
+            assert!(
+                samples(wav(sound, event)).len() <= longest,
+                "{sound:?} {event:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn should_play_at_the_square_of_the_ratio_when_the_volume_is_lowered() {
+        let full = peak_of_pcm(&samples(wav(StandbySound::Chime, SoundEvent::Woke)));
+
+        let half = peak_of_pcm(&samples(
+            synthesized_wav(StandbySound::Chime, SoundEvent::Woke, 50).unwrap(),
+        ));
+
+        assert!((half * 4 - full).abs() <= 4, "{half} {full}");
+    }
+
+    #[test]
+    fn should_bring_the_volume_into_its_range_when_it_is_out_of_it() {
+        let quietest = synthesized_wav(StandbySound::Pluck, SoundEvent::Woke, MIN_STANDBY_VOLUME);
+        let loudest = synthesized_wav(StandbySound::Pluck, SoundEvent::Woke, MAX_STANDBY_VOLUME);
+
+        assert_eq!(
+            (
+                synthesized_wav(StandbySound::Pluck, SoundEvent::Woke, 0),
+                synthesized_wav(StandbySound::Pluck, SoundEvent::Woke, u8::MAX),
+            ),
+            (quietest, loudest)
+        );
+    }
+
+    #[test]
+    fn should_share_one_buffer_per_volume_when_asked_twice() {
+        let first = synthesized_wav(StandbySound::Chime, SoundEvent::Woke, 35).unwrap();
+        let second = synthesized_wav(StandbySound::Chime, SoundEvent::Woke, 35).unwrap();
+        let other_volume = synthesized_wav(StandbySound::Chime, SoundEvent::Woke, 40).unwrap();
+
+        assert!(std::ptr::eq(first, second) && !std::ptr::eq(first, other_volume));
     }
 
     #[test]
@@ -454,11 +625,7 @@ mod tests {
     fn should_peak_near_half_scale_when_synthesizing() {
         for sound in SYNTHESIZED {
             for event in [SoundEvent::Woke, SoundEvent::WakeFailed] {
-                let peak = samples(wav(sound, event))
-                    .iter()
-                    .map(|sample| i32::from(*sample).abs())
-                    .max()
-                    .unwrap();
+                let peak = peak_of_pcm(&samples(wav(sound, event)));
 
                 assert!(
                     (16_200..=16_400).contains(&peak),
@@ -491,7 +658,7 @@ mod tests {
     #[test]
     fn should_not_synthesize_the_sound_of_the_system() {
         assert_eq!(
-            synthesized_wav(StandbySound::System, SoundEvent::Woke),
+            synthesized_wav(StandbySound::System, SoundEvent::Woke, FULL_VOLUME),
             None
         );
     }

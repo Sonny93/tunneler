@@ -82,8 +82,8 @@ impl SystemSoundPlayer {
 }
 
 impl SoundPlayer for SystemSoundPlayer {
-    fn play(&self, sound: StandbySound, event: SoundEvent) {
-        let is_started = match synthesized_wav(sound, event) {
+    fn play(&self, sound: StandbySound, event: SoundEvent, volume: u8) {
+        let is_started = match synthesized_wav(sound, event, volume) {
             Some(wav) => play_wav(wav),
             None => play_alias(sound_alias(event)),
         };

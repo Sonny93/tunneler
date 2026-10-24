@@ -52,6 +52,7 @@ standby = false                     # les tunnels locaux et dynamiques sont en v
 standby_idle_s = 300                # retour en veille après ce délai sans connexion
 standby_notify = "visual"           # none | visual | sound | both
 standby_sound = "pluck"             # system | chime | marimba | pluck
+standby_volume = 50                 # 5 à 100 (%), pour chime, marimba et pluck
 language = "system"                 # system | en | fr
 check_for_updates = true            # cherche une version plus récente à l'ouverture de la fenêtre
 
@@ -117,6 +118,7 @@ command = "code --wait"
 | `standby_idle_s` | entier | `300` | Secondes sans connexion avant qu'un tunnel retourne en veille. Supérieur à 0. |
 | `standby_notify` | `"none"`, `"visual"`, `"sound"` ou `"both"` | `"visual"` | Comment un réveil de veille, ou son échec, est signalé. |
 | `standby_sound` | `"system"`, `"chime"`, `"marimba"` ou `"pluck"` | `"pluck"` | Le son joué dans les modes `sound` et `both`. |
+| `standby_volume` | entier | `50` | Le volume des sons `chime`, `marimba` et `pluck`, en pourcentage, de 5 à 100. Le son `system` l'ignore et suit le volume du système. |
 | `language` | `"system"`, `"en"` ou `"fr"` | `"system"` | Langue de la fenêtre, de l'icône et des notifications. `system` suit le système d'exploitation. |
 | `check_for_updates` | booléen | `true` | Cherche une version plus récente à l'ouverture de la fenêtre. |
 

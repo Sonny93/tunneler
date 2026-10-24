@@ -27,6 +27,7 @@ export type UseSettingsValuesReturn = {
 	changeOpenDefault: (openDefault: OpenDefaultDto) => void;
 	changeStandbyNotify: (mode: StandbyNotifyDto) => void;
 	changeStandbySound: (sound: StandbySoundDto) => void;
+	changeStandbyVolume: (volume: number) => void;
 	changeLanguage: (language: LanguageSettingDto) => void;
 };
 
@@ -49,6 +50,8 @@ export function useSettingsValues(
 		setValues((current) => ({ ...current, standbyNotify }));
 	const changeStandbySound = (standbySound: StandbySoundDto) =>
 		setValues((current) => ({ ...current, standbySound }));
+	const changeStandbyVolume = (standbyVolume: number) =>
+		setValues((current) => ({ ...current, standbyVolume }));
 	const changeLanguage = (language: LanguageSettingDto) =>
 		setValues((current) => ({ ...current, language }));
 
@@ -61,6 +64,7 @@ export function useSettingsValues(
 		changeOpenDefault,
 		changeStandbyNotify,
 		changeStandbySound,
+		changeStandbyVolume,
 		changeLanguage,
 	};
 }

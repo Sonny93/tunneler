@@ -115,8 +115,8 @@ impl SystemSoundPlayer {
 }
 
 impl SoundPlayer for SystemSoundPlayer {
-    fn play(&self, sound: StandbySound, event: SoundEvent) {
-        if let Some(wav) = synthesized_wav(sound, event)
+    fn play(&self, sound: StandbySound, event: SoundEvent, volume: u8) {
+        if let Some(wav) = synthesized_wav(sound, event, volume)
             && Self::play_from_stdin(wav)
         {
             return;

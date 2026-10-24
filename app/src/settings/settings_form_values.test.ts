@@ -148,6 +148,22 @@ describe('settings round trip', () => {
 		expect(toSettings(values, settings).standbySound).toBe('marimba');
 	});
 
+	it('should apply the edited standby volume', () => {
+		const settings = buildSettings();
+		const values = {
+			...toSettingsFormValues(settings),
+			standbyVolume: 35,
+		};
+
+		expect(toSettings(values, settings).standbyVolume).toBe(35);
+	});
+
+	it('should show the saved standby volume', () => {
+		const values = toSettingsFormValues(buildSettings({ standbyVolume: 80 }));
+
+		expect(values.standbyVolume).toBe(80);
+	});
+
 	it('should apply the edited standby signal', () => {
 		const settings = buildSettings();
 		const values = {

@@ -55,7 +55,7 @@ It fits tunnels you keep configured but use now and then: no idle connection to 
 - Standby works for local and dynamic tunnels. A remote tunnel listens on the server, so it needs a session.
 - Turn it on for every tunnel with "Put tunnels on standby" in the settings, or per tunnel with the "Standby" choice in the tunnel's form: "General setting", "Yes" or "No". A change applies the next time the tunnel starts.
 - "Return to standby after (seconds)" sets the quiet time. The default is 300.
-- "Signal when leaving standby" chooses what happens when a tunnel wakes up or fails to: nothing, a silent notification, a sound, or both. The sound can be a chime, a marimba, a plucked string, or the system sound, and each has a preview button.
+- "Signal when leaving standby" chooses what happens when a tunnel wakes up or fails to: nothing, a silent notification, a sound, or both. The sound can be a chime, a marimba, a plucked string, or the system sound, and each has a preview button. A "Volume" slider (5 to 100 %, 50 % by default) sets how loud the chime, the marimba and the plucked string are; the preview plays at the slider's value before you save. The system sound has no slider: it follows the system volume.
 - A tunnel that woke up can be sent back to standby by hand, one at a time, by tag, or all at once: "Send to standby" in the menus, or "Send awake tunnels back to standby" in the tray menu.
 - Temporary tunnels never wait: they are an explicit request and start active.
 

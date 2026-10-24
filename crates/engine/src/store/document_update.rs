@@ -105,6 +105,10 @@ fn settings_entries(settings: &Settings) -> Vec<(&'static str, Value)> {
             "standby_sound",
             Value::from(settings.standby_sound.as_str()),
         ),
+        (
+            "standby_volume",
+            Value::from(i64::from(settings.standby_volume)),
+        ),
         ("language", Value::from(settings.language.as_str())),
         ("check_for_updates", Value::from(settings.check_for_updates)),
     ]
@@ -824,6 +828,16 @@ tags = []
         let updated = update("", &document);
 
         assert!(updated.contains("standby_sound = \"chime\""), "{updated}");
+    }
+
+    #[test]
+    fn should_write_the_standby_volume_setting_when_settings_are_written() {
+        let mut document = StoreDocument::default();
+        document.settings.standby_volume = 35;
+
+        let updated = update("", &document);
+
+        assert!(updated.contains("standby_volume = 35"), "{updated}");
     }
 
     #[test]

@@ -91,6 +91,7 @@ struct StoredSettings {
     standby_idle_s: Option<u64>,
     standby_notify: Option<StoredStandbyNotify>,
     standby_sound: Option<StoredStandbySound>,
+    standby_volume: Option<u8>,
     language: Option<StoredLanguage>,
     check_for_updates: Option<bool>,
 }
@@ -336,6 +337,7 @@ impl StoredSettings {
             standby_sound: self
                 .standby_sound
                 .map_or(defaults.standby_sound, StandbySound::from),
+            standby_volume: self.standby_volume.unwrap_or(defaults.standby_volume),
             language: self.language.map_or(defaults.language, Language::from),
             check_for_updates: self.check_for_updates.unwrap_or(defaults.check_for_updates),
         }
@@ -996,6 +998,20 @@ mod tests {
         let outcome = parse("version = 1\n").unwrap();
 
         assert_eq!(outcome.document.settings.standby_sound, StandbySound::Pluck);
+    }
+
+    #[test]
+    fn should_read_the_standby_volume_setting_when_it_is_given() {
+        let outcome = parse("[settings]\nstandby_volume = 80\n").unwrap();
+
+        assert_eq!(outcome.document.settings.standby_volume, 80);
+    }
+
+    #[test]
+    fn should_use_half_volume_when_the_standby_volume_setting_is_absent() {
+        let outcome = parse("version = 1\n").unwrap();
+
+        assert_eq!(outcome.document.settings.standby_volume, 50);
     }
 
     #[test]

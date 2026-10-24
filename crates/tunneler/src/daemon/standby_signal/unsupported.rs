@@ -15,5 +15,5 @@ impl DesktopNotifier for SystemNotifier {
 pub(crate) struct SystemSoundPlayer;
 
 impl SoundPlayer for SystemSoundPlayer {
-    fn play(&self, _sound: StandbySound, _event: SoundEvent) {}
+    fn play(&self, _sound: StandbySound, _event: SoundEvent, _volume: u8) {}
 }

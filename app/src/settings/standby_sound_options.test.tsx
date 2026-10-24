@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
@@ -16,7 +16,9 @@ function renderOptions(
 	props: {
 		value?: StandbySoundDto;
 		notifyMode?: StandbyNotifyDto;
+		volume?: number;
 		onChange?: (sound: StandbySoundDto) => void;
+		onVolumeChange?: (volume: number) => void;
 	} = {},
 	gateway = createFakeGateway()
 ) {
@@ -24,7 +26,9 @@ function renderOptions(
 		<StandbySoundOptions
 			value={props.value ?? 'pluck'}
 			notifyMode={props.notifyMode ?? 'both'}
+			volume={props.volume ?? 50}
 			onChange={props.onChange ?? vi.fn()}
+			onVolumeChange={props.onVolumeChange ?? vi.fn()}
 		/>,
 		gateway
 	);
@@ -82,7 +86,7 @@ describe('StandbySoundOptions', () => {
 			screen.getByRole('button', { name: 'Play the wake sound' })
 		);
 
-		expect(gateway.previewSound).toHaveBeenCalledWith('chime', 'woke');
+		expect(gateway.previewSound).toHaveBeenCalledWith('chime', 'woke', 50);
 	});
 
 	it('should preview the selected sound for the failure when asked', async () => {
@@ -92,7 +96,81 @@ describe('StandbySoundOptions', () => {
 			screen.getByRole('button', { name: 'Play the failure sound' })
 		);
 
-		expect(gateway.previewSound).toHaveBeenCalledWith('system', 'wakeFailed');
+		expect(gateway.previewSound).toHaveBeenCalledWith(
+			'system',
+			'wakeFailed',
+			50
+		);
+	});
+
+	it('should show the volume as a labelled slider with its percentage', () => {
+		renderOptions({ volume: 35 });
+
+		const slider = screen.getByRole('slider', { name: 'Volume' });
+		expect(slider).toHaveValue('35');
+		expect(slider).toHaveAttribute('aria-valuetext', '35 %');
+		expect(slider).toHaveAttribute('min', '5');
+		expect(slider).toHaveAttribute('max', '100');
+		expect(slider).toHaveAttribute('step', '5');
+		expect(screen.getByText('35 %')).toBeInTheDocument();
+	});
+
+	it('should report the volume when the slider moves', () => {
+		const onVolumeChange = vi.fn();
+		renderOptions({ volume: 50, onVolumeChange });
+
+		fireEvent.change(screen.getByRole('slider', { name: 'Volume' }), {
+			target: { value: '75' },
+		});
+
+		expect(onVolumeChange).toHaveBeenCalledWith(75);
+	});
+
+	it.each<StandbyNotifyDto>(['none', 'visual'])(
+		'should disable the volume when the signal is %s',
+		(notifyMode) => {
+			renderOptions({ notifyMode });
+
+			expect(screen.getByRole('slider', { name: 'Volume' })).toBeDisabled();
+		}
+	);
+
+	it.each<StandbyNotifyDto>(['sound', 'both'])(
+		'should enable the volume when the signal is %s',
+		(notifyMode) => {
+			renderOptions({ notifyMode });
+
+			expect(screen.getByRole('slider', { name: 'Volume' })).toBeEnabled();
+		}
+	);
+
+	it('should preview at the draft volume when asked', async () => {
+		const { gateway } = renderOptions({ value: 'marimba', volume: 25 });
+
+		await userEvent.click(
+			screen.getByRole('button', { name: 'Play the wake sound' })
+		);
+
+		expect(gateway.previewSound).toHaveBeenCalledWith('marimba', 'woke', 25);
+	});
+
+	it('should replace the volume with a hint when the sound is the system one', () => {
+		renderOptions({ value: 'system' });
+
+		expect(
+			screen.queryByRole('slider', { name: 'Volume' })
+		).not.toBeInTheDocument();
+		expect(
+			screen.getByRole('combobox', { name: 'Sound' })
+		).toHaveAccessibleDescription(
+			'The system sound follows the system volume.'
+		);
+	});
+
+	it('should have no axe violations with the system sound', async () => {
+		const { container } = renderOptions({ value: 'system' });
+
+		expect(await axe(container)).toHaveNoViolations();
 	});
 
 	it('should toast an error when the preview fails', async () => {

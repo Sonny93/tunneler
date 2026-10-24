@@ -30,6 +30,7 @@ export type SettingsFormValues = {
 	standbyIdleSeconds: string;
 	standbyNotify: StandbyNotifyDto;
 	standbySound: StandbySoundDto;
+	standbyVolume: number;
 	language: LanguageSettingDto;
 	checkForUpdates: boolean;
 };
@@ -72,6 +73,7 @@ export function toSettingsFormValues(
 		standbyIdleSeconds: String(settings.standbyIdleS),
 		standbyNotify: settings.standbyNotify,
 		standbySound: settings.standbySound,
+		standbyVolume: settings.standbyVolume,
 		language: settings.language,
 		checkForUpdates: settings.checkForUpdates,
 	};
@@ -105,6 +107,7 @@ export function toSettings(
 		standbyIdleS: Number(values.standbyIdleSeconds.trim()),
 		standbyNotify: values.standbyNotify,
 		standbySound: values.standbySound,
+		standbyVolume: values.standbyVolume,
 		language: values.language,
 		checkForUpdates: values.checkForUpdates,
 	};

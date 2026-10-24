@@ -416,6 +416,7 @@ pub(crate) fn settings_to_dto(settings: &Settings) -> SettingsDto {
         standby_idle_s: settings.standby_idle.as_secs(),
         standby_notify: standby_notify_to_dto(settings.standby_notify),
         standby_sound: standby_sound_to_dto(settings.standby_sound),
+        standby_volume: settings.standby_volume,
         language: language_to_dto(settings.language),
         check_for_updates: settings.check_for_updates,
     }
@@ -441,6 +442,7 @@ pub(crate) fn settings_from_dto(dto: SettingsDto) -> Settings {
         standby_idle: Duration::from_secs(dto.standby_idle_s),
         standby_notify: standby_notify_from_dto(dto.standby_notify),
         standby_sound: standby_sound_from_dto(dto.standby_sound),
+        standby_volume: dto.standby_volume,
         language: language_from_dto(dto.language),
         check_for_updates: dto.check_for_updates,
     }
@@ -967,6 +969,7 @@ mod tests {
             standby_idle: Duration::from_secs(90),
             standby_notify: StandbyNotify::Both,
             standby_sound: StandbySound::Marimba,
+            standby_volume: 35,
             language: Language::French,
             check_for_updates: false,
             ..Settings::default()

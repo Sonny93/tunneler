@@ -55,7 +55,7 @@ C'est adapté aux tunnels que vous gardez configurés mais que vous utilisez de 
 - La veille s'applique aux tunnels locaux et dynamiques. Un tunnel distant écoute sur le serveur : il a besoin d'une session.
 - Activez-la pour tous les tunnels avec « Mettre les tunnels en veille » dans les paramètres, ou tunnel par tunnel avec le choix « Veille » du formulaire : « Réglage général », « Oui » ou « Non ». Un changement s'applique au prochain démarrage du tunnel.
 - « Retour en veille après (secondes) » règle le temps de calme. La valeur par défaut est 300.
-- « Signal à la sortie de veille » choisit ce qui se passe quand un tunnel se réveille ou n'y arrive pas : rien, une notification silencieuse, un son, ou les deux. Le son peut être un carillon, un marimba, une corde pincée ou le son du système, chacun avec un bouton d'écoute.
+- « Signal à la sortie de veille » choisit ce qui se passe quand un tunnel se réveille ou n'y arrive pas : rien, une notification silencieuse, un son, ou les deux. Le son peut être un carillon, un marimba, une corde pincée ou le son du système, chacun avec un bouton d'écoute. Un curseur « Volume » (de 5 à 100 %, 50 % par défaut) règle le volume du carillon, du marimba et de la corde pincée ; l'écoute joue à la valeur du curseur avant l'enregistrement. Le son du système n'a pas de curseur : il suit le volume du système.
 - Un tunnel réveillé peut être remis en veille à la main, un par un, par tag ou tous à la fois : « Mettre en veille » dans les menus, ou « Mettre en veille les tunnels réveillés » dans le menu de l'icône.
 - Les tunnels temporaires n'attendent jamais : c'est une demande explicite, ils démarrent actifs.
 

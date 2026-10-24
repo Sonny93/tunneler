@@ -3,7 +3,7 @@
 //! [`spawn_standby_signal_follower`] listens to the engine events
 //! `TunnelWoke` and `TunnelWakeFailed` and, according to
 //! `settings.standby_notify`, shows a silent desktop notification, plays the
-//! sound of `settings.standby_sound`, or both. The sound is played by the
+//! sound of `settings.standby_sound` at `settings.standby_volume`, or both. The sound is played by the
 //! daemon itself, so it stays audible when the system notifications are turned
 //! off; the notification is therefore always silent. Failures to signal are
 //! logged, never fatal.
@@ -59,8 +59,10 @@ pub(crate) trait DesktopNotifier: Send + Sync {
 
 /// Plays a short sound without waiting for it to end.
 pub(crate) trait SoundPlayer: Send + Sync {
-    /// Starts `sound` for `event`. A failure is logged by the implementation.
-    fn play(&self, sound: StandbySound, event: SoundEvent);
+    /// Starts `sound` for `event` at `volume` percent. The sound of the
+    /// system ignores the volume and follows the system one. A failure is
+    /// logged by the implementation.
+    fn play(&self, sound: StandbySound, event: SoundEvent, volume: u8);
 }
 
 /// The settings that decide how an occurrence is signalled.
@@ -70,6 +72,8 @@ pub(crate) struct StandbyPreferences {
     pub(crate) notify: StandbyNotify,
     /// The sound played when the signals include one.
     pub(crate) sound: StandbySound,
+    /// The volume of the synthesized sounds, in percent.
+    pub(crate) volume: u8,
     /// The language of the notification.
     pub(crate) language: DisplayLanguage,
 }
@@ -201,7 +205,8 @@ impl StandbySignals {
             return;
         }
         if let Some(event) = signal.sound {
-            self.sound_player.play(preferences.sound, event);
+            self.sound_player
+                .play(preferences.sound, event, preferences.volume);
         }
         if signal.shows_notification {
             let (summary, body) = occurrence.text(preferences.language);
@@ -288,6 +293,7 @@ mod tests {
         StandbyPreferences {
             notify,
             sound: StandbySound::Pluck,
+            volume: 50,
             language: DisplayLanguage::English,
         }
     }
@@ -475,7 +481,7 @@ mod tests {
 
         assert_eq!(
             *fixture.sound_player.played.lock().unwrap(),
-            vec![(StandbySound::Pluck, SoundEvent::WakeFailed)]
+            vec![(StandbySound::Pluck, SoundEvent::WakeFailed, 50)]
         );
     }
 
@@ -489,6 +495,7 @@ mod tests {
                 StandbyPreferences {
                     notify: StandbyNotify::Sound,
                     sound: StandbySound::Marimba,
+                    volume: 50,
                     language: DisplayLanguage::English,
                 },
                 &woke(TunnelId::generate()),
@@ -498,7 +505,7 @@ mod tests {
 
         assert_eq!(
             *fixture.sound_player.played.lock().unwrap(),
-            vec![(StandbySound::Marimba, SoundEvent::Woke)]
+            vec![(StandbySound::Marimba, SoundEvent::Woke, 50)]
         );
     }
 

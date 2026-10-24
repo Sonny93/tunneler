@@ -1,5 +1,5 @@
 import { ModalProvider } from '@minimalstuff/ui';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
@@ -429,8 +429,36 @@ describe('SettingsDialog', () => {
 			screen.getByRole('button', { name: 'Play the wake sound' })
 		);
 
-		expect(gateway.previewSound).toHaveBeenCalledWith('chime', 'woke');
+		expect(gateway.previewSound).toHaveBeenCalledWith('chime', 'woke', 50);
 		expect(gateway.updateSettings).not.toHaveBeenCalled();
+	});
+
+	it('should preview at the unsaved volume and save it', async () => {
+		const settings = buildSettings({ standbyNotify: 'sound' });
+		openSettings(settings, 'standby');
+		const user = userEvent.setup();
+		const { gateway } = await renderDialog();
+
+		fireEvent.change(screen.getByRole('slider', { name: 'Volume' }), {
+			target: { value: '30' },
+		});
+		await user.click(
+			screen.getByRole('button', { name: 'Play the failure sound' })
+		);
+
+		expect(gateway.previewSound).toHaveBeenCalledWith(
+			'pluck',
+			'wakeFailed',
+			30
+		);
+		expect(gateway.updateSettings).not.toHaveBeenCalled();
+
+		await clickSave(user);
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith(
+			{ ...settings, standbyVolume: 30 },
+			[]
+		);
 	});
 
 	it('should describe the X11 display field', async () => {

@@ -519,6 +519,7 @@ mod tests {
             standby_idle_s: 300,
             standby_notify: ipc::protocol::StandbyNotifyDto::Visual,
             standby_sound: ipc::protocol::StandbySoundDto::Pluck,
+            standby_volume: 50,
             language: ipc::protocol::LanguageDto::System,
             check_for_updates: true,
         }

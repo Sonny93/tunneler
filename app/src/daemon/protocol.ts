@@ -173,6 +173,8 @@ export type SettingsDto = {
 	standbyIdleS: number;
 	standbyNotify: StandbyNotifyDto;
 	standbySound: StandbySoundDto;
+	/** Percent of the synthesized sounds; the system sound follows the system volume. */
+	standbyVolume: number;
 	language: LanguageSettingDto;
 	checkForUpdates: boolean;
 };

@@ -222,6 +222,7 @@ fn start_standby_signals(engine: &Engine, shutdown: CancellationToken) -> JoinHa
                 StandbyPreferences {
                     notify: settings.standby_notify,
                     sound: settings.standby_sound,
+                    volume: settings.standby_volume,
                     language: DisplayLanguage::current(settings.language),
                 }
             }

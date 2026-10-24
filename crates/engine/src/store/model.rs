@@ -16,6 +16,11 @@ const DEFAULT_SESSION_IDLE_GRACE: Duration = Duration::from_secs(30);
 const DEFAULT_RECONNECT_INITIAL_DELAY: Duration = Duration::from_millis(1000);
 const DEFAULT_RECONNECT_MAX_DELAY: Duration = Duration::from_millis(60_000);
 const DEFAULT_STANDBY_IDLE: Duration = Duration::from_secs(300);
+/// The quietest volume of the sounds of the daemon, in percent.
+pub const MIN_STANDBY_VOLUME: u8 = 5;
+/// The loudest volume of the sounds of the daemon, in percent.
+pub const MAX_STANDBY_VOLUME: u8 = 100;
+const DEFAULT_STANDBY_VOLUME: u8 = 50;
 
 /// The identifier of a tunnel: a ULID, stable across edits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -373,6 +378,10 @@ pub struct Settings {
     pub standby_notify: StandbyNotify,
     /// The sound played when a wake-up, or its failure, is signalled by sound.
     pub standby_sound: StandbySound,
+    /// The volume of the synthesized sounds, in percent between
+    /// [`MIN_STANDBY_VOLUME`] and [`MAX_STANDBY_VOLUME`]. The sound of the
+    /// system follows the system volume instead.
+    pub standby_volume: u8,
     /// The language of the UI, the tray and the notifications.
     pub language: Language,
     /// Whether the UI looks for a newer release when it opens.
@@ -400,6 +409,7 @@ impl Default for Settings {
             standby_idle: DEFAULT_STANDBY_IDLE,
             standby_notify: StandbyNotify::default(),
             standby_sound: StandbySound::default(),
+            standby_volume: DEFAULT_STANDBY_VOLUME,
             language: Language::default(),
             check_for_updates: true,
         }
