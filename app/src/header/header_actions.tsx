@@ -42,11 +42,13 @@ export function HeaderActions() {
 				</Button>
 				<Menu
 					align="end"
+					className="flex"
 					trigger={
 						<IconButton
 							icon="i-mdi-chevron-down"
 							aria-label={t`Other ways to create a tunnel`}
-							tooltip
+							variant="solid"
+							color="primary"
 							className="relative rounded-l-none border-l border-l-white/40 focus-visible:z-10"
 						/>
 					}

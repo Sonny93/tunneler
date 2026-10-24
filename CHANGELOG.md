@@ -4,6 +4,11 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Fixed
+
+- The header and the tunnel list no longer scroll away together: the header stays in place, and the sidebar and the list scroll on their own.
+- The chevron next to "New tunnel" now has the same height and colour as the button.
+
 ## [0.2.0] - 2026-10-24
 
 ### Added
