@@ -166,6 +166,7 @@ jobs:
         with:
           path: packages
           merge-multiple: true
+          skip-decompress: true
       - name: Write the update manifest
         working-directory: packages
         run: |
