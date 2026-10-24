@@ -104,21 +104,20 @@ Les versions sont créées avec [release-it](https://github.com/release-it/relea
 
 ```sh
 cd app
-GITHUB_TOKEN=$(gh auth token) pnpm release              # interactif, incrément recommandé
-GITHUB_TOKEN=$(gh auth token) pnpm release --dry-run    # aperçu seulement
 GITHUB_TOKEN=$(gh auth token) pnpm release minor        # ou `patch`, ou une version explicite
+GITHUB_TOKEN=$(gh auth token) pnpm release minor --dry-run    # aperçu seulement
 ```
 
-L'incrément vient des Conventional Commits depuis le dernier tag et reste en 0.x : un changement incompatible incrémente la version mineure, tout le reste la version de correctif. release-it :
+Choisissez vous-même l'incrément, en restant en 0.x : `minor` quand la version casse la compatibilité (par exemple une nouvelle version du protocole entre l'interface et le daemon), `patch` sinon.
+
+`CHANGELOG.md` est écrit à la main pour les personnes qui utilisent Tunneler, au format [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) : chaque changement visible ajoute une ligne sous `## [Unreleased]` dans le même changement (Added, Changed, Fixed, Removed, Security). Relisez cette section avant de publier. release-it :
 
 1. met à jour la version dans le `Cargo.toml` racine (`[workspace.package]`), `app/src-tauri/tauri.conf.json` et `app/package.json`, et rafraîchit `Cargo.lock` ;
-2. écrit `CHANGELOG.md` ;
+2. transforme `## [Unreleased]` de `CHANGELOG.md` en la nouvelle version, avec sa date et son lien, et ajoute au-dessus une section `## [Unreleased]` vide ;
 3. commite `chore(release): vX.Y.Z`, pose le tag et pousse ;
-4. crée une version GitHub en brouillon, avec le changelog comme notes.
+4. crée une version GitHub en brouillon dont les notes sont la section de cette version. Le workflow les recopie dans `latest.json`, et l'application les affiche donc dans son avis de mise à jour.
 
 Le tag déclenche le workflow `release`. Il vérifie que les trois versions et le tag concordent, construit l'installeur et le zip Windows ainsi que le `.deb`, le tar.gz et l'AppImage Linux, et écrit `latest.json`, le manifeste de mise à jour avec les signatures de l'installeur et de l'AppImage. Il joint ensuite le tout, avec un fichier `SHA256SUMS`, à la version en brouillon et la publie. Un lancement manuel (`workflow_dispatch`) construit les mêmes paquets comme artefacts du run, sans publier.
-
-Pour la première version, taguez le 0.1.0 existant tel quel : `GITHUB_TOKEN=$(gh auth token) pnpm release --no-increment`.
 
 ### Clé de signature
 

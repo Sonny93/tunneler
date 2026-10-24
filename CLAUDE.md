@@ -8,6 +8,7 @@ SSH tunnel manager: Rust daemon (embedded `russh` client, tray, IPC) + on-demand
 - [`docs/roadmap/index.md`](docs/roadmap/index.md): what is shipped, what is next, what needs testing, known limitations. Update it as work lands: move items from Next to Shipped, keep Needs testing and Known limitations current.
 - [`docs/contributing/accessibility.md`](docs/contributing/accessibility.md): the accessibility rules. They are part of "done" for every UI/CLI task, not a later polish pass.
 - Every docs page exists in English and in French (`docs/fr/` mirrors `docs/`): update both in the same change.
+- [`CHANGELOG.md`](CHANGELOG.md): hand-written for users ([Keep a Changelog](https://keepachangelog.com/en/1.1.0/), English). Every user-visible change adds a line under `## [Unreleased]` in the same change; release-it turns that section into the release notes, which the app shows in its update notice.
 
 ## Commands
 

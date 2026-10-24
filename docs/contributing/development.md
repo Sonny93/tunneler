@@ -104,21 +104,20 @@ Releases are cut with [release-it](https://github.com/release-it/release-it) fro
 
 ```sh
 cd app
-GITHUB_TOKEN=$(gh auth token) pnpm release              # interactive, recommended bump
-GITHUB_TOKEN=$(gh auth token) pnpm release --dry-run    # preview only
 GITHUB_TOKEN=$(gh auth token) pnpm release minor        # or `patch`, or an explicit version
+GITHUB_TOKEN=$(gh auth token) pnpm release minor --dry-run    # preview only
 ```
 
-The bump comes from the Conventional Commits since the last tag and stays in 0.x: a breaking change bumps the minor version, everything else bumps the patch version. release-it then:
+Pick the increment yourself, staying in 0.x: `minor` when the release breaks compatibility (for example a new protocol version between the UI and the daemon), `patch` otherwise.
+
+`CHANGELOG.md` is written by hand for the people who use Tunneler, in the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format: every user-visible change adds a line under `## [Unreleased]` in the same change (Added, Changed, Fixed, Removed, Security). Check that section before releasing. release-it then:
 
 1. bumps the version in the root `Cargo.toml` (`[workspace.package]`), `app/src-tauri/tauri.conf.json` and `app/package.json`, and refreshes `Cargo.lock`;
-2. writes `CHANGELOG.md`;
+2. turns `## [Unreleased]` in `CHANGELOG.md` into the new version with its date and link, and adds an empty `## [Unreleased]` above it;
 3. commits `chore(release): vX.Y.Z`, tags it and pushes;
-4. creates a draft GitHub release with the changelog as notes.
+4. creates a draft GitHub release whose notes are that version's section. The workflow copies them into `latest.json`, so the app shows them in its update notice.
 
 The tag triggers the `release` workflow. It checks that the three versions and the tag agree, builds the Windows installer and zip and the Linux `.deb`, tar.gz and AppImage, and writes `latest.json`, the update manifest with the signatures of the installer and the AppImage. It then attaches everything with a `SHA256SUMS` file to the draft release and publishes it. A manual run (`workflow_dispatch`) builds the same packages as run artifacts without releasing.
-
-For the first release, tag the existing 0.1.0 as it is: `GITHUB_TOKEN=$(gh auth token) pnpm release --no-increment`.
 
 ### Signing key
 

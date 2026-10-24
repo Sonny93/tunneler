@@ -37,7 +37,7 @@
 		"@lingui/vite-plugin": "^6.10.0",
 		"@minimalstuff/tooling": "^0.7.0",
 		"@release-it/bumper": "^8.0.1",
-		"@release-it/conventional-changelog": "^12.0.2",
+		"@release-it/keep-a-changelog": "^8.0.1",
 		"@tauri-apps/cli": "^2.12.3",
 		"@testing-library/dom": "^10.4.2",
 		"@testing-library/jest-dom": "^7.0.1",
