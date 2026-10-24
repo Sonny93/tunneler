@@ -10,16 +10,16 @@ use ipc::protocol::{
     ForgetSecretsResult, Hello, HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent,
     HostKeyResponseParams, HostOptionDto, HostParams, HostsResult, ImportCandidateDto,
     ImportPreviewDto, ImportScriptParams, ImportWarningDto, IpcError, LogEntryDto, LogLevelDto,
-    MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, OpenHostDto, OpenOptionsDto,
-    OpenSchemeDto, OpenTunnelParams, OpenTunnelResult, OpenerSourceDto, OpenerSpecDto,
-    OpenersResult, PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent,
-    QuitParams, RememberDto, RenameTagResult, Request, RequestEnvelope, ResolvedHostDto,
-    ResponsePayload, Secret, ServerFrame, SettingsDto, SettingsUpdateParams, SnapshotDto,
-    TagParams, TagRenameParams, TargetHealthDto, TemporaryTunnelSpecDto, TrayChangedEvent,
-    TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelIdParams,
-    TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto,
-    UiClaimResult, X11AnchorDto, X11ChangedEvent, X11HostParams, X11LaunchParams, X11LauncherDto,
-    X11StateDto, encode_event, encode_response,
+    MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, OpenDefaultDto, OpenHostDto,
+    OpenOptionsDto, OpenSchemeDto, OpenTunnelParams, OpenTunnelResult, OpenerSourceDto,
+    OpenerSpecDto, OpenersResult, PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto,
+    PromptResolvedEvent, QuitParams, RememberDto, RenameTagResult, Request, RequestEnvelope,
+    ResolvedHostDto, ResponsePayload, Secret, ServerFrame, SettingsDto, SettingsUpdateParams,
+    SnapshotDto, TagParams, TagRenameParams, TargetHealthDto, TemporaryTunnelSpecDto,
+    TrayChangedEvent, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
+    TunnelIdParams, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto,
+    TunnelStateDto, UiClaimResult, X11AnchorDto, X11ChangedEvent, X11HostParams, X11LaunchParams,
+    X11LauncherDto, X11StateDto, encode_event, encode_response,
 };
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -62,6 +62,7 @@ fn settings() -> SettingsDto {
         use_os_keyring: false,
         x11_display: None,
         open_host: OpenHostDto::Localhost,
+        open_default: OpenDefaultDto::Suggested,
         standby: false,
         standby_idle_s: 300,
         standby_notify: ipc::protocol::StandbyNotifyDto::Visual,
@@ -442,6 +443,16 @@ fn should_deserialize_a_tunnel_spec_without_open_options_as_having_none_and_with
 }
 
 #[test]
+fn should_deserialize_settings_without_open_default_as_suggested() {
+    let mut value = to_json(&settings());
+    value.as_object_mut().unwrap().remove("openDefault");
+
+    let parsed: SettingsDto = serde_json::from_value(value).unwrap();
+
+    assert_eq!(parsed.open_default, OpenDefaultDto::Suggested);
+}
+
+#[test]
 fn should_deserialize_settings_without_open_host_as_localhost() {
     let mut value = to_json(&settings());
     value.as_object_mut().unwrap().remove("openHost");
@@ -509,7 +520,7 @@ fn should_serialize_settings_update_as_documented() {
 
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
-        r#"{"id":8,"method":"settings.update","params":{"settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","language":"system","checkForUpdates":true},"openers":[{"id":"dbeaver","name":"DBeaver","command":"dbeaver","args":["-con","host={host}"],"ports":[5432]}]}}"#
+        r#"{"id":8,"method":"settings.update","params":{"settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","language":"system","checkForUpdates":true},"openers":[{"id":"dbeaver","name":"DBeaver","command":"dbeaver","args":["-con","host={host}"],"ports":[5432]}]}}"#
     );
 }
 
@@ -1203,7 +1214,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isAwake":false,"isTemporary":false,"defaultOpener":{"id":"browser","name":"Browser"}}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","language":"system","checkForUpdates":true},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","language":"system","checkForUpdates":true},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
             "\n"
         )
     );

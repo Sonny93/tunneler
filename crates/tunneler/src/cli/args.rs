@@ -71,7 +71,8 @@ Examples:
 
 A tunnel opens with its saved application (`open.with`), else the application
 suggested for its target port (Remmina, a VNC or RDP viewer...), else the
-browser. `--with` overrides it; an unknown id lists the available ones.
+browser. The `open_default` setting set to `browser` skips the suggestion.
+`--with` overrides it; an unknown id lists the available ones.
 A stopped tunnel is started first. The address follows the tunnel's `open`
 options (scheme, path, host) and the `open_host` setting.";
 

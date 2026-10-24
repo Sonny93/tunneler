@@ -514,6 +514,7 @@ mod tests {
             use_os_keyring: false,
             x11_display: None,
             open_host: ipc::protocol::OpenHostDto::Localhost,
+            open_default: ipc::protocol::OpenDefaultDto::Suggested,
             standby: false,
             standby_idle_s: 300,
             standby_notify: ipc::protocol::StandbyNotifyDto::Visual,

@@ -3,6 +3,7 @@ import { msg } from '@lingui/core/macro';
 
 import type {
 	AvailableOpenerDto,
+	OpenDefaultDto,
 	OpenHostDto,
 	SettingsDto,
 } from '#/daemon/protocol';
@@ -94,10 +95,13 @@ function describeCommand(
 
 function findChosenOpener(
 	values: Readonly<TunnelFormValues>,
-	openers: readonly Readonly<AvailableOpenerDto>[]
+	openers: readonly Readonly<AvailableOpenerDto>[],
+	openDefault: OpenDefaultDto
 ): Readonly<AvailableOpenerDto> | null {
 	if (values.openWith === BROWSER_OPENER_ID) return null;
-	if (values.openWith === '') return suggestOpener(values, openers);
+	if (values.openWith === '') {
+		return suggestOpener(values, openers, openDefault);
+	}
 	return openers.find(({ id }) => id === values.openWith) ?? null;
 }
 
@@ -119,7 +123,11 @@ export function buildOpenPreview(
 			msg`The listen address is a host name: the tunnel can't be opened.`
 		);
 	}
-	const opener = findChosenOpener(values, openers);
+	const opener = findChosenOpener(
+		values,
+		openers,
+		settings?.openDefault ?? 'suggested'
+	);
 	if (opener === null) {
 		const { url } = address;
 		return i18n._(msg`Opens ${url}`);

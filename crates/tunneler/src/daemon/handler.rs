@@ -473,11 +473,14 @@ impl DaemonHandler {
     fn tunnel_response(&self, id: TunnelId) -> Result<ResponsePayload, IpcError> {
         let snapshot = self.engine.snapshot();
         let openers = snapshot.openers;
+        let open_default = snapshot.settings.open_default;
         snapshot
             .tunnels
             .iter()
             .find(|snapshot| snapshot.definition.id == id)
-            .map(|snapshot| ResponsePayload::Tunnel(tunnel_to_dto(snapshot, &openers)))
+            .map(|snapshot| {
+                ResponsePayload::Tunnel(tunnel_to_dto(snapshot, &openers, open_default))
+            })
             .ok_or_else(|| {
                 IpcError::internal(format!("the tunnel {id} vanished after being saved"))
             })

@@ -12,8 +12,10 @@ export const SettingsOpeningTab = ({
 }: Readonly<SettingsOpeningTabProps>) => (
 	<SettingsTabContent>
 		<SettingsOpenFieldset
-			value={form.values.openHost}
-			onChange={form.changeOpenHost}
+			host={form.values.openHost}
+			onHostChange={form.changeOpenHost}
+			openDefault={form.values.openDefault}
+			onOpenDefaultChange={form.changeOpenDefault}
 		/>
 		<ApplicationsSection draft={form.openers} />
 	</SettingsTabContent>

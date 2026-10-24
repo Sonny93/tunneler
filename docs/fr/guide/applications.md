@@ -10,10 +10,12 @@ Quand vous ouvrez un tunnel, Tunneler prend le premier de ces choix qui s'appliq
 
 1. Ce que vous avez demandé : « Ouvrir avec… » dans un menu, une commande de la palette, ou `--with` en ligne de commande.
 2. L'application enregistrée dans le formulaire du tunnel, sous « Ouverture » › « Application ».
-3. La première application disponible dont les ports suggérés contiennent le **port cible** du tunnel.
+3. La première application disponible dont les ports suggérés contiennent le **port cible** du tunnel, sauf si le réglage « Tunnels sans application » est sur « Toujours le navigateur ».
 4. Le navigateur.
 
 L'étape 3 regarde le port cible, pas le port d'écoute. Un tunnel qui écoute sur `5999` et atteint le port `5901` de `nova` est un tunnel VNC : un client VNC lui est suggéré. Vos applications passent avant celles qui sont intégrées. Les applications intégrées suivent l'ordre des tableaux ci-dessous.
+
+Pour sauter l'étape 3 pour tous les tunnels, ouvrez « Paramètres » › « Ouverture » et réglez « Tunnels sans application » sur « Toujours le navigateur ». Un tunnel sans application enregistrée s'ouvre alors dans le navigateur, et le menu et le double-clic l'indiquent. L'application enregistrée dans un tunnel, et ce que vous demandez explicitement, passent toujours avant. Le choix par défaut, « Application suggérée », conserve l'étape 3.
 
 Les applications intégrées suggèrent ces ports :
 
@@ -24,7 +26,7 @@ Les applications intégrées suggèrent ces ports :
 
 Le programme est lancé avec `{host}` et `{port}` qui désignent le côté **écoute** du tunnel. `{port}` est le port local, `5999` dans l'exemple. `{host}` vaut `localhost`, ou `127.0.0.1` quand vous avez choisi l'adresse IP sous « Ouverture » dans les paramètres ou dans le formulaire du tunnel. Un tunnel qui écoute sur une adresse IP précise utilise cette adresse.
 
-Dans le menu du tunnel, l'action d'ouverture dit ce qui va se passer : « Ouvrir dans le navigateur » ou « Ouvrir avec TigerVNC ». « Ouvrir avec… » liste les autres, et la palette de commandes a une commande par application.
+Dans le menu du tunnel, l'action d'ouverture dit ce qui va se passer : « Ouvrir dans le navigateur » ou « Ouvrir avec TigerVNC ». « Ouvrir avec… » liste les autres, et la palette de commandes a une commande par application. Un double-clic sur un tunnel local démarré dans la liste fait la même chose que l'action d'ouverture principale, avec le même choix par défaut. Un double-clic sur un tunnel arrêté ne fait rien : démarrez-le d'abord avec son interrupteur. Un double-clic sur un contrôle de la ligne (interrupteur, case à cocher, bouton de menu) ne fait que ce que fait le contrôle.
 
 ## Applications intégrées
 

@@ -648,7 +648,8 @@ impl Engine {
     /// How to open the tunnel: the URL for the browser, or the command line
     /// of an opener. `with` picks the opener (`browser` or an id) and wins
     /// over the choice saved in the tunnel; without either, the suggestion for
-    /// the target port applies, else the browser. Only a local tunnel can be
+    /// the target port applies (unless `Settings::open_default` is the
+    /// browser), else the browser. Only a local tunnel can be
     /// opened.
     pub fn open_plan(&self, id: TunnelId, with: Option<&str>) -> Result<OpenPlan, EngineError> {
         self.ensure_running()?;
@@ -659,7 +660,7 @@ impl Engine {
         let settings = self.inner.settings.borrow().clone();
         let address = build_open_address(&definition, &settings)?;
         let openers = self.snapshot().openers;
-        let opener = match choose_action(&definition, with, &openers)? {
+        let opener = match choose_action(&definition, with, &openers, settings.open_default)? {
             OpenAction::Browser => None,
             OpenAction::Program(available) => Some(&available.opener),
         };

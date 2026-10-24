@@ -1,12 +1,13 @@
 import { useLingui } from '@lingui/react/macro';
 import { Checkbox, ContextMenu, Switch } from '@minimalstuff/ui';
-import { useContext, useId, type ChangeEvent } from 'react';
+import { useContext, useId, type ChangeEvent, type MouseEvent } from 'react';
 
 import type { TunnelDto } from '#/daemon/protocol';
 import { cn } from '#/shared/cn';
 import { TargetHealthBadge } from '#/shared/health_badge';
 import { TunnelStatusBadge } from '#/shared/status_badge';
 import { TemporaryBadge } from '#/shared/temporary_badge';
+import { useOpenTunnel } from '#/tunnel_details/use_open_tunnel';
 import { describeTunnelProblems } from '#/tunnels/describe_tunnel_problems';
 import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { SelectionMenuItems } from '#/tunnels/list/selection_menu_items';
@@ -31,6 +32,16 @@ type TunnelRowProps = {
 
 const MULTI_SELECTION_MINIMUM = 2;
 
+const INTERACTIVE_CONTROL_SELECTOR =
+	'button, input, a, select, textarea, label, [role="switch"], [role="checkbox"], [role="menuitem"], [role="button"]';
+
+function isOnInteractiveControl(event: Readonly<MouseEvent>): boolean {
+	return (
+		event.target instanceof Element &&
+		event.target.closest(INTERACTIVE_CONTROL_SELECTOR) !== null
+	);
+}
+
 function isShiftChange(
 	event: Readonly<ChangeEvent<HTMLInputElement>>
 ): boolean {
@@ -40,6 +51,7 @@ function isShiftChange(
 export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 	const { t, i18n } = useLingui();
 	const { toggleRunning } = useTunnelActions(tunnel);
+	const { isOpenable, open } = useOpenTunnel(tunnel);
 	const { selectedIds, selectedTunnels, toggle, selectRange } = useContext(
 		TunnelSelectionContext
 	);
@@ -50,10 +62,27 @@ export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 	const problemsId = useId();
 	const endpoint = getTunnelAccessibleEndpointLabel(tunnel, i18n);
 	const problems = describeTunnelProblems(tunnel, i18n);
+	const isOpenableByDoubleClick = isOpenable && isRunning;
 
 	const handleSelectionChange = (event: ChangeEvent<HTMLInputElement>) => {
 		if (isShiftChange(event)) selectRange(tunnel.id);
 		else toggle(tunnel.id);
+	};
+
+	const handleMouseDown = (event: MouseEvent<HTMLDivElement>) => {
+		const isRepeatedClick = event.detail > 1;
+		if (
+			isOpenableByDoubleClick &&
+			isRepeatedClick &&
+			!isOnInteractiveControl(event)
+		) {
+			event.preventDefault();
+		}
+	};
+
+	const handleDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
+		if (!isOpenableByDoubleClick || isOnInteractiveControl(event)) return;
+		open();
 	};
 
 	const menuItems = isInMultiSelection ? (
@@ -64,53 +93,59 @@ export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 
 	return (
 		<li {...{ [ROVING_ROW_ATTRIBUTE]: tunnel.id }}>
-			<ContextMenu
-				items={menuItems}
-				aria-label={t`Actions for ${endpoint}`}
-				className={cn(
-					'flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 hover:bg-tn-surface-raised',
-					isSelected && 'bg-tn-selected'
-				)}
+			<div
+				role="presentation"
+				onMouseDown={handleMouseDown}
+				onDoubleClick={handleDoubleClick}
 			>
-				<Checkbox
-					aria-label={t`Select ${endpoint}`}
-					checked={isSelected}
-					onChange={handleSelectionChange}
-					tabIndex={isActiveRow ? 0 : -1}
-					wrapperClassName="shrink-0"
-					{...{ [ROVING_CONTROL_ATTRIBUTE]: 'select' }}
-				/>
-				<Switch
-					aria-label={getTunnelAccessibleName(tunnel, i18n)}
-					aria-describedby={problems === null ? undefined : problemsId}
-					checked={isRunning}
-					onChange={toggleRunning}
-					tabIndex={isActiveRow ? 0 : -1}
-					wrapperClassName="shrink-0"
-					{...{ [ROVING_CONTROL_ATTRIBUTE]: 'switch' }}
-				/>
-				{problems !== null && (
-					<span id={problemsId} aria-hidden="true" className="sr-only">
-						{problems}
-					</span>
-				)}
-				<div className="flex min-w-min flex-1 flex-col gap-1">
-					<TunnelEndpoint
-						tunnel={tunnel}
-						className="font-semibold whitespace-nowrap text-tn-text"
+				<ContextMenu
+					items={menuItems}
+					aria-label={t`Actions for ${endpoint}`}
+					className={cn(
+						'flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 hover:bg-tn-surface-raised',
+						isSelected && 'bg-tn-selected'
+					)}
+				>
+					<Checkbox
+						aria-label={t`Select ${endpoint}`}
+						checked={isSelected}
+						onChange={handleSelectionChange}
+						tabIndex={isActiveRow ? 0 : -1}
+						wrapperClassName="shrink-0"
+						{...{ [ROVING_CONTROL_ATTRIBUTE]: 'select' }}
 					/>
-					<TunnelTagChips tags={tunnel.tags} />
-				</div>
-				<div className="flex min-w-0 flex-1 basis-56 flex-col items-start gap-1">
-					<div className="flex w-full min-w-0 flex-nowrap gap-1">
-						{tunnel.isTemporary && <TemporaryBadge />}
-						<TunnelStatusBadge state={tunnel.state} isDetailTruncated />
-						<TargetHealthBadge health={tunnel.health} isDetailTruncated />
+					<Switch
+						aria-label={getTunnelAccessibleName(tunnel, i18n)}
+						aria-describedby={problems === null ? undefined : problemsId}
+						checked={isRunning}
+						onChange={toggleRunning}
+						tabIndex={isActiveRow ? 0 : -1}
+						wrapperClassName="shrink-0"
+						{...{ [ROVING_CONTROL_ATTRIBUTE]: 'switch' }}
+					/>
+					{problems !== null && (
+						<span id={problemsId} aria-hidden="true" className="sr-only">
+							{problems}
+						</span>
+					)}
+					<div className="flex min-w-min flex-1 flex-col gap-1">
+						<TunnelEndpoint
+							tunnel={tunnel}
+							className="font-semibold whitespace-nowrap text-tn-text"
+						/>
+						<TunnelTagChips tags={tunnel.tags} />
 					</div>
-					{isRunning && <TunnelMetricsLine metrics={tunnel.metrics} />}
-				</div>
-				<TunnelActionsMenu tunnel={tunnel} isActiveRow={isActiveRow} />
-			</ContextMenu>
+					<div className="flex min-w-0 flex-1 basis-56 flex-col items-start gap-1">
+						<div className="flex w-full min-w-0 flex-nowrap gap-1">
+							{tunnel.isTemporary && <TemporaryBadge />}
+							<TunnelStatusBadge state={tunnel.state} isDetailTruncated />
+							<TargetHealthBadge health={tunnel.health} isDetailTruncated />
+						</div>
+						{isRunning && <TunnelMetricsLine metrics={tunnel.metrics} />}
+					</div>
+					<TunnelActionsMenu tunnel={tunnel} isActiveRow={isActiveRow} />
+				</ContextMenu>
+			</div>
 		</li>
 	);
 }

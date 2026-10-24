@@ -693,6 +693,24 @@ describe('TunnelFormDrawer application choice', () => {
 		).toBeInTheDocument();
 	});
 
+	it('should name the browser in the automatic choice when the general setting opens the browser', async () => {
+		openEditor();
+		useDaemonStore.setState({
+			openers: [vnc],
+			settings: buildSettings({ openDefault: 'browser' }),
+		});
+		const user = userEvent.setup();
+		renderDrawer();
+
+		await fillRequiredFields(user);
+
+		expect(
+			within(applicationSelect()).getByRole('option', {
+				name: 'Automatic (Browser)',
+			})
+		).toBeInTheDocument();
+	});
+
 	it('should name the browser in the automatic choice when nothing is suggested', () => {
 		openEditor();
 		renderDrawer();

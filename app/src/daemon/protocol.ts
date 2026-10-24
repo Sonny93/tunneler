@@ -14,6 +14,8 @@ export type OpenSchemeDto = 'http' | 'https';
 
 export type OpenHostDto = 'localhost' | 'ip';
 
+export type OpenDefaultDto = 'suggested' | 'browser';
+
 /** How a tunnel is opened; every field is optional and `open` is absent when none is set. */
 export type OpenOptionsDto = {
 	scheme?: OpenSchemeDto;
@@ -166,6 +168,7 @@ export type SettingsDto = {
 	useOsKeyring: boolean;
 	x11Display?: string;
 	openHost: OpenHostDto;
+	openDefault: OpenDefaultDto;
 	standby: boolean;
 	standbyIdleS: number;
 	standbyNotify: StandbyNotifyDto;

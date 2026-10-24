@@ -1,5 +1,5 @@
 use crate::runtime::EngineError;
-use crate::store::{BROWSER_OPENER_ID, Opener, TunnelDefinition};
+use crate::store::{BROWSER_OPENER_ID, OpenDefault, Opener, TunnelDefinition};
 
 const BROWSER_NAME: &str = "Browser";
 
@@ -57,15 +57,20 @@ pub(crate) enum OpenAction<'a> {
 }
 
 /// The action asked for (`requested`, else the `open.with` of the tunnel,
-/// else the suggestion for its target port, else the browser).
+/// else, unless `open_default` says the browser, the suggestion for its
+/// target port, else the browser).
 pub(crate) fn choose_action<'a>(
     definition: &TunnelDefinition,
     requested: Option<&str>,
     openers: &'a [AvailableOpener],
+    open_default: OpenDefault,
 ) -> Result<OpenAction<'a>, EngineError> {
     let wanted = requested.or(definition.open.with.as_deref());
     let Some(id) = wanted else {
-        return Ok(suggest(definition, openers));
+        return Ok(match open_default {
+            OpenDefault::Suggested => suggest(definition, openers),
+            OpenDefault::Browser => OpenAction::Browser,
+        });
     };
     if id == BROWSER_OPENER_ID {
         return Ok(OpenAction::Browser);
@@ -96,9 +101,13 @@ fn suggest<'a>(definition: &TunnelDefinition, openers: &'a [AvailableOpener]) ->
 
 /// What the tunnel opens with when nothing is asked, for display. A saved
 /// choice that is not available anymore keeps its id as its name.
-pub fn default_opener(definition: &TunnelDefinition, openers: &[AvailableOpener]) -> DefaultOpener {
+pub fn default_opener(
+    definition: &TunnelDefinition,
+    openers: &[AvailableOpener],
+    open_default: OpenDefault,
+) -> DefaultOpener {
     let saved_id = definition.open.with.as_deref();
-    match choose_action(definition, None, openers) {
+    match choose_action(definition, None, openers, open_default) {
         Ok(OpenAction::Browser) => DefaultOpener {
             id: BROWSER_OPENER_ID.to_owned(),
             name: BROWSER_NAME.to_owned(),
@@ -188,7 +197,7 @@ mod tests {
         let openers = available_openers(&[opener("vnc", &[5900, 5901])], &[]);
 
         assert_eq!(
-            choose_action(&tunnel(5901, None), None, &openers).unwrap(),
+            choose_action(&tunnel(5901, None), None, &openers, OpenDefault::Suggested).unwrap(),
             OpenAction::Program(&openers[0])
         );
     }
@@ -198,7 +207,7 @@ mod tests {
         let openers = available_openers(&[opener("vnc", &[5900])], &[]);
 
         assert_eq!(
-            choose_action(&tunnel(80, None), None, &openers).unwrap(),
+            choose_action(&tunnel(80, None), None, &openers, OpenDefault::Suggested).unwrap(),
             OpenAction::Browser
         );
     }
@@ -208,7 +217,7 @@ mod tests {
         let openers = available_openers(&[opener("preset", &[5432])], &[opener("mine", &[5432])]);
 
         assert_eq!(
-            choose_action(&tunnel(5432, None), None, &openers).unwrap(),
+            choose_action(&tunnel(5432, None), None, &openers, OpenDefault::Suggested).unwrap(),
             OpenAction::Program(&openers[0])
         );
     }
@@ -218,7 +227,7 @@ mod tests {
         let openers = available_openers(&[opener("rdp", &[12345])], &[]);
 
         assert_eq!(
-            choose_action(&tunnel(3389, None), None, &openers).unwrap(),
+            choose_action(&tunnel(3389, None), None, &openers, OpenDefault::Suggested).unwrap(),
             OpenAction::Browser
         );
     }
@@ -228,7 +237,13 @@ mod tests {
         let openers = available_openers(&[opener("vnc", &[5900])], &[opener("mine", &[])]);
 
         assert_eq!(
-            choose_action(&tunnel(5900, Some("mine")), None, &openers).unwrap(),
+            choose_action(
+                &tunnel(5900, Some("mine")),
+                None,
+                &openers,
+                OpenDefault::Suggested
+            )
+            .unwrap(),
             OpenAction::Program(&openers[0])
         );
     }
@@ -238,7 +253,13 @@ mod tests {
         let openers = available_openers(&[opener("vnc", &[5900])], &[]);
 
         assert_eq!(
-            choose_action(&tunnel(5900, Some("browser")), None, &openers).unwrap(),
+            choose_action(
+                &tunnel(5900, Some("browser")),
+                None,
+                &openers,
+                OpenDefault::Suggested
+            )
+            .unwrap(),
             OpenAction::Browser
         );
     }
@@ -248,7 +269,13 @@ mod tests {
         let openers = available_openers(&[opener("vnc", &[5900])], &[]);
 
         assert_eq!(
-            choose_action(&tunnel(5900, Some("browser")), Some("vnc"), &openers).unwrap(),
+            choose_action(
+                &tunnel(5900, Some("browser")),
+                Some("vnc"),
+                &openers,
+                OpenDefault::Suggested
+            )
+            .unwrap(),
             OpenAction::Program(&openers[0])
         );
     }
@@ -257,7 +284,13 @@ mod tests {
     fn should_list_the_available_ids_when_the_opener_is_unknown() {
         let openers = available_openers(&[opener("vnc", &[])], &[]);
 
-        let error = choose_action(&tunnel(80, Some("ghost")), None, &openers).unwrap_err();
+        let error = choose_action(
+            &tunnel(80, Some("ghost")),
+            None,
+            &openers,
+            OpenDefault::Suggested,
+        )
+        .unwrap_err();
 
         assert!(matches!(
             error,
@@ -267,7 +300,10 @@ mod tests {
 
     #[test]
     fn should_name_the_browser_as_the_default_when_nothing_matches() {
-        assert_eq!(default_opener(&tunnel(80, None), &[]).id, "browser");
+        assert_eq!(
+            default_opener(&tunnel(80, None), &[], OpenDefault::Suggested).id,
+            "browser"
+        );
     }
 
     #[test]
@@ -275,7 +311,7 @@ mod tests {
         let openers = available_openers(&[opener("vnc", &[5900])], &[]);
 
         assert_eq!(
-            default_opener(&tunnel(5900, None), &openers),
+            default_opener(&tunnel(5900, None), &openers, OpenDefault::Suggested),
             DefaultOpener {
                 id: "vnc".to_owned(),
                 name: "VNC".to_owned()
@@ -286,11 +322,57 @@ mod tests {
     #[test]
     fn should_keep_the_saved_id_as_the_default_when_the_opener_is_gone() {
         assert_eq!(
-            default_opener(&tunnel(80, Some("ghost")), &[]),
+            default_opener(&tunnel(80, Some("ghost")), &[], OpenDefault::Suggested),
             DefaultOpener {
                 id: "ghost".to_owned(),
                 name: "ghost".to_owned()
             }
+        );
+    }
+
+    #[test]
+    fn should_open_the_browser_when_the_default_is_the_browser_even_if_an_opener_matches() {
+        let openers = available_openers(&[opener("vnc", &[5900])], &[]);
+
+        assert_eq!(
+            choose_action(&tunnel(5900, None), None, &openers, OpenDefault::Browser).unwrap(),
+            OpenAction::Browser
+        );
+        assert_eq!(
+            default_opener(&tunnel(5900, None), &openers, OpenDefault::Browser).id,
+            "browser"
+        );
+    }
+
+    #[test]
+    fn should_keep_the_saved_choice_when_the_default_is_the_browser() {
+        let openers = available_openers(&[opener("vnc", &[5900])], &[]);
+
+        assert_eq!(
+            choose_action(
+                &tunnel(80, Some("vnc")),
+                None,
+                &openers,
+                OpenDefault::Browser
+            )
+            .unwrap(),
+            OpenAction::Program(&openers[0])
+        );
+    }
+
+    #[test]
+    fn should_keep_the_requested_choice_when_the_default_is_the_browser() {
+        let openers = available_openers(&[opener("vnc", &[5900])], &[]);
+
+        assert_eq!(
+            choose_action(
+                &tunnel(80, None),
+                Some("vnc"),
+                &openers,
+                OpenDefault::Browser
+            )
+            .unwrap(),
+            OpenAction::Program(&openers[0])
         );
     }
 }

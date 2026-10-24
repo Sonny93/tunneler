@@ -47,6 +47,7 @@ launch_at_login = false
 use_os_keyring = false              # autorise la mémorisation des passphrases dans le trousseau du système
 x11_display = ""                    # vide : $DISPLAY, ou 127.0.0.1:0.0 sous Windows
 open_host = "localhost"             # localhost | ip
+open_default = "suggested"          # suggested | browser
 standby = false                     # les tunnels locaux et dynamiques sont en veille par défaut
 standby_idle_s = 300                # retour en veille après ce délai sans connexion
 standby_notify = "visual"           # none | visual | sound | both
@@ -111,6 +112,7 @@ command = "code --wait"
 | `use_os_keyring` | booléen | `false` | Propose de mémoriser les passphrases de clés dans le trousseau du système (gestionnaire d'identification sous Windows, Secret Service sous Linux). Désactivé, une passphrase mémorisée dure jusqu'à la fermeture de Tunneler. |
 | `x11_display` | chaîne | `""` | Display X local. Vide signifie `$DISPLAY`, ou `127.0.0.1:0.0` sous Windows. |
 | `open_host` | `"localhost"` ou `"ip"` | `"localhost"` | Nom utilisé pour ouvrir un tunnel qui écoute sur une adresse de bouclage ou joker : `localhost`, ou `127.0.0.1` (`[::1]` en IPv6). |
+| `open_default` | `"suggested"` ou `"browser"` | `"suggested"` | Ce qu'ouvre un tunnel sans `open.with`. `suggested` : l'application suggérée pour son port cible, sinon le navigateur. `browser` : toujours le navigateur. Un `open.with` enregistré et une demande explicite (`--with`, « Ouvrir avec… ») passent avant. |
 | `standby` | booléen | `false` | Met en veille les tunnels locaux et dynamiques qui ne disent pas le contraire. |
 | `standby_idle_s` | entier | `300` | Secondes sans connexion avant qu'un tunnel retourne en veille. Supérieur à 0. |
 | `standby_notify` | `"none"`, `"visual"`, `"sound"` ou `"both"` | `"visual"` | Comment un réveil de veille, ou son échec, est signalé. |
@@ -142,7 +144,7 @@ Deux tunnels locaux ou dynamiques ne peuvent pas écouter sur la même adresse e
 | `scheme` | `"http"` ou `"https"` | `"http"` | Schéma de l'URL ouverte dans le navigateur. |
 | `path` | chaîne | `"/"` | Chemin de cette URL. Commence par `/`, pas par `//`, sans espace ni caractère de contrôle. |
 | `host` | `"localhost"` ou `"ip"` | `settings.open_host` | Nom utilisé pour une adresse d'écoute de bouclage ou joker. Un tunnel qui écoute sur une IP précise ouvre cette IP. Un nom d'hôte n'est jamais utilisé. |
-| `with` | chaîne | automatique | `"browser"` ou l'identifiant d'une application. Absent : l'application suggérée pour le port cible, sinon le navigateur. |
+| `with` | chaîne | automatique | `"browser"` ou l'identifiant d'une application. Absent : l'application suggérée pour le port cible (sauf si `settings.open_default` vaut `"browser"`), sinon le navigateur. |
 
 ## `[[openers]]`
 

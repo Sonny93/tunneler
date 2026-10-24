@@ -228,6 +228,41 @@ describe('TunnelRow', () => {
 		expect(screen.getByRole('switch')).not.toHaveAttribute('aria-describedby');
 	});
 
+	it('should open a running local tunnel with its default action when its row is double-clicked', async () => {
+		const { gateway } = renderRow({ state: { kind: 'active' } });
+
+		await userEvent.dblClick(screen.getByText('3333 → nova:3333'));
+
+		expect(gateway.openTunnel).toHaveBeenCalledWith('tunnel-1', undefined);
+	});
+
+	it('should not open a stopped tunnel when its row is double-clicked', async () => {
+		const { gateway } = renderRow();
+
+		await userEvent.dblClick(screen.getByText('3333 → nova:3333'));
+
+		expect(gateway.openTunnel).not.toHaveBeenCalled();
+	});
+
+	it('should not open the tunnel when its switch is double-clicked', async () => {
+		const { gateway } = renderRow({ state: { kind: 'active' } });
+
+		await userEvent.dblClick(screen.getByRole('switch'));
+
+		expect(gateway.openTunnel).not.toHaveBeenCalled();
+	});
+
+	it('should not open a remote tunnel when its row is double-clicked', async () => {
+		const { gateway } = renderRow({
+			kind: 'remote',
+			state: { kind: 'active' },
+		});
+
+		await userEvent.dblClick(screen.getByText('Active'));
+
+		expect(gateway.openTunnel).not.toHaveBeenCalled();
+	});
+
 	it('should have no accessibility violation', async () => {
 		const { container } = renderRow({
 			tags: ['dev'],

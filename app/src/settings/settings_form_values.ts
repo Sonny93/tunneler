@@ -1,4 +1,5 @@
 import type {
+	OpenDefaultDto,
 	OpenHostDto,
 	SettingsDto,
 	StandbyNotifyDto,
@@ -24,6 +25,7 @@ export type SettingsFormValues = {
 	useOsKeyring: boolean;
 	x11Display: string;
 	openHost: OpenHostDto;
+	openDefault: OpenDefaultDto;
 	standby: boolean;
 	standbyIdleSeconds: string;
 	standbyNotify: StandbyNotifyDto;
@@ -65,6 +67,7 @@ export function toSettingsFormValues(
 		useOsKeyring: settings.useOsKeyring,
 		x11Display: settings.x11Display ?? '',
 		openHost: settings.openHost,
+		openDefault: settings.openDefault,
 		standby: settings.standby,
 		standbyIdleSeconds: String(settings.standbyIdleS),
 		standbyNotify: settings.standbyNotify,
@@ -97,6 +100,7 @@ export function toSettings(
 		useOsKeyring: values.useOsKeyring,
 		x11Display: x11Display === '' ? undefined : x11Display,
 		openHost: values.openHost,
+		openDefault: values.openDefault,
 		standby: values.standby,
 		standbyIdleS: Number(values.standbyIdleSeconds.trim()),
 		standbyNotify: values.standbyNotify,

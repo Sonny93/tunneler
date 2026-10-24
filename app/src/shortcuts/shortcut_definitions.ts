@@ -42,6 +42,10 @@ export function getListShortcuts(i18n: I18n): readonly ShortcutDefinition[] {
 			description: i18n._(msg`Select a range of tunnels`),
 		},
 		{
+			keys: [i18n._(msg`Double-click`)],
+			description: i18n._(msg`Open a started tunnel with its default action`),
+		},
+		{
 			keys: ['Ctrl', 'A'],
 			description: i18n._(msg`Select all displayed tunnels`),
 		},

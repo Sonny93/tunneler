@@ -10,10 +10,12 @@ When you open a tunnel, Tunneler picks the first of these that applies:
 
 1. What you asked for: "Open with…" in a menu, a palette command, or `--with` on the command line.
 2. The application saved in the tunnel's form, under "Opening" › "Application".
-3. The first available application whose suggested ports contain the tunnel's **target port**.
+3. The first available application whose suggested ports contain the tunnel's **target port**, unless the "Tunnels without an application" setting is "Always the browser".
 4. The browser.
 
 Step 3 looks at the target port, not the listening port. A tunnel that listens on `5999` and reaches port `5901` of `nova` is a VNC tunnel, and a VNC viewer is suggested for it. Your own applications come before the built-in ones. The built-in ones follow the order of the tables below.
+
+To skip step 3 for every tunnel, open "Settings" › "Opening" and set "Tunnels without an application" to "Always the browser". A tunnel with no saved application then opens in the browser, and the menu and the double-click say so. The application saved in a tunnel, and what you ask for explicitly, still win. The default, "Suggested application", keeps step 3.
 
 The built-in applications suggest these ports:
 
@@ -24,7 +26,7 @@ The built-in applications suggest these ports:
 
 The program is started with `{host}` and `{port}` pointing at the tunnel's **listening** side. `{port}` is the local port, `5999` in the example. `{host}` is `localhost`, or `127.0.0.1` when you chose the IP address under "Opening" in the settings or in the tunnel's form. A tunnel that listens on a specific IP address uses that address.
 
-In the tunnel's menu the open action says what will happen: "Open in the browser" or "Open with TigerVNC". "Open with…" lists the others, and the command palette has one command per application.
+In the tunnel's menu the open action says what will happen: "Open in the browser" or "Open with TigerVNC". "Open with…" lists the others, and the command palette has one command per application. Double-clicking a started local tunnel in the list does the same as the primary open action, with the same default. A double-click on a stopped tunnel does nothing: start it with its switch first. A double-click on a control of the row (switch, checkbox, menu button) does nothing more than the control.
 
 ## Built-in applications
 

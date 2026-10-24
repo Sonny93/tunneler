@@ -84,6 +84,14 @@ describe('buildOpenPreview', () => {
 		);
 	});
 
+	it('should preview the url when the automatic choice follows a general setting set to the browser', () => {
+		expect(
+			preview(values, { ...settings, openDefault: 'browser' }, [
+				buildOpener({ ports: [3333] }),
+			])
+		).toBe('Opens http://localhost:3333/');
+	});
+
 	it('should preview the url when the browser is chosen although an application matches', () => {
 		expect(
 			preview({ ...values, openWith: 'browser' }, settings, [

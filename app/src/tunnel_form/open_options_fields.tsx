@@ -66,7 +66,11 @@ export function OpenOptionsFields({
 	const openers = useDaemonStore((state) => state.openers);
 	const previewId = useId();
 	const preview = buildOpenPreview(values, settings, openers, i18n);
-	const suggested = suggestOpener(values, openers);
+	const suggested = suggestOpener(
+		values,
+		openers,
+		settings?.openDefault ?? 'suggested'
+	);
 	const applicationOptions = buildApplicationOptions(
 		values.openWith,
 		suggested?.name ?? getBrowserChoice(i18n).name,

@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import type {
 	LanguageSettingDto,
+	OpenDefaultDto,
 	OpenHostDto,
 	SettingsDto,
 	StandbyNotifyDto,
@@ -23,6 +24,7 @@ export type UseSettingsValuesReturn = {
 	changeText: (field: SettingsTextField, value: string) => void;
 	changeToggle: (field: SettingsToggleField, isEnabled: boolean) => void;
 	changeOpenHost: (host: OpenHostDto) => void;
+	changeOpenDefault: (openDefault: OpenDefaultDto) => void;
 	changeStandbyNotify: (mode: StandbyNotifyDto) => void;
 	changeStandbySound: (sound: StandbySoundDto) => void;
 	changeLanguage: (language: LanguageSettingDto) => void;
@@ -41,6 +43,8 @@ export function useSettingsValues(
 		setValues((current) => ({ ...current, [field]: isEnabled }));
 	const changeOpenHost = (openHost: OpenHostDto) =>
 		setValues((current) => ({ ...current, openHost }));
+	const changeOpenDefault = (openDefault: OpenDefaultDto) =>
+		setValues((current) => ({ ...current, openDefault }));
 	const changeStandbyNotify = (standbyNotify: StandbyNotifyDto) =>
 		setValues((current) => ({ ...current, standbyNotify }));
 	const changeStandbySound = (standbySound: StandbySoundDto) =>
@@ -54,6 +58,7 @@ export function useSettingsValues(
 		changeText,
 		changeToggle,
 		changeOpenHost,
+		changeOpenDefault,
 		changeStandbyNotify,
 		changeStandbySound,
 		changeLanguage,

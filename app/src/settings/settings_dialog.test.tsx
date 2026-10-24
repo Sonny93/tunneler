@@ -253,6 +253,32 @@ describe('SettingsDialog', () => {
 		expect(screen.getByRole('radio', { name: /^IP address/ })).toBeChecked();
 	});
 
+	it('should show the current default opening', async () => {
+		openSettings(buildSettings({ openDefault: 'browser' }), 'opening');
+		await renderDialog();
+
+		expect(
+			screen.getByRole('radio', { name: /^Always the browser/ })
+		).toBeChecked();
+	});
+
+	it('should save the chosen default opening', async () => {
+		const settings = buildSettings();
+		openSettings(settings, 'opening');
+		const user = userEvent.setup();
+		const { gateway } = await renderDialog();
+
+		await user.click(
+			screen.getByRole('radio', { name: /^Always the browser/ })
+		);
+		await clickSave(user);
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith(
+			{ ...settings, openDefault: 'browser' },
+			[]
+		);
+	});
+
 	it('should offer the applications section on the opening tab', async () => {
 		openSettings(buildSettings(), 'opening');
 		await renderDialog();

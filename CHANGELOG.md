@@ -4,6 +4,11 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Added
+
+- Double-clicking a started local tunnel in the list opens it with its default action, like "Open" in its menu. A double-click on a stopped tunnel does nothing.
+- A "Tunnels without an application" setting (Settings › Opening) makes tunnels with no saved application always open in the browser instead of the application suggested for their port (`open_default` in `[settings]`).
+
 ### Fixed
 
 - The header and the tunnel list no longer scroll away together: the header stays in place, and the sidebar and the list scroll on their own.

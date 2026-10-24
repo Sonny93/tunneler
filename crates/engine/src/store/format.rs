@@ -13,8 +13,9 @@ use super::document_update;
 use super::error::{SourceLocation, StoreError};
 use super::migration::{CURRENT_VERSION, migrate};
 use super::model::{
-    HostOverrides, Language, OpenHost, OpenOptions, OpenScheme, Opener, Settings, StandbyNotify,
-    StandbySound, StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
+    HostOverrides, Language, OpenDefault, OpenHost, OpenOptions, OpenScheme, Opener, Settings,
+    StandbyNotify, StandbySound, StoreDocument, TunnelDefinition, TunnelId, TunnelKind,
+    X11Launcher,
 };
 use super::validation::validate;
 
@@ -85,6 +86,7 @@ struct StoredSettings {
     use_os_keyring: Option<bool>,
     x11_display: Option<String>,
     open_host: Option<StoredOpenHost>,
+    open_default: Option<StoredOpenDefault>,
     standby: Option<bool>,
     standby_idle_s: Option<u64>,
     standby_notify: Option<StoredStandbyNotify>,
@@ -126,6 +128,13 @@ enum StoredLanguage {
 enum StoredOpenHost {
     Localhost,
     Ip,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum StoredOpenDefault {
+    Suggested,
+    Browser,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -314,6 +323,9 @@ impl StoredSettings {
             use_os_keyring: self.use_os_keyring.unwrap_or(defaults.use_os_keyring),
             x11_display: self.x11_display.filter(|display| !display.is_empty()),
             open_host: self.open_host.map_or(defaults.open_host, OpenHost::from),
+            open_default: self
+                .open_default
+                .map_or(defaults.open_default, OpenDefault::from),
             standby: self.standby.unwrap_or(defaults.standby),
             standby_idle: self
                 .standby_idle_s
@@ -326,6 +338,15 @@ impl StoredSettings {
                 .map_or(defaults.standby_sound, StandbySound::from),
             language: self.language.map_or(defaults.language, Language::from),
             check_for_updates: self.check_for_updates.unwrap_or(defaults.check_for_updates),
+        }
+    }
+}
+
+impl From<StoredOpenDefault> for OpenDefault {
+    fn from(default: StoredOpenDefault) -> Self {
+        match default {
+            StoredOpenDefault::Suggested => Self::Suggested,
+            StoredOpenDefault::Browser => Self::Browser,
         }
     }
 }
@@ -900,6 +921,31 @@ mod tests {
         let outcome = parse("[settings]\nopen_host = \"ip\"\n").unwrap();
 
         assert_eq!(outcome.document.settings.open_host, OpenHost::Ip);
+    }
+
+    #[test]
+    fn should_read_the_open_default_setting_when_it_is_given() {
+        let outcome = parse("[settings]\nopen_default = \"browser\"\n").unwrap();
+
+        assert_eq!(outcome.document.settings.open_default, OpenDefault::Browser);
+    }
+
+    #[test]
+    fn should_suggest_an_application_when_the_open_default_setting_is_absent() {
+        let outcome = parse("[settings]\n").unwrap();
+
+        assert_eq!(
+            outcome.document.settings.open_default,
+            OpenDefault::Suggested
+        );
+    }
+
+    #[test]
+    fn should_reject_an_unknown_open_default_setting() {
+        assert!(matches!(
+            parse("[settings]\nopen_default = \"firefox\"\n"),
+            Err(StoreError::Parse { .. })
+        ));
     }
 
     #[test]

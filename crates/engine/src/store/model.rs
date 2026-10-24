@@ -106,6 +106,26 @@ impl OpenHost {
     }
 }
 
+/// What a tunnel without `open.with` opens with.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum OpenDefault {
+    /// The first opener whose ports contain the target port, else the browser.
+    #[default]
+    Suggested,
+    /// Always the browser.
+    Browser,
+}
+
+impl OpenDefault {
+    /// The preference as written in the store file.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Suggested => "suggested",
+            Self::Browser => "browser",
+        }
+    }
+}
+
 /// How the daemon signals that a standby tunnel woke up or failed to.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub enum StandbyNotify {
@@ -342,6 +362,8 @@ pub struct Settings {
     pub x11_display: Option<String>,
     /// Which loopback name opened tunnels use unless they say otherwise.
     pub open_host: OpenHost,
+    /// What tunnels without an application of their own open with.
+    pub open_default: OpenDefault,
     /// Whether local and dynamic tunnels without an override wait in standby.
     pub standby: bool,
     /// How long a standby tunnel stays connected without any connection
@@ -373,6 +395,7 @@ impl Default for Settings {
             use_os_keyring: false,
             x11_display: None,
             open_host: OpenHost::default(),
+            open_default: OpenDefault::default(),
             standby: false,
             standby_idle: DEFAULT_STANDBY_IDLE,
             standby_notify: StandbyNotify::default(),

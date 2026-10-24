@@ -8,22 +8,23 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use engine::{
     AvailableOpener, DefaultOpener, EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision,
     ImportCandidate, ImportPreview, ImportWarning, InvalidTunnelId, Language, LogLevel, NewTunnel,
-    OpenHost, OpenOptions, OpenScheme, Opener, OpenerSource, PortOwner, RejectedHostKey,
-    RejectionReason, Retention, Settings, SshForward, StandbyNotify, StandbySound, TargetHealth,
-    TunnelDefinition, TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics, TunnelSnapshot,
-    TunnelState, UnmanagedProcess, X11AnchorSnapshot, X11AnchorState, X11Launcher, default_opener,
+    OpenDefault, OpenHost, OpenOptions, OpenScheme, Opener, OpenerSource, PortOwner,
+    RejectedHostKey, RejectionReason, Retention, Settings, SshForward, StandbyNotify, StandbySound,
+    TargetHealth, TunnelDefinition, TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics,
+    TunnelSnapshot, TunnelState, UnmanagedProcess, X11AnchorSnapshot, X11AnchorState, X11Launcher,
+    default_opener,
 };
 use ipc::protocol::{
     AvailableOpenerDto, ConfigInvalidEvent, DefaultOpenerDto, EpochMillis, EventMessage,
     ExternalForwardDto, ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto,
     HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent, HostOptionDto,
     ImportCandidateDto, ImportPreviewDto, ImportWarningDto, LanguageDto, LogEntryDto, LogLevelDto,
-    MetricsDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto, OpenerSpecDto,
-    PortOwnerDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, SoundEventDto,
-    StandbyNotifyDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto, TrayStatusDto,
-    TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelLogEvent,
-    TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto, X11ChangedEvent,
-    X11LauncherDto, X11StateDto,
+    MetricsDto, OpenDefaultDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto,
+    OpenerSpecDto, PortOwnerDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto,
+    SoundEventDto, StandbyNotifyDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto,
+    TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelKindDto,
+    TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
+    X11ChangedEvent, X11LauncherDto, X11StateDto,
 };
 
 use ssh_config::Resolution;
@@ -165,6 +166,20 @@ pub(crate) fn sound_event_from_dto(event: SoundEventDto) -> SoundEvent {
     match event {
         SoundEventDto::Woke => SoundEvent::Woke,
         SoundEventDto::WakeFailed => SoundEvent::WakeFailed,
+    }
+}
+
+fn open_default_to_dto(open_default: OpenDefault) -> OpenDefaultDto {
+    match open_default {
+        OpenDefault::Suggested => OpenDefaultDto::Suggested,
+        OpenDefault::Browser => OpenDefaultDto::Browser,
+    }
+}
+
+fn open_default_from_dto(open_default: OpenDefaultDto) -> OpenDefault {
+    match open_default {
+        OpenDefaultDto::Suggested => OpenDefault::Suggested,
+        OpenDefaultDto::Browser => OpenDefault::Browser,
     }
 }
 
@@ -361,7 +376,11 @@ fn default_opener_to_dto(default: DefaultOpener) -> DefaultOpenerDto {
     }
 }
 
-pub(crate) fn tunnel_to_dto(snapshot: &TunnelSnapshot, openers: &[AvailableOpener]) -> TunnelDto {
+pub(crate) fn tunnel_to_dto(
+    snapshot: &TunnelSnapshot,
+    openers: &[AvailableOpener],
+    open_default: OpenDefault,
+) -> TunnelDto {
     TunnelDto {
         definition: definition_to_dto(&snapshot.definition),
         state: state_to_dto(&snapshot.state),
@@ -369,7 +388,11 @@ pub(crate) fn tunnel_to_dto(snapshot: &TunnelSnapshot, openers: &[AvailableOpene
         metrics: metrics_to_dto(&snapshot.metrics),
         is_awake: snapshot.is_awake,
         is_temporary: snapshot.is_temporary,
-        default_opener: default_opener_to_dto(default_opener(&snapshot.definition, openers)),
+        default_opener: default_opener_to_dto(default_opener(
+            &snapshot.definition,
+            openers,
+            open_default,
+        )),
     }
 }
 
@@ -388,6 +411,7 @@ pub(crate) fn settings_to_dto(settings: &Settings) -> SettingsDto {
         use_os_keyring: settings.use_os_keyring,
         x11_display: settings.x11_display.clone(),
         open_host: open_host_to_dto(settings.open_host),
+        open_default: open_default_to_dto(settings.open_default),
         standby: settings.standby,
         standby_idle_s: settings.standby_idle.as_secs(),
         standby_notify: standby_notify_to_dto(settings.standby_notify),
@@ -412,6 +436,7 @@ pub(crate) fn settings_from_dto(dto: SettingsDto) -> Settings {
         use_os_keyring: dto.use_os_keyring,
         x11_display: dto.x11_display,
         open_host: open_host_from_dto(dto.open_host),
+        open_default: open_default_from_dto(dto.open_default),
         standby: dto.standby,
         standby_idle: Duration::from_secs(dto.standby_idle_s),
         standby_notify: standby_notify_from_dto(dto.standby_notify),
@@ -437,7 +462,7 @@ pub(crate) fn snapshot_to_dto(snapshot: &EngineSnapshot, tray: &TrayStatus) -> S
         tunnels: snapshot
             .tunnels
             .iter()
-            .map(|tunnel| tunnel_to_dto(tunnel, &snapshot.openers))
+            .map(|tunnel| tunnel_to_dto(tunnel, &snapshot.openers, snapshot.settings.open_default))
             .collect(),
         settings: settings_to_dto(&snapshot.settings),
         tray: tray_status_to_dto(tray),
@@ -868,11 +893,39 @@ mod tests {
         };
 
         assert_eq!(
-            tunnel_to_dto(&snapshot, &openers).default_opener,
+            tunnel_to_dto(&snapshot, &openers, OpenDefault::Suggested).default_opener,
             DefaultOpenerDto {
                 id: "viewer".to_owned(),
                 name: "Viewer".to_owned()
             }
+        );
+    }
+
+    #[test]
+    fn should_default_to_the_browser_when_converting_a_tunnel_and_the_setting_says_so() {
+        let openers = vec![AvailableOpener {
+            opener: sample_opener(),
+            source: OpenerSource::User,
+        }];
+        let snapshot = TunnelSnapshot {
+            definition: TunnelDefinition {
+                target_port: Some(5900),
+                open: OpenOptions::default(),
+                standby: None,
+                ..sample_definition()
+            },
+            state: TunnelState::Stopped,
+            health: TargetHealth::Unknown,
+            metrics: TunnelMetrics::default(),
+            is_awake: false,
+            is_temporary: false,
+        };
+
+        assert_eq!(
+            tunnel_to_dto(&snapshot, &openers, OpenDefault::Browser)
+                .default_opener
+                .id,
+            "browser"
         );
     }
 
@@ -909,6 +962,7 @@ mod tests {
             start_on_launch_tags: vec!["dev".to_owned()],
             x11_display: Some("host:0.0".to_owned()),
             open_host: OpenHost::Ip,
+            open_default: OpenDefault::Browser,
             standby: true,
             standby_idle: Duration::from_secs(90),
             standby_notify: StandbyNotify::Both,
@@ -1321,7 +1375,7 @@ mod tests {
             is_temporary: false,
         };
 
-        assert!(tunnel_to_dto(&snapshot, &[]).is_awake);
+        assert!(tunnel_to_dto(&snapshot, &[], OpenDefault::Suggested).is_awake);
     }
 
     #[test]

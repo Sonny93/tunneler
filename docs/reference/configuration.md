@@ -47,6 +47,7 @@ launch_at_login = false
 use_os_keyring = false              # let passphrases be remembered in the system keyring
 x11_display = ""                    # empty: $DISPLAY, or 127.0.0.1:0.0 on Windows
 open_host = "localhost"             # localhost | ip
+open_default = "suggested"          # suggested | browser
 standby = false                     # local and dynamic tunnels wait in standby by default
 standby_idle_s = 300                # back to standby after this long without a connection
 standby_notify = "visual"           # none | visual | sound | both
@@ -111,6 +112,7 @@ command = "code --wait"
 | `use_os_keyring` | boolean | `false` | Offer to remember key passphrases in the system keyring (Credential Manager on Windows, Secret Service on Linux). When off, a remembered passphrase lasts until Tunneler quits. |
 | `x11_display` | string | `""` | Local X display. Empty means `$DISPLAY`, or `127.0.0.1:0.0` on Windows. |
 | `open_host` | `"localhost"` or `"ip"` | `"localhost"` | Name used to open a tunnel that listens on a loopback or wildcard address: `localhost`, or `127.0.0.1` (`[::1]` for IPv6). |
+| `open_default` | `"suggested"` or `"browser"` | `"suggested"` | What a tunnel without `open.with` opens with. `suggested`: the application suggested for its target port, else the browser. `browser`: always the browser. A saved `open.with` and an explicit request (`--with`, "Open with…") still win. |
 | `standby` | boolean | `false` | Put local and dynamic tunnels in standby unless they say otherwise. |
 | `standby_idle_s` | integer | `300` | Seconds without a connection before a tunnel goes back to standby. Greater than 0. |
 | `standby_notify` | `"none"`, `"visual"`, `"sound"` or `"both"` | `"visual"` | How a wake-up from standby, or its failure, is signalled. |
@@ -142,7 +144,7 @@ Two local or dynamic tunnels cannot listen on the same address and port. Two rem
 | `scheme` | `"http"` or `"https"` | `"http"` | Scheme of the URL opened in the browser. |
 | `path` | string | `"/"` | Path of that URL. Starts with `/`, not `//`, with no whitespace or control character. |
 | `host` | `"localhost"` or `"ip"` | `settings.open_host` | Name used for a loopback or wildcard listen address. A tunnel listening on a specific IP opens that IP. A host name is never used. |
-| `with` | string | automatic | `"browser"` or the identifier of an application. When absent, the application suggested for the target port, else the browser. |
+| `with` | string | automatic | `"browser"` or the identifier of an application. When absent, the application suggested for the target port (unless `settings.open_default` is `"browser"`), else the browser. |
 
 ## `[[openers]]`
 

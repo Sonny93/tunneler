@@ -14,6 +14,7 @@ launch_at_login = false
 use_os_keyring = false            # keeps remembered passphrases in the OS keyring
 x11_display = ""                  # empty = $DISPLAY, or 127.0.0.1:0.0 on Windows
 open_host = "localhost"           # localhost | ip (127.0.0.1, or [::1] when the tunnel listens on IPv6)
+open_default = "suggested"        # suggested | browser, what a tunnel without an application opens with
 standby = false                   # local/dynamic tunnels hold their port without an SSH session until a client connects
 standby_idle_s = 300              # back to standby after this long without a connection
 standby_notify = "visual"         # none | visual | sound | both, when a standby tunnel wakes up or fails to

@@ -41,6 +41,17 @@ pub enum OpenHostDto {
     Ip,
 }
 
+/// What a tunnel without an application of its own opens with.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OpenDefaultDto {
+    /// The application suggested for the target port, else the browser.
+    #[default]
+    Suggested,
+    /// Always the browser.
+    Browser,
+}
+
 /// How the daemon signals that a standby tunnel woke up or failed to.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -454,6 +465,9 @@ pub struct SettingsDto {
     /// Which loopback name opened tunnels use unless they say otherwise.
     #[serde(default)]
     pub open_host: OpenHostDto,
+    /// What tunnels without an application of their own open with.
+    #[serde(default)]
+    pub open_default: OpenDefaultDto,
     /// Whether local and dynamic tunnels without an override wait in standby.
     #[serde(default)]
     pub standby: bool,

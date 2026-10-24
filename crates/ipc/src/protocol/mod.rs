@@ -17,11 +17,11 @@ pub use dto::{
     AvailableOpenerDto, CredentialRequestDto, DefaultOpenerDto, EpochMillis, ExternalForwardDto,
     ExternalProcessDto, FailureReasonDto, HostKeyAlertReasonDto, HostKeyDecisionDto, HostOptionDto,
     ImportCandidateDto, ImportPreviewDto, ImportWarningDto, LanguageDto, LogEntryDto, LogLevelDto,
-    MetricsDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto, OpenerSpecDto,
-    PortOwnerDto, PromptDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, SoundEventDto,
-    StandbyNotifyDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto, TrayStatusDto,
-    TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
-    X11LauncherDto, X11StateDto,
+    MetricsDto, OpenDefaultDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto,
+    OpenerSpecDto, PortOwnerDto, PromptDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto,
+    SoundEventDto, StandbyNotifyDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto,
+    TrayStatusDto, TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto,
+    X11AnchorDto, X11LauncherDto, X11StateDto,
 };
 pub use error::{ErrorCode, IpcError};
 pub use event::{

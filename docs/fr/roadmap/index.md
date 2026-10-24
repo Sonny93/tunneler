@@ -32,7 +32,7 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 - Liste de tunnels groupée par hôte, avec tags, sélection multiple, menus contextuels et palette de commandes (Ctrl+K).
 - Panneau de détails avec journaux et métriques en direct, import depuis `ssh_config` et depuis des scripts `ssh -L` collés. Les tiroirs glissent à l'ouverture et à la fermeture.
 - Une fenêtre de réglages à onglets verticaux (Général, Connexion, Veille, Ouverture, Secrets), un seul « Enregistrer » pour tout, y compris vos applications, le nombre d'erreurs sur chaque onglet, une confirmation avant d'abandonner les changements quelle que soit la façon de fermer la fenêtre (Annuler, Échap, un clic à l'extérieur ou le bouton de fermeture), et une commande par onglet dans la palette.
-- Ouverture d'un tunnel dans le navigateur ou dans une application choisie d'après le port cible (VNC, RDP, toute commande que vous ajoutez). Une application détectée peut être personnalisée, par exemple pour pointer vers une copie portable.
+- Ouverture d'un tunnel dans le navigateur ou dans une application choisie d'après le port cible (VNC, RDP, toute commande que vous ajoutez). Une application détectée peut être personnalisée, par exemple pour pointer vers une copie portable. Un réglage fait ouvrir dans le navigateur les tunnels sans application enregistrée, et un double-clic sur une ligne ouvre le tunnel.
 - Cette documentation, en anglais et en français, ouverte depuis l'application avec F1.
 - Thèmes clair et sombre qui suivent le système.
 - Anglais et français, pour la fenêtre, l'icône de la zone de notification et les notifications. La langue suit le système ou se choisit dans les réglages.

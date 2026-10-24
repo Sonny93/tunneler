@@ -32,7 +32,7 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 - Tunnel list grouped by host, with tags, multi-selection, context menus and a command palette (Ctrl+K).
 - Detail drawer with live logs and metrics, an import from `ssh_config` and from pasted `ssh -L` scripts. The drawers slide in and out.
 - A settings window with vertical tabs (General, Connection, Standby, Opening, Secrets), one "Save" for everything including your applications, a count of errors on each tab, a confirmation before discarding changes however you close the window (Cancel, Escape, a click outside or the close button), and one command per tab in the palette.
-- Open a tunnel in the browser or in an application picked from the target port (VNC, RDP, any command you add). A detected application can be customized, for example to point at a portable copy.
+- Open a tunnel in the browser or in an application picked from the target port (VNC, RDP, any command you add). A detected application can be customized, for example to point at a portable copy. A setting makes tunnels without a saved application always open in the browser, and a double-click on a row opens the tunnel.
 - This documentation, in English and French, opened from the app with F1.
 - Dark and light themes that follow the system.
 - English and French, for the window, the tray and the notifications. The language follows the system or is picked in the settings.

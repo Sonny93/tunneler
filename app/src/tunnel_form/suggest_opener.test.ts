@@ -9,31 +9,38 @@ const linked = { listenPort: '5901', targetPort: '', isTargetPortLinked: true };
 
 describe('suggestOpener', () => {
 	it('should follow the listen port while the target port is linked', () => {
-		expect(suggestOpener(linked, [rdp, vnc])).toBe(vnc);
+		expect(suggestOpener(linked, [rdp, vnc], 'suggested')).toBe(vnc);
 	});
 
 	it('should follow the target port once unlinked', () => {
 		expect(
 			suggestOpener(
 				{ listenPort: '5901', targetPort: '3389', isTargetPortLinked: false },
-				[rdp, vnc]
+				[rdp, vnc],
+				'suggested'
 			)
 		).toBe(rdp);
 	});
 
 	it('should suggest nothing when no opener matches', () => {
 		expect(
-			suggestOpener({ ...linked, listenPort: '80' }, [vnc, rdp])
+			suggestOpener({ ...linked, listenPort: '80' }, [vnc, rdp], 'suggested')
 		).toBeNull();
 	});
 
 	it('should suggest nothing while the port is invalid', () => {
-		expect(suggestOpener({ ...linked, listenPort: 'abc' }, [vnc])).toBeNull();
+		expect(
+			suggestOpener({ ...linked, listenPort: 'abc' }, [vnc], 'suggested')
+		).toBeNull();
 	});
 
 	it('should prefer the first opener of the list', () => {
 		const mine = buildOpener({ id: 'mine', ports: [5901], source: 'user' });
 
-		expect(suggestOpener(linked, [mine, vnc])).toBe(mine);
+		expect(suggestOpener(linked, [mine, vnc], 'suggested')).toBe(mine);
+	});
+
+	it('should suggest nothing when the general setting opens the browser', () => {
+		expect(suggestOpener(linked, [vnc], 'browser')).toBeNull();
 	});
 });

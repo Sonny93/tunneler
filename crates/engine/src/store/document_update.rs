@@ -91,6 +91,7 @@ fn settings_entries(settings: &Settings) -> Vec<(&'static str, Value)> {
             Value::from(settings.x11_display.as_deref().unwrap_or_default()),
         ),
         ("open_host", Value::from(settings.open_host.as_str())),
+        ("open_default", Value::from(settings.open_default.as_str())),
         ("standby", Value::from(settings.standby)),
         (
             "standby_idle_s",
@@ -452,7 +453,7 @@ fn has_same_content(existing: &Value, replacement: &Value) -> bool {
 mod tests {
     use super::*;
     use crate::store::format::{parse_document, render_document};
-    use crate::store::model::{OpenHost, OpenScheme};
+    use crate::store::model::{OpenDefault, OpenHost, OpenScheme};
     use crate::store::test_support::tunnel_on;
     use pretty_assertions::assert_eq;
     use std::path::Path;
@@ -779,6 +780,16 @@ tags = []
         let updated = update("", &document);
 
         assert!(updated.contains("open_host = \"ip\""), "{updated}");
+    }
+
+    #[test]
+    fn should_write_the_open_default_setting_when_settings_are_written() {
+        let mut document = StoreDocument::default();
+        document.settings.open_default = OpenDefault::Browser;
+
+        let updated = update("", &document);
+
+        assert!(updated.contains("open_default = \"browser\""), "{updated}");
     }
 
     #[test]
