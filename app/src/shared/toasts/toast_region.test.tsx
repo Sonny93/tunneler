@@ -116,6 +116,7 @@ describe('ToastRegion', () => {
 		const { container } = renderWithI18n(<ToastRegion />);
 		pushToast({ tone: 'info', message: 'Info' });
 		pushToast({ tone: 'success', message: 'Ok' });
+		pushToast({ tone: 'warning', message: 'Careful' });
 		pushToast({ tone: 'error', message: 'Failure' });
 
 		expect(await axe(container)).toHaveNoViolations();

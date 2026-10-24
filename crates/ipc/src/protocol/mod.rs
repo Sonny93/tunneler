@@ -21,7 +21,7 @@ pub use dto::{
     OpenerSpecDto, PortOwnerDto, PromptDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto,
     SoundEventDto, StandbyNotifyDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto,
     TrayStatusDto, TunnelDefinitionDto, TunnelDto, TunnelKindDto, TunnelSpecDto, TunnelStateDto,
-    X11AnchorDto, X11LauncherDto, X11StateDto,
+    X11AnchorDto, X11LauncherDto, X11ProbeDto, X11ServerStartDto, X11StateDto,
 };
 pub use error::{ErrorCode, IpcError};
 pub use event::{

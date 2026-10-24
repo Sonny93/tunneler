@@ -21,7 +21,7 @@ use super::mapping::{
     available_opener_to_dto, definition_from_dto, health_to_dto, import_preview_to_dto,
     log_entry_to_dto, new_temporary_tunnel_from_spec, new_tunnel_from_spec, opener_from_spec_dto,
     resolved_host_to_dto, settings_from_dto, snapshot_to_dto, sound_event_from_dto,
-    standby_sound_from_dto, tunnel_to_dto,
+    standby_sound_from_dto, tunnel_to_dto, x11_probe_to_dto,
 };
 use super::prompts::PromptBroker;
 use super::standby_signal::SoundPlayer;
@@ -119,6 +119,8 @@ impl DaemonHandler {
             Request::X11Start(params) => self.start_x11(&params),
             Request::X11Stop(params) => self.stop_x11(&params),
             Request::X11Launch(params) => self.launch_x11(&params).await,
+            Request::X11Probe(params) => self.probe_x11(&params).await,
+            Request::X11StartServer(params) => self.start_x11_server(&params).await,
             Request::SecretsForget {} => Ok(self.forget_secrets().await),
             Request::UiClaim {} => Ok(self.claim_ui(requester)),
             Request::TagsRename(params) => self.rename_tag(&params).await,
@@ -176,6 +178,22 @@ impl DaemonHandler {
     async fn launch_x11(&self, params: &X11LaunchParams) -> Result<ResponsePayload, IpcError> {
         self.engine
             .launch_x11(&params.host, &params.name)
+            .await
+            .map(|()| ResponsePayload::empty())
+            .map_err(engine_error_to_ipc)
+    }
+
+    async fn probe_x11(&self, params: &X11HostParams) -> Result<ResponsePayload, IpcError> {
+        self.engine
+            .probe_x11(&params.host)
+            .await
+            .map(|probe| ResponsePayload::X11Probe(x11_probe_to_dto(probe)))
+            .map_err(engine_error_to_ipc)
+    }
+
+    async fn start_x11_server(&self, params: &X11HostParams) -> Result<ResponsePayload, IpcError> {
+        self.engine
+            .start_x11_server(&params.host)
             .await
             .map(|()| ResponsePayload::empty())
             .map_err(engine_error_to_ipc)
@@ -570,6 +588,8 @@ fn is_x11_precondition(failure: &X11Error) -> bool {
             | X11Error::Refused
             | X11Error::CommandRefused
             | X11Error::EmptyRemoteDisplay
+            | X11Error::NoLocalServer
+            | X11Error::ServerDisplayNotLocal { .. }
     )
 }
 
@@ -618,6 +638,7 @@ mod tests {
     use crate::daemon::testing::{EmptyPortScanner, TestServer};
     use crate::daemon::tray::TrayStatusCell;
     use crate::daemon::ui::testing::FakeLauncher;
+    use crate::daemon::x11_servers::SystemX11Servers;
 
     const WAIT: Duration = Duration::from_secs(10);
     const POLL_INTERVAL: Duration = Duration::from_millis(25);
@@ -764,6 +785,7 @@ mod tests {
             store,
             port_scanner: Arc::new(EmptyPortScanner),
             x11_environment: Arc::new(SystemX11Environment),
+            x11_servers: Arc::new(SystemX11Servers),
             state_store: Arc::new(state_store),
             keyring: Some(keyring.clone()),
             detected_openers: Vec::new(),
@@ -1337,6 +1359,32 @@ mod tests {
         let error = EngineError::X11(X11Error::NoLocalDisplay);
 
         assert_eq!(engine_error_to_ipc(error).code, ErrorCode::InvalidState);
+    }
+
+    #[test]
+    fn should_answer_invalid_state_when_no_x_server_is_installed() {
+        let error = EngineError::X11(X11Error::NoLocalServer);
+
+        assert_eq!(engine_error_to_ipc(error).code, ErrorCode::InvalidState);
+    }
+
+    #[test]
+    fn should_answer_invalid_state_when_the_display_is_not_on_this_machine() {
+        let error = EngineError::X11(X11Error::ServerDisplayNotLocal {
+            display: "workstation:6000".to_owned(),
+        });
+
+        assert_eq!(engine_error_to_ipc(error).code, ErrorCode::InvalidState);
+    }
+
+    #[test]
+    fn should_answer_internal_when_the_x_server_did_not_start() {
+        let error = EngineError::X11(X11Error::ServerDidNotStart {
+            server: "VcXsrv".to_owned(),
+            display: "127.0.0.1:6000".to_owned(),
+        });
+
+        assert_eq!(engine_error_to_ipc(error).code, ErrorCode::Internal);
     }
 
     #[test]

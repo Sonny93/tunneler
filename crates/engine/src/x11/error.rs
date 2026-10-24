@@ -43,6 +43,31 @@ pub enum X11Error {
         /// The display that was tried.
         display: String,
     },
+    /// No supported X server is installed on this machine.
+    #[error("no local X server is installed")]
+    NoLocalServer,
+    /// The display is not on this machine, so no server started here can serve it.
+    #[error("the X display {display} is not on this machine: an X server cannot be started for it")]
+    ServerDisplayNotLocal {
+        /// The display that was resolved.
+        display: String,
+    },
+    /// The X server program could not be run.
+    #[error("cannot start the X server {server}: {source}")]
+    StartServer {
+        /// The name of the X server.
+        server: String,
+        /// The failure to run it.
+        source: io::Error,
+    },
+    /// The X server was started but the display did not come up in time.
+    #[error("the X server {server} did not open the display {display} in time")]
+    ServerDidNotStart {
+        /// The name of the X server.
+        server: String,
+        /// The display that stayed unreachable.
+        display: String,
+    },
     /// The `Xauthority` file exists but cannot be read.
     #[error("cannot read the Xauthority file {}: {source}", path.display())]
     ReadXauthority {

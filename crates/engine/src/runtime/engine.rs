@@ -39,7 +39,9 @@ use crate::store::{
     OpenOptions, Opener, Settings, StateStore, Store, StoreError, TagProblem, TunnelDefinition,
     TunnelId, TunnelKind, X11Launcher, find_tag_problem, validate_tunnel_definition,
 };
-use crate::x11::{LocalX11Resolver, X11Environment, X11Error};
+use crate::x11::{
+    LocalX11Resolver, LocalX11Servers, X11Environment, X11Error, X11Probe, X11ServerControl,
+};
 
 /// Why an engine operation failed.
 #[derive(Debug, Error)]
@@ -154,6 +156,9 @@ pub struct EngineDependencies {
     /// apart from the SSH configuration environment: it reads `$DISPLAY`,
     /// `$XAUTHORITY` and the `Xauthority` location, nothing else.
     pub x11_environment: Arc<dyn X11Environment>,
+    /// The X servers installed on this machine, which the engine can start
+    /// when the local X display is not running.
+    pub x11_servers: Arc<dyn LocalX11Servers>,
     /// Where the tunnels the user wants running and the keyring entries are
     /// remembered between two runs.
     pub state_store: Arc<dyn StateStore>,
@@ -234,6 +239,7 @@ pub(crate) struct EngineInner {
     pub(crate) port_watch: Arc<PortWatch>,
     x11_anchors: X11Anchors,
     x11_launches: X11Launches,
+    x11_server_control: X11ServerControl,
     state: Arc<StateTracker>,
     passphrases: Arc<PassphraseVault>,
     catalog: Mutex<Catalog>,
@@ -315,6 +321,7 @@ impl Engine {
             store,
             port_scanner,
             x11_environment,
+            x11_servers,
             state_store,
             keyring,
             detected_openers,
@@ -354,6 +361,12 @@ impl Engine {
             Arc::clone(&x11_resolver),
             settings.clone(),
         );
+        let x11_server_control = X11ServerControl::new(
+            Arc::clone(&x11_resolver),
+            x11_servers,
+            options.x11_server_start_timeout,
+            options.x11_server_poll_interval,
+        );
         let x11_launches = X11Launches::new(sessions.clone(), x11_resolver);
         let factory = TunnelFactory {
             bus: bus.clone(),
@@ -372,6 +385,7 @@ impl Engine {
             port_watch,
             x11_anchors,
             x11_launches,
+            x11_server_control,
             state,
             passphrases,
             catalog: Mutex::new(Catalog::new(factory, document.tunnels)),
@@ -868,6 +882,21 @@ impl Engine {
         self.ensure_running()?;
         self.inner.x11_anchors.start(host);
         Ok(())
+    }
+
+    /// Tries to reach the local X display of the host, and names the
+    /// installed X server that could be started when it is not running.
+    pub async fn probe_x11(&self, host: &str) -> Result<X11Probe, EngineError> {
+        self.ensure_running()?;
+        Ok(self.inner.x11_server_control.probe(host).await?)
+    }
+
+    /// Starts the installed X server for the local X display of the host and
+    /// returns once the display accepts connections. Does nothing when it
+    /// already does.
+    pub async fn start_x11_server(&self, host: &str) -> Result<(), EngineError> {
+        self.ensure_running()?;
+        Ok(self.inner.x11_server_control.start(host).await?)
     }
 
     /// Stops the X11 anchor of the host. Does nothing when it is stopped.

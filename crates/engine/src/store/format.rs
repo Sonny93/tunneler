@@ -15,7 +15,7 @@ use super::migration::{CURRENT_VERSION, migrate};
 use super::model::{
     HostOverrides, Language, OpenDefault, OpenHost, OpenOptions, OpenScheme, Opener, Settings,
     StandbyNotify, StandbySound, StoreDocument, TunnelDefinition, TunnelId, TunnelKind,
-    X11Launcher,
+    X11Launcher, X11ServerStart,
 };
 use super::validation::validate;
 
@@ -85,6 +85,7 @@ struct StoredSettings {
     launch_at_login: Option<bool>,
     use_os_keyring: Option<bool>,
     x11_display: Option<String>,
+    x11_server_start: Option<StoredX11ServerStart>,
     open_host: Option<StoredOpenHost>,
     open_default: Option<StoredOpenDefault>,
     standby: Option<bool>,
@@ -129,6 +130,14 @@ enum StoredLanguage {
 enum StoredOpenHost {
     Localhost,
     Ip,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum StoredX11ServerStart {
+    Ask,
+    Always,
+    Never,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -323,6 +332,9 @@ impl StoredSettings {
             launch_at_login: self.launch_at_login.unwrap_or(defaults.launch_at_login),
             use_os_keyring: self.use_os_keyring.unwrap_or(defaults.use_os_keyring),
             x11_display: self.x11_display.filter(|display| !display.is_empty()),
+            x11_server_start: self
+                .x11_server_start
+                .map_or(defaults.x11_server_start, X11ServerStart::from),
             open_host: self.open_host.map_or(defaults.open_host, OpenHost::from),
             open_default: self
                 .open_default
@@ -340,6 +352,16 @@ impl StoredSettings {
             standby_volume: self.standby_volume.unwrap_or(defaults.standby_volume),
             language: self.language.map_or(defaults.language, Language::from),
             check_for_updates: self.check_for_updates.unwrap_or(defaults.check_for_updates),
+        }
+    }
+}
+
+impl From<StoredX11ServerStart> for X11ServerStart {
+    fn from(start: StoredX11ServerStart) -> Self {
+        match start {
+            StoredX11ServerStart::Ask => Self::Ask,
+            StoredX11ServerStart::Always => Self::Always,
+            StoredX11ServerStart::Never => Self::Never,
         }
     }
 }
@@ -923,6 +945,34 @@ mod tests {
         let outcome = parse("[settings]\nopen_host = \"ip\"\n").unwrap();
 
         assert_eq!(outcome.document.settings.open_host, OpenHost::Ip);
+    }
+
+    #[test]
+    fn should_read_the_x11_server_start_setting_when_it_is_given() {
+        let outcome = parse("[settings]\nx11_server_start = \"always\"\n").unwrap();
+
+        assert_eq!(
+            outcome.document.settings.x11_server_start,
+            X11ServerStart::Always
+        );
+    }
+
+    #[test]
+    fn should_ask_before_starting_an_x_server_when_the_setting_is_absent() {
+        let outcome = parse("[settings]\n").unwrap();
+
+        assert_eq!(
+            outcome.document.settings.x11_server_start,
+            X11ServerStart::Ask
+        );
+    }
+
+    #[test]
+    fn should_reject_an_unknown_x11_server_start_setting() {
+        assert!(matches!(
+            parse("[settings]\nx11_server_start = \"sometimes\"\n"),
+            Err(StoreError::Parse { .. })
+        ));
     }
 
     #[test]

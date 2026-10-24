@@ -13,7 +13,7 @@ use ipc::protocol::{
     ImportCandidateDto, ImportPreviewDto, IpcError, LogEntryDto, LogLevelDto, LogsResult,
     OpenTunnelResult, OpenerSourceDto, OpenerSpecDto, OpenersResult, RenameTagResult, Request,
     RequestEnvelope, ResolvedHostDto, ResponsePayload, TargetHealthDto, TunnelKindDto,
-    UiClaimResult,
+    UiClaimResult, X11ProbeDto,
 };
 use ipc::{
     ConnectionInfo, Endpoint, IpcClient, IpcServer, RequestHandler, ServerHandle, ServerOptions,
@@ -38,6 +38,7 @@ pub const MISSING_TAG: &str = "missing";
 pub const CONFIG_FILE: &str = "/config/tunnels.toml";
 pub const SLOW_DELAY: Duration = Duration::from_millis(300);
 const EVENT_BUS_CAPACITY: usize = 16;
+const X_SERVER_NAME: &str = "VcXsrv";
 
 pub struct FakeHandler;
 
@@ -139,6 +140,11 @@ impl RequestHandler for FakeHandler {
             }
             Request::TagsDelete(_) => Ok(ResponsePayload::DeleteTag(DeleteTagResult {
                 removed_count: REMOVED_COUNT,
+            })),
+            Request::X11Probe(params) => Ok(ResponsePayload::X11Probe(X11ProbeDto {
+                display: params.host,
+                is_reachable: false,
+                server: Some(X_SERVER_NAME.to_owned()),
             })),
             Request::DaemonPaths {} => Ok(ResponsePayload::DaemonPaths(DaemonPathsResult {
                 config_file: CONFIG_FILE.to_owned(),

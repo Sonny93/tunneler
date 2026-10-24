@@ -2,6 +2,7 @@ import type {
 	OpenDefaultDto,
 	OpenHostDto,
 	SettingsDto,
+	X11ServerStartDto,
 	StandbyNotifyDto,
 	StandbySoundDto,
 	LanguageSettingDto,
@@ -24,6 +25,7 @@ export type SettingsFormValues = {
 	startOnLaunchTags: string;
 	useOsKeyring: boolean;
 	x11Display: string;
+	x11ServerStart: X11ServerStartDto;
 	openHost: OpenHostDto;
 	openDefault: OpenDefaultDto;
 	standby: boolean;
@@ -67,6 +69,7 @@ export function toSettingsFormValues(
 		startOnLaunchTags: settings.startOnLaunchTags.join(TAGS_SEPARATOR),
 		useOsKeyring: settings.useOsKeyring,
 		x11Display: settings.x11Display ?? '',
+		x11ServerStart: settings.x11ServerStart,
 		openHost: settings.openHost,
 		openDefault: settings.openDefault,
 		standby: settings.standby,
@@ -101,6 +104,7 @@ export function toSettings(
 		startOnLaunchTags: parseTags(values.startOnLaunchTags),
 		useOsKeyring: values.useOsKeyring,
 		x11Display: x11Display === '' ? undefined : x11Display,
+		x11ServerStart: values.x11ServerStart,
 		openHost: values.openHost,
 		openDefault: values.openDefault,
 		standby: values.standby,

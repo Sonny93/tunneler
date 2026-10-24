@@ -12,7 +12,7 @@ use engine::{
     RejectedHostKey, RejectionReason, Retention, Settings, SshForward, StandbyNotify, StandbySound,
     TargetHealth, TunnelDefinition, TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics,
     TunnelSnapshot, TunnelState, UnmanagedProcess, X11AnchorSnapshot, X11AnchorState, X11Launcher,
-    default_opener,
+    X11Probe, X11ServerStart, default_opener,
 };
 use ipc::protocol::{
     AvailableOpenerDto, ConfigInvalidEvent, DefaultOpenerDto, EpochMillis, EventMessage,
@@ -24,7 +24,7 @@ use ipc::protocol::{
     SoundEventDto, StandbyNotifyDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto,
     TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelKindDto,
     TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
-    X11ChangedEvent, X11LauncherDto, X11StateDto,
+    X11ChangedEvent, X11LauncherDto, X11ProbeDto, X11ServerStartDto, X11StateDto,
 };
 
 use ssh_config::Resolution;
@@ -166,6 +166,30 @@ pub(crate) fn sound_event_from_dto(event: SoundEventDto) -> SoundEvent {
     match event {
         SoundEventDto::Woke => SoundEvent::Woke,
         SoundEventDto::WakeFailed => SoundEvent::WakeFailed,
+    }
+}
+
+fn x11_server_start_to_dto(start: X11ServerStart) -> X11ServerStartDto {
+    match start {
+        X11ServerStart::Ask => X11ServerStartDto::Ask,
+        X11ServerStart::Always => X11ServerStartDto::Always,
+        X11ServerStart::Never => X11ServerStartDto::Never,
+    }
+}
+
+fn x11_server_start_from_dto(start: X11ServerStartDto) -> X11ServerStart {
+    match start {
+        X11ServerStartDto::Ask => X11ServerStart::Ask,
+        X11ServerStartDto::Always => X11ServerStart::Always,
+        X11ServerStartDto::Never => X11ServerStart::Never,
+    }
+}
+
+pub(crate) fn x11_probe_to_dto(probe: X11Probe) -> X11ProbeDto {
+    X11ProbeDto {
+        display: probe.display,
+        is_reachable: probe.is_reachable,
+        server: probe.server,
     }
 }
 
@@ -410,6 +434,7 @@ pub(crate) fn settings_to_dto(settings: &Settings) -> SettingsDto {
         launch_at_login: settings.launch_at_login,
         use_os_keyring: settings.use_os_keyring,
         x11_display: settings.x11_display.clone(),
+        x11_server_start: x11_server_start_to_dto(settings.x11_server_start),
         open_host: open_host_to_dto(settings.open_host),
         open_default: open_default_to_dto(settings.open_default),
         standby: settings.standby,
@@ -436,6 +461,7 @@ pub(crate) fn settings_from_dto(dto: SettingsDto) -> Settings {
         launch_at_login: dto.launch_at_login,
         use_os_keyring: dto.use_os_keyring,
         x11_display: dto.x11_display,
+        x11_server_start: x11_server_start_from_dto(dto.x11_server_start),
         open_host: open_host_from_dto(dto.open_host),
         open_default: open_default_from_dto(dto.open_default),
         standby: dto.standby,
@@ -963,6 +989,7 @@ mod tests {
         let settings = Settings {
             start_on_launch_tags: vec!["dev".to_owned()],
             x11_display: Some("host:0.0".to_owned()),
+            x11_server_start: X11ServerStart::Always,
             open_host: OpenHost::Ip,
             open_default: OpenDefault::Browser,
             standby: true,
@@ -976,6 +1003,24 @@ mod tests {
         };
 
         assert_eq!(settings_from_dto(settings_to_dto(&settings)), settings);
+    }
+
+    #[test]
+    fn should_carry_every_field_when_converting_a_probe_to_its_dto() {
+        let probe = X11Probe {
+            display: "127.0.0.1:6000".to_owned(),
+            is_reachable: false,
+            server: Some("VcXsrv".to_owned()),
+        };
+
+        assert_eq!(
+            x11_probe_to_dto(probe),
+            X11ProbeDto {
+                display: "127.0.0.1:6000".to_owned(),
+                is_reachable: false,
+                server: Some("VcXsrv".to_owned()),
+            }
+        );
     }
 
     #[test]

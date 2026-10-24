@@ -19,7 +19,7 @@ use ipc::protocol::{
     TrayChangedEvent, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
     TunnelIdParams, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto,
     TunnelStateDto, UiClaimResult, X11AnchorDto, X11ChangedEvent, X11HostParams, X11LaunchParams,
-    X11LauncherDto, X11StateDto, encode_event, encode_response,
+    X11LauncherDto, X11ProbeDto, X11ServerStartDto, X11StateDto, encode_event, encode_response,
 };
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -61,6 +61,7 @@ fn settings() -> SettingsDto {
         launch_at_login: false,
         use_os_keyring: false,
         x11_display: None,
+        x11_server_start: X11ServerStartDto::Ask,
         open_host: OpenHostDto::Localhost,
         open_default: OpenDefaultDto::Suggested,
         standby: false,
@@ -247,6 +248,8 @@ fn every_request() -> Vec<Request> {
         Request::X11Start(x11_host()),
         Request::X11Stop(x11_host()),
         Request::X11Launch(x11_launch()),
+        Request::X11Probe(x11_host()),
+        Request::X11StartServer(x11_host()),
         Request::SecretsForget {},
         Request::UiClaim {},
         Request::TagsRename(TagRenameParams {
@@ -393,7 +396,7 @@ fn should_serialize_hello_as_documented() {
 
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
-        r#"{"id":1,"method":"hello","params":{"protocolVersion":4,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
+        r#"{"id":1,"method":"hello","params":{"protocolVersion":5,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
     );
 }
 
@@ -442,6 +445,67 @@ fn should_deserialize_a_tunnel_spec_without_open_options_as_having_none_and_with
 
     assert!(parsed.open.is_empty());
     assert_eq!(parsed.standby, None);
+}
+
+#[test]
+fn should_deserialize_settings_without_x11_server_start_as_ask() {
+    let mut value = to_json(&settings());
+    value.as_object_mut().unwrap().remove("x11ServerStart");
+
+    let parsed: SettingsDto = serde_json::from_value(value).unwrap();
+
+    assert_eq!(parsed.x11_server_start, X11ServerStartDto::Ask);
+}
+
+#[test]
+fn should_serialize_every_x11_server_start_as_a_lowercase_word() {
+    assert_eq!(
+        [
+            to_json(&X11ServerStartDto::Ask),
+            to_json(&X11ServerStartDto::Always),
+            to_json(&X11ServerStartDto::Never),
+        ],
+        [json!("ask"), json!("always"), json!("never")]
+    );
+}
+
+#[test]
+fn should_serialize_the_x11_probe_requests_as_documented() {
+    assert_eq!(
+        [
+            to_json(&Request::X11Probe(x11_host())),
+            to_json(&Request::X11StartServer(x11_host())),
+        ],
+        [
+            json!({"method":"x11.probe","params":{"host":"nova"}}),
+            json!({"method":"x11.startServer","params":{"host":"nova"}}),
+        ]
+    );
+}
+
+#[test]
+fn should_serialize_an_x11_probe_response_as_documented() {
+    let reachable = X11ProbeDto {
+        display: "127.0.0.1:6000".to_owned(),
+        is_reachable: true,
+        server: None,
+    };
+    let unreachable = X11ProbeDto {
+        display: "127.0.0.1:6000".to_owned(),
+        is_reachable: false,
+        server: Some("VcXsrv".to_owned()),
+    };
+
+    let lines = [reachable, unreachable]
+        .map(|probe| encode_response(Some(1), &Ok(ResponsePayload::X11Probe(probe))).unwrap());
+
+    assert_eq!(
+        lines,
+        [
+            "{\"id\":1,\"result\":{\"display\":\"127.0.0.1:6000\",\"isReachable\":true,\"server\":null}}\n",
+            "{\"id\":1,\"result\":{\"display\":\"127.0.0.1:6000\",\"isReachable\":false,\"server\":\"VcXsrv\"}}\n",
+        ]
+    );
 }
 
 #[test]
@@ -522,7 +586,7 @@ fn should_serialize_settings_update_as_documented() {
 
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
-        r#"{"id":8,"method":"settings.update","params":{"settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","standbyVolume":50,"language":"system","checkForUpdates":true},"openers":[{"id":"dbeaver","name":"DBeaver","command":"dbeaver","args":["-con","host={host}"],"ports":[5432]}]}}"#
+        r#"{"id":8,"method":"settings.update","params":{"settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"x11ServerStart":"ask","openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","standbyVolume":50,"language":"system","checkForUpdates":true},"openers":[{"id":"dbeaver","name":"DBeaver","command":"dbeaver","args":["-con","host={host}"],"ports":[5432]}]}}"#
     );
 }
 
@@ -1216,7 +1280,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isAwake":false,"isTemporary":false,"defaultOpener":{"id":"browser","name":"Browser"}}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","standbyVolume":50,"language":"system","checkForUpdates":true},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"x11ServerStart":"ask","openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","standbyVolume":50,"language":"system","checkForUpdates":true},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
             "\n"
         )
     );
@@ -1305,7 +1369,7 @@ fn should_serialize_a_protocol_mismatch_with_both_versions() {
     assert_eq!(
         line,
         concat!(
-            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 4, the client protocol 9","data":{"client":9,"daemon":4}}}"#,
+            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 5, the client protocol 9","data":{"client":9,"daemon":5}}}"#,
             "\n"
         )
     );
@@ -1788,8 +1852,8 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_thirty_nine_methods() {
-    assert_eq!(METHOD_NAMES.len(), 39);
+fn should_list_forty_one_methods() {
+    assert_eq!(METHOD_NAMES.len(), 41);
 }
 
 #[test]

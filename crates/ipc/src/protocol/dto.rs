@@ -55,6 +55,19 @@ pub enum OpenDefaultDto {
     Browser,
 }
 
+/// What the UI does when the local X server is not running.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum X11ServerStartDto {
+    /// Ask the user before starting an installed X server.
+    #[default]
+    Ask,
+    /// Start an installed X server without asking.
+    Always,
+    /// Never start an X server.
+    Never,
+}
+
 /// How the daemon signals that a standby tunnel woke up or failed to.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -465,6 +478,9 @@ pub struct SettingsDto {
     /// The local X11 display; absent means `$DISPLAY`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub x11_display: Option<String>,
+    /// What the UI does when the local X server is not running.
+    #[serde(default)]
+    pub x11_server_start: X11ServerStartDto,
     /// Which loopback name opened tunnels use unless they say otherwise.
     #[serde(default)]
     pub open_host: OpenHostDto,
@@ -595,6 +611,19 @@ pub enum X11StateDto {
         /// Why.
         message: String,
     },
+}
+
+/// Whether the local X display of a host accepts connections.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct X11ProbeDto {
+    /// The local display, as the X11 view shows it.
+    pub display: String,
+    /// Whether the display accepts connections.
+    pub is_reachable: bool,
+    /// The installed X server that could be started; only set when the
+    /// display is unreachable and local.
+    pub server: Option<String>,
 }
 
 /// The X11 anchor of a host alias: a session with X11 forwarding whose remote

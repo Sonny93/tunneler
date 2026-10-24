@@ -44,6 +44,8 @@ export function createTauriGateway(): DaemonGateway {
 		deleteTag: (tag) => call('delete_tag', { tag }),
 		startX11: (host) => call('start_x11', { host }),
 		stopX11: (host) => call('stop_x11', { host }),
+		probeX11: (host) => call('probe_x11', { host }),
+		startX11Server: (host) => call('start_x11_server', { host }),
 		launchX11: (host, name) => call('launch_x11', { host, name }),
 		tunnelLogs: (id) => call('tunnel_logs', { id }),
 		resolveHost: (host) => call('resolve_host', { host }),

@@ -60,6 +60,10 @@ export function createFakeGateway(
 		deleteTag: vi.fn(() => Promise.resolve({ removedCount: 0 })),
 		startX11: vi.fn(() => Promise.resolve()),
 		stopX11: vi.fn(() => Promise.resolve()),
+		probeX11: vi.fn(() =>
+			Promise.resolve({ display: ':0', isReachable: true, server: null })
+		),
+		startX11Server: vi.fn(() => Promise.resolve()),
 		launchX11: vi.fn(() => Promise.resolve()),
 		tunnelLogs: vi.fn(() => Promise.resolve([])),
 		resolveHost: vi.fn((host) =>

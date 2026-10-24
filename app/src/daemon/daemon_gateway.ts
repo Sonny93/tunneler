@@ -22,6 +22,7 @@ import type {
 	TunnelSpecDto,
 	UpdateOfferDto,
 	UpdateProgressDto,
+	X11ProbeDto,
 } from '#/daemon/protocol';
 import type { Locale } from '#/i18n/supported_locales';
 
@@ -67,6 +68,10 @@ export type DaemonGateway = {
 	deleteTag(tag: string): Promise<DeleteTagResultDto>;
 	startX11(host: string): Promise<void>;
 	stopX11(host: string): Promise<void>;
+	/** Checks whether an X server answers on the local display used for `host`. */
+	probeX11(host: string): Promise<X11ProbeDto>;
+	/** Starts the installed X server found by `probeX11`. */
+	startX11Server(host: string): Promise<void>;
 	launchX11(host: string, name: string): Promise<void>;
 	tunnelLogs(id: string): Promise<readonly LogEntryDto[]>;
 	resolveHost(host: string): Promise<ResolvedHostDto>;

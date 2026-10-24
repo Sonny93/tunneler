@@ -24,7 +24,7 @@ use crate::protocol::{
     Request, RequestEnvelope, ResolvedHostDto, SettingsDto, SettingsUpdateParams, SnapshotDto,
     SoundEventDto, StandbySoundDto, TagParams, TagRenameParams, TargetHealthDto,
     TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelSpecDto,
-    UiClaimResult, X11HostParams, X11LaunchParams, encode_line,
+    UiClaimResult, X11HostParams, X11LaunchParams, X11ProbeDto, encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -506,6 +506,29 @@ impl IpcClient {
             name: name.to_owned(),
         };
         self.call_without_result(Request::X11Launch(params)).await
+    }
+
+    /// Tries to reach the local X display of a host.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. A daemon older than
+    /// this method answers `unknown_method`.
+    pub async fn probe_x11(&self, host: &str) -> Result<X11ProbeDto, ClientError> {
+        self.call(Request::X11Probe(x11_host(host))).await
+    }
+
+    /// Starts the installed X server for the local X display of a host and
+    /// waits for the display to accept connections.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. A display that is not
+    /// on this machine, or without an installed X server, answers
+    /// [`ErrorCode::InvalidState`](crate::protocol::ErrorCode::InvalidState).
+    pub async fn start_x11_server(&self, host: &str) -> Result<(), ClientError> {
+        self.call_without_result(Request::X11StartServer(x11_host(host)))
+            .await
     }
 
     /// Forgets every remembered passphrase, in the daemon's memory and in the

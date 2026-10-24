@@ -16,6 +16,9 @@ export type OpenHostDto = 'localhost' | 'ip';
 
 export type OpenDefaultDto = 'suggested' | 'browser';
 
+/** What to do when no X server answers on the local display. */
+export type X11ServerStartDto = 'ask' | 'always' | 'never';
+
 /** How a tunnel is opened; every field is optional and `open` is absent when none is set. */
 export type OpenOptionsDto = {
 	scheme?: OpenSchemeDto;
@@ -167,6 +170,7 @@ export type SettingsDto = {
 	launchAtLogin: boolean;
 	useOsKeyring: boolean;
 	x11Display?: string;
+	x11ServerStart: X11ServerStartDto;
 	openHost: OpenHostDto;
 	openDefault: OpenDefaultDto;
 	standby: boolean;
@@ -225,6 +229,14 @@ export type X11StateDto =
 	| { kind: 'failed'; message: string };
 
 /** Only anchors that are not stopped are listed. */
+/** The outcome of looking for an X server on the local display of a host. */
+export type X11ProbeDto = {
+	display: string;
+	isReachable: boolean;
+	/** An installed X server that could be started: only set when the display is unreachable and local. */
+	server: string | null;
+};
+
 export type X11AnchorDto = { host: string; state: X11StateDto };
 
 export type X11LauncherDto = { host: string; name: string; command: string };

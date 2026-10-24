@@ -10,6 +10,7 @@ const WINDOWS_DEFAULT_DISPLAY: &str = "127.0.0.1:0.0";
 const LOCAL_HOST_MARKER: &str = "unix";
 const UNIX_HOST_SUFFIX: &str = "/unix";
 const LOOPBACK_HOST: &str = "127.0.0.1";
+const LOOPBACK_HOSTS: [&str; 3] = [LOOPBACK_HOST, "localhost", "::1"];
 
 /// How to reach the local X server.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,6 +24,17 @@ pub(crate) enum DisplayEndpoint {
 pub(crate) struct LocalDisplay {
     pub(crate) number: u16,
     pub(crate) endpoint: DisplayEndpoint,
+}
+
+impl LocalDisplay {
+    /// Whether an X server started on this machine would serve the display:
+    /// a Unix socket, or TCP on a loopback host.
+    pub(crate) fn is_local(&self) -> bool {
+        match &self.endpoint {
+            DisplayEndpoint::UnixSocket(_) => true,
+            DisplayEndpoint::Tcp { host, .. } => LOOPBACK_HOSTS.contains(&host.as_str()),
+        }
+    }
 }
 
 impl fmt::Display for LocalDisplay {
@@ -177,6 +189,30 @@ mod tests {
 
     fn endpoint(text: &str, platform: DisplayPlatform) -> DisplayEndpoint {
         parse_display(text, platform).unwrap().endpoint
+    }
+
+    fn is_local(text: &str) -> bool {
+        parse_display(text, DisplayPlatform::Unix)
+            .unwrap()
+            .is_local()
+    }
+
+    #[test]
+    fn should_be_local_when_the_display_is_a_unix_socket() {
+        assert!(is_local(":0"));
+    }
+
+    #[test]
+    fn should_be_local_when_the_tcp_host_is_a_loopback_address() {
+        assert!(is_local("127.0.0.1:0"));
+        assert!(is_local("localhost:1"));
+        assert!(is_local("[::1]:2"));
+    }
+
+    #[test]
+    fn should_not_be_local_when_the_tcp_host_is_another_machine() {
+        assert!(!is_local("workstation:0"));
+        assert!(!is_local("192.168.1.20:0"));
     }
 
     #[test]

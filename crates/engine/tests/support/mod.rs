@@ -38,6 +38,6 @@ pub use test_support::{
 };
 pub use workspace::{NoAgentLocator, Workspace, quiet_prompter, rejecting_verifier};
 pub use x11::{
-    FakeX11Environment, FakeXServer, decode_hex, expected_server_setup, x_client_setup,
-    x_client_setup_with_cookie,
+    FakeX11Environment, FakeX11Servers, FakeXServer, decode_hex, expected_server_setup,
+    x_client_setup, x_client_setup_with_cookie,
 };

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::watch;
 use tracing::debug;
 
-use super::display::resolve_display;
+use super::display::{LocalDisplay, resolve_display};
 use super::environment::X11Environment;
 use super::error::X11Error;
 use super::router::LocalX11;
@@ -32,8 +32,8 @@ impl LocalX11Resolver {
     }
 
     /// The display for `host`: its override, else the settings, else
-    /// `$DISPLAY`, and the cookie the `Xauthority` file holds for it.
-    pub(crate) async fn resolve(&self, host: &str) -> Result<LocalX11, X11Error> {
+    /// `$DISPLAY`, else the platform default.
+    pub(crate) fn resolve_display(&self, host: &str) -> Result<LocalDisplay, X11Error> {
         let host_override = self
             .store
             .document()
@@ -41,11 +41,17 @@ impl LocalX11Resolver {
             .get(host)
             .and_then(|overrides| overrides.x11_display.clone());
         let settings_display = self.settings.borrow().x11_display.clone();
-        let local_display = resolve_display(
+        resolve_display(
             host_override.as_deref(),
             settings_display.as_deref(),
             self.environment.as_ref(),
-        )?;
+        )
+    }
+
+    /// The display for `host` and the cookie the `Xauthority` file holds
+    /// for it.
+    pub(crate) async fn resolve(&self, host: &str) -> Result<LocalX11, X11Error> {
+        let local_display = self.resolve_display(host)?;
         let environment = Arc::clone(&self.environment);
         let lookup_display = local_display.clone();
         let real_cookie =

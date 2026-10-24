@@ -419,6 +419,7 @@ mod tests {
                 launch_at_login: false,
                 use_os_keyring: false,
                 x11_display: None,
+                x11_server_start: ipc::protocol::X11ServerStartDto::Ask,
                 open_host: ipc::protocol::OpenHostDto::Localhost,
                 open_default: ipc::protocol::OpenDefaultDto::Suggested,
                 standby: false,

@@ -279,6 +279,31 @@ describe('SettingsDialog', () => {
 		);
 	});
 
+	it('should show the current X server start choice on the connection tab', async () => {
+		openSettings(buildSettings({ x11ServerStart: 'never' }), 'connection');
+		await renderDialog();
+
+		expect(screen.getByRole('radio', { name: "Don't start it" })).toBeChecked();
+		expect(
+			screen.getByRole('radiogroup', { name: 'When no X server is running' })
+		).toHaveAccessibleDescription(/VcXsrv or Xming/);
+	});
+
+	it('should save the chosen X server start choice', async () => {
+		const settings = buildSettings();
+		openSettings(settings, 'connection');
+		const user = userEvent.setup();
+		const { gateway } = await renderDialog();
+
+		await user.click(screen.getByRole('radio', { name: 'Start it' }));
+		await clickSave(user);
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith(
+			{ ...settings, x11ServerStart: 'always' },
+			[]
+		);
+	});
+
 	it('should offer the applications section on the opening tab', async () => {
 		openSettings(buildSettings(), 'opening');
 		await renderDialog();

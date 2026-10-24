@@ -118,6 +118,9 @@ pub use store::{
     OpenPathProblem, OpenScheme, Opener, OpenerIdProblem, Settings, SourceLocation, StandbyNotify,
     StandbySound, StateStore, Store, StoreDocument, StoreError, StoreEvent, StoreWatcher,
     TagProblem, TunnelDefinition, TunnelId, TunnelKind, TunnelReference, ValidationError,
-    X11Launcher, default_state_path, default_store_path,
+    X11Launcher, X11ServerStart, default_state_path, default_store_path,
 };
-pub use x11::{DisplayPlatform, SystemX11Environment, X11Environment, X11Error};
+pub use x11::{
+    DisplayPlatform, LocalX11Servers, SystemX11Environment, X11Environment, X11Error, X11Probe,
+    X11Server,
+};

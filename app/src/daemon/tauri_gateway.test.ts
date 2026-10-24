@@ -76,6 +76,8 @@ describe('createTauriGateway', () => {
 		['deleteTag', ['dev'], 'delete_tag', { tag: 'dev' }],
 		['startX11', ['nova'], 'start_x11', { host: 'nova' }],
 		['stopX11', ['nova'], 'stop_x11', { host: 'nova' }],
+		['probeX11', ['nova'], 'probe_x11', { host: 'nova' }],
+		['startX11Server', ['nova'], 'start_x11_server', { host: 'nova' }],
 		[
 			'launchX11',
 			['nova', 'VS Code'],

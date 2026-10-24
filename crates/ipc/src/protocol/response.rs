@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::protocol::dto::{
     AvailableOpenerDto, ImportPreviewDto, LogEntryDto, ResolvedHostDto, SnapshotDto,
-    TargetHealthDto, TunnelDto,
+    TargetHealthDto, TunnelDto, X11ProbeDto,
 };
 use crate::protocol::hello::HelloResult;
 
@@ -137,6 +137,8 @@ pub enum ResponsePayload {
     DeleteTag(DeleteTagResult),
     /// The answer to `daemon.paths`.
     DaemonPaths(DaemonPathsResult),
+    /// The answer to `x11.probe`.
+    X11Probe(X11ProbeDto),
 }
 
 impl ResponsePayload {

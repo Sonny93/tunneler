@@ -10,6 +10,7 @@ mod local;
 mod local_connection;
 mod router;
 mod serve;
+mod server;
 mod setup;
 mod xauthority;
 
@@ -22,3 +23,5 @@ pub use error::X11Error;
 pub(crate) use local::LocalX11Resolver;
 pub(crate) use router::{LocalX11, X11Forwarding, X11Router};
 pub(crate) use serve::{X11Connection, serve_x11_connection};
+pub(crate) use server::X11ServerControl;
+pub use server::{LocalX11Servers, X11Probe, X11Server};

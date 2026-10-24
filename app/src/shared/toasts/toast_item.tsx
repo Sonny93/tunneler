@@ -14,6 +14,7 @@ const TOAST_APPEARANCES: Readonly<Record<ToastTone, ToastAppearance>> = {
 		icon: 'i-mdi-check-circle-outline',
 		iconClassName: 'text-tn-success',
 	},
+	warning: { icon: 'i-mdi-alert-outline', iconClassName: 'text-tn-warning' },
 	error: {
 		icon: 'i-mdi-alert-circle-outline',
 		iconClassName: 'text-tn-danger',

@@ -13,6 +13,7 @@ start_on_launch_tags = []         # tags started when the daemon launches
 launch_at_login = false
 use_os_keyring = false            # keeps remembered passphrases in the OS keyring
 x11_display = ""                  # empty = $DISPLAY, or 127.0.0.1:0.0 on Windows
+x11_server_start = "ask"          # ask | always | never, what the UI does when the local X server is not running
 open_host = "localhost"           # localhost | ip (127.0.0.1, or [::1] when the tunnel listens on IPv6)
 open_default = "suggested"        # suggested | browser, what a tunnel without an application opens with
 standby = false                   # local/dynamic tunnels hold their port without an SSH session until a client connects

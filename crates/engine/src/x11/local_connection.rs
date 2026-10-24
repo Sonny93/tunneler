@@ -21,11 +21,19 @@ pub(crate) type BoxedDisplayStream = Box<dyn DisplayStream>;
 pub(crate) async fn connect_display(
     display: &LocalDisplay,
 ) -> Result<BoxedDisplayStream, X11Error> {
-    match timeout(LOCAL_CONNECT_TIMEOUT, connect_endpoint(display)).await {
+    connect_display_within(display, LOCAL_CONNECT_TIMEOUT).await
+}
+
+/// Connects to the local X server, giving up after `limit`.
+pub(crate) async fn connect_display_within(
+    display: &LocalDisplay,
+    limit: Duration,
+) -> Result<BoxedDisplayStream, X11Error> {
+    match timeout(limit, connect_endpoint(display)).await {
         Ok(connected) => connected,
         Err(_) => Err(X11Error::DisplayTimeout {
             display: display.to_string(),
-            timeout: LOCAL_CONNECT_TIMEOUT,
+            timeout: limit,
         }),
     }
 }

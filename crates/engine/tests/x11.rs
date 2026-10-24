@@ -11,9 +11,9 @@ use engine::{
 };
 use russh::keys::Algorithm;
 use support::{
-    FakePortScanner, FakeX11Environment, FakeXServer, TestServer, TestUser, Workspace, decode_hex,
-    expected_server_setup, free_port, generate_key, wait_for_event, wait_until, write_private_key,
-    x_client_setup, x_client_setup_with_cookie,
+    FakePortScanner, FakeX11Environment, FakeX11Servers, FakeXServer, TestServer, TestUser,
+    Workspace, decode_hex, expected_server_setup, free_port, generate_key, wait_for_event,
+    wait_until, write_private_key, x_client_setup, x_client_setup_with_cookie,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::broadcast::Receiver;
@@ -136,6 +136,7 @@ impl HarnessBuilder {
                 store,
                 port_scanner: Arc::new(FakePortScanner::default()),
                 x11_environment: Arc::new(environment),
+                x11_servers: Arc::new(FakeX11Servers::default()),
                 state_store: Arc::new(support::MemoryStateStore::default()),
                 keyring: None,
                 detected_openers: Vec::new(),

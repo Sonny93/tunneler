@@ -12,6 +12,7 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 - Une santé passive : une connexion refusée vers la cible la marque injoignable. Une vérification ponctuelle à la demande (`tunneler check`, ou « Tester la cible » dans l'interface).
 - Tunnels temporaires, lancés depuis la CLI avec la syntaxe d'OpenSSH (`tunneler up <hôte> -L 3333`), conservés tant que le daemon tourne et enregistrables dans la config.
 - Veille : un tunnel garde son port local et n'ouvre la session SSH qu'à la première connexion, puis retourne en veille après un temps d'inactivité. Notification ou son facultatifs au réveil ou quand le réveil échoue, avec un réglage de volume pour les sons synthétisés. Les tunnels réveillés peuvent être renvoyés en veille à la main, un par un, par tag ou tous ensemble.
+- Vérification du serveur X : avant de démarrer X11 ou un lanceur, Tunneler cherche un serveur X sur le display local. S'il n'y en a pas, il peut démarrer VcXsrv ou Xming s'ils sont installés (demander, toujours ou jamais), ou avertit que les fenêtres n'apparaîtront pas.
 - Redirection X11 sans le binaire `xauth`, avec une ancre par hôte et des lanceurs enregistrés.
 
 ### SSH
@@ -61,6 +62,7 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 - **Tout ce que fait le daemon sous Windows.** Il compile et passe le lint, mais tous les chemins n'ont pas été exécutés : le named pipe, la zone de notification, le lancement à l'ouverture de session, le gestionnaire d'identifiants, l'agent OpenSSH et Pageant, `ProxyCommand` et `Match exec`, la détection des clients VNC et RDP, le lancement détaché.
 - **Notifications.** Un toast doit s'afficher au nom de Tunneler sans raccourci du menu Démarrer.
 - **Sons de veille.** Tous les écouter, y compris avec le son « Notification » réglé sur « (Aucun) » dans le jeu de sons de Windows. Vérifier qu'aucun ne se coupe brusquement (chacun s'éteint, puis 150 ms de silence) et que le curseur de volume n'est ni trop faible à 5 % ni trop fort à 100 %.
+- **Démarrage du serveur X.** Démarrer VcXsrv et Xming quand aucun serveur X ne tourne, avec chaque valeur du réglage.
 - **Lecteur d'écran et affichage.** NVDA avec l'interface, le mode contraste élevé de Windows, et un zoom à 200 % sans défilement horizontal.
 
 ### Linux

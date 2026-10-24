@@ -1,8 +1,10 @@
+use std::io;
+use std::net::TcpListener as StdTcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use engine::{DisplayPlatform, X11Environment};
+use engine::{DisplayPlatform, LocalX11Servers, X11Environment, X11Server};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinHandle;
@@ -42,6 +44,55 @@ impl X11Environment for FakeX11Environment {
 
     fn platform(&self) -> DisplayPlatform {
         DisplayPlatform::Unix
+    }
+}
+
+/// The X servers installed on a machine the test describes. Starting one
+/// records the display number and, when told to, listens on that display.
+#[derive(Default)]
+pub struct FakeX11Servers {
+    server: Option<X11Server>,
+    is_listening_when_started: bool,
+    started_displays: Mutex<Vec<u16>>,
+    listeners: Mutex<Vec<StdTcpListener>>,
+}
+
+impl FakeX11Servers {
+    /// A machine with an X server called `name` installed.
+    pub fn with_server(name: &str) -> Self {
+        Self {
+            server: Some(X11Server {
+                name: name.to_owned(),
+                executable: PathBuf::from(format!("/opt/{name}")),
+            }),
+            ..Self::default()
+        }
+    }
+
+    /// Makes a started server accept connections on its display.
+    pub fn listening_when_started(mut self) -> Self {
+        self.is_listening_when_started = true;
+        self
+    }
+
+    /// The display numbers the servers were started for, in order.
+    pub fn started_displays(&self) -> Vec<u16> {
+        self.started_displays.lock().unwrap().clone()
+    }
+}
+
+impl LocalX11Servers for FakeX11Servers {
+    fn find(&self) -> Option<X11Server> {
+        self.server.clone()
+    }
+
+    fn start(&self, _server: &X11Server, display_number: u16) -> io::Result<()> {
+        self.started_displays.lock().unwrap().push(display_number);
+        if self.is_listening_when_started {
+            let listener = StdTcpListener::bind(("127.0.0.1", TCP_BASE_PORT + display_number))?;
+            self.listeners.lock().unwrap().push(listener);
+        }
+        Ok(())
     }
 }
 

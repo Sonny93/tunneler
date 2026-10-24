@@ -46,6 +46,7 @@ start_on_launch_tags = ["dev"]      # tags démarrés au lancement du daemon
 launch_at_login = false
 use_os_keyring = false              # autorise la mémorisation des passphrases dans le trousseau du système
 x11_display = ""                    # vide : $DISPLAY, ou 127.0.0.1:0.0 sous Windows
+x11_server_start = "ask"            # ask | always | never
 open_host = "localhost"             # localhost | ip
 open_default = "suggested"          # suggested | browser
 standby = false                     # les tunnels locaux et dynamiques sont en veille par défaut
@@ -112,6 +113,7 @@ command = "code --wait"
 | `launch_at_login` | booléen | `false` | Démarre le daemon à l'ouverture de session. |
 | `use_os_keyring` | booléen | `false` | Propose de mémoriser les passphrases de clés dans le trousseau du système (gestionnaire d'identification sous Windows, Secret Service sous Linux). Désactivé, une passphrase mémorisée dure jusqu'à la fermeture de Tunneler. |
 | `x11_display` | chaîne | `""` | Display X local. Vide signifie `$DISPLAY`, ou `127.0.0.1:0.0` sous Windows. |
+| `x11_server_start` | `"ask"`, `"always"` ou `"never"` | `"ask"` | Que faire quand aucun serveur X ne répond sur le display local avant de démarrer X11 ou un lanceur. `ask` : proposer de démarrer le serveur X installé (VcXsrv ou Xming), `always` : le démarrer, `never` : seulement avertir. X11 démarre dans tous les cas. |
 | `open_host` | `"localhost"` ou `"ip"` | `"localhost"` | Nom utilisé pour ouvrir un tunnel qui écoute sur une adresse de bouclage ou joker : `localhost`, ou `127.0.0.1` (`[::1]` en IPv6). |
 | `open_default` | `"suggested"` ou `"browser"` | `"suggested"` | Ce qu'ouvre un tunnel sans `open.with`. `suggested` : l'application suggérée pour son port cible, sinon le navigateur. `browser` : toujours le navigateur. Un `open.with` enregistré et une demande explicite (`--with`, « Ouvrir avec… ») passent avant. |
 | `standby` | booléen | `false` | Met en veille les tunnels locaux et dynamiques qui ne disent pas le contraire. |

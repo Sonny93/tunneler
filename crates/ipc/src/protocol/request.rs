@@ -17,7 +17,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 39] = [
+pub const METHOD_NAMES: [&str; 41] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -52,6 +52,8 @@ pub const METHOD_NAMES: [&str; 39] = [
     "x11.start",
     "x11.stop",
     "x11.launch",
+    "x11.probe",
+    "x11.startServer",
     "secrets.forget",
     "ui.claim",
     "tags.rename",
@@ -335,6 +337,15 @@ pub enum Request {
     /// `not_found` when the launcher is unknown.
     #[serde(rename = "x11.launch")]
     X11Launch(X11LaunchParams),
+    /// Tries to reach the local X display of a host; answers whether it is
+    /// reachable and which installed X server could be started.
+    #[serde(rename = "x11.probe")]
+    X11Probe(X11HostParams),
+    /// Starts the installed X server for the local X display of a host and
+    /// returns once the display accepts connections; does nothing when it
+    /// already does. Answers `invalid_state` when no server can be started.
+    #[serde(rename = "x11.startServer")]
+    X11StartServer(X11HostParams),
     /// Forgets every remembered passphrase, in memory and in the OS keyring.
     #[serde(rename = "secrets.forget")]
     SecretsForget {},

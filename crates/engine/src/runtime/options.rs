@@ -13,6 +13,12 @@ pub(crate) const PORT_SCAN_INTERVAL: Duration = Duration::from_secs(5);
 /// be waiting for the user.
 pub(crate) const TUNNEL_READY_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// How long starting an X server waits for its display to accept connections.
+pub(crate) const X11_SERVER_START_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// How often the display of a starting X server is tried.
+pub(crate) const X11_SERVER_POLL_INTERVAL: Duration = Duration::from_millis(200);
+
 const SHORTEST_INTERVAL: Duration = Duration::from_millis(1);
 
 /// Tunes the timing of the runtime. The defaults suit production; tests
@@ -31,6 +37,12 @@ pub struct EngineOptions {
     /// How long starting a tunnel and waiting for it to be ready may take.
     /// Defaults to 120 seconds, since a credential prompt may be pending.
     pub tunnel_ready_timeout: Duration,
+    /// How long starting an X server waits for its display to accept
+    /// connections. Defaults to 10 seconds.
+    pub x11_server_start_timeout: Duration,
+    /// How often the display of a starting X server is tried. Defaults to
+    /// 200 milliseconds.
+    pub x11_server_poll_interval: Duration,
 }
 
 impl Default for EngineOptions {
@@ -40,6 +52,8 @@ impl Default for EngineOptions {
             port_scan_interval: PORT_SCAN_INTERVAL,
             connect_timeouts: ConnectTimeouts::default(),
             tunnel_ready_timeout: TUNNEL_READY_TIMEOUT,
+            x11_server_start_timeout: X11_SERVER_START_TIMEOUT,
+            x11_server_poll_interval: X11_SERVER_POLL_INTERVAL,
         }
     }
 }
@@ -51,6 +65,8 @@ impl EngineOptions {
             port_scan_interval: self.port_scan_interval.max(SHORTEST_INTERVAL),
             connect_timeouts: self.connect_timeouts,
             tunnel_ready_timeout: self.tunnel_ready_timeout.max(SHORTEST_INTERVAL),
+            x11_server_start_timeout: self.x11_server_start_timeout.max(SHORTEST_INTERVAL),
+            x11_server_poll_interval: self.x11_server_poll_interval.max(SHORTEST_INTERVAL),
         }
     }
 }
@@ -81,6 +97,14 @@ mod tests {
             EngineOptions::default().tunnel_ready_timeout,
             Duration::from_secs(120)
         );
+    }
+
+    #[test]
+    fn should_wait_ten_seconds_for_an_x_server_polled_every_200_milliseconds_by_default() {
+        let options = EngineOptions::default();
+
+        assert_eq!(options.x11_server_start_timeout, Duration::from_secs(10));
+        assert_eq!(options.x11_server_poll_interval, Duration::from_millis(200));
     }
 
     #[test]

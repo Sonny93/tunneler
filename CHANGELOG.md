@@ -7,9 +7,11 @@ All notable changes to Tunneler are written here for the people who use it. The 
 ### Added
 
 - A volume setting for the standby sounds (Settings › Standby): a slider from 5 to 100 %, 50 % by default, for the chime, marimba and plucked string. The preview plays at the slider's value before you save. The system sound keeps following the system volume. `standby_volume` in `[settings]`.
+- Tunneler checks for a running X server before starting X11 or a launcher, and can start VcXsrv or Xming when one is installed. Settings › Connection › "When no X server is running" chooses between asking, starting it and not starting it; `x11_server_start` in `[settings]`.
 
 ### Changed
 
+- The window, the daemon and the `tunneler` command speak a new version of their protocol, and refuse to talk to a 0.3.0 counterpart.
 - The tunnel form groups its fields into cards: General, Forwarding, Opening and Standby.
 
 ### Fixed

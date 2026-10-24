@@ -7,6 +7,7 @@ import type {
 	SettingsDto,
 	StandbyNotifyDto,
 	StandbySoundDto,
+	X11ServerStartDto,
 } from '#/daemon/protocol';
 import type {
 	SettingsTextField,
@@ -25,6 +26,7 @@ export type UseSettingsValuesReturn = {
 	changeToggle: (field: SettingsToggleField, isEnabled: boolean) => void;
 	changeOpenHost: (host: OpenHostDto) => void;
 	changeOpenDefault: (openDefault: OpenDefaultDto) => void;
+	changeX11ServerStart: (x11ServerStart: X11ServerStartDto) => void;
 	changeStandbyNotify: (mode: StandbyNotifyDto) => void;
 	changeStandbySound: (sound: StandbySoundDto) => void;
 	changeStandbyVolume: (volume: number) => void;
@@ -46,6 +48,8 @@ export function useSettingsValues(
 		setValues((current) => ({ ...current, openHost }));
 	const changeOpenDefault = (openDefault: OpenDefaultDto) =>
 		setValues((current) => ({ ...current, openDefault }));
+	const changeX11ServerStart = (x11ServerStart: X11ServerStartDto) =>
+		setValues((current) => ({ ...current, x11ServerStart }));
 	const changeStandbyNotify = (standbyNotify: StandbyNotifyDto) =>
 		setValues((current) => ({ ...current, standbyNotify }));
 	const changeStandbySound = (standbySound: StandbySoundDto) =>
@@ -62,6 +66,7 @@ export function useSettingsValues(
 		changeToggle,
 		changeOpenHost,
 		changeOpenDefault,
+		changeX11ServerStart,
 		changeStandbyNotify,
 		changeStandbySound,
 		changeStandbyVolume,

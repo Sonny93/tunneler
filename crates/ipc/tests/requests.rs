@@ -188,6 +188,25 @@ async fn should_return_unit_when_an_x11_anchor_is_stopped() {
 }
 
 #[tokio::test]
+async fn should_return_the_probe_when_the_local_x_display_is_probed() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    let probe = client.probe_x11("nova").await.unwrap();
+
+    assert!(!probe.is_reachable);
+    assert_eq!(probe.server.as_deref(), Some("VcXsrv"));
+}
+
+#[tokio::test]
+async fn should_return_unit_when_the_x_server_is_started() {
+    let daemon = TestDaemon::start();
+    let client = daemon.connect(ClientKind::Ui, false).await;
+
+    assert!(client.start_x11_server("nova").await.is_ok());
+}
+
+#[tokio::test]
 async fn should_return_unit_when_an_x11_launcher_runs() {
     let daemon = TestDaemon::start();
     let client = daemon.connect(ClientKind::Ui, false).await;

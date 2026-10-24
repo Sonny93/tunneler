@@ -25,6 +25,7 @@ mod testing;
 mod tray;
 mod ui;
 mod ui_presence;
+mod x11_servers;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -58,6 +59,7 @@ use standby_signal::{
 use tray::{TrayService, TrayStatus, TrayStatusCell, spawn_tray_status_publisher};
 use ui::{ProcessUiLauncher, UiCoordinator};
 use ui_presence::spawn_ui_presence_follower;
+use x11_servers::SystemX11Servers;
 
 /// How many wire events may wait for the IPC server before the oldest are lost.
 const WIRE_EVENT_CAPACITY: usize = 1024;
@@ -112,6 +114,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         store,
         port_scanner: Arc::new(SystemPortScanner),
         x11_environment: Arc::new(SystemX11Environment),
+        x11_servers: Arc::new(SystemX11Servers),
         state_store: Arc::new(FileStateStore::new(options.state_path.clone())),
         keyring: Some(Arc::new(OsKeyring)),
         detected_openers: detect_presets(&SystemProgramLocator, PresetPlatform::current()),

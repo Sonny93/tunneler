@@ -18,9 +18,9 @@ use fast_socks5::client::{Config as SocksConfig, Socks5Stream};
 use fast_socks5::{ReplyError, SocksError};
 use russh::keys::{Algorithm, PrivateKey};
 use support::{
-    EchoServer, FakePortScanner, FakeX11Environment, MemoryStateStore, ScriptedPrompter,
-    ScriptedVerifier, TestServer, TestUser, Workspace, foreign_scan, free_port, free_ports,
-    generate_key, identity_of, ssh_scan, wait_for_event, wait_for_state, wait_until,
+    EchoServer, FakePortScanner, FakeX11Environment, FakeX11Servers, MemoryStateStore,
+    ScriptedPrompter, ScriptedVerifier, TestServer, TestUser, Workspace, foreign_scan, free_port,
+    free_ports, generate_key, identity_of, ssh_scan, wait_for_event, wait_for_state, wait_until,
     write_private_key,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -279,6 +279,7 @@ impl HarnessBuilder {
                 store,
                 port_scanner,
                 x11_environment: Arc::new(FakeX11Environment::default()),
+                x11_servers: Arc::new(FakeX11Servers::default()),
                 state_store: state_store.clone(),
                 keyring: None,
                 detected_openers: Vec::new(),
@@ -288,6 +289,7 @@ impl HarnessBuilder {
                 port_scan_interval: TICK_INTERVAL,
                 connect_timeouts: ConnectTimeouts::default(),
                 tunnel_ready_timeout: WAIT,
+                ..EngineOptions::default()
             },
         )
         .unwrap();
@@ -2350,6 +2352,7 @@ async fn should_save_the_generated_ids_when_the_engine_starts_on_a_file_without_
         store,
         port_scanner: Arc::new(FakePortScanner::default()),
         x11_environment: Arc::new(FakeX11Environment::default()),
+        x11_servers: Arc::new(FakeX11Servers::default()),
         state_store: Arc::new(MemoryStateStore::default()),
         keyring: None,
         detected_openers: Vec::new(),

@@ -108,6 +108,7 @@ export function buildSettings(
 		launchAtLogin: false,
 		useOsKeyring: false,
 		openHost: 'localhost',
+		x11ServerStart: 'ask',
 		openDefault: 'suggested',
 		standby: false,
 		standbyIdleS: 300,

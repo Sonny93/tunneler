@@ -131,6 +131,29 @@ impl OpenDefault {
     }
 }
 
+/// What the UI does when the local X server is not running.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum X11ServerStart {
+    /// Ask the user before starting an installed X server.
+    #[default]
+    Ask,
+    /// Start an installed X server without asking.
+    Always,
+    /// Never start an X server.
+    Never,
+}
+
+impl X11ServerStart {
+    /// The preference as written in the store file.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ask => "ask",
+            Self::Always => "always",
+            Self::Never => "never",
+        }
+    }
+}
+
 /// How the daemon signals that a standby tunnel woke up or failed to.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub enum StandbyNotify {
@@ -365,6 +388,8 @@ pub struct Settings {
     pub use_os_keyring: bool,
     /// The local X11 display; `None` means `$DISPLAY`.
     pub x11_display: Option<String>,
+    /// What the UI does when the local X server is not running.
+    pub x11_server_start: X11ServerStart,
     /// Which loopback name opened tunnels use unless they say otherwise.
     pub open_host: OpenHost,
     /// What tunnels without an application of their own open with.
@@ -403,6 +428,7 @@ impl Default for Settings {
             launch_at_login: false,
             use_os_keyring: false,
             x11_display: None,
+            x11_server_start: X11ServerStart::default(),
             open_host: OpenHost::default(),
             open_default: OpenDefault::default(),
             standby: false,

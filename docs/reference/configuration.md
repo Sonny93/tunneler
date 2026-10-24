@@ -46,6 +46,7 @@ start_on_launch_tags = ["dev"]      # tags started when the daemon launches
 launch_at_login = false
 use_os_keyring = false              # let passphrases be remembered in the system keyring
 x11_display = ""                    # empty: $DISPLAY, or 127.0.0.1:0.0 on Windows
+x11_server_start = "ask"            # ask | always | never
 open_host = "localhost"             # localhost | ip
 open_default = "suggested"          # suggested | browser
 standby = false                     # local and dynamic tunnels wait in standby by default
@@ -112,6 +113,7 @@ command = "code --wait"
 | `launch_at_login` | boolean | `false` | Start the daemon when you log in. |
 | `use_os_keyring` | boolean | `false` | Offer to remember key passphrases in the system keyring (Credential Manager on Windows, Secret Service on Linux). When off, a remembered passphrase lasts until Tunneler quits. |
 | `x11_display` | string | `""` | Local X display. Empty means `$DISPLAY`, or `127.0.0.1:0.0` on Windows. |
+| `x11_server_start` | `"ask"`, `"always"` or `"never"` | `"ask"` | What to do when no X server answers on the local display before X11 or a launcher starts. `ask`: offer to start the installed X server (VcXsrv or Xming), `always`: start it, `never`: only warn. X11 starts in every case. |
 | `open_host` | `"localhost"` or `"ip"` | `"localhost"` | Name used to open a tunnel that listens on a loopback or wildcard address: `localhost`, or `127.0.0.1` (`[::1]` for IPv6). |
 | `open_default` | `"suggested"` or `"browser"` | `"suggested"` | What a tunnel without `open.with` opens with. `suggested`: the application suggested for its target port, else the browser. `browser`: always the browser. A saved `open.with` and an explicit request (`--with`, "Open with…") still win. |
 | `standby` | boolean | `false` | Put local and dynamic tunnels in standby unless they say otherwise. |

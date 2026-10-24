@@ -4,7 +4,7 @@ use ipc::protocol::{
     AvailableOpenerDto, DeleteTagResult, ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto,
     LogEntryDto, OpenTunnelResult, OpenerSpecDto, RememberDto, ResolvedHostDto, SettingsDto,
     SnapshotDto, SoundEventDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto,
-    TunnelDefinitionDto, TunnelDto, TunnelSpecDto,
+    TunnelDefinitionDto, TunnelDto, TunnelSpecDto, X11ProbeDto,
 };
 use std::path::Path;
 
@@ -208,6 +208,16 @@ pub async fn reveal_config(app: AppHandle, state: State<'_, BridgeState>) -> Com
 #[tauri::command]
 pub async fn start_x11(state: State<'_, BridgeState>, host: String) -> CommandResult<()> {
     Ok(state.client()?.start_x11(&host).await?)
+}
+
+#[tauri::command]
+pub async fn probe_x11(state: State<'_, BridgeState>, host: String) -> CommandResult<X11ProbeDto> {
+    Ok(state.client()?.probe_x11(&host).await?)
+}
+
+#[tauri::command]
+pub async fn start_x11_server(state: State<'_, BridgeState>, host: String) -> CommandResult<()> {
+    Ok(state.client()?.start_x11_server(&host).await?)
 }
 
 #[tauri::command]

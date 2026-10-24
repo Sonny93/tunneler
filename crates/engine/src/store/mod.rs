@@ -29,7 +29,7 @@ pub use model::{
     BROWSER_OPENER_ID, HostOverrides, InvalidTunnelId, Language, MAX_STANDBY_VOLUME,
     MIN_STANDBY_VOLUME, OpenDefault, OpenHost, OpenOptions, OpenScheme, Opener, Settings,
     StandbyNotify, StandbySound, StoreDocument, TunnelDefinition, TunnelId, TunnelKind,
-    X11Launcher,
+    X11Launcher, X11ServerStart,
 };
 pub use state::{AppState, FileStateStore, StateStore, default_state_path};
 pub use validation::{

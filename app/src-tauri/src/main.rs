@@ -65,6 +65,8 @@ fn main() -> tauri::Result<()> {
             commands::delete_tag,
             commands::reveal_config,
             commands::start_x11,
+            commands::probe_x11,
+            commands::start_x11_server,
             commands::stop_x11,
             commands::launch_x11,
             commands::adopt_external,

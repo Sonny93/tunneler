@@ -106,7 +106,7 @@ msgstr "{label}: {stateLabel}"
 msgid "{label}: {stateLabel}, {detail}"
 msgstr "{label}: {stateLabel}, {detail}"
 
-#: src/x11/use_launch_x11.ts:21
+#: src/x11/use_launch_x11.ts:24
 msgid "{name} launched on {host}"
 msgstr "{name} launched on {host}"
 
@@ -358,6 +358,10 @@ msgstr "Apply"
 msgid "Arguments"
 msgstr "Arguments"
 
+#: src/shared/x11_server_start_options.ts:12
+msgid "Ask me"
+msgstr "Ask me"
+
 #: src/prompts/credential_prompt_text.ts:24
 msgid "Authentication for {alias}"
 msgstr "Authentication for {alias}"
@@ -468,7 +472,7 @@ msgstr "click"
 msgid "Close"
 msgstr "Close"
 
-#: src/shared/toasts/toast_item.tsx:55
+#: src/shared/toasts/toast_item.tsx:56
 msgid "Close notification"
 msgstr "Close notification"
 
@@ -528,6 +532,10 @@ msgstr "Connection to {alias} refused."
 #: src/prompts/credential_prompt_text.ts:75
 msgid "Continue"
 msgstr "Continue"
+
+#: src/x11/use_ensure_x11_server.ts:49
+msgid "Continue without"
+msgstr "Continue without"
 
 #: src/tunnels/list/tunnel_menu_items.tsx:48
 msgid "Control"
@@ -589,7 +597,7 @@ msgstr "Couldn't ignore the process"
 msgid "Couldn't install the update"
 msgstr "Couldn't install the update"
 
-#: src/x11/use_launch_x11.ts:16
+#: src/x11/use_launch_x11.ts:19
 msgid "Couldn't launch {name} on {host}"
 msgstr "Couldn't launch {name} on {host}"
 
@@ -652,6 +660,10 @@ msgstr "Couldn't send the answer"
 msgid "Couldn't send to standby"
 msgstr "Couldn't send to standby"
 
+#: src/x11/use_ensure_x11_server.ts:38
+msgid "Couldn't start {server}"
+msgstr "Couldn't start {server}"
+
 #: src/palette/use_run_palette_action.ts:85
 #: src/tunnels/list/use_tunnel_actions.ts:74
 msgid "Couldn't start the tunnel"
@@ -662,7 +674,7 @@ msgstr "Couldn't start the tunnel"
 msgid "Couldn't start the tunnels"
 msgstr "Couldn't start the tunnels"
 
-#: src/x11/use_x11_anchor_actions.ts:38
+#: src/x11/use_x11_anchor_actions.ts:41
 msgid "Couldn't start X11 for {host}"
 msgstr "Couldn't start X11 for {host}"
 
@@ -681,7 +693,7 @@ msgstr "Couldn't stop the tunnel"
 msgid "Couldn't stop the tunnels"
 msgstr "Couldn't stop the tunnels"
 
-#: src/x11/use_x11_anchor_actions.ts:44
+#: src/x11/use_x11_anchor_actions.ts:47
 msgid "Couldn't stop X11 for {host}"
 msgstr "Couldn't stop X11 for {host}"
 
@@ -800,6 +812,10 @@ msgstr "Documentation"
 msgid "Don't remember"
 msgstr "Don't remember"
 
+#: src/shared/x11_server_start_options.ts:14
+msgid "Don't start it"
+msgstr "Don't start it"
+
 #: src/shortcuts/shortcut_definitions.ts:45
 msgid "Double-click"
 msgstr "Double-click"
@@ -863,11 +879,11 @@ msgstr "Empty: /"
 msgid "Empty: DISPLAY variable (127.0.0.1:0.0 on Windows)"
 msgstr "Empty: DISPLAY variable (127.0.0.1:0.0 on Windows)"
 
-#: src/x11/use_x11_anchor_actions.ts:22
+#: src/x11/use_x11_anchor_actions.ts:23
 msgid "Enable X11"
 msgstr "Enable X11"
 
-#: src/x11/use_x11_anchor_actions.ts:18
+#: src/x11/use_x11_anchor_actions.ts:19
 msgid "Enable X11 for {host}?"
 msgstr "Enable X11 for {host}?"
 
@@ -1369,6 +1385,18 @@ msgstr "No tunnels yet."
 msgid "No update is available"
 msgstr "No update is available"
 
+#: src/x11/use_ensure_x11_server.ts:46
+msgid "No X server is running on {display}, so windows opened on {host} would not appear."
+msgstr "No X server is running on {display}, so windows opened on {host} would not appear."
+
+#: src/x11/use_ensure_x11_server.ts:74
+msgid "No X server is running on {display}: windows opened on {host} will not appear."
+msgstr "No X server is running on {display}: windows opened on {host} will not appear."
+
+#: src/x11/use_ensure_x11_server.ts:81
+msgid "No X server is running on {display}: windows opened on {host} will not appear. Start your X server, or on Windows install one such as VcXsrv."
+msgstr "No X server is running on {display}: windows opened on {host} will not appear. Start your X server, or on Windows install one such as VcXsrv."
+
 #: src/settings/standby_notify_options.tsx:14
 #: src/tunnel_details/tunnel_metrics_section.tsx:35
 msgid "None"
@@ -1464,7 +1492,7 @@ msgstr "Option"
 msgid "Optional. Added to every imported tunnel; separate several tags with commas."
 msgstr "Optional. Added to every imported tunnel; separate several tags with commas."
 
-#: src/header/header_actions.tsx:49
+#: src/header/header_actions.tsx:48
 msgid "Other ways to create a tunnel"
 msgstr "Other ways to create a tunnel"
 
@@ -1894,6 +1922,18 @@ msgstr "Start"
 msgid "Start {endpointLabel}"
 msgstr "Start {endpointLabel}"
 
+#: src/x11/use_ensure_x11_server.ts:48
+msgid "Start {server}"
+msgstr "Start {server}"
+
+#: src/x11/use_ensure_x11_server.ts:44
+msgid "Start {server}?"
+msgstr "Start {server}?"
+
+#: src/shared/x11_server_start_options.ts:13
+msgid "Start it"
+msgstr "Start it"
+
 #: src/shortcuts/shortcut_definitions.ts:37
 msgid "Start or stop the tunnel, check or uncheck the checkbox"
 msgstr "Start or stop the tunnel, check or uncheck the checkbox"
@@ -2189,7 +2229,7 @@ msgstr "The ports must be whole numbers between 1 and 65535, separated by commas
 msgid "The program to run, without its arguments: a name found in the PATH, or the full path of the executable."
 msgstr "The program to run, without its arguments: a name found in the PATH, or the full path of the executable."
 
-#: src/x11/use_x11_anchor_actions.ts:20
+#: src/x11/use_x11_anchor_actions.ts:21
 msgid "The server {host} will have full access to your local display (it can capture the keyboard and the screen). Only enable X11 for a trusted host."
 msgstr "The server {host} will have full access to your local display (it can capture the keyboard and the screen). Only enable X11 for a trusted host."
 
@@ -2318,6 +2358,10 @@ msgstr "Tunnel list"
 msgid "Tunnel type"
 msgstr "Tunnel type"
 
+#: src/settings/settings_x11_server_start.tsx:36
+msgid "Tunneler can start VcXsrv or Xming when it is installed (Windows)."
+msgstr "Tunneler can start VcXsrv or Xming when it is installed (Windows)."
+
 #: src/tray/tray_status_notice_text.ts:25
 msgid "Tunneler keeps running when you close this window. To reopen it, run “tunneler” again. On GNOME, install the “AppIndicator and KStatusNotifierItem Support” extension to show the icon."
 msgstr "Tunneler keeps running when you close this window. To reopen it, run “tunneler” again. On GNOME, install the “AppIndicator and KStatusNotifierItem Support” extension to show the icon."
@@ -2410,6 +2454,10 @@ msgstr "Warnings"
 #: src/settings/standby_notify_options.tsx:51
 msgid "When a tunnel wakes up, and when waking fails."
 msgstr "When a tunnel wakes up, and when waking fails."
+
+#: src/settings/settings_x11_server_start.tsx:29
+msgid "When no X server is running"
+msgstr "When no X server is running"
 
 #: src/settings/settings_secrets_section.tsx:26
 msgid "Windows: Credential Manager; Linux: Secret Service (GNOME Keyring, KWallet). When off, passphrases are remembered only until Tunneler is closed."
