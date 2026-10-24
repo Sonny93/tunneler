@@ -4,6 +4,8 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-24
+
 ### Added
 
 - Double-clicking a started local tunnel in the list opens it with its default action, like "Open" in its menu. A double-click on a stopped tunnel does nothing.
@@ -53,6 +55,7 @@ First release.
 - English and French, dark and light themes, and documentation opened from the app with F1.
 - A Windows installer, a Debian package, an AppImage and portable archives, with signed updates from the GitHub releases.
 
-[Unreleased]: https://github.com/Sonny93/tunneler/compare/v0.2.0...main
+[Unreleased]: https://github.com/Sonny93/tunneler/compare/v0.3.0...main
+[0.3.0]: https://github.com/Sonny93/tunneler/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Sonny93/tunneler/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Sonny93/tunneler/releases/tag/v0.1.0
