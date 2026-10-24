@@ -9,6 +9,7 @@ export type PaletteAction =
 	| { kind: 'toggleSidebar' }
 	| { kind: 'showShortcuts' }
 	| { kind: 'openDocumentation' }
+	| { kind: 'checkForUpdate' }
 	| { kind: 'startTunnel'; tunnelId: string }
 	| { kind: 'stopTunnel'; tunnelId: string }
 	| { kind: 'standbyTunnel'; tunnelId: string }

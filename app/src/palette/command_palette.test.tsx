@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
 
 import { Overlays } from '#/overlays';
+import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
+import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildSettings, buildTunnel } from '#/testing/factories';
@@ -134,6 +136,41 @@ describe('CommandPalette', () => {
 
 		await waitFor(() =>
 			expect(gateway.openDocumentation).toHaveBeenCalledWith('home', 'en')
+		);
+	});
+
+	it('should check for updates from the palette and announce the result', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderPalette();
+		await openPalette(user);
+
+		await user.type(getInput(), 'check for updates');
+		await user.keyboard('{Enter}');
+
+		await waitFor(() =>
+			expect(useAnnouncerStore.getState().polite.message).toBe(
+				'You have the latest version'
+			)
+		);
+		expect(gateway.checkForUpdate).toHaveBeenCalledOnce();
+	});
+
+	it('should toast an error when the check from the palette fails', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderPalette();
+		gateway.checkForUpdate.mockRejectedValue(new Error('offline'));
+		await openPalette(user);
+
+		await user.type(getInput(), 'check for updates');
+		await user.keyboard('{Enter}');
+
+		await waitFor(() =>
+			expect(useToastStore.getState().toasts).toContainEqual(
+				expect.objectContaining({
+					tone: 'error',
+					message: "Couldn't check for updates",
+				})
+			)
 		);
 	});
 

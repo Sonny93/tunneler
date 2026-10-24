@@ -102,6 +102,12 @@ function buildGeneralCommands(i18n: I18n): PaletteCommand[] {
 			category,
 			action: { kind: 'openDocumentation' },
 		},
+		{
+			id: 'general:check-for-update',
+			label: i18n._(msg`Check for updates`),
+			category,
+			action: { kind: 'checkForUpdate' },
+		},
 	];
 }
 

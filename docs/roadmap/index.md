@@ -45,7 +45,7 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 - Windows installer (per user or per machine), Debian package, portable zip and tar.gz, and an AppImage of the UI.
 - Portable mode: everything lives next to the executables.
 - `tunneler purge` removes every trace the program left on the machine.
-- Signed updates from GitHub releases, applied automatically for the Windows installer and offered as a link for the other forms.
+- Signed updates from GitHub releases, applied automatically for the Windows installer and offered as a link for the other forms. A check runs when the window opens, or on demand from the settings and the palette.
 - Daemon memory: about 17 to 25 MiB. The UI only uses memory while its window is open.
 
 ## Next

@@ -13,7 +13,9 @@ Quand une version plus récente existe, un bandeau montre ses notes de version, 
 
 L'AppImage ne se met jamais à jour toute seule, car elle ne contient pas le daemon.
 
-Désactivez la vérification avec « Vérifier les mises à jour à l'ouverture » dans les paramètres, ou dans `tunnels.toml` :
+Pour vérifier à tout moment, même avec la vérification automatique désactivée, cliquez sur « Vérifier maintenant » sous « Mises à jour » dans l'onglet Général des paramètres, ou lancez « Vérifier les mises à jour » depuis la palette de commandes (`Ctrl+K`). Une ligne à côté du bouton dit si vous avez la dernière version, quelle version est disponible, ou que la vérification a échoué. Une version trouvée ainsi réaffiche le bandeau, même si vous l'aviez masqué.
+
+Désactivez la vérification automatique avec « Vérifier les mises à jour à l'ouverture » dans les paramètres, ou dans `tunnels.toml` :
 
 ```toml
 [settings]

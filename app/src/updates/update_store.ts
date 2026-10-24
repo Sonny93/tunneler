@@ -17,6 +17,8 @@ type UpdateState = {
 type UpdateActions = {
 	markChecked: () => void;
 	setOffer: (offer: UpdateOfferDto | null) => void;
+	/** Stores the offer and shows the banner again if the user had hidden it. */
+	showOffer: (offer: UpdateOfferDto) => void;
 	hide: () => void;
 	startInstallation: () => void;
 	reportProgress: (progress: UpdateProgressDto) => void;
@@ -35,6 +37,7 @@ export const useUpdateStore = create<UpdateState & UpdateActions>()((set) => ({
 	...INITIAL_UPDATE_STATE,
 	markChecked: () => set({ hasChecked: true }),
 	setOffer: (offer) => set({ offer }),
+	showOffer: (offer) => set({ offer, isHidden: false }),
 	hide: () => set({ isHidden: true }),
 	startInstallation: () => set({ isInstalling: true, progress: null }),
 	reportProgress: (progress) => set({ progress }),

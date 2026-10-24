@@ -8,6 +8,7 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 - Double-clicking a started local tunnel in the list opens it with its default action, like "Open" in its menu. A double-click on a stopped tunnel does nothing.
 - A "Tunnels without an application" setting (Settings › Opening) makes tunnels with no saved application always open in the browser instead of the application suggested for their port (`open_default` in `[settings]`).
+- A "Check now" button (Settings › General › Updates) and a "Check for updates" palette command look for a new version at any time, even with the automatic check turned off.
 
 ### Fixed
 

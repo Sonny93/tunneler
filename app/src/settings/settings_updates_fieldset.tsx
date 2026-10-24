@@ -3,6 +3,7 @@ import { useLingui } from '@lingui/react/macro';
 import type { SettingsToggleField } from '#/settings/settings_field_specs';
 import type { SettingsFormValues } from '#/settings/settings_form_values';
 import { SettingsSwitch } from '#/settings/settings_switch';
+import { SettingsUpdateCheck } from '#/settings/settings_update_check';
 
 type SettingsUpdatesFieldsetProps = {
 	values: SettingsFormValues;
@@ -25,6 +26,7 @@ export function SettingsUpdatesFieldset({
 				isChecked={values.checkForUpdates}
 				onChange={onChangeToggle}
 			/>
+			<SettingsUpdateCheck />
 		</fieldset>
 	);
 }

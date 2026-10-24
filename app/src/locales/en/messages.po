@@ -400,9 +400,17 @@ msgstr "Cannot be changed: tunnels refer to it by this identifier."
 msgid "Cannot listen on {address}: {message}"
 msgstr "Cannot listen on {address}: {message}"
 
+#: src/palette/build_palette_commands.ts:107
+msgid "Check for updates"
+msgstr "Check for updates"
+
 #: src/settings/settings_updates_fieldset.tsx:24
 msgid "Check for updates when opening"
 msgstr "Check for updates when opening"
+
+#: src/settings/settings_update_check.tsx:31
+msgid "Check now"
+msgstr "Check now"
 
 #: src/tunnel_details/tunnel_actions_section.tsx:87
 msgid "Check the target"
@@ -415,6 +423,10 @@ msgstr "Check this fingerprint with the server administrator before accepting it
 #: src/shortcuts/shortcut_definitions.ts:32
 msgid "Checkbox, switch and menu of the row"
 msgstr "Checkbox, switch and menu of the row"
+
+#: src/settings/settings_update_check.tsx:13
+msgid "Checking for updates…"
+msgstr "Checking for updates…"
 
 #: src/settings/standby_sound_options.tsx:20
 msgid "Chime"
@@ -536,6 +548,10 @@ msgstr "Copy the ssh command"
 #: src/tunnels/list/use_external_actions.ts:56
 msgid "Couldn't adopt the tunnel"
 msgstr "Couldn't adopt the tunnel"
+
+#: src/updates/describe_manual_update_check.ts:23
+msgid "Couldn't check for updates"
+msgstr "Couldn't check for updates"
 
 #: src/tunnel_details/use_check_target.ts:65
 msgid "Couldn't check the target: {errorMessage}"
@@ -2352,6 +2368,10 @@ msgstr "Value"
 msgid "Version {version} available"
 msgstr "Version {version} available"
 
+#: src/updates/describe_manual_update_check.ts:19
+msgid "Version {version} is available: see the banner above the list"
+msgstr "Version {version} is available: see the banner above the list"
+
 #: src/updates/update_notice.tsx:71
 msgid "View release"
 msgstr "View release"
@@ -2413,3 +2433,7 @@ msgstr "X11: {label}"
 #: src/tunnel_form/standby_field.tsx:30
 msgid "Yes"
 msgstr "Yes"
+
+#: src/updates/describe_manual_update_check.ts:15
+msgid "You have the latest version"
+msgstr "You have the latest version"

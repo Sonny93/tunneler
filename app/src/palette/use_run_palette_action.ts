@@ -1,18 +1,24 @@
 import { useLingui } from '@lingui/react/macro';
 
 import { useDaemonAction } from '#/daemon/use_daemon_action';
+import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { useOpenDocumentation } from '#/documentation/use_open_documentation';
 import type { PaletteAction } from '#/palette/palette_command';
+import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
+import { useToastStore } from '#/shared/toasts/toast_store';
 import { useSendToStandby } from '#/standby/use_send_to_standby';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { useDeleteTag } from '#/tag_delete/use_delete_tag';
+import { describeManualUpdateCheck } from '#/updates/describe_manual_update_check';
+import { runManualUpdateCheck } from '#/updates/run_manual_update_check';
 
 type RunPaletteAction = (action: PaletteAction) => void;
 
 /** Runs a palette action with the same effects as the matching buttons and menu items. */
 export function useRunPaletteAction(): RunPaletteAction {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
+	const gateway = useDaemonGateway();
 	const runDaemonAction = useDaemonAction();
 	const deleteTag = useDeleteTag();
 	const { sendTunnel, sendTag, sendAll } = useSendToStandby();
@@ -24,6 +30,17 @@ export function useRunPaletteAction(): RunPaletteAction {
 			.tunnels.find(({ id }) => id === tunnelId);
 		if (tunnel === undefined) return;
 		await sendTunnel(tunnel);
+	};
+
+	const checkForUpdate = async () => {
+		const outcome = await runManualUpdateCheck(gateway);
+		if (outcome.kind === 'skipped') return;
+		const message = describeManualUpdateCheck(outcome, i18n);
+		if (outcome.kind === 'failed') {
+			useToastStore.getState().pushToast({ tone: 'error', message });
+			return;
+		}
+		useAnnouncerStore.getState().announce(message, 'polite');
 	};
 
 	return (action) => {
@@ -52,6 +69,8 @@ export function useRunPaletteAction(): RunPaletteAction {
 				return ui.setHelpOpen(true);
 			case 'openDocumentation':
 				return void openDocumentation('home');
+			case 'checkForUpdate':
+				return void checkForUpdate();
 			case 'showTunnelDetails':
 				return ui.openTunnelDetails(action.tunnelId);
 			case 'editTunnel':

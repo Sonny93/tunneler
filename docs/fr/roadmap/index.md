@@ -45,7 +45,7 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 - Installeur Windows (par utilisateur ou pour la machine), paquet Debian, zip et tar.gz portables, et une AppImage de l'interface.
 - Mode portable : tout reste à côté des exécutables.
 - `tunneler purge` retire toutes les traces laissées sur la machine.
-- Mises à jour signées depuis les versions GitHub, appliquées automatiquement avec l'installeur Windows et proposées par un lien pour les autres formes.
+- Mises à jour signées depuis les versions GitHub, appliquées automatiquement avec l'installeur Windows et proposées par un lien pour les autres formes. La vérification a lieu à l'ouverture de la fenêtre, ou à la demande depuis les paramètres et la palette.
 - Mémoire du daemon : environ 17 à 25 Mio. L'interface n'en consomme que fenêtre ouverte.
 
 ## Prochainement

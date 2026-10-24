@@ -13,7 +13,9 @@ When a newer version exists, a banner shows its release notes, a "View release" 
 
 The AppImage never updates itself because it does not contain the daemon.
 
-Turn the check off with "Check for updates when opening" in the settings, or in `tunnels.toml`:
+To check at any moment, even with the automatic check off, click "Check now" under "Updates" in the General tab of the settings, or run "Check for updates" from the command palette (`Ctrl+K`). A line next to the button says whether you have the latest version, which version is available, or that the check failed. A version found this way shows the banner again, even if you hid it.
+
+Turn the automatic check off with "Check for updates when opening" in the settings, or in `tunnels.toml`:
 
 ```toml
 [settings]

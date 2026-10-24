@@ -29,6 +29,7 @@ describe('buildPaletteCommands', () => {
 			'Hide or show the sidebar',
 			'Show keyboard shortcuts',
 			'Open the documentation',
+			'Check for updates',
 		]);
 	});
 
