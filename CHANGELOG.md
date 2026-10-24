@@ -4,6 +4,10 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Changed
+
+- The tunnel form groups its fields into cards: General, Forwarding, Opening and Standby.
+
 ### Fixed
 
 - The window no longer shows a second scrollbar next to the tunnel list's.

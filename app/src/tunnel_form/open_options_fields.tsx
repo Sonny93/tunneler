@@ -107,7 +107,7 @@ export function OpenOptionsFields({
 
 	return (
 		<fieldset className="flex flex-col gap-4 border-0 p-0">
-			<legend className="mb-3 text-sm font-semibold">{t`Opening`}</legend>
+			<legend className="sr-only">{t`Opening`}</legend>
 			<RadioOptions
 				name="openScheme"
 				label={t`Scheme`}

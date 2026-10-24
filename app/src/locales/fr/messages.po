@@ -289,7 +289,7 @@ msgstr "Algorithme"
 msgid "Alias"
 msgstr "Alias"
 
-#: src/tunnel_form/tunnel_form_fields.tsx:76
+#: src/tunnel_form/tunnel_form_fields.tsx:91
 msgid "Alias from ~/.ssh/config"
 msgstr "Alias de ~/.ssh/config"
 
@@ -428,7 +428,7 @@ msgstr "Case, interrupteur et menu de la ligne"
 msgid "Checking for updates…"
 msgstr "Vérification des mises à jour…"
 
-#: src/settings/standby_sound_options.tsx:20
+#: src/settings/standby_sound_options.tsx:21
 msgid "Chime"
 msgstr "Carillon"
 
@@ -607,7 +607,7 @@ msgstr "Ouverture impossible"
 msgid "Couldn't open the tunnel"
 msgstr "Ouverture impossible"
 
-#: src/settings/standby_sound_options.tsx:54
+#: src/settings/standby_sound_options.tsx:65
 msgid "Couldn't play the sound"
 msgstr "Écoute impossible"
 
@@ -929,6 +929,10 @@ msgstr "Oublier les passphrases mémorisées"
 msgid "Forget remembered passphrases?"
 msgstr "Oublier les passphrases mémorisées ?"
 
+#: src/tunnel_form/tunnel_form_fields.tsx:112
+msgid "Forwarding"
+msgstr "Redirection"
+
 #: src/import/import_panel.tsx:43
 msgid "From ~/.ssh/config"
 msgstr "Depuis ~/.ssh/config"
@@ -939,6 +943,7 @@ msgstr "Go"
 
 #: src/palette/build_palette_commands.ts:27
 #: src/settings/settings_tabs.tsx:38
+#: src/tunnel_form/tunnel_form_fields.tsx:83
 msgid "General"
 msgstr "Général"
 
@@ -982,7 +987,7 @@ msgstr "Début"
 
 #: src/palette/build_palette_commands.ts:30
 #: src/tunnel_form/open_options_fields.tsx:138
-#: src/tunnel_form/tunnel_form_fields.tsx:72
+#: src/tunnel_form/tunnel_form_fields.tsx:87
 msgid "Host"
 msgstr "Hôte"
 
@@ -1159,7 +1164,7 @@ msgstr "Lancer Tunneler à l'ouverture de session"
 msgid "Launchers"
 msgstr "Lanceurs"
 
-#: src/tunnel_form/tunnel_form_fields.tsx:121
+#: src/tunnel_form/tunnel_form_fields.tsx:147
 msgid "Leave empty to use the default address ({defaultAddressText})"
 msgstr "Laisser vide pour utiliser l'adresse par défaut ({defaultAddressText})"
 
@@ -1187,7 +1192,7 @@ msgstr "Ligne {line} : forward non pris en charge (socket Unix ou SOCKS distant)
 msgid "Link to the listen port"
 msgstr "Lier au port d'écoute"
 
-#: src/tunnel_form/tunnel_form_fields.tsx:117
+#: src/tunnel_form/tunnel_form_fields.tsx:143
 msgid "Listen address"
 msgstr "Adresse d'écoute"
 
@@ -1269,7 +1274,7 @@ msgstr "Nom recherché"
 msgid "Lowercase letters, digits and dashes. Cannot be changed after creation."
 msgstr "Minuscules, chiffres et tirets. Non modifiable après la création."
 
-#: src/settings/standby_sound_options.tsx:21
+#: src/settings/standby_sound_options.tsx:22
 msgid "Marimba"
 msgstr "Marimba"
 
@@ -1365,7 +1370,7 @@ msgstr "Aucune mise à jour disponible"
 msgid "None"
 msgstr "Aucun"
 
-#: src/settings/standby_sound_options.tsx:71
+#: src/settings/standby_sound_options.tsx:82
 msgid "Not played with the chosen signal."
 msgstr "Pas joué avec le signal choisi."
 
@@ -1439,6 +1444,7 @@ msgstr "Ouvrir avec…"
 #: src/settings/settings_open_fieldset.tsx:39
 #: src/settings/settings_tabs.tsx:45
 #: src/tunnel_form/open_options_fields.tsx:110
+#: src/tunnel_form/tunnel_form_fields.tsx:151
 msgid "Opening"
 msgstr "Ouverture"
 
@@ -1488,15 +1494,15 @@ msgstr "Collez un script, une liste de ports ou des options -L/-R/-D."
 msgid "Path"
 msgstr "Chemin"
 
-#: src/settings/standby_sound_options.tsx:89
+#: src/settings/standby_sound_options.tsx:112
 msgid "Play the failure sound"
 msgstr "Écouter l'échec"
 
-#: src/settings/standby_sound_options.tsx:81
+#: src/settings/standby_sound_options.tsx:104
 msgid "Play the wake sound"
 msgstr "Écouter le réveil"
 
-#: src/settings/standby_sound_options.tsx:19
+#: src/settings/standby_sound_options.tsx:20
 msgid "Plucked string"
 msgstr "Corde pincée"
 
@@ -1857,7 +1863,7 @@ msgid "SOCKS proxy on this computer"
 msgstr "Proxy SOCKS sur ce poste"
 
 #: src/settings/standby_notify_options.tsx:16
-#: src/settings/standby_sound_options.tsx:63
+#: src/settings/standby_sound_options.tsx:74
 msgid "Sound"
 msgstr "Son"
 
@@ -1870,7 +1876,7 @@ msgid "SSH connection failed: {message}"
 msgstr "Connexion SSH impossible : {message}"
 
 #: src/settings/settings_tabs.tsx:44
-#: src/tunnel_form/standby_field.tsx:41
+#: src/tunnel_form/tunnel_form_fields.tsx:160
 #: src/tunnels/tunnel_state_label.ts:14
 msgid "Standby"
 msgstr "Veille"
@@ -2004,7 +2010,7 @@ msgstr "système"
 msgid "System"
 msgstr "Système"
 
-#: src/settings/standby_sound_options.tsx:22
+#: src/settings/standby_sound_options.tsx:23
 msgid "System sound"
 msgstr "Son du système"
 
@@ -2034,7 +2040,7 @@ msgstr "Tags"
 msgid "Tags to start on launch"
 msgstr "Tags démarrés au lancement"
 
-#: src/tunnel_form/tunnel_form_fields.tsx:126
+#: src/tunnel_form/tunnel_form_fields.tsx:105
 msgid "Tags, separated by commas"
 msgstr "Tags séparés par des virgules"
 
@@ -2316,7 +2322,7 @@ msgstr "Tunnels sans application"
 msgid "Unanswered keepalives tolerated"
 msgstr "Keepalives sans réponse tolérés"
 
-#: src/tunnel_form/tunnel_form_fields.tsx:50
+#: src/tunnel_form/tunnel_form_fields.tsx:64
 msgid "unknown"
 msgstr "inconnue"
 
@@ -2375,6 +2381,10 @@ msgstr "La version {version} est disponible : voir le bandeau au-dessus de la li
 #: src/updates/update_notice.tsx:71
 msgid "View release"
 msgstr "Voir la version"
+
+#: src/tunnel_form/standby_field.tsx:41
+msgid "Wait in standby"
+msgstr "Attendre en veille"
 
 #: src/tunnel_details/log_level_appearance.ts:22
 msgid "Warning"

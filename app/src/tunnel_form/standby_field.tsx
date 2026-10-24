@@ -38,7 +38,7 @@ export function StandbyField({ value, onChange }: Readonly<StandbyFieldProps>) {
 		<div className="flex flex-col gap-1">
 			<RadioOptions
 				name="standby"
-				label={t`Standby`}
+				label={t`Wait in standby`}
 				orientation={getRadioOrientation(options.length)}
 				options={options}
 				value={value}

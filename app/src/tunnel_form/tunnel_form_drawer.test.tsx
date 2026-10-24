@@ -86,7 +86,7 @@ describe('TunnelFormDrawer', () => {
 			renderDrawer();
 
 			expect(
-				screen.queryByRole('radiogroup', { name: 'Standby' })
+				screen.queryByRole('radiogroup', { name: 'Wait in standby' })
 			).not.toBeInTheDocument();
 		});
 
@@ -540,6 +540,34 @@ describe('TunnelFormDrawer kind selector', () => {
 	});
 });
 
+describe('TunnelFormDrawer groups', () => {
+	const groupHeading = (name: string) =>
+		screen.queryByRole('heading', { level: 3, name });
+
+	it('should group the fields of a local tunnel under headings nested below the drawer title', () => {
+		openEditor();
+		renderDrawer();
+
+		for (const name of ['General', 'Forwarding', 'Opening', 'Standby']) {
+			expect(groupHeading(name)).toBeInTheDocument();
+		}
+		expect(
+			screen.getByRole('heading', { level: 2, name: 'New tunnel' })
+		).toBeInTheDocument();
+	});
+
+	it('should not render the opening and standby groups for a temporary tunnel', () => {
+		useUiStore.getState().openTemporaryTunnelEditor();
+		renderDrawer();
+
+		expect(groupHeading('General')).toBeInTheDocument();
+		expect(groupHeading('Forwarding')).toBeInTheDocument();
+		for (const name of ['Opening', 'Standby']) {
+			expect(groupHeading(name)).not.toBeInTheDocument();
+		}
+	});
+});
+
 describe('TunnelFormDrawer opening options', () => {
 	it('should offer the opening fieldset for a local tunnel', () => {
 		openEditor();
@@ -559,7 +587,7 @@ describe('TunnelFormDrawer opening options', () => {
 			screen.queryByRole('group', { name: 'Opening' })
 		).not.toBeInTheDocument();
 		expect(
-			screen.queryByRole('radiogroup', { name: 'Standby' })
+			screen.queryByRole('radiogroup', { name: 'Wait in standby' })
 		).not.toBeInTheDocument();
 	});
 
@@ -586,7 +614,7 @@ describe('TunnelFormDrawer opening options', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('radiogroup', { name: 'Standby' })
+			screen.getByRole('radiogroup', { name: 'Wait in standby' })
 		).toHaveAccessibleDescription(/Takes effect on the next start/);
 	});
 
@@ -598,7 +626,7 @@ describe('TunnelFormDrawer opening options', () => {
 		await user.click(screen.getByRole('radio', { name: /Dynamic/ }));
 
 		expect(
-			screen.getByRole('radiogroup', { name: 'Standby' })
+			screen.getByRole('radiogroup', { name: 'Wait in standby' })
 		).toBeInTheDocument();
 	});
 

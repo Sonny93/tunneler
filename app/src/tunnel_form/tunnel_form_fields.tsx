@@ -1,6 +1,7 @@
 import type { MessageDescriptor } from '@lingui/core';
 import { useLingui } from '@lingui/react/macro';
-import { useId } from 'react';
+import { Card } from '@minimalstuff/ui';
+import { useId, type ReactNode } from 'react';
 
 import type { TunnelKindDto } from '#/daemon/protocol';
 import { useDaemonStore } from '#/state/daemon_store';
@@ -19,6 +20,19 @@ import { TunnelKindField } from '#/tunnel_form/tunnel_kind_field';
 import { getTunnelKindFieldTexts } from '#/tunnel_form/tunnel_kind_texts';
 import { TunnelTextField } from '#/tunnel_form/tunnel_text_field';
 import type { TunnelFormErrors } from '#/tunnel_form/validate_tunnel_form';
+
+type FormGroupProps = {
+	title: string;
+	children: ReactNode;
+};
+
+function FormGroup({ title, children }: Readonly<FormGroupProps>) {
+	return (
+		<Card title={title} headingLevel={3} padding="sm">
+			<div className="flex flex-col gap-4">{children}</div>
+		</Card>
+	);
+}
 
 type TunnelFormFieldsProps = {
 	values: TunnelFormValues;
@@ -66,78 +80,86 @@ export function TunnelFormFields({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<TunnelKindField value={values.kind} onChange={changeKind} />
-			<TunnelTextField
-				field="host"
-				label={t`Host`}
-				value={values.host}
-				onChange={changeText}
-				error={resolveError(errors.host)}
-				hint={t`Alias from ~/.ssh/config`}
-				isRequired
-				listId={hostListId}
-			/>
-			<datalist id={hostListId}>
-				{hosts.map((host) => (
-					<option key={host} value={host}>
-						{host}
-					</option>
-				))}
-			</datalist>
-			<TunnelTextField
-				field="listenPort"
-				label={i18n._(texts.listenPortLabel)}
-				value={values.listenPort}
-				onChange={changeText}
-				error={resolveError(errors.listenPort)}
-				inputMode="numeric"
-				isRequired
-			/>
-			{hasTarget && (
-				<TargetPortField
-					value={values.targetPort}
-					isLinked={values.isTargetPortLinked}
-					error={resolveError(errors.targetPort)}
-					onChange={changeTargetPort}
-					onRelink={relinkTargetPort}
-				/>
-			)}
-			{texts.targetHostLabel !== null && texts.targetHostHint !== null && (
+			<FormGroup title={t`General`}>
+				<TunnelKindField value={values.kind} onChange={changeKind} />
 				<TunnelTextField
-					field="targetHost"
-					label={i18n._(texts.targetHostLabel)}
-					value={values.targetHost}
+					field="host"
+					label={t`Host`}
+					value={values.host}
 					onChange={changeText}
-					placeholder="127.0.0.1"
-					hint={i18n._(texts.targetHostHint)}
+					error={resolveError(errors.host)}
+					hint={t`Alias from ~/.ssh/config`}
+					isRequired
+					listId={hostListId}
 				/>
-			)}
-			<TunnelTextField
-				field="listenAddress"
-				label={t`Listen address`}
-				value={values.listenAddress}
-				onChange={changeText}
-				placeholder={defaultBindAddress}
-				hint={t`Leave empty to use the default address (${defaultAddressText})`}
-			/>
-			{hasTags && (
+				<datalist id={hostListId}>
+					{hosts.map((host) => (
+						<option key={host} value={host}>
+							{host}
+						</option>
+					))}
+				</datalist>
+				{hasTags && (
+					<TunnelTextField
+						field="tags"
+						label={t`Tags, separated by commas`}
+						value={values.tags}
+						onChange={changeText}
+						error={resolveError(errors.tags)}
+					/>
+				)}
+			</FormGroup>
+			<FormGroup title={t`Forwarding`}>
 				<TunnelTextField
-					field="tags"
-					label={t`Tags, separated by commas`}
-					value={values.tags}
+					field="listenPort"
+					label={i18n._(texts.listenPortLabel)}
+					value={values.listenPort}
 					onChange={changeText}
-					error={resolveError(errors.tags)}
+					error={resolveError(errors.listenPort)}
+					inputMode="numeric"
+					isRequired
 				/>
+				{hasTarget && (
+					<TargetPortField
+						value={values.targetPort}
+						isLinked={values.isTargetPortLinked}
+						error={resolveError(errors.targetPort)}
+						onChange={changeTargetPort}
+						onRelink={relinkTargetPort}
+					/>
+				)}
+				{texts.targetHostLabel !== null && texts.targetHostHint !== null && (
+					<TunnelTextField
+						field="targetHost"
+						label={i18n._(texts.targetHostLabel)}
+						value={values.targetHost}
+						onChange={changeText}
+						placeholder="127.0.0.1"
+						hint={i18n._(texts.targetHostHint)}
+					/>
+				)}
+				<TunnelTextField
+					field="listenAddress"
+					label={t`Listen address`}
+					value={values.listenAddress}
+					onChange={changeText}
+					placeholder={defaultBindAddress}
+					hint={t`Leave empty to use the default address (${defaultAddressText})`}
+				/>
+			</FormGroup>
+			{hasOpenOptions && values.kind === 'local' && (
+				<FormGroup title={t`Opening`}>
+					<OpenOptionsFields
+						values={values}
+						errors={errors}
+						dispatch={dispatch}
+					/>
+				</FormGroup>
 			)}
 			{hasStandby && values.kind !== 'remote' && (
-				<StandbyField value={values.standby} onChange={changeStandby} />
-			)}
-			{hasOpenOptions && values.kind === 'local' && (
-				<OpenOptionsFields
-					values={values}
-					errors={errors}
-					dispatch={dispatch}
-				/>
+				<FormGroup title={t`Standby`}>
+					<StandbyField value={values.standby} onChange={changeStandby} />
+				</FormGroup>
 			)}
 		</div>
 	);
