@@ -198,8 +198,8 @@ importers:
         specifier: ^6.10.0
         version: 6.10.0(@babel/core@7.29.7(supports-color@7.2.0))(react@19.3.1)
       '@minimalstuff/ui':
-        specifier: ^4.3.1
-        version: 4.3.1(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))
+        specifier: ^4.3.2
+        version: 4.3.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))
       '@tauri-apps/api':
         specifier: ^2.12.4
         version: 2.12.4
@@ -879,8 +879,8 @@ packages:
       oxlint-tsgolint:
         optional: true
 
-  '@minimalstuff/ui@4.3.1':
-    resolution: {integrity: sha512-sv/QpJIeuX6jU3WFOM3Jwd8y9Xq9AKxiNlLW4pSyCaz2KCY9giJ4jYWdTyFIVUtX9u8sn0H/7JhfHva0Ry3VWA==}
+  '@minimalstuff/ui@4.3.2':
+    resolution: {integrity: sha512-Q08o0kYDX9X++BKHGhjDb1OqQ/ENYHkmZzQ4Okl4wVYh5enLh+9gNK1adHyhqLmDrbxCQCSrIZuGPBCpLfl4xA==}
     peerDependencies:
       react: ^19.0.0
       react-dom: ^19.0.0
@@ -4157,7 +4157,7 @@ snapshots:
       - supports-color
       - typescript
 
-  '@minimalstuff/ui@4.3.1(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))':
+  '@minimalstuff/ui@4.3.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))':
     dependencies:
       '@floating-ui/react-dom': 2.1.9(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       clsx: 2.1.1

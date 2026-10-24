@@ -15,6 +15,7 @@ All notable changes to Tunneler are written here for the people who use it. The 
 ### Fixed
 
 - The window no longer shows a second scrollbar next to the tunnel list's.
+- Tooltips no longer stay open after a click: they show on hover and on keyboard focus, never on touch. The chevron next to "New tunnel" gets its tooltip back.
 - The standby sounds are no longer cut before their end: each note rings until it has faded, followed by a short silence so the player does not clip it.
 
 ## [0.3.0] - 2026-10-24
