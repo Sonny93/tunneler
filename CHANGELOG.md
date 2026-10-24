@@ -4,6 +4,10 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Fixed
+
+- The window no longer shows a second scrollbar next to the tunnel list's.
+
 ## [0.3.0] - 2026-10-24
 
 ### Added

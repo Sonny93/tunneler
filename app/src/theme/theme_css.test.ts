@@ -22,6 +22,10 @@ describe('buildThemeCss', () => {
 		);
 	});
 
+	it('should never scroll the window itself, only its regions', () => {
+		expect(buildThemeCss()).toContain('html, body { overflow: hidden; }');
+	});
+
 	it('should keep a border on status badges in forced colors mode', () => {
 		expect(buildThemeCss()).toContain(
 			'.tn-status-badge { border: 1px solid CanvasText; }'

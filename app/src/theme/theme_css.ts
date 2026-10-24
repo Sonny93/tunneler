@@ -4,6 +4,7 @@ import { THEME_TOKENS, type ThemeName, type ThemeTokens } from './tokens';
 const DARK_MODE_SELECTOR = '.dark';
 
 const GLOBAL_CSS = `
+html, body { overflow: hidden; }
 body { background: var(--tn-bg); color: var(--tn-text); }
 :focus-visible { outline: 2px solid var(--tn-focus-ring); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
