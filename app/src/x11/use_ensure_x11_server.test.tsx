@@ -1,5 +1,5 @@
 import { ModalProvider } from '@minimalstuff/ui';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
@@ -109,8 +109,9 @@ describe('useEnsureX11Server', () => {
 		const { gateway } = setup(stopped, 'ask');
 
 		await clickStart();
+		const dialog = await screen.findByRole('alertdialog');
 		await userEvent.click(
-			await screen.findByRole('button', { name: 'Start VcXsrv' })
+			within(dialog).getByRole('button', { name: 'Start VcXsrv' })
 		);
 
 		await waitFor(() => expect(gateway.startX11).toHaveBeenCalledWith('nova'));
@@ -161,16 +162,21 @@ describe('useEnsureX11Server', () => {
 		]);
 	});
 
-	it('should not block X11 when the probe fails', async () => {
+	it('should warn and still start X11 when the probe fails', async () => {
 		const { gateway } = setup(reachable);
-		gateway.probeX11.mockRejectedValueOnce(
+		gateway.probeX11.mockRejectedValue(
 			new DaemonCommandError('internal', 'boom')
 		);
 
 		await clickStart();
 
 		await waitFor(() => expect(gateway.startX11).toHaveBeenCalledWith('nova'));
-		expect(toasts()).toEqual([]);
+		expect(toasts()).toEqual([
+			expect.objectContaining({
+				tone: 'warning',
+				message: "Couldn't check the X server: Internal error",
+			}),
+		]);
 	});
 
 	it('should check the X server before running a launcher', async () => {

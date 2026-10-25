@@ -2,6 +2,8 @@ import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 import { ConfirmModal } from '@minimalstuff/ui';
 
+import { toDaemonCommandError } from '#/daemon/daemon_command_error';
+import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import type { X11ProbeDto } from '#/daemon/protocol';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
@@ -24,10 +26,15 @@ export function useEnsureX11Server(): (host: string) => Promise<void> {
 	const gateway = useDaemonGateway();
 	const runDaemonAction = useDaemonAction();
 
+	const warn = (message: string) =>
+		useToastStore.getState().pushToast({ tone: 'warning', message });
+
 	const probe = async (host: string): Promise<X11ProbeDto | null> => {
 		try {
 			return await gateway.probeX11(host);
-		} catch {
+		} catch (rejection) {
+			const reason = describeDaemonError(toDaemonCommandError(rejection), i18n);
+			warn(i18n._(msg`Couldn't check the X server: ${reason}`));
 			return null;
 		}
 	};
@@ -48,9 +55,6 @@ export function useEnsureX11Server(): (host: string) => Promise<void> {
 			confirmLabel: i18n._(msg`Start ${server}`),
 			cancelLabel: i18n._(msg`Continue without`),
 		});
-
-	const warn = (message: string) =>
-		useToastStore.getState().pushToast({ tone: 'warning', message });
 
 	const act = async (
 		host: string,

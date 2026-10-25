@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::time::{Instant, sleep};
+use tracing::{debug, info, warn};
 
 use super::display::LocalDisplay;
 use super::error::X11Error;
@@ -77,6 +78,15 @@ impl X11ServerControl {
         } else {
             None
         };
+        let local_display = display.to_string();
+        let server_name = server.as_deref().unwrap_or("none");
+        debug!(
+            host,
+            local_display = local_display.as_str(),
+            is_reachable,
+            server = server_name,
+            "probed the local X display"
+        );
         Ok(X11Probe {
             display: display.to_string(),
             is_reachable,
@@ -97,6 +107,13 @@ impl X11ServerControl {
             return Ok(());
         }
         let server = self.find_server().await.ok_or(X11Error::NoLocalServer)?;
+        let display_number = display.number;
+        info!(
+            server = server.name.as_str(),
+            executable = server.executable.to_string_lossy().as_ref(),
+            display_number,
+            "starting the X server"
+        );
         self.spawn_server(&server, display.number).await?;
         self.wait_until_reachable(&server, &display).await
     }
@@ -126,9 +143,21 @@ impl X11ServerControl {
         loop {
             sleep(self.poll_interval).await;
             if is_reachable(display).await {
+                let local_display = display.to_string();
+                info!(
+                    server = server.name.as_str(),
+                    local_display = local_display.as_str(),
+                    "the X server answers"
+                );
                 return Ok(());
             }
             if Instant::now() >= deadline {
+                let local_display = display.to_string();
+                warn!(
+                    server = server.name.as_str(),
+                    local_display = local_display.as_str(),
+                    "the X server did not answer in time"
+                );
                 return Err(X11Error::ServerDidNotStart {
                     server: server.name.clone(),
                     display: display.to_string(),

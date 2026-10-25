@@ -7,6 +7,7 @@ import { X11AnchorSection } from '#/x11/x11_anchor_section';
 import { X11DisplaySection } from '#/x11/x11_display_section';
 import { X11LaunchersSection } from '#/x11/x11_launchers_section';
 import { X11SecurityNote } from '#/x11/x11_security_note';
+import { X11ServerSection } from '#/x11/x11_server_section';
 
 type X11PanelProps = {
 	host: string;
@@ -23,6 +24,7 @@ export function X11Panel({ host, isOpen }: Readonly<X11PanelProps>) {
 			<div className="flex flex-col gap-6">
 				<X11SecurityNote />
 				<X11AnchorSection host={host} />
+				<X11ServerSection host={host} isOpen={isOpen} />
 				{state.kind === 'active' && (
 					<X11DisplaySection display={state.display} />
 				)}

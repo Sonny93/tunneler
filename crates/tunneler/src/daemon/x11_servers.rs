@@ -4,6 +4,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use engine::{LocalX11Servers, X11Server};
+use tracing::debug;
 
 use super::launch::spawn_detached;
 
@@ -49,27 +50,53 @@ impl ServerKind {
     }
 }
 
-/// Finds the first installed X server: `VcXsrv`, then Xming in `ProgramFiles(x86)`,
-/// then Xming in `ProgramFiles`.
+/// The paths to check, in the order of preference: `VcXsrv` in `ProgramFiles`
+/// then `ProgramFiles(x86)`, then Xming in `ProgramFiles(x86)` then `ProgramFiles`.
+fn candidate_servers(
+    program_files: Option<&Path>,
+    program_files_x86: Option<&Path>,
+) -> Vec<X11Server> {
+    [
+        (ServerKind::VcXsrv, program_files, "VcXsrv/vcxsrv.exe"),
+        (ServerKind::VcXsrv, program_files_x86, "VcXsrv/vcxsrv.exe"),
+        (ServerKind::Xming, program_files_x86, "Xming/Xming.exe"),
+        (ServerKind::Xming, program_files, "Xming/Xming.exe"),
+    ]
+    .into_iter()
+    .filter_map(|(kind, directory, relative_path)| {
+        Some(X11Server {
+            name: kind.name().to_owned(),
+            executable: directory?.join(relative_path),
+        })
+    })
+    .collect()
+}
+
+/// Finds the first installed X server among the candidates.
 fn locate_server(
     program_files: Option<&Path>,
     program_files_x86: Option<&Path>,
     is_file: impl Fn(&Path) -> bool,
 ) -> Option<X11Server> {
-    let candidates = [
-        (ServerKind::VcXsrv, program_files, "VcXsrv/vcxsrv.exe"),
-        (ServerKind::Xming, program_files_x86, "Xming/Xming.exe"),
-        (ServerKind::Xming, program_files, "Xming/Xming.exe"),
-    ];
-    candidates
-        .into_iter()
-        .find_map(|(kind, directory, relative_path)| {
-            let executable = directory?.join(relative_path);
-            is_file(&executable).then(|| X11Server {
-                name: kind.name().to_owned(),
-                executable,
-            })
-        })
+    let candidates = candidate_servers(program_files, program_files_x86);
+    let found = candidates.iter().find(|candidate| {
+        let is_installed = is_file(&candidate.executable);
+        debug!(
+            server = %candidate.name,
+            path = %candidate.executable.display(),
+            is_installed,
+            "checked an X server candidate"
+        );
+        is_installed
+    });
+    if found.is_none() {
+        let tried: Vec<String> = candidates
+            .iter()
+            .map(|candidate| candidate.executable.display().to_string())
+            .collect();
+        debug!(tried = %tried.join(", "), "no X server found");
+    }
+    found.cloned()
 }
 
 /// The real machine. Only Windows has servers to find; elsewhere the user
@@ -147,6 +174,28 @@ mod tests {
 
         assert_eq!(server.name, "VcXsrv");
         assert_eq!(server.executable, PathBuf::from("/pf/VcXsrv/vcxsrv.exe"));
+    }
+
+    #[test]
+    fn should_prefer_vcxsrv_of_program_files_over_its_x86_directory() {
+        let server = locate(&["/pf86/VcXsrv/vcxsrv.exe", "/pf/VcXsrv/vcxsrv.exe"]).unwrap();
+
+        assert_eq!(server.executable, PathBuf::from("/pf/VcXsrv/vcxsrv.exe"));
+    }
+
+    #[test]
+    fn should_find_vcxsrv_in_the_x86_directory() {
+        let server = locate(&["/pf86/VcXsrv/vcxsrv.exe"]).unwrap();
+
+        assert_eq!(server.name, "VcXsrv");
+        assert_eq!(server.executable, PathBuf::from("/pf86/VcXsrv/vcxsrv.exe"));
+    }
+
+    #[test]
+    fn should_prefer_vcxsrv_of_the_x86_directory_over_xming() {
+        let server = locate(&["/pf86/Xming/Xming.exe", "/pf86/VcXsrv/vcxsrv.exe"]).unwrap();
+
+        assert_eq!(server.name, "VcXsrv");
     }
 
     #[test]

@@ -326,6 +326,11 @@ msgstr "Toujours le navigateur"
 msgid "An application form still has input. Add the application or cancel the form before saving."
 msgstr "Le formulaire d'une application contient encore une saisie. Ajoutez l'application ou annulez le formulaire avant d'enregistrer."
 
+#. placeholder {0}: status.display
+#: src/x11/x11_server_status.tsx:29
+msgid "An X server answers on {0}."
+msgstr "Un serveur X répond sur {0}."
+
 #: src/import/import_panel.tsx:59
 msgid "Analysis failed:"
 msgstr "Analyse impossible :"
@@ -436,6 +441,10 @@ msgstr "Case, interrupteur et menu de la ligne"
 msgid "Checking for updates…"
 msgstr "Vérification des mises à jour…"
 
+#: src/x11/x11_server_status.tsx:27
+msgid "Checking the X server…"
+msgstr "Vérification du serveur X…"
+
 #: src/settings/standby_sound_options.tsx:21
 msgid "Chime"
 msgstr "Carillon"
@@ -533,7 +542,7 @@ msgstr "Connexion à {alias} refusée."
 msgid "Continue"
 msgstr "Continuer"
 
-#: src/x11/use_ensure_x11_server.ts:49
+#: src/x11/use_ensure_x11_server.ts:56
 msgid "Continue without"
 msgstr "Continuer sans"
 
@@ -568,6 +577,15 @@ msgstr "Impossible de vérifier les mises à jour"
 #: src/tunnel_details/use_check_target.ts:65
 msgid "Couldn't check the target: {errorMessage}"
 msgstr "Test de la cible impossible : {errorMessage}"
+
+#. placeholder {0}: status.reason
+#: src/x11/x11_server_status.tsx:31
+msgid "Couldn't check the X server: {0}."
+msgstr "Impossible de vérifier le serveur X : {0}."
+
+#: src/x11/use_ensure_x11_server.ts:37
+msgid "Couldn't check the X server: {reason}"
+msgstr "Impossible de vérifier le serveur X : {reason}"
 
 #: src/prompts/host_key_prompt_content.tsx:43
 msgid "Couldn't copy the fingerprint"
@@ -660,7 +678,8 @@ msgstr "Réponse impossible"
 msgid "Couldn't send to standby"
 msgstr "Mise en veille impossible"
 
-#: src/x11/use_ensure_x11_server.ts:38
+#: src/x11/use_ensure_x11_server.ts:45
+#: src/x11/use_x11_server_status.ts:82
 msgid "Couldn't start {server}"
 msgstr "Impossible de démarrer {server}"
 
@@ -1385,15 +1404,25 @@ msgstr "Aucun tunnel configuré."
 msgid "No update is available"
 msgstr "Aucune mise à jour disponible"
 
-#: src/x11/use_ensure_x11_server.ts:46
+#. placeholder {0}: status.display
+#: src/x11/x11_server_status.tsx:39
+msgid "No X server answers on {0}."
+msgstr "Aucun serveur X ne répond sur {0}."
+
+#. placeholder {0}: status.display
+#: src/x11/x11_server_status.tsx:34
+msgid "No X server answers on {0}. Start your X server, or on Windows install one such as VcXsrv (winget install marha.VcXsrv)."
+msgstr "Aucun serveur X ne répond sur {0}. Démarrez votre serveur X ou, sous Windows, installez-en un comme VcXsrv (winget install marha.VcXsrv)."
+
+#: src/x11/use_ensure_x11_server.ts:53
 msgid "No X server is running on {display}, so windows opened on {host} would not appear."
 msgstr "Aucun serveur X ne tourne sur {display} : les fenêtres ouvertes sur {host} n'apparaîtraient pas."
 
-#: src/x11/use_ensure_x11_server.ts:74
+#: src/x11/use_ensure_x11_server.ts:78
 msgid "No X server is running on {display}: windows opened on {host} will not appear."
 msgstr "Aucun serveur X ne tourne sur {display} : les fenêtres ouvertes sur {host} n'apparaîtront pas."
 
-#: src/x11/use_ensure_x11_server.ts:81
+#: src/x11/use_ensure_x11_server.ts:85
 msgid "No X server is running on {display}: windows opened on {host} will not appear. Start your X server, or on Windows install one such as VcXsrv."
 msgstr "Aucun serveur X ne tourne sur {display} : les fenêtres ouvertes sur {host} n'apparaîtront pas. Démarrez votre serveur X ou, sous Windows, installez-en un comme VcXsrv."
 
@@ -1922,11 +1951,12 @@ msgstr "Démarrer"
 msgid "Start {endpointLabel}"
 msgstr "Démarrer {endpointLabel}"
 
-#: src/x11/use_ensure_x11_server.ts:48
+#: src/x11/use_ensure_x11_server.ts:55
+#: src/x11/x11_server_status.tsx:76
 msgid "Start {server}"
 msgstr "Démarrer {server}"
 
-#: src/x11/use_ensure_x11_server.ts:44
+#: src/x11/use_ensure_x11_server.ts:51
 msgid "Start {server}?"
 msgstr "Démarrer {server} ?"
 
@@ -2463,6 +2493,10 @@ msgstr "Quand aucun serveur X ne tourne"
 msgid "Windows: Credential Manager; Linux: Secret Service (GNOME Keyring, KWallet). When off, passphrases are remembered only until Tunneler is closed."
 msgstr "Windows : gestionnaire d'identification ; Linux : Secret Service (GNOME Keyring, KWallet). Désactivé : mémorisation jusqu'à la fermeture de Tunneler seulement."
 
+#: src/x11/x11_server_section.tsx:20
+msgid "X server"
+msgstr "Serveur X"
+
 #: src/settings/settings_field_specs.ts:103
 msgid "X11"
 msgstr "X11"
@@ -2492,7 +2526,7 @@ msgstr "X11 pour {host}"
 msgid "X11 forwarding gives the server full access to your local display: it can capture the keyboard and the screen. Only enable it for trusted hosts."
 msgstr "Le transfert X11 donne au serveur un accès complet à votre affichage local : il peut capturer le clavier et l'écran. À n'activer que vers des hôtes de confiance."
 
-#: src/x11/x11_panel.tsx:22
+#: src/x11/x11_panel.tsx:23
 msgid "X11: {host}"
 msgstr "X11 : {host}"
 

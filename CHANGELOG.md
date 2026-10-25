@@ -4,6 +4,14 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Added
+
+- The X11 drawer shows whether an X server answers on the local display, live, with a button to start VcXsrv or Xming when it is installed.
+
+### Fixed
+
+- A failed X server check is now reported instead of being silently ignored, and the daemon logs what it found with `TUNNELER_LOG=debug`. VcXsrv is also found in Program Files (x86).
+
 ## [0.4.0] - 2026-10-24
 
 ### Added
