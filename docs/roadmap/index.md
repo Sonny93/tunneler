@@ -62,7 +62,7 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 - **Everything the daemon does on Windows.** It compiles and passes lint but has not been exercised on every path: the named pipe, the tray, launch at login, the credential manager, the OpenSSH agent and Pageant, `ProxyCommand` and `Match exec`, detection of VNC and RDP clients, detached launch.
 - **Notifications.** A toast should appear under the name Tunneler without a Start menu shortcut.
 - **Standby sounds.** Listen to all of them, including with the "Notification" sound set to "(None)" in the Windows sound scheme. Check that none ends abruptly (each rings out, then 150 ms of silence) and that the volume slider is neither too quiet at 5 % nor too loud at 100 %.
-- **X server start.** Starting VcXsrv and Xming when no X server runs, with each setting value.
+- **X server start.** Starting VcXsrv from the "Ask me" dialog and from the X11 drawer was checked: windows forwarded to it appear. Still to try: Xming, the "Start it" and "Don't start it" values, and an X11 launcher drawing through the started server.
 - **Screen reader and display.** NVDA with the UI, Windows high contrast mode, and 200% zoom with no horizontal scrolling.
 
 ### Linux

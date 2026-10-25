@@ -62,7 +62,7 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 - **Tout ce que fait le daemon sous Windows.** Il compile et passe le lint, mais tous les chemins n'ont pas été exécutés : le named pipe, la zone de notification, le lancement à l'ouverture de session, le gestionnaire d'identifiants, l'agent OpenSSH et Pageant, `ProxyCommand` et `Match exec`, la détection des clients VNC et RDP, le lancement détaché.
 - **Notifications.** Un toast doit s'afficher au nom de Tunneler sans raccourci du menu Démarrer.
 - **Sons de veille.** Tous les écouter, y compris avec le son « Notification » réglé sur « (Aucun) » dans le jeu de sons de Windows. Vérifier qu'aucun ne se coupe brusquement (chacun s'éteint, puis 150 ms de silence) et que le curseur de volume n'est ni trop faible à 5 % ni trop fort à 100 %.
-- **Démarrage du serveur X.** Démarrer VcXsrv et Xming quand aucun serveur X ne tourne, avec chaque valeur du réglage.
+- **Démarrage du serveur X.** Le démarrage de VcXsrv depuis la fenêtre « Me demander » et depuis le panneau X11 a été vérifié : les fenêtres qui lui sont transférées s'affichent. Reste à essayer : Xming, les valeurs « Le démarrer » et « Ne pas le démarrer », et un lanceur X11 qui dessine via le serveur démarré.
 - **Lecteur d'écran et affichage.** NVDA avec l'interface, le mode contraste élevé de Windows, et un zoom à 200 % sans défilement horizontal.
 
 ### Linux
