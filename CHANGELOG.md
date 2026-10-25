@@ -11,6 +11,7 @@ All notable changes to Tunneler are written here for the people who use it. The 
 ### Fixed
 
 - A failed X server check is now reported instead of being silently ignored, and the daemon logs what it found with `TUNNELER_LOG=debug`. VcXsrv is also found in Program Files (x86).
+- VcXsrv and Xming started by Tunneler refused the windows of X clients: they now start from their install folder, like XLaunch does, so they find the `X0.hosts` file that lets local clients in.
 
 ## [0.4.0] - 2026-10-24
 

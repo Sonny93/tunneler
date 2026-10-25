@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use engine::{LocalX11Servers, X11Server};
 use tracing::debug;
 
-use super::launch::spawn_detached;
+use super::launch::spawn_detached_in;
 
 const PROGRAM_FILES_VARIABLE: &str = "ProgramFiles";
 const PROGRAM_FILES_X86_VARIABLE: &str = "ProgramFiles(x86)";
@@ -130,7 +130,13 @@ impl LocalX11Servers for SystemX11Servers {
                 "the X server path is not valid Unicode",
             )
         })?;
-        spawn_detached(executable, &kind.arguments(display_number))
+        let directory = server.executable.parent().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "the X server path has no parent directory",
+            )
+        })?;
+        spawn_detached_in(executable, &kind.arguments(display_number), directory)
     }
 }
 

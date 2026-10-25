@@ -7,6 +7,7 @@ pub(crate) mod testing;
 use std::io;
 #[cfg(all(unix, not(target_os = "macos")))]
 use std::io::Write;
+use std::path::Path;
 use std::process::{Command, Stdio};
 
 use async_trait::async_trait;
@@ -66,6 +67,23 @@ impl Launcher for SystemLauncher {
 /// Runs `program` detached from the daemon, with null standard streams and
 /// without a shell; the child is reaped from a thread of its own.
 pub(crate) fn spawn_detached(program: &str, args: &[String]) -> io::Result<()> {
+    spawn_reaped(detached_command(program, args))
+}
+
+/// Runs `program` detached like [`spawn_detached`], from `directory`. Some
+/// programs, such as `VcXsrv` and its `X0.hosts`, read files next to them
+/// relative to their working directory.
+pub(crate) fn spawn_detached_in(
+    program: &str,
+    args: &[String],
+    directory: &Path,
+) -> io::Result<()> {
+    let mut command = detached_command(program, args);
+    command.current_dir(directory);
+    spawn_reaped(command)
+}
+
+fn detached_command(program: &str, args: &[String]) -> Command {
     let mut command = Command::new(program);
     command
         .args(args)
@@ -73,6 +91,10 @@ pub(crate) fn spawn_detached(program: &str, args: &[String]) -> io::Result<()> {
         .stdout(Stdio::null())
         .stderr(Stdio::null());
     detach(&mut command);
+    command
+}
+
+fn spawn_reaped(mut command: Command) -> io::Result<()> {
     let mut child = command.spawn()?;
     std::thread::spawn(move || {
         if let Err(error) = child.wait() {
@@ -157,6 +179,30 @@ mod tests {
         };
         let _ = std::fs::remove_file(&output);
         assert_eq!(received, b"sound bytes");
+    }
+
+    #[test]
+    fn should_run_the_program_from_the_given_directory() {
+        let directory = tempfile::tempdir().unwrap();
+        let output = directory.path().join("working-directory");
+        let script = format!("pwd > '{}'", output.display());
+
+        spawn_detached_in("sh", &["-c".to_owned(), script], directory.path()).unwrap();
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let reported = loop {
+            if let Ok(content) = std::fs::read_to_string(&output)
+                && !content.is_empty()
+            {
+                break content;
+            }
+            assert!(std::time::Instant::now() < deadline, "pwd never ran");
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
+        assert_eq!(
+            std::fs::canonicalize(reported.trim()).unwrap(),
+            std::fs::canonicalize(directory.path()).unwrap()
+        );
     }
 
     #[test]
