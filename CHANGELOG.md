@@ -4,6 +4,8 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-25
+
 ### Added
 
 - The X11 drawer shows whether an X server answers on the local display, live, with a button to start VcXsrv or Xming when it is installed.
@@ -82,7 +84,8 @@ First release.
 - English and French, dark and light themes, and documentation opened from the app with F1.
 - A Windows installer, a Debian package, an AppImage and portable archives, with signed updates from the GitHub releases.
 
-[Unreleased]: https://github.com/Sonny93/tunneler/compare/v0.4.0...main
+[Unreleased]: https://github.com/Sonny93/tunneler/compare/v0.4.1...main
+[0.4.1]: https://github.com/Sonny93/tunneler/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Sonny93/tunneler/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Sonny93/tunneler/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Sonny93/tunneler/compare/v0.1.0...v0.2.0

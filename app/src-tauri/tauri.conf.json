@@ -2,7 +2,7 @@
 	"$schema": "https://schema.tauri.app/config/2",
 	"productName": "Tunneler",
 	"mainBinaryName": "tunneler-ui",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"identifier": "com.minimalstuff.tunneler",
 	"build": {
 		"beforeDevCommand": "pnpm dev",
