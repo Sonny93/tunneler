@@ -198,8 +198,8 @@ importers:
         specifier: ^6.10.0
         version: 6.10.0(@babel/core@7.29.7(supports-color@7.2.0))(react@19.3.1)
       '@minimalstuff/ui':
-        specifier: ^4.3.2
-        version: 4.3.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))
+        specifier: ^4.3.3
+        version: 4.3.3(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))
       '@tauri-apps/api':
         specifier: ^2.12.4
         version: 2.12.4
@@ -879,8 +879,8 @@ packages:
       oxlint-tsgolint:
         optional: true
 
-  '@minimalstuff/ui@4.3.2':
-    resolution: {integrity: sha512-Q08o0kYDX9X++BKHGhjDb1OqQ/ENYHkmZzQ4Okl4wVYh5enLh+9gNK1adHyhqLmDrbxCQCSrIZuGPBCpLfl4xA==}
+  '@minimalstuff/ui@4.3.3':
+    resolution: {integrity: sha512-PiekIi3Iy3G+zoKV1s7cLFiE6duW4gEd3hbsVAm/ieF7hKngRtJvFlEYGuldM/zlBZKFX4k5u7UJlciVkmLDlg==}
     peerDependencies:
       react: ^19.0.0
       react-dom: ^19.0.0
@@ -3564,6 +3564,24 @@ packages:
       use-sync-external-store:
         optional: true
 
+  zustand@5.0.16:
+    resolution: {integrity: sha512-Uv7e327ihlCfayfja3hDc0M64Upev1LWBKpRobdK4NyovDDPeeX4imWXc/wzC1yc6fkYPoAY/ncKVPAs2jrtQw==}
+    engines: {node: '>=12.20.0'}
+    peerDependencies:
+      '@types/react': '>=18.0.0'
+      immer: '>=9.0.6'
+      react: '>=18.0.0'
+      use-sync-external-store: '>=1.2.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      immer:
+        optional: true
+      react:
+        optional: true
+      use-sync-external-store:
+        optional: true
+
 snapshots:
 
   '@adobe/css-tools@4.5.0': {}
@@ -4157,14 +4175,14 @@ snapshots:
       - supports-color
       - typescript
 
-  '@minimalstuff/ui@4.3.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))':
+  '@minimalstuff/ui@4.3.3(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))':
     dependencies:
       '@floating-ui/react-dom': 2.1.9(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       clsx: 2.1.1
       react: 19.3.1
       react-call: 2.0.2(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))
       react-dom: 19.3.1(react@19.3.1)
-      zustand: 5.0.15(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))
+      zustand: 5.0.16(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1))
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -6522,6 +6540,12 @@ snapshots:
   yoctocolors@2.2.0: {}
 
   zustand@5.0.15(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1)):
+    optionalDependencies:
+      '@types/react': 19.3.0
+      react: 19.3.1
+      use-sync-external-store: 1.7.0(react@19.3.1)
+
+  zustand@5.0.16(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.7.0(react@19.3.1)):
     optionalDependencies:
       '@types/react': 19.3.0
       react: 19.3.1

@@ -4,6 +4,10 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Fixed
+
+- Picking an option in a settings card, such as "When no X server is running", no longer scrolls the settings window and leaves half of it blank. Closing a menu or a dialog no longer scrolls the window behind it either.
+
 ## [0.4.1] - 2026-10-25
 
 ### Added
