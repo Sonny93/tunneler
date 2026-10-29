@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use russh::keys::{HashAlg, PrivateKey, PublicKey};
-use russh::server::{self, Auth, Config, Msg, Server, Session};
+use russh::server::{self, Auth, Config, Msg, PublicKeyOffer, Server, Session, VerifiedPublicKey};
 use russh::{Channel, ChannelId, ChannelOpenFailure, ChannelStream, MethodKind, MethodSet};
 use tokio::io::{copy_bidirectional, duplex};
 use tokio::net::{TcpListener, TcpStream};
@@ -559,8 +559,9 @@ impl server::Handler for ConnectionHandler {
     async fn auth_publickey_offered(
         &mut self,
         user: &str,
-        public_key: &PublicKey,
+        offer: PublicKeyOffer<'_>,
     ) -> Result<Auth, Self::Error> {
+        let public_key = offer.public_key;
         self.behavior
             .offered_fingerprints
             .lock()
@@ -575,9 +576,9 @@ impl server::Handler for ConnectionHandler {
     async fn auth_publickey(
         &mut self,
         user: &str,
-        public_key: &PublicKey,
+        key: VerifiedPublicKey<'_>,
     ) -> Result<Auth, Self::Error> {
-        if !self.is_authorized(user, public_key) {
+        if !self.is_authorized(user, key.public_key) {
             return Ok(self.reject());
         }
         if self.behavior.requires_publickey_then_password {
