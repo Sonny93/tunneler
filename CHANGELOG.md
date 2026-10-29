@@ -4,6 +4,8 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-29
+
 ### Fixed
 
 - Picking an option in a settings card, such as "When no X server is running", no longer scrolls the settings window and leaves half of it blank. Closing a menu or a dialog no longer scrolls the window behind it either.
@@ -88,7 +90,8 @@ First release.
 - English and French, dark and light themes, and documentation opened from the app with F1.
 - A Windows installer, a Debian package, an AppImage and portable archives, with signed updates from the GitHub releases.
 
-[Unreleased]: https://github.com/Sonny93/tunneler/compare/v0.4.1...main
+[Unreleased]: https://github.com/Sonny93/tunneler/compare/v0.5.0...main
+[0.5.0]: https://github.com/Sonny93/tunneler/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Sonny93/tunneler/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Sonny93/tunneler/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Sonny93/tunneler/compare/v0.2.0...v0.3.0
