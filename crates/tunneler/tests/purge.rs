@@ -5,6 +5,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::fs;
+use std::io;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
@@ -122,20 +123,18 @@ impl Sandbox {
     fn purge_with(&self, binary: &Path, arguments: &[&str]) -> Output {
         let mut all_arguments = vec!["purge"];
         all_arguments.extend_from_slice(arguments);
-        self.command(binary, &all_arguments).output().unwrap()
+        let mut command = self.command(binary, &all_arguments);
+        retry_while_busy(|| command.output())
     }
 
     fn spawn_daemon(&self, binary: &Path) -> Daemon {
         let ssh_config = self.empty_ssh_config();
-        let child = self
-            .command(
-                binary,
-                &["daemon", "--ssh-config", ssh_config.to_str().unwrap()],
-            )
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .unwrap();
+        let mut command = self.command(
+            binary,
+            &["daemon", "--ssh-config", ssh_config.to_str().unwrap()],
+        );
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+        let child = retry_while_busy(|| command.spawn());
         let daemon = Daemon { child };
         let socket = self.socket();
         wait_until("the daemon answers", || {
@@ -203,6 +202,25 @@ impl PortableInstallation {
 
     fn data(&self) -> PathBuf {
         self.directory.path().join("data")
+    }
+}
+
+/// Runs `start` until the copied executable is no longer busy. While a test
+/// thread writes a copy of the binary, a child forked by another test thread
+/// inherits that write descriptor until it calls `exec`, and the kernel
+/// refuses to run the copy (`ETXTBSY`) in the meantime.
+fn retry_while_busy<T>(mut start: impl FnMut() -> io::Result<T>) -> T {
+    let deadline = Instant::now() + WAIT;
+    loop {
+        match start() {
+            Err(error)
+                if error.kind() == io::ErrorKind::ExecutableFileBusy
+                    && Instant::now() < deadline =>
+            {
+                sleep(POLL_INTERVAL);
+            }
+            outcome => return outcome.unwrap(),
+        }
     }
 }
 
