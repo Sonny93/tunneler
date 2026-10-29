@@ -8,8 +8,9 @@
 use std::io;
 use std::sync::Arc;
 
-use zbus::blocking::Connection;
-use zbus::blocking::fdo::{DBusProxy, NameOwnerChangedIterator};
+use futures_util::StreamExt;
+use zbus::Connection;
+use zbus::fdo::{DBusProxy, NameOwnerChangedStream};
 use zbus::names::BusName;
 
 use crate::daemon::tray::{TrayStatus, TrayStatusCell};
@@ -23,8 +24,6 @@ const WATCHER_THREAD_NAME: &str = "tray-host-watcher";
 pub(super) enum HostWatchError {
     #[error(transparent)]
     Bus(#[from] zbus::Error),
-    #[error(transparent)]
-    Names(#[from] zbus::names::Error),
     #[error("cannot start the watcher thread: {0}")]
     Thread(#[from] io::Error),
 }
@@ -46,22 +45,37 @@ fn status_for(has_owner: bool) -> TrayStatus {
 /// Sets the status for the current state of the bus, then keeps it up to date
 /// from a thread that lives as long as the connection to the bus.
 pub(super) fn start(status: Arc<TrayStatusCell>) -> Result<(), HostWatchError> {
-    let connection = Connection::session()?;
-    let proxy = DBusProxy::new(&connection)?;
-    let changes = proxy.receive_name_owner_changed_with_args(&[(
-        WATCHED_NAME_ARGUMENT_INDEX,
-        STATUS_NOTIFIER_WATCHER,
-    )])?;
-    let has_owner = proxy.name_has_owner(BusName::try_from(STATUS_NOTIFIER_WATCHER)?)?;
-    status.set(status_for(has_owner));
+    let (connection, changes) = zbus::block_on(subscribe(&status))?;
     std::thread::Builder::new()
         .name(WATCHER_THREAD_NAME.to_owned())
-        .spawn(move || follow(changes, &status, &connection))?;
+        .spawn(move || zbus::block_on(follow(changes, &status, &connection)))?;
     Ok(())
 }
 
-fn follow(changes: NameOwnerChangedIterator, status: &TrayStatusCell, _connection: &Connection) {
-    for change in changes {
+async fn subscribe(
+    status: &TrayStatusCell,
+) -> Result<(Connection, NameOwnerChangedStream), HostWatchError> {
+    let connection = Connection::session().await?;
+    let proxy = DBusProxy::new(&connection).await?;
+    let changes = proxy
+        .receive_name_owner_changed_with_args(&[(
+            WATCHED_NAME_ARGUMENT_INDEX,
+            STATUS_NOTIFIER_WATCHER,
+        )])
+        .await?;
+    let has_owner = proxy
+        .name_has_owner(BusName::try_from(STATUS_NOTIFIER_WATCHER)?)
+        .await?;
+    status.set(status_for(has_owner));
+    Ok((connection, changes))
+}
+
+async fn follow(
+    mut changes: NameOwnerChangedStream,
+    status: &TrayStatusCell,
+    _connection: &Connection,
+) {
+    while let Some(change) = changes.next().await {
         match change.args() {
             Ok(arguments) => status.set(status_for(arguments.new_owner().is_some())),
             Err(error) => tracing::warn!(%error, "cannot read a bus name change"),

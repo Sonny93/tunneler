@@ -32,6 +32,7 @@ ulid.workspace = true
 zeroize.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
+futures-util.workspace = true
 tray-icon = { workspace = true, features = ["ksni"] }
 zbus.workspace = true
 

@@ -10,8 +10,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use async_trait::async_trait;
 use engine::StandbySound;
-use zbus::blocking::Connection;
-use zbus::zvariant::Value;
+use zbus::Connection;
+use zbus::Variant;
 
 use super::synthesis::synthesized_wav;
 use super::{DesktopNotifier, SoundEvent, SoundPlayer};
@@ -138,27 +138,33 @@ impl SystemNotifier {
 }
 
 fn send(summary: &str, body: &str) -> zbus::Result<()> {
-    let connection = Connection::session()?;
+    zbus::block_on(send_async(summary, body))
+}
+
+async fn send_async(summary: &str, body: &str) -> zbus::Result<()> {
+    let connection = Connection::session().await?;
     let hints = HashMap::from([
-        ("suppress-sound", Value::from(true)),
-        ("category", Value::from(NETWORK_CATEGORY)),
+        ("suppress-sound", Variant::from(true)),
+        ("category", Variant::from(NETWORK_CATEGORY)),
     ]);
-    connection.call_method(
-        Some(NOTIFICATIONS_SERVICE),
-        NOTIFICATIONS_PATH,
-        Some(NOTIFICATIONS_SERVICE),
-        "Notify",
-        &(
-            APPLICATION_NAME,
-            NO_REPLACED_NOTIFICATION,
-            "",
-            summary,
-            body,
-            Vec::<&str>::new(),
-            hints,
-            SERVER_DEFAULT_EXPIRY,
-        ),
-    )?;
+    connection
+        .call_method(
+            Some(NOTIFICATIONS_SERVICE),
+            NOTIFICATIONS_PATH,
+            Some(NOTIFICATIONS_SERVICE),
+            "Notify",
+            &(
+                APPLICATION_NAME,
+                NO_REPLACED_NOTIFICATION,
+                "",
+                summary,
+                body,
+                Vec::<&str>::new(),
+                hints,
+                SERVER_DEFAULT_EXPIRY,
+            ),
+        )
+        .await?;
     Ok(())
 }
 
