@@ -1,5 +1,6 @@
 minimumReleaseAgeExclude:
   - '@minimalstuff/ui@4.3.3'
   - '@minimalstuff/tooling@0.7.0'
+  - '@types/node@26.6.6'
 allowBuilds:
   '@swc/core': true
