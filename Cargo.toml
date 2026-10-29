@@ -11,7 +11,7 @@ publish = false
 
 [workspace.dependencies]
 async-trait = "0.1"
-base64 = "0.22"
+base64 = "0.23"
 clap = { version = "4", features = ["derive", "env"] }
 directories = "6"
 fast-socks5 = { version = "1", default-features = false }
