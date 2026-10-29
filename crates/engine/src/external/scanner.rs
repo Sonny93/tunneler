@@ -78,12 +78,18 @@ impl SystemScan {
     }
 }
 
-/// The listening sockets could not be read.
+/// The listening sockets or the processes could not be read.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ScanError {
     /// The operating system refused to list the listening sockets.
     #[error("cannot list the listening sockets: {message}")]
     ListeningSockets {
+        /// The message reported by the operating system.
+        message: String,
+    },
+    /// The operating system refused to list the processes.
+    #[error("cannot list the processes: {message}")]
+    Processes {
         /// The message reported by the operating system.
         message: String,
     },
@@ -122,7 +128,9 @@ impl PortScanner for SystemPortScanner {
     fn scan(&self) -> Result<SystemScan, ScanError> {
         let listeners = read_listening_sockets()?;
         let listener_pids: HashSet<u32> = listeners.iter().map(|socket| socket.pid).collect();
-        let mut system = System::new();
+        let mut system = System::new().map_err(|error| ScanError::Processes {
+            message: error.to_string(),
+        })?;
         system.refresh_processes_specifics(
             ProcessesToUpdate::All,
             true,
@@ -145,7 +153,7 @@ impl PortScanner for SystemPortScanner {
 
     fn terminate(&self, process: ProcessIdentity) -> Result<(), TerminateError> {
         let pid = Pid::from_u32(process.pid);
-        let mut system = System::new();
+        let mut system = System::new().map_err(|_| TerminateError::Refused { pid: process.pid })?;
         system.refresh_processes_specifics(
             ProcessesToUpdate::Some(&[pid]),
             true,
