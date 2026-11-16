@@ -287,10 +287,7 @@ fn expansion_context(alias: &str, ssh_lines: &[Line]) -> ExpansionContext {
         port: first_value(ssh_lines, "port").unwrap().parse().unwrap(),
         user: first_value(ssh_lines, "user").unwrap().to_owned(),
         host_key_alias: first_value(ssh_lines, "hostkeyalias").map(str::to_owned),
-        jump_host: jump_chain
-            .last()
-            .map(|jump| jump.host.clone())
-            .unwrap_or_default(),
+        jump_host: jump_chain.last().map_or_default(|jump| jump.host.clone()),
     }
 }
 

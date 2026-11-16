@@ -74,10 +74,9 @@ impl Options {
     /// The host of the last jump, which `%j` stands for.
     pub(crate) fn jump_host_name(&self) -> String {
         match &self.proxy {
-            Some(ProxySetting::Jump(hosts)) => hosts
-                .last()
-                .map(|jump| jump.host.clone())
-                .unwrap_or_default(),
+            Some(ProxySetting::Jump(hosts)) => {
+                hosts.last().map_or_default(|jump| jump.host.clone())
+            }
             _ => String::new(),
         }
     }

@@ -332,8 +332,7 @@ fn describe_external_process(process: &ExternalProcessDto, style: Style) -> Stri
     let destination = process
         .destination
         .as_ref()
-        .map(|destination| format!(" to {destination}"))
-        .unwrap_or_default();
+        .map_or_default(|destination| format!(" to {destination}"));
     let forwards: Vec<String> = process
         .forwards
         .iter()

@@ -41,8 +41,7 @@ pub(crate) fn lex_line(text: &str) -> Result<Option<LexedLine>, SyntaxError> {
     let keyword = keyword_token.token.to_ascii_lowercase();
     let raw_value = keyword_token
         .remainder
-        .map(|remainder| remainder.trim_start_matches(WHITESPACE))
-        .unwrap_or_default();
+        .map_or_default(|remainder| remainder.trim_start_matches(WHITESPACE));
     if raw_value.is_empty() {
         return Err(SyntaxError::MissingArguments { keyword });
     }

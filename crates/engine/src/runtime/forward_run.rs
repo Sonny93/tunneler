@@ -150,10 +150,7 @@ impl ForwardRun {
 
     /// Takes the clients that wait for the session, oldest first.
     pub(crate) fn take_held(&mut self) -> Vec<HeldClient> {
-        self.held
-            .as_mut()
-            .map(BoundedQueue::take_all)
-            .unwrap_or_default()
+        self.held.as_mut().map_or_default(BoundedQueue::take_all)
     }
 
     pub(crate) async fn close_connections(&mut self) {

@@ -97,8 +97,7 @@ impl<Answer> PendingPrompts<Answer> {
     fn withdraw(&self, prompt_id: &str) -> Vec<ConnectionId> {
         self.lock()
             .remove(prompt_id)
-            .map(|pending| pending.responders)
-            .unwrap_or_default()
+            .map_or_default(|pending| pending.responders)
     }
 }
 
