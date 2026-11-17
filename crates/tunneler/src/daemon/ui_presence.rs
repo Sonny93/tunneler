@@ -19,13 +19,24 @@ fn ui_wanted(server: &ServerHandle) -> bool {
     )
 }
 
-fn apply_presence(engine: &Engine, is_ui_present: bool) {
+/// Whether a UI just connected: it is the moment to look again for the
+/// programs of the built-in openers, which may have been installed since.
+pub(crate) const fn has_ui_just_connected(was_ui_present: bool, is_ui_present: bool) -> bool {
+    !was_ui_present && is_ui_present
+}
+
+async fn apply_presence(engine: &Engine, was_ui_present: bool, is_ui_present: bool) {
     engine.set_port_scanning(is_ui_present);
+    if has_ui_just_connected(was_ui_present, is_ui_present) {
+        engine.refresh_detected_openers().await;
+    }
 }
 
 /// Keeps the engine's port scanning in step with the connected UIs.
 ///
-/// It is on while at least one `ui` client is connected and off otherwise. The task ends when `shutdown` is cancelled.
+/// It is on while at least one `ui` client is connected and off otherwise.
+/// When the first `ui` client connects, the engine also detects the built-in
+/// openers again. The task ends when `shutdown` is cancelled.
 pub(crate) fn spawn_ui_presence_follower(
     engine: Engine,
     server: ServerHandle,
@@ -33,7 +44,8 @@ pub(crate) fn spawn_ui_presence_follower(
 ) -> JoinHandle<()> {
     let mut notifications = server.subscribe_connections();
     tokio::spawn(async move {
-        apply_presence(&engine, ui_wanted(&server));
+        let mut is_ui_present = ui_wanted(&server);
+        apply_presence(&engine, is_ui_present, is_ui_present).await;
         loop {
             tokio::select! {
                 () = shutdown.cancelled() => return,
@@ -41,7 +53,9 @@ pub(crate) fn spawn_ui_presence_follower(
                     if matches!(notification, Err(RecvError::Closed)) {
                         return;
                     }
-                    apply_presence(&engine, ui_wanted(&server));
+                    let was_ui_present = is_ui_present;
+                    is_ui_present = ui_wanted(&server);
+                    apply_presence(&engine, was_ui_present, is_ui_present).await;
                 }
             }
         }
@@ -60,6 +74,21 @@ mod tests {
     #[test]
     fn should_not_be_wanted_when_only_clis_are_connected() {
         assert!(!is_ui_connected([ClientKind::Cli, ClientKind::Cli]));
+    }
+
+    #[test]
+    fn should_refresh_the_openers_when_the_first_ui_connects() {
+        assert!(has_ui_just_connected(false, true));
+    }
+
+    #[test]
+    fn should_not_refresh_the_openers_when_a_ui_was_already_connected() {
+        assert!(!has_ui_just_connected(true, true));
+    }
+
+    #[test]
+    fn should_not_refresh_the_openers_when_the_last_ui_disconnects() {
+        assert!(!has_ui_just_connected(true, false));
     }
 
     #[test]

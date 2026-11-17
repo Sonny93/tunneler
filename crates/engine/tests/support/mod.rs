@@ -13,6 +13,7 @@ mod engine_harness;
 mod environment;
 mod fake_keyring;
 mod fake_port_scanner;
+mod fake_program_locator;
 mod memory_state_store;
 mod scripted;
 mod workspace;
@@ -27,6 +28,7 @@ pub use fake_keyring::FakeKeyring;
 pub use fake_port_scanner::{
     FakePortScanner, foreign_scan, identity_of, listener, process, ssh_scan,
 };
+pub use fake_program_locator::FakeProgramLocator;
 pub use memory_state_store::MemoryStateStore;
 pub use scripted::{ScriptedPrompter, ScriptedVerifier};
 #[cfg(unix)]

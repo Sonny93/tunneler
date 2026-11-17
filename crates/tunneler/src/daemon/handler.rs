@@ -348,6 +348,7 @@ impl DaemonHandler {
         let plan = self
             .engine
             .open_plan(id, params.with.as_deref())
+            .await
             .map_err(engine_error_to_ipc)?;
         self.engine
             .start_tunnel_and_wait(id)
@@ -614,8 +615,8 @@ mod tests {
 
     use engine::{
         AppState, ConnectorDependencies, EngineDependencies, FileStateStore, KeyringError,
-        SecretKeyring, SshConfigResolver, StandbySound, StateStore, Store, SystemAgentLocator,
-        SystemClock, SystemX11Environment,
+        PresetPlatform, ProgramLocator, SecretKeyring, SshConfigResolver, StandbySound, StateStore,
+        Store, SystemAgentLocator, SystemClock, SystemX11Environment,
     };
     use ipc::protocol::{
         AvailableOpenerDto, ErrorCode, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto,
@@ -639,6 +640,14 @@ mod tests {
     use crate::daemon::tray::TrayStatusCell;
     use crate::daemon::ui::testing::FakeLauncher;
     use crate::daemon::x11_servers::SystemX11Servers;
+
+    struct NoProgramLocator;
+
+    impl ProgramLocator for NoProgramLocator {
+        fn is_available(&self, _program: &str) -> bool {
+            false
+        }
+    }
 
     const WAIT: Duration = Duration::from_secs(10);
     const POLL_INTERVAL: Duration = Duration::from_millis(25);
@@ -788,7 +797,8 @@ mod tests {
             x11_servers: Arc::new(SystemX11Servers),
             state_store: Arc::new(state_store),
             keyring: Some(keyring.clone()),
-            detected_openers: Vec::new(),
+            program_locator: Arc::new(NoProgramLocator),
+            preset_platform: PresetPlatform::Unix,
         })
         .unwrap();
         let quit_requested = CancellationToken::new();

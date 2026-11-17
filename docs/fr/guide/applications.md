@@ -30,7 +30,7 @@ Dans le menu du tunnel, l'action d'ouverture dit ce qui va se passer : « Ouvrir
 
 ## Applications intégrées
 
-Tunneler cherche ces programmes une seule fois, au démarrage du daemon. Après en avoir installé un, quittez Tunneler et relancez-le. Ceux qu'il trouve apparaissent dans « Paramètres » › « Ouverture » › « Applications » › « Détectées sur ce poste ».
+Tunneler cherche ces programmes au démarrage du daemon, de nouveau à chaque ouverture de la fenêtre, et encore juste avant d'ouvrir un tunnel. Une application installée pendant que Tunneler tourne est trouvée sans le relancer. Le daemon garde le `PATH` avec lequel il a démarré : un programme installé dans un dossier absent de ce `PATH` n'est pas trouvé tant que vous ne relancez pas Tunneler (ou que vous l'ajoutez avec son chemin complet, voir plus bas). Ceux qu'il trouve apparaissent dans « Paramètres » › « Ouverture » › « Applications » › « Détectées sur ce poste ».
 
 ### Windows
 

@@ -30,7 +30,7 @@ In the tunnel's menu the open action says what will happen: "Open in the browser
 
 ## Built-in applications
 
-Tunneler looks for these programs once, when the daemon starts. After installing one, quit Tunneler and start it again. The ones it finds appear in "Settings" › "Opening" › "Applications" › "Detected on this computer".
+Tunneler looks for these programs when the daemon starts, again each time the window opens, and again right before it opens a tunnel. An application installed while Tunneler runs is found without restarting it. The daemon keeps the `PATH` it was started with: a program installed in a folder that was not in that `PATH` is not found until you restart Tunneler (or add it with its full path, see below). The ones it finds appear in "Settings" › "Opening" › "Applications" › "Detected on this computer".
 
 ### Windows
 

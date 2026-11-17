@@ -4,6 +4,10 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Changed
+
+- An application installed while Tunneler runs (TigerVNC, Remmina, FreeRDP...) is now found without restarting Tunneler: the built-in applications are detected again when the window opens and before a tunnel is opened.
+
 ## [0.5.0] - 2026-10-29
 
 ### Fixed

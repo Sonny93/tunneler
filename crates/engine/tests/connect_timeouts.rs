@@ -8,14 +8,14 @@ use std::time::Duration;
 
 use engine::{
     ConnectError, ConnectTimeouts, Connector, Engine, EngineDependencies, EngineEvent,
-    EngineOptions, FailureReason, Store, SystemClock, TunnelId, TunnelState,
+    EngineOptions, FailureReason, PresetPlatform, Store, SystemClock, TunnelId, TunnelState,
 };
 use russh::MethodKind;
 use russh::keys::{Algorithm, PrivateKey};
 use support::{
-    ALIAS, FakePortScanner, FakeX11Environment, FakeX11Servers, FixedAgentLocator,
-    ScriptedPrompter, TestServer, TestUser, UnresponsiveAgent, Workspace, free_port, generate_key,
-    wait_for_state, wait_until,
+    ALIAS, FakePortScanner, FakeProgramLocator, FakeX11Environment, FakeX11Servers,
+    FixedAgentLocator, ScriptedPrompter, TestServer, TestUser, UnresponsiveAgent, Workspace,
+    free_port, generate_key, wait_for_state, wait_until,
 };
 use tokio::sync::broadcast::Receiver;
 use tokio::time::sleep;
@@ -213,7 +213,8 @@ impl StuckTunnel {
                 x11_servers: Arc::new(FakeX11Servers::default()),
                 state_store: Arc::new(support::MemoryStateStore::default()),
                 keyring: None,
-                detected_openers: Vec::new(),
+                program_locator: Arc::new(FakeProgramLocator::default()),
+                preset_platform: PresetPlatform::Unix,
             },
             EngineOptions {
                 connect_timeouts: timeouts,

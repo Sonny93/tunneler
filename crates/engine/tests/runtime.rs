@@ -10,18 +10,18 @@ use std::time::{Duration, SystemTime};
 use engine::{
     AppState, Clock, ConnectTimeouts, Engine, EngineDependencies, EngineError, EngineEvent,
     EngineOptions, FailureReason, HostKeyDecision, LaunchCommand, LogLevel, NewTunnel, OpenHost,
-    OpenOptions, OpenPlan, OpenUrlError, Opener, PortOwner, PortScanner, Settings, Store,
-    StoreError, SystemClock, SystemPortScanner, SystemScan, TagProblem, TargetHealth, TunnelId,
-    TunnelKind, TunnelState, UnmanagedProcess,
+    OpenOptions, OpenPlan, OpenUrlError, Opener, PortOwner, PortScanner, PresetPlatform,
+    ProgramLocator, Settings, Store, StoreError, SystemClock, SystemPortScanner, SystemScan,
+    TagProblem, TargetHealth, TunnelId, TunnelKind, TunnelState, UnmanagedProcess,
 };
 use fast_socks5::client::{Config as SocksConfig, Socks5Stream};
 use fast_socks5::{ReplyError, SocksError};
 use russh::keys::{Algorithm, PrivateKey};
 use support::{
-    EchoServer, FakePortScanner, FakeX11Environment, FakeX11Servers, MemoryStateStore,
-    ScriptedPrompter, ScriptedVerifier, TestServer, TestUser, Workspace, foreign_scan, free_port,
-    free_ports, generate_key, identity_of, ssh_scan, wait_for_event, wait_for_state, wait_until,
-    write_private_key,
+    EchoServer, FakePortScanner, FakeProgramLocator, FakeX11Environment, FakeX11Servers,
+    MemoryStateStore, ScriptedPrompter, ScriptedVerifier, TestServer, TestUser, Workspace,
+    foreign_scan, free_port, free_ports, generate_key, identity_of, ssh_scan, wait_for_event,
+    wait_for_state, wait_until, write_private_key,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -99,6 +99,7 @@ struct Harness {
     timing: Timing,
     scanner: Arc<FakePortScanner>,
     state_store: Arc<MemoryStateStore>,
+    program_locator: Arc<FakeProgramLocator>,
 }
 
 impl HarnessBuilder {
@@ -268,6 +269,7 @@ impl HarnessBuilder {
                 .collect(),
             ..AppState::default()
         }));
+        let program_locator = Arc::new(FakeProgramLocator::default());
         let scanner = Arc::new(FakePortScanner::default());
         let port_scanner = self
             .port_scanner
@@ -282,7 +284,8 @@ impl HarnessBuilder {
                 x11_servers: Arc::new(FakeX11Servers::default()),
                 state_store: state_store.clone(),
                 keyring: None,
-                detected_openers: Vec::new(),
+                program_locator: Arc::clone(&program_locator) as Arc<dyn ProgramLocator>,
+                preset_platform: PresetPlatform::Unix,
             },
             EngineOptions {
                 metrics_event_interval: TICK_INTERVAL,
@@ -307,6 +310,7 @@ impl HarnessBuilder {
             timing: self.timing,
             scanner,
             state_store,
+            program_locator,
         }
     }
 
@@ -2355,7 +2359,8 @@ async fn should_save_the_generated_ids_when_the_engine_starts_on_a_file_without_
         x11_servers: Arc::new(FakeX11Servers::default()),
         state_store: Arc::new(MemoryStateStore::default()),
         keyring: None,
-        detected_openers: Vec::new(),
+        program_locator: Arc::new(FakeProgramLocator::default()),
+        preset_platform: PresetPlatform::Unix,
     })
     .unwrap();
 
@@ -3550,8 +3555,13 @@ async fn should_fail_when_the_tunnel_to_wait_for_is_unknown() {
     assert!(matches!(error, EngineError::UnknownTunnel(_)), "{error:?}");
 }
 
-fn browser_url_of(harness: &Harness) -> String {
-    match harness.engine.open_plan(harness.id("alpha"), None).unwrap() {
+async fn browser_url_of(harness: &Harness) -> String {
+    match harness
+        .engine
+        .open_plan(harness.id("alpha"), None)
+        .await
+        .unwrap()
+    {
         OpenPlan::Browser { url } => url,
         other @ OpenPlan::Program { .. } => panic!("expected the browser, got {other:?}"),
     }
@@ -3580,7 +3590,11 @@ async fn should_plan_the_opener_of_the_user_when_it_matches_the_target_port() {
         .await
         .unwrap();
 
-    let plan = harness.engine.open_plan(harness.id("alpha"), None).unwrap();
+    let plan = harness
+        .engine
+        .open_plan(harness.id("alpha"), None)
+        .await
+        .unwrap();
 
     assert_eq!(
         plan,
@@ -3610,6 +3624,7 @@ async fn should_plan_the_browser_when_it_is_asked_for_explicitly() {
     let plan = harness
         .engine
         .open_plan(harness.id("alpha"), Some("browser"))
+        .await
         .unwrap();
 
     assert!(matches!(plan, OpenPlan::Browser { .. }), "{plan:?}");
@@ -3627,6 +3642,7 @@ async fn should_list_the_available_ids_when_the_opener_is_unknown() {
     let error = harness
         .engine
         .open_plan(harness.id("alpha"), Some("ghost"))
+        .await
         .unwrap_err();
 
     assert!(
@@ -3693,7 +3709,7 @@ async fn should_list_detected_presets_after_the_openers_of_the_user_in_the_snaps
 async fn should_build_the_browser_url_of_a_local_tunnel() {
     let harness = HarnessBuilder::new(&["alpha"]).start().await;
 
-    let url = browser_url_of(&harness);
+    let url = browser_url_of(&harness).await;
 
     assert_eq!(url, format!("http://localhost:{}/", harness.port("alpha")));
 }
@@ -3705,6 +3721,7 @@ async fn should_refuse_the_browser_url_of_a_remote_tunnel() {
     let error = harness
         .engine
         .open_plan(harness.id("alpha"), None)
+        .await
         .unwrap_err();
 
     assert!(
@@ -3731,7 +3748,7 @@ async fn should_follow_the_open_host_setting_when_building_the_browser_url() {
         .await
         .unwrap();
 
-    let url = browser_url_of(&harness);
+    let url = browser_url_of(&harness).await;
 
     assert_eq!(url, format!("http://127.0.0.1:{}/", harness.port("alpha")));
 }
@@ -4337,5 +4354,68 @@ async fn should_stay_in_standby_when_the_scanner_sees_the_daemon_on_the_port() {
     assert_eq!(
         harness.state_of("alpha"),
         TunnelState::Standby { last_failure: None }
+    );
+}
+
+fn tigervnc_of(snapshot: &engine::EngineSnapshot) -> bool {
+    snapshot
+        .openers
+        .iter()
+        .any(|available| available.opener.id == "tigervnc")
+}
+
+#[tokio::test]
+async fn should_offer_a_preset_installed_after_the_start_when_the_openers_are_refreshed() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    assert!(!tigervnc_of(&harness.engine.snapshot()));
+    harness.program_locator.install("vncviewer");
+
+    harness.engine.refresh_detected_openers().await;
+
+    assert!(tigervnc_of(&harness.engine.snapshot()));
+}
+
+#[tokio::test]
+async fn should_publish_a_change_when_the_detected_openers_changed() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.program_locator.install("vncviewer");
+
+    harness.engine.refresh_detected_openers().await;
+
+    assert_eq!(
+        harness.events.try_recv().unwrap(),
+        EngineEvent::ConfigReloaded
+    );
+}
+
+#[tokio::test]
+async fn should_not_publish_a_change_when_the_detected_openers_did_not_change() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+
+    harness.engine.refresh_detected_openers().await;
+
+    assert!(harness.events.try_recv().is_err());
+}
+
+#[tokio::test]
+async fn should_plan_a_preset_installed_after_the_start_when_opening_a_tunnel() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.program_locator.install("vncviewer");
+
+    let plan = harness
+        .engine
+        .open_plan(harness.id("alpha"), Some("tigervnc"))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        plan,
+        OpenPlan::Program {
+            name: "TigerVNC".to_owned(),
+            command: LaunchCommand {
+                program: "vncviewer".to_owned(),
+                args: vec![format!("localhost::{}", harness.port("alpha"))],
+            },
+        }
     );
 }
