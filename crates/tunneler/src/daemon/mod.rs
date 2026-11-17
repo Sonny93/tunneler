@@ -131,6 +131,7 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         system_login_launch(),
         shutdown.clone(),
     );
+    crate::menu_entry::refresh_menu_entry_at_start();
     let standby_signals = start_standby_signals(&engine, shutdown.clone());
     let tray_status = Arc::new(TrayStatusCell::new(TrayStatus::Disabled));
     let handler = Arc::new(DaemonHandler::new(

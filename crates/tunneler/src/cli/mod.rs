@@ -54,5 +54,6 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
         Some(Command::Check(arguments)) => commands::check(&context, &arguments).await,
         Some(Command::Quit(arguments)) => commands::quit(&context, &arguments).await,
         Some(Command::Purge(arguments)) => commands::purge(&context, &arguments).await,
+        Some(Command::DesktopEntry(arguments)) => commands::desktop_entry(&arguments),
     }
 }

@@ -198,4 +198,17 @@ mod tests {
 
         assert_eq!(configuration["identifier"], APPLICATION_IDENTIFIER);
     }
+
+    #[test]
+    fn should_use_the_program_name_as_the_window_class_declared_in_the_menu_entry() {
+        let configuration: serde_json::Value =
+            serde_json::from_str(include_str!("../../../app/src-tauri/tauri.conf.json")).unwrap();
+
+        assert_eq!(configuration["mainBinaryName"], "tunneler-ui");
+        assert!(
+            configuration["app"]["enableGTKAppId"]
+                .as_bool()
+                .is_none_or(|is_enabled| !is_enabled)
+        );
+    }
 }

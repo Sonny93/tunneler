@@ -24,11 +24,37 @@ Les paquets sont sur la [page des versions](https://github.com/Sonny93/tunneler/
 - **Archive**, `tunneler-<version>-linux-x86_64.tar.gz`. Décompressez-la et lancez `./tunneler-ui`, ou `./tunneler` pour la ligne de commande. Il faut glibc 2.35 ou plus récente, et l'interface demande WebKitGTK 4.1 et GTK 3 :
 
   ```sh
-  sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0
+  sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0   # Debian, Ubuntu
+  sudo pacman -S --needed webkit2gtk-4.1 gtk3       # Arch
   ```
 
-  Cette forme est [portable](./updates-and-uninstall#mode-portable).
+  Ses fichiers vont dans les dossiers de l'utilisateur, comme pour les autres formes. Un fichier vide nommé `portable` à côté des programmes la rend [portable](./updates-and-uninstall#mode-portable).
+
+  L'archive n'a pas d'installeur, elle n'ajoute donc rien au menu des applications. Lancez ceci une fois après l'avoir décompressée :
+
+  ```sh
+  ./tunneler desktop-entry install
+  ```
+
+  La commande écrit `com.minimalstuff.tunneler.desktop` et ses icônes sous `~/.local/share`, avec le `tunneler-ui` qui est à côté de `tunneler`. Quand chaque version a son propre dossier, relancez-la après une mise à jour : le daemon rafraîchit aussi une entrée existante à chaque démarrage. `tunneler desktop-entry uninstall` la supprime, tout comme [`tunneler purge`](./updates-and-uninstall#tunneler-purge).
+
+  Pour installer l'archive avec [mise](https://mise.jdx.dev), ajoutez ceci à `mise.toml` :
+
+  ```toml
+  [tools."github:Sonny93/tunneler"]
+  version = "latest"
+  asset_pattern = "tunneler-*-linux-x86_64.tar.gz"
+  postinstall = '"$MISE_TOOL_INSTALL_PATH/tunneler" desktop-entry install || true'
+  ```
+
+  mise donne à chaque version son propre dossier : la commande `postinstall` réécrit donc l'entrée de menu à chaque installation ou mise à jour, vers le nouveau dossier. Le `|| true` est là parce qu'un `postinstall` qui échoue fait échouer toute l'installation par mise : sans lui, un dossier de données non inscriptible bloquerait la mise à jour.
 - **AppImage**, `tunneler-ui-<version>-x86_64.AppImage`. Utilisez-la quand `libwebkit2gtk-4.1` ne peut pas être installé. Elle ne contient que la fenêtre : placez-la à côté de `tunneler` sous le nom `tunneler-ui`, ou donnez son chemin dans `TUNNELER_UI_BINARY`.
+
+Sous Linux, quelques éléments sont facultatifs et Tunneler fonctionne sans eux :
+
+- Un fournisseur Secret Service (GNOME Keyring, KeePassXC ou KWallet) pour mémoriser les passphrases dans le trousseau du système.
+- Une zone de notification compatible StatusNotifierItem. KDE en a une ; pour GNOME, voyez [Premier lancement](#premier-lancement).
+- `pw-play` (PipeWire) ou `paplay` (PulseAudio) pour jouer les sons de veille.
 
 macOS n'a pas de paquet et n'est pas maintenu.
 

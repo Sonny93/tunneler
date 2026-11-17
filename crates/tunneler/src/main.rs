@@ -3,8 +3,11 @@
 
 mod cli;
 mod daemon;
+#[cfg(all(unix, not(target_os = "macos")))]
+mod desktop_file;
 mod layout;
 mod logging;
+mod menu_entry;
 
 use std::process::ExitCode;
 

@@ -3,17 +3,19 @@
 //! Desktop Entry and Desktop Application Autostart specifications.
 
 use std::fs;
-use std::io::{self, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 
 use directories::BaseDirs;
 
 use super::{DAEMON_ARGUMENT, LoginLaunch, LoginLaunchError};
+use crate::desktop_file::{
+    has_ownership_line, quote_exec_argument, read_if_exists, write_atomically,
+};
 
 const AUTOSTART_DIRECTORY: &str = "autostart";
 const ENTRY_FILE_NAME: &str = "tunneler.desktop";
 const OWNERSHIP_LINE: &str = "X-Tunneler-Autostart=true";
-const EXEC_RESERVED_CHARACTERS: &str = " \t\n\"'\\><~|&;$*?#()`";
 
 pub(super) struct SystemLoginLaunch;
 
@@ -27,6 +29,15 @@ impl LoginLaunch for SystemLoginLaunch {
         let executable = std::env::current_exe().map_err(LoginLaunchError::Executable)?;
         entry.enable(&executable)
     }
+}
+
+/// Points the launch-at-login entry at `executable` when it exists and
+/// Tunneler wrote it, and returns its path then. Never creates it, and leaves
+/// a file that is not ours alone.
+pub(crate) fn repoint_owned_entry(executable: &Path) -> Result<Option<PathBuf>, LoginLaunchError> {
+    let base_directories = BaseDirs::new().ok_or(LoginLaunchError::NoConfigDirectory)?;
+    let entry = AutostartEntry::new(&base_directories.config_dir().join(AUTOSTART_DIRECTORY));
+    entry.repoint_if_owned(executable)
 }
 
 /// The `tunneler.desktop` file of an autostart directory.
@@ -54,6 +65,16 @@ impl AutostartEntry {
         }
     }
 
+    fn repoint_if_owned(&self, executable: &Path) -> Result<Option<PathBuf>, LoginLaunchError> {
+        match self.read()? {
+            Some(existing) if is_written_by_tunneler(&existing) => {
+                self.enable(executable)?;
+                Ok(Some(self.path.clone()))
+            }
+            _ => Ok(None),
+        }
+    }
+
     fn disable(&self) -> Result<(), LoginLaunchError> {
         match self.read()? {
             Some(existing) if is_written_by_tunneler(&existing) => self.remove(),
@@ -62,22 +83,11 @@ impl AutostartEntry {
     }
 
     fn read(&self) -> Result<Option<String>, LoginLaunchError> {
-        match fs::read(&self.path) {
-            Ok(content) => Ok(Some(String::from_utf8_lossy(&content).into_owned())),
-            Err(source) if source.kind() == io::ErrorKind::NotFound => Ok(None),
-            Err(source) => Err(self.io_error(source)),
-        }
+        read_if_exists(&self.path).map_err(|source| self.io_error(source))
     }
 
     fn write(&self, content: &str) -> Result<(), LoginLaunchError> {
-        let directory = self.path.parent().unwrap_or(Path::new("."));
-        fs::create_dir_all(directory).map_err(|source| self.io_error(source))?;
-        let temporary = directory.join(format!(".{ENTRY_FILE_NAME}.{}.tmp", std::process::id()));
-        write_file(&temporary, content).map_err(|source| self.io_error(source))?;
-        fs::rename(&temporary, &self.path).map_err(|source| {
-            let _ = fs::remove_file(&temporary);
-            self.io_error(source)
-        })
+        write_atomically(&self.path, content.as_bytes()).map_err(|source| self.io_error(source))
     }
 
     fn remove(&self) -> Result<(), LoginLaunchError> {
@@ -95,14 +105,8 @@ impl AutostartEntry {
     }
 }
 
-fn write_file(path: &Path, content: &str) -> io::Result<()> {
-    let mut file = fs::File::create(path)?;
-    file.write_all(content.as_bytes())?;
-    file.sync_all()
-}
-
 fn is_written_by_tunneler(content: &str) -> bool {
-    content.lines().any(|line| line == OWNERSHIP_LINE)
+    has_ownership_line(content, OWNERSHIP_LINE)
 }
 
 fn desktop_entry(executable: &Path) -> String {
@@ -113,27 +117,6 @@ fn desktop_entry(executable: &Path) -> String {
     format!(
         "[Desktop Entry]\nType=Application\nName=Tunneler\nExec={exec}\nX-GNOME-Autostart-enabled=true\nNoDisplay=false\nTerminal=false\n{OWNERSHIP_LINE}\n"
     )
-}
-
-/// Quotes one argument of an `Exec` key: arguments with reserved characters
-/// go between double quotes, `"`, `` ` ``, `$` and `\` are escaped inside them,
-/// every backslash is doubled again by the string syntax of the file, and `%`
-/// is doubled so that it is not read as a field code.
-fn quote_exec_argument(argument: &str) -> String {
-    let escaped: String = argument.chars().map(escape_exec_character).collect();
-    if argument.contains(|character| EXEC_RESERVED_CHARACTERS.contains(character)) {
-        return format!("\"{escaped}\"");
-    }
-    escaped
-}
-
-fn escape_exec_character(character: char) -> String {
-    match character {
-        '"' | '`' | '$' => format!("\\\\{character}"),
-        '\\' => "\\\\\\\\".to_owned(),
-        '%' => "%%".to_owned(),
-        other => other.to_string(),
-    }
 }
 
 #[cfg(test)]
@@ -205,6 +188,41 @@ mod tests {
     }
 
     #[test]
+    fn should_repoint_the_entry_when_it_is_ours() {
+        let directory = tempfile::tempdir().unwrap();
+        let entry = entry_in(&directory);
+        entry.enable(Path::new("/old/tunneler")).unwrap();
+
+        let repointed = entry.repoint_if_owned(Path::new(EXECUTABLE)).unwrap();
+
+        assert_eq!(repointed, Some(entry.path.clone()));
+        assert!(content_of(&entry).contains("Exec=/usr/bin/tunneler daemon\n"));
+    }
+
+    #[test]
+    fn should_not_create_the_entry_when_repointing_and_there_is_none() {
+        let directory = tempfile::tempdir().unwrap();
+        let entry = entry_in(&directory);
+
+        let repointed = entry.repoint_if_owned(Path::new(EXECUTABLE)).unwrap();
+
+        assert_eq!(repointed, None);
+        assert!(!entry.path.exists());
+    }
+
+    #[test]
+    fn should_leave_a_file_that_is_not_ours_alone_when_repointing() {
+        let directory = tempfile::tempdir().unwrap();
+        let entry = entry_in(&directory);
+        fs::create_dir_all(entry.path.parent().unwrap()).unwrap();
+        fs::write(&entry.path, "[Desktop Entry]\nName=Someone else\n").unwrap();
+
+        entry.repoint_if_owned(Path::new(EXECUTABLE)).unwrap();
+
+        assert_eq!(content_of(&entry), "[Desktop Entry]\nName=Someone else\n");
+    }
+
+    #[test]
     fn should_remove_the_entry_when_disabling() {
         let directory = tempfile::tempdir().unwrap();
         let entry = entry_in(&directory);
@@ -248,49 +266,5 @@ mod tests {
             Err(LoginLaunchError::ForeignEntry { .. })
         ));
         assert_eq!(content_of(&entry), "[Desktop Entry]\nName=Someone else\n");
-    }
-
-    #[test]
-    fn should_not_quote_a_plain_path() {
-        assert_eq!(
-            quote_exec_argument("/usr/bin/tunneler"),
-            "/usr/bin/tunneler"
-        );
-    }
-
-    #[test]
-    fn should_quote_a_path_with_spaces() {
-        assert_eq!(
-            quote_exec_argument("/opt/my apps/tunneler"),
-            "\"/opt/my apps/tunneler\""
-        );
-    }
-
-    #[test]
-    fn should_escape_double_quotes_in_a_quoted_path() {
-        assert_eq!(quote_exec_argument("/a\"b"), "\"/a\\\\\"b\"");
-    }
-
-    #[test]
-    fn should_quote_a_path_with_single_quotes() {
-        assert_eq!(quote_exec_argument("/it's"), "\"/it's\"");
-    }
-
-    #[test]
-    fn should_escape_dollars_and_backticks_in_a_quoted_path() {
-        assert_eq!(
-            quote_exec_argument("/$HOME/`x`"),
-            "\"/\\\\$HOME/\\\\`x\\\\`\""
-        );
-    }
-
-    #[test]
-    fn should_quadruple_backslashes_in_a_quoted_path() {
-        assert_eq!(quote_exec_argument("/a\\b"), "\"/a\\\\\\\\b\"");
-    }
-
-    #[test]
-    fn should_double_percent_signs() {
-        assert_eq!(quote_exec_argument("/100%/tunneler"), "/100%%/tunneler");
     }
 }

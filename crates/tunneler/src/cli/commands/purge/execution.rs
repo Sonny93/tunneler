@@ -12,6 +12,7 @@ use super::plan::PurgeTarget;
 use crate::cli::CliError;
 use crate::daemon::login_launch::{LoginLaunch, LoginLaunchError};
 use crate::daemon::notification_identity::{NotificationIdentity, NotificationIdentityError};
+use crate::menu_entry::{MenuEntry, MenuEntryError};
 
 /// The file system operations of a purge. Removing something that is already
 /// gone succeeds.
@@ -50,6 +51,9 @@ pub enum PurgeError {
         /// Why.
         source: io::Error,
     },
+    /// The application menu entry could not be removed.
+    #[error("cannot remove the application menu entry: {0}")]
+    MenuEntry(#[from] MenuEntryError),
     /// The notification identity could not be removed.
     #[error("cannot remove the notification identity: {0}")]
     NotificationIdentity(#[from] NotificationIdentityError),
@@ -81,6 +85,8 @@ pub struct Purger<'a> {
     pub filesystem: &'a dyn Filesystem,
     /// The launch-at-login entry.
     pub login_launch: &'a dyn LoginLaunch,
+    /// The application menu entry.
+    pub menu_entry: &'a dyn MenuEntry,
     /// The notification identity of Windows.
     pub notification_identity: &'a dyn NotificationIdentity,
     /// The OS keyring.
@@ -98,6 +104,7 @@ impl Purger<'_> {
                 | PurgeTarget::File(path)
                 | PurgeTarget::StateFile(path)
                 | PurgeTarget::DirectoryIfEmpty(path) => self.filesystem.exists(path),
+                PurgeTarget::MenuEntry => self.menu_entry.is_installed(),
                 PurgeTarget::LoginLaunch
                 | PurgeTarget::NotificationIdentity
                 | PurgeTarget::KeyringPassphrase(_) => true,
@@ -134,6 +141,7 @@ impl Purger<'_> {
     fn remove(&self, target: &PurgeTarget) -> Result<(), PurgeError> {
         match target {
             PurgeTarget::LoginLaunch => Ok(self.login_launch.apply(false)?),
+            PurgeTarget::MenuEntry => Ok(self.menu_entry.remove()?),
             PurgeTarget::NotificationIdentity => Ok(self.notification_identity.remove()?),
             PurgeTarget::Directory(path) => {
                 with_path(path, self.filesystem.remove_directory_all(path))
@@ -254,6 +262,31 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Copy)]
+    enum MenuEntryPresence {
+        Installed,
+        Absent,
+    }
+
+    struct FakeMenuEntry<'a> {
+        presence: MenuEntryPresence,
+        journal: &'a Journal,
+    }
+
+    impl MenuEntry for FakeMenuEntry<'_> {
+        fn is_installed(&self) -> bool {
+            matches!(self.presence, MenuEntryPresence::Installed)
+        }
+
+        fn remove(&self) -> Result<(), MenuEntryError> {
+            self.journal
+                .lock()
+                .unwrap()
+                .push("remove menu entry".to_owned());
+            Ok(())
+        }
+    }
+
     struct FakeNotificationIdentity<'a> {
         journal: &'a Journal,
     }
@@ -303,6 +336,7 @@ mod tests {
         is_daemon_running: bool,
         is_daemon_failing: bool,
         is_keyring_failing: bool,
+        menu_entry: MenuEntryPresence,
         existing: BTreeSet<PathBuf>,
         failing: BTreeSet<PathBuf>,
     }
@@ -314,6 +348,7 @@ mod tests {
                 is_daemon_running: false,
                 is_daemon_failing: false,
                 is_keyring_failing: false,
+                menu_entry: MenuEntryPresence::Installed,
                 existing: BTreeSet::new(),
                 failing: BTreeSet::new(),
             }
@@ -340,10 +375,15 @@ mod tests {
             let notification_identity = FakeNotificationIdentity {
                 journal: &self.journal,
             };
+            let menu_entry = FakeMenuEntry {
+                presence: self.menu_entry,
+                journal: &self.journal,
+            };
             Purger {
                 daemon: &daemon,
                 filesystem: &filesystem,
                 login_launch: &login_launch,
+                menu_entry: &menu_entry,
                 notification_identity: &notification_identity,
                 keyring: &keyring,
             }
@@ -372,10 +412,15 @@ mod tests {
             let notification_identity = FakeNotificationIdentity {
                 journal: &self.journal,
             };
+            let menu_entry = FakeMenuEntry {
+                presence: self.menu_entry,
+                journal: &self.journal,
+            };
             Purger {
                 daemon: &daemon,
                 filesystem: &filesystem,
                 login_launch: &login_launch,
+                menu_entry: &menu_entry,
                 notification_identity: &notification_identity,
                 keyring: &keyring,
             }
@@ -390,6 +435,7 @@ mod tests {
     fn full_plan() -> Vec<PurgeTarget> {
         vec![
             PurgeTarget::LoginLaunch,
+            PurgeTarget::MenuEntry,
             PurgeTarget::NotificationIdentity,
             PurgeTarget::Directory("/data/logs".into()),
             PurgeTarget::File("/config/tunnels.toml".into()),
@@ -409,6 +455,7 @@ mod tests {
             fixture.journal(),
             vec![
                 "login launch enabled=false",
+                "remove menu entry",
                 "remove notification identity",
                 "remove directory /data/logs",
                 "remove file /config/tunnels.toml",
@@ -464,7 +511,7 @@ mod tests {
         let failures = fixture.purge(&full_plan()).await.unwrap();
 
         assert_eq!(failures.len(), 1);
-        assert_eq!(fixture.journal().len(), 7);
+        assert_eq!(fixture.journal().len(), 8);
     }
 
     #[tokio::test]
@@ -509,10 +556,21 @@ mod tests {
             present,
             vec![
                 PurgeTarget::LoginLaunch,
+                PurgeTarget::MenuEntry,
                 PurgeTarget::NotificationIdentity,
                 PurgeTarget::File("/config/tunnels.toml".into()),
                 PurgeTarget::KeyringPassphrase("/ssh/id_rsa".into()),
             ]
         );
+    }
+
+    #[test]
+    fn should_skip_the_menu_entry_when_none_is_installed() {
+        let mut fixture = Fixture::new();
+        fixture.menu_entry = MenuEntryPresence::Absent;
+
+        let present = fixture.retain_present(vec![PurgeTarget::MenuEntry]);
+
+        assert_eq!(present, vec![]);
     }
 }

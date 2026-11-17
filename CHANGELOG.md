@@ -4,6 +4,10 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Added
+
+- `tunneler desktop-entry install` adds Tunneler and its icon to the application menu on Linux, for the tar.gz archive that has no installer; `uninstall` and `tunneler purge` remove them. The daemon keeps an existing entry pointing at the current program, and the getting started page shows a mise `postinstall` line that does the same at every install or upgrade.
+
 ## [0.5.0] - 2026-10-29
 
 ### Fixed

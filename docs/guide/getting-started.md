@@ -24,11 +24,37 @@ Packages are on the [releases page](https://github.com/Sonny93/tunneler/releases
 - **Archive**, `tunneler-<version>-linux-x86_64.tar.gz`. Extract it and run `./tunneler-ui`, or `./tunneler` for the command line. It needs glibc 2.35 or newer, and the UI needs WebKitGTK 4.1 and GTK 3:
 
   ```sh
-  sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0
+  sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0   # Debian, Ubuntu
+  sudo pacman -S --needed webkit2gtk-4.1 gtk3       # Arch
   ```
 
-  This form is [portable](./updates-and-uninstall#portable-mode).
+  Its files go to the user directories, like the other forms. An empty file named `portable` next to the programs makes it [portable](./updates-and-uninstall#portable-mode) instead.
+
+  The archive has no installer, so it adds nothing to the application menu. Run this once after extracting it:
+
+  ```sh
+  ./tunneler desktop-entry install
+  ```
+
+  It writes `com.minimalstuff.tunneler.desktop` and its icons under `~/.local/share`, pointing at the `tunneler-ui` next to `tunneler`. When every version has its own folder, run it again after an update: the daemon also refreshes an existing entry each time it starts. `tunneler desktop-entry uninstall` removes it, and so does [`tunneler purge`](./updates-and-uninstall#tunneler-purge).
+
+  To install the archive with [mise](https://mise.jdx.dev), add this to `mise.toml`:
+
+  ```toml
+  [tools."github:Sonny93/tunneler"]
+  version = "latest"
+  asset_pattern = "tunneler-*-linux-x86_64.tar.gz"
+  postinstall = '"$MISE_TOOL_INSTALL_PATH/tunneler" desktop-entry install || true'
+  ```
+
+  mise gives each version its own folder, so the `postinstall` command writes the menu entry again at every install or upgrade, pointing at the new folder. The `|| true` is there because a failing `postinstall` fails the whole mise install: without it, an unwritable data directory would block the upgrade.
 - **AppImage**, `tunneler-ui-<version>-x86_64.AppImage`. Use it when you cannot install `libwebkit2gtk-4.1`. It contains the window only: put it next to `tunneler` under the name `tunneler-ui`, or set `TUNNELER_UI_BINARY` to its path.
+
+On Linux, a few things are optional and Tunneler works without them:
+
+- A Secret Service provider (GNOME Keyring, KeePassXC or KWallet) to remember passphrases in the system keyring.
+- A tray that supports StatusNotifierItem. KDE has one; for GNOME see [First launch](#first-launch).
+- `pw-play` (PipeWire) or `paplay` (PulseAudio) to play the standby sounds.
 
 macOS has no package and is not maintained.
 

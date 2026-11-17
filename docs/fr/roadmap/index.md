@@ -40,6 +40,7 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 
 ### Ligne de commande
 - `tunneler up`, `down`, `status`, `list`, `open`, `check`, `quit` et `purge`, avec sortie `--json` et codes de sortie documentés.
+- `tunneler desktop-entry install` donne à l'archive Linux une entrée de menu des applications et des icônes ; le daemon la garde pointée sur le `tunneler-ui` courant, et `tunneler purge` la supprime.
 - Les tunnels se désignent par port, par `hôte:port` ou par tag.
 
 ### Distribution
@@ -69,6 +70,7 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 - **Paquet Debian.** Installer, lancer, mettre à jour et retirer le `.deb`.
 - **Sons et notifications.** Les sons de veille sur un vrai bureau avec PipeWire (`pw-play -`), et avec PulseAudio seul (`paplay`, jamais essayé). Les notifications D-Bus.
 - **Zone de notification sous KDE.**
+- **Entrée du menu des applications de l'archive.** `tunneler desktop-entry install` sous KDE et sous GNOME : l'entrée et son icône doivent apparaître dans le lanceur, la fenêtre doit se regrouper sous cette icône, et l'entrée doit survivre à une mise à jour qui déplace les programmes. Avec mise, la ligne `postinstall` de la page [Premiers pas](/fr/guide/getting-started#linux) doit la réécrire à chaque installation et mise à jour.
 - **Lecteur d'écran.** Orca, écouté par une personne. Le passage au clavier et l'arbre d'accessibilité ont été vérifiés.
 - **Mémoire.** L'interface pèse environ 410 Mio PSS sous Xvfb en rendu logiciel. Un vrai bureau avec GPU devrait en prendre moins : une mesure le confirmerait.
 

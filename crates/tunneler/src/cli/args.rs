@@ -103,7 +103,8 @@ Examples:
   tunneler purge --yes          Remove it without asking
   tunneler purge --keep-config  Keep tunnels.toml, state.toml and the stored passphrases
 
-Stops the daemon when one runs, then removes: the launch-at-login entry, the log
+Stops the daemon when one runs, then removes: the launch-at-login entry, the
+application menu entry and its icons (see `tunneler desktop-entry`), the log
 files and the data of the UI's webview. Unless --keep-config is given, it also
 removes tunnels.toml, state.toml and the passphrases stored in the OS keyring
 (those listed in state.toml). Directories left empty are removed too.
@@ -115,6 +116,21 @@ file), the install directory or anything under ~/.ssh. A file given with
 In portable mode the files are those next to the executable. Run it before
 uninstalling a package that leaves the user's files alone, such as a .deb.
 Without a terminal, --yes is required (exit code 5).";
+
+const DESKTOP_ENTRY_EXAMPLES: &str = "\
+Examples:
+  tunneler desktop-entry install    Add Tunneler to the application menu
+  tunneler desktop-entry uninstall  Remove it again
+
+Linux only. The archive has no installer: this writes the entry and its icons
+(com.minimalstuff.tunneler.desktop and .png) under the user data directory
+($XDG_DATA_HOME, usually ~/.local/share), pointing at the tunneler-ui program
+next to tunneler. Run `install` again after an update that moves the programs
+to another folder (the daemon also refreshes an existing entry when it starts).
+It refuses to run from /usr, where a package ships its own entry, and never
+overwrites a .desktop file that Tunneler did not write. An existing
+launch-at-login entry is pointed at this tunneler too; it is never created.
+Nothing is started: the desktop may need a moment, or a new login, to list it.";
 
 const DAEMON_EXAMPLES: &str = "\
 Examples:
@@ -199,6 +215,9 @@ pub enum Command {
     /// Remove everything Tunneler left on this machine, except the programs
     #[command(after_help = PURGE_EXAMPLES)]
     Purge(PurgeArguments),
+    /// Add Tunneler to, or remove it from, the application menu (Linux)
+    #[command(after_help = DESKTOP_ENTRY_EXAMPLES)]
+    DesktopEntry(DesktopEntryArguments),
 }
 
 /// The arguments of `up`.
@@ -313,6 +332,23 @@ pub struct PurgeArguments {
     /// Remove without asking for a confirmation
     #[arg(short, long)]
     pub yes: bool,
+}
+
+/// The arguments of `desktop-entry`.
+#[derive(Debug, Args)]
+pub struct DesktopEntryArguments {
+    /// What to do with the entry
+    #[command(subcommand)]
+    pub action: DesktopEntryAction,
+}
+
+/// What `desktop-entry` does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
+pub enum DesktopEntryAction {
+    /// Write the entry and its icons, pointing at the tunneler-ui next to this program
+    Install,
+    /// Remove the entry and its icons
+    Uninstall,
 }
 
 #[cfg(test)]
@@ -450,6 +486,22 @@ mod tests {
         };
 
         assert!(!arguments.keep_config && !arguments.dry_run && !arguments.yes);
+    }
+
+    #[test]
+    fn should_read_the_action_when_managing_the_desktop_entry() {
+        let Some(Command::DesktopEntry(arguments)) =
+            parse(&["desktop-entry", "uninstall"]).unwrap().command
+        else {
+            panic!("expected desktop-entry");
+        };
+
+        assert_eq!(arguments.action, DesktopEntryAction::Uninstall);
+    }
+
+    #[test]
+    fn should_require_an_action_when_managing_the_desktop_entry() {
+        assert!(parse(&["desktop-entry"]).is_err());
     }
 
     #[test]

@@ -10,6 +10,7 @@ use super::forward_spec::ForwardSpecError;
 use super::target::ResolveError;
 use crate::daemon::DaemonError;
 use crate::layout::LayoutError;
+use crate::menu_entry::MenuEntryError;
 
 const UI_UNAVAILABLE_HINT: &str = "the UI program `tunneler-ui` must sit next to `tunneler`, be on your PATH, or be set with TUNNELER_UI_BINARY";
 
@@ -115,6 +116,9 @@ pub enum CliError {
         /// How many removals were attempted.
         total: usize,
     },
+    /// The application menu entry could not be installed or removed.
+    #[error(transparent)]
+    MenuEntry(#[from] MenuEntryError),
     /// The running daemon could not launch the UI.
     #[error("{message}")]
     UiUnavailable {
@@ -161,7 +165,11 @@ impl CliError {
             Self::DaemonNotRunning | Self::Client(ClientError::DaemonNotRunning) => {
                 exit_code::DAEMON_NOT_RUNNING
             }
-            Self::ForwardSpec(_) | Self::ForwardNeedsOneHost { .. } => exit_code::USAGE,
+            Self::ForwardSpec(_)
+            | Self::ForwardNeedsOneHost { .. }
+            | Self::MenuEntry(
+                MenuEntryError::Unsupported | MenuEntryError::PackageManaged { .. },
+            ) => exit_code::USAGE,
             Self::TargetsFailed { .. } => exit_code::TARGETS_FAILED,
             Self::TargetUnreachable { .. } => exit_code::TARGET_UNREACHABLE,
             Self::OpenFailed { .. } => exit_code::OPEN_FAILED,
@@ -182,6 +190,7 @@ impl CliError {
             | Self::NotOpenable { .. }
             | Self::TargetCheckInconclusive { .. }
             | Self::PurgeIncomplete { .. }
+            | Self::MenuEntry(_)
             | Self::UiUnavailable { .. }
             | Self::Terminal(_)
             | Self::Encoding(_)
@@ -243,6 +252,7 @@ impl CliError {
                     .to_owned(),
             ),
             Self::UiUnavailable { .. } => Some(UI_UNAVAILABLE_HINT.to_owned()),
+            Self::MenuEntry(error) => menu_entry_hint(error),
             Self::TargetUnreachable { .. } => {
                 Some("see `tunneler status` for the tunnel state".to_owned())
             }
@@ -256,6 +266,23 @@ impl CliError {
             | Self::Encoding(_)
             | Self::Runtime(_) => None,
         }
+    }
+}
+
+fn menu_entry_hint(error: &MenuEntryError) -> Option<String> {
+    match error {
+        MenuEntryError::UiProgramMissing { .. } => Some(
+            "run `tunneler desktop-entry install` from the folder that holds both programs"
+                .to_owned(),
+        ),
+        MenuEntryError::ForeignEntry { .. } => Some(
+            "move or delete that file yourself if it is not wanted, then run the command again"
+                .to_owned(),
+        ),
+        MenuEntryError::PackageManaged { .. } => {
+            Some("the package already installed the menu entry, nothing to do".to_owned())
+        }
+        _ => None,
     }
 }
 
