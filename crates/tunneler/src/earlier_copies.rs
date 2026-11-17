@@ -59,11 +59,7 @@ fn is_trusted_entry(path: &Path, is_trusted: fn(&Metadata) -> bool) -> bool {
 
 #[cfg(unix)]
 fn is_closed_parent(parent: &Path) -> bool {
-    let euid = rustix::process::geteuid().as_raw();
-    fs::metadata(parent).is_ok_and(|metadata| {
-        let access = Access::of(&metadata, euid);
-        is_closed_to_others(&access, true)
-    })
+    fs::metadata(parent).is_ok_and(|metadata| is_closed_to_others(&Access::of(&metadata), true))
 }
 
 #[cfg(not(unix))]
@@ -97,9 +93,8 @@ pub fn is_trusted_file(metadata: &Metadata) -> bool {
 
 #[cfg(unix)]
 fn is_owned_and_closed(metadata: &Metadata) -> bool {
-    let euid = rustix::process::geteuid().as_raw();
-    let access = Access::of(metadata, euid);
-    access.uid == euid && is_closed_to_others(&access, false)
+    let access = Access::of(metadata);
+    access.uid == access.euid && is_closed_to_others(&access, false)
 }
 
 /// Who owns an entry and who may write to it, as the permission decision
@@ -111,31 +106,38 @@ struct Access {
     uid: u32,
     gid: u32,
     euid: u32,
+    egid: u32,
 }
 
 #[cfg(unix)]
 impl Access {
-    fn of(metadata: &Metadata, euid: u32) -> Self {
+    fn of(metadata: &Metadata) -> Self {
         use std::os::unix::fs::MetadataExt;
 
         Self {
             mode: metadata.mode(),
             uid: metadata.uid(),
             gid: metadata.gid(),
-            euid,
+            euid: rustix::process::geteuid().as_raw(),
+            egid: rustix::process::getegid().as_raw(),
         }
     }
 }
 
 /// Whether nobody but the user can write to the entry. Other-write is always
 /// refused, and so is the sticky bit when `refuses_sticky` is set (a shared
-/// folder such as `/tmp`). Group-write is refused too, except under the
-/// user-private-group convention: the entry's group id equals its owner's id,
-/// which is the effective uid (the test `pam_umask` uses), so the group is the
-/// user alone.
+/// folder such as `/tmp`). Group-write is refused too, except for a user
+/// private group: many systems give each user a group of their own and a
+/// umask of 002, so their folders are group-writable without anyone else in
+/// the group. The group is taken as private only when the entry's group id,
+/// its owner's id, the effective uid and the process's effective gid are all
+/// the same number. A shared group whose id merely equals the user's id (such
+/// as group 100 for the user 100) has a different effective gid and stays
+/// refused.
 #[cfg(unix)]
 fn is_closed_to_others(access: &Access, refuses_sticky: bool) -> bool {
-    let has_private_group = access.uid == access.euid && access.gid == access.uid;
+    let has_private_group =
+        access.uid == access.euid && access.gid == access.uid && access.egid == access.euid;
     let mut refused_bits = OTHER_WRITE_BIT;
     if !has_private_group {
         refused_bits |= GROUP_WRITE_BIT;
@@ -374,6 +376,7 @@ mod tests {
             uid,
             gid,
             euid: 1000,
+            egid: 1000,
         }
     }
 
@@ -387,6 +390,17 @@ mod tests {
     #[test]
     fn should_refuse_a_group_writable_folder_when_the_group_is_shared() {
         assert!(!is_closed_to_others(&access(0o40775, 1000, 100), false));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_refuse_a_group_writable_folder_when_the_effective_group_of_the_user_differs() {
+        let access = Access {
+            egid: 100,
+            ..access(0o40775, 1000, 1000)
+        };
+
+        assert!(!is_closed_to_others(&access, false));
     }
 
     #[cfg(unix)]
