@@ -8,7 +8,9 @@ use std::sync::Arc;
 use directories::BaseDirs;
 
 use super::files::MenuEntryFiles;
-use super::programs::{expected_ui_program, find_ui_program, is_package_managed};
+use super::programs::{
+    expected_ui_program, find_ui_program, has_control_character, is_package_managed,
+};
 use super::{MenuEntry, MenuEntryError, MenuEntryReport};
 use crate::daemon::login_launch::repoint_owned_entry;
 
@@ -47,6 +49,7 @@ pub(crate) fn install_menu_entry() -> Result<MenuEntryReport, MenuEntryError> {
         find_ui_program(&executable).ok_or_else(|| MenuEntryError::UiProgramMissing {
             expected: expected_ui_program(&executable),
         })?;
+    reject_control_characters(&ui_program)?;
     let files = system_files()?.install(&ui_program)?;
     let repointed_autostart = repoint_owned_entry(&executable)?;
     Ok(MenuEntryReport {
@@ -86,9 +89,21 @@ fn refresh_menu_entry() -> Result<(), MenuEntryError> {
         return Ok(());
     }
     match find_ui_program(&executable) {
-        Some(ui_program) => files.refresh(&ui_program),
+        Some(ui_program) => {
+            reject_control_characters(&ui_program)?;
+            files.refresh(&ui_program)
+        }
         None => Ok(()),
     }
+}
+
+fn reject_control_characters(ui_program: &std::path::Path) -> Result<(), MenuEntryError> {
+    if has_control_character(ui_program) {
+        return Err(MenuEntryError::UnsafePath {
+            path: ui_program.to_path_buf(),
+        });
+    }
+    Ok(())
 }
 
 fn current_executable() -> Result<PathBuf, MenuEntryError> {

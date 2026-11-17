@@ -146,7 +146,7 @@ Removes everything Tunneler left on the machine except the programs. See [Update
 
 Linux only. Adds Tunneler to the application menu, or removes it again. The archive has no installer, so this is how it gets a menu entry. See [Getting started](../guide/getting-started#linux).
 
-`install` writes `com.minimalstuff.tunneler.desktop` and three icons under the user data directory (`$XDG_DATA_HOME`, usually `~/.local/share`), pointing at the `tunneler-ui` next to `tunneler`. Run it again after an update that moves the programs to another folder. It also points an existing launch-at-login entry at this `tunneler`, and never creates one. It refuses to run from `/usr`, where a package ships its own entry, and never overwrites a `.desktop` file that Tunneler did not write. It prints the files it wrote and starts nothing.
+`install` writes `com.minimalstuff.tunneler.desktop` and three icons under the user data directory (`$XDG_DATA_HOME`, usually `~/.local/share`), pointing at the `tunneler-ui` next to `tunneler`. Run it again after an update that moves the programs to another folder. It also points an existing launch-at-login entry at this `tunneler`, and never creates one. It refuses to run from `/usr` (but not `/usr/local`), where a package ships its own entry, and never overwrites a `.desktop` file that Tunneler did not write. It prints the files it wrote and starts nothing.
 
 `uninstall` removes the entry and the icons. It refuses to remove a `.desktop` file that Tunneler did not write.
 

@@ -185,6 +185,32 @@ fn should_write_the_entry_and_the_three_icons_when_installing() {
 }
 
 #[test]
+fn should_refuse_and_write_nothing_when_the_folder_name_has_a_line_break() {
+    let sandbox = Sandbox::new();
+    let parent = tempfile::tempdir().unwrap();
+    let folder = parent.path().join("a\nExec=evil");
+    fs::create_dir(&folder).unwrap();
+    fs::copy(BINARY, folder.join("tunneler")).unwrap();
+    fs::write(folder.join("tunneler-ui"), "").unwrap();
+    let mut command = Command::new(folder.join("tunneler"));
+    command
+        .args(["desktop-entry", "install"])
+        .env("HOME", sandbox.home())
+        .env("XDG_DATA_HOME", sandbox.data_home())
+        .env("XDG_CONFIG_HOME", sandbox.config_home());
+
+    let output = retry_while_busy(|| command.output());
+
+    assert_eq!(code(&output), EXIT_ERROR);
+    assert!(
+        stderr(&output).contains("control character"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(!sandbox.entry().exists());
+}
+
+#[test]
 fn should_rewrite_the_exec_when_installing_again_from_another_folder() {
     let sandbox = Sandbox::new();
     sandbox.install(&Installation::with_ui_program());
