@@ -49,6 +49,8 @@ pub(crate) enum MenuEntryError {
     Executable(io::Error),
     #[error("{} not found: it must sit next to the tunneler program", expected.display())]
     UiProgramMissing { expected: PathBuf },
+    #[error("{} contains a control character, such as a line break, which a menu entry cannot hold", path.display())]
+    UnsafePath { path: PathBuf },
     #[error("{} is managed by a package, which already ships the menu entry", executable.display())]
     PackageManaged { executable: PathBuf },
     #[error("{} exists and was not written by Tunneler, leaving it alone", path.display())]

@@ -25,7 +25,7 @@ pub(super) fn render_menu_entry(ui_program: &Path) -> String {
          TryExec={try_exec}\n\
          Icon={APPLICATION_IDENTIFIER}\n\
          Terminal=false\n\
-         Categories=Network;Utility;\n\
+         Categories=Network;RemoteAccess;\n\
          StartupWMClass={WINDOW_CLASS}\n\
          {OWNERSHIP_LINE}\n"
     )
@@ -46,7 +46,7 @@ mod tests {
     fn should_render_the_exact_entry_when_the_path_is_plain() {
         assert_eq!(
             render_menu_entry(Path::new("/opt/tunneler/tunneler-ui")),
-            "[Desktop Entry]\nType=Application\nName=Tunneler\nComment=SSH tunnel manager\nComment[fr]=Gestionnaire de tunnels SSH\nExec=/opt/tunneler/tunneler-ui\nTryExec=/opt/tunneler/tunneler-ui\nIcon=com.minimalstuff.tunneler\nTerminal=false\nCategories=Network;Utility;\nStartupWMClass=tunneler-ui\nX-Tunneler-MenuEntry=true\n"
+            "[Desktop Entry]\nType=Application\nName=Tunneler\nComment=SSH tunnel manager\nComment[fr]=Gestionnaire de tunnels SSH\nExec=/opt/tunneler/tunneler-ui\nTryExec=/opt/tunneler/tunneler-ui\nIcon=com.minimalstuff.tunneler\nTerminal=false\nCategories=Network;RemoteAccess;\nStartupWMClass=tunneler-ui\nX-Tunneler-MenuEntry=true\n"
         );
     }
 

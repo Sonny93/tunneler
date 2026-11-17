@@ -127,7 +127,7 @@ Linux only. The archive has no installer: this writes the entry and its icons
 ($XDG_DATA_HOME, usually ~/.local/share), pointing at the tunneler-ui program
 next to tunneler. Run `install` again after an update that moves the programs
 to another folder (the daemon also refreshes an existing entry when it starts).
-It refuses to run from /usr, where a package ships its own entry, and never
+It refuses to run from /usr (not /usr/local), where a package ships its own entry, and never
 overwrites a .desktop file that Tunneler did not write. An existing
 launch-at-login entry is pointed at this tunneler too; it is never created.
 Nothing is started: the desktop may need a moment, or a new login, to list it.";
