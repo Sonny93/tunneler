@@ -4419,3 +4419,47 @@ async fn should_plan_a_preset_installed_after_the_start_when_opening_a_tunnel() 
         }
     );
 }
+
+#[tokio::test]
+async fn should_plan_with_the_known_openers_when_the_detection_hangs() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.program_locator.hang();
+
+    let plan = harness
+        .engine
+        .open_plan(harness.id("alpha"), Some("browser"))
+        .await;
+
+    harness.program_locator.release();
+    assert!(matches!(plan, Ok(OpenPlan::Browser { .. })), "{plan:?}");
+}
+
+#[tokio::test]
+async fn should_not_start_a_second_detection_when_one_is_running() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let lookups_before = harness.program_locator.lookup_count();
+    harness.program_locator.hang();
+    let engine = harness.engine.clone();
+    let first = tokio::spawn(async move { engine.refresh_detected_openers().await });
+    while harness.program_locator.lookup_count() == lookups_before {
+        tokio::task::yield_now().await;
+    }
+
+    harness.engine.refresh_detected_openers().await;
+
+    let lookups = harness.program_locator.lookup_count();
+    harness.program_locator.release();
+    first.await.unwrap();
+    assert_eq!(lookups, lookups_before + 1);
+}
+
+#[tokio::test]
+async fn should_detect_again_when_the_previous_detection_ended() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.engine.refresh_detected_openers().await;
+    let lookups_after_first = harness.program_locator.lookup_count();
+
+    harness.engine.refresh_detected_openers().await;
+
+    assert!(harness.program_locator.lookup_count() > lookups_after_first);
+}
