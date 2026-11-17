@@ -6,10 +6,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use engine::{
-    Engine, EngineDependencies, EngineError, EngineOptions, Store, SystemClock, X11Error, X11Probe,
+    Engine, EngineDependencies, EngineError, EngineOptions, PresetPlatform, Store, SystemClock,
+    X11Error, X11Probe,
 };
 use support::{
-    FakePortScanner, FakeX11Environment, FakeX11Servers, MemoryStateStore, Workspace, free_port,
+    FakePortScanner, FakeProgramLocator, FakeX11Environment, FakeX11Servers, MemoryStateStore,
+    Workspace, free_port,
 };
 use tokio::net::TcpListener;
 
@@ -53,7 +55,8 @@ impl Harness {
                 x11_servers: servers.clone(),
                 state_store: Arc::new(MemoryStateStore::default()),
                 keyring: None,
-                detected_openers: Vec::new(),
+                program_locator: Arc::new(FakeProgramLocator::default()),
+                preset_platform: PresetPlatform::Unix,
             },
             EngineOptions {
                 x11_server_start_timeout: SHORT_START_TIMEOUT,

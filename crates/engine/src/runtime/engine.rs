@@ -15,7 +15,8 @@ use crate::error::SessionError;
 use crate::external::{PortScanner, ScanError, TerminateError, UnmanagedProcess};
 use crate::keyring::SecretKeyring;
 use crate::openers::{
-    AvailableOpener, OpenAction, OpenPlan, available_openers, choose_action, plan_open,
+    AvailableOpener, OpenAction, OpenPlan, PresetPlatform, ProgramLocator, available_openers,
+    choose_action, detect_presets, plan_open,
 };
 use crate::opening::{OpenUrlError, build_open_address};
 use crate::passphrase_vault::PassphraseVault;
@@ -165,9 +166,12 @@ pub struct EngineDependencies {
     /// The OS keyring that holds remembered passphrases while
     /// `Settings::use_os_keyring` is on; `None` when there is none.
     pub keyring: Option<Arc<dyn SecretKeyring>>,
-    /// The built-in openers whose program was found on this machine; see
-    /// [`detect_presets`](crate::detect_presets).
-    pub detected_openers: Vec<Opener>,
+    /// Where the programs of the built-in openers are looked for; see
+    /// [`detect_presets`](crate::detect_presets). The engine looks at start
+    /// and again when asked, see [`Engine::refresh_detected_openers`].
+    pub program_locator: Arc<dyn ProgramLocator>,
+    /// The operating system the built-in openers are chosen for.
+    pub preset_platform: PresetPlatform,
 }
 
 /// A tunnel to create; the engine generates its id.
@@ -245,7 +249,9 @@ pub(crate) struct EngineInner {
     catalog: Mutex<Catalog>,
     pub(crate) mutation: tokio::sync::Mutex<()>,
     tunnel_ready_timeout: Duration,
-    detected_openers: Vec<Opener>,
+    program_locator: Arc<dyn ProgramLocator>,
+    preset_platform: PresetPlatform,
+    detected_openers: Mutex<Vec<Opener>>,
     reload_task: Mutex<Option<JoinHandle<()>>>,
     scan_task: Mutex<Option<JoinHandle<()>>>,
     pub(crate) is_shut_down: AtomicBool,
@@ -254,6 +260,12 @@ pub(crate) struct EngineInner {
 impl EngineInner {
     pub(crate) fn catalog(&self) -> MutexGuard<'_, Catalog> {
         self.catalog.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn detected_openers(&self) -> MutexGuard<'_, Vec<Opener>> {
+        self.detected_openers
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
     /// Remembers that the user wants these tunnels running.
@@ -324,8 +336,10 @@ impl Engine {
             x11_servers,
             state_store,
             keyring,
-            detected_openers,
+            program_locator,
+            preset_platform,
         } = dependencies;
+        let detected_openers = detect_presets(program_locator.as_ref(), preset_platform);
         let store = Arc::new(store);
         if store.has_pending_normalization() {
             store.save(store.document())?;
@@ -391,7 +405,9 @@ impl Engine {
             catalog: Mutex::new(Catalog::new(factory, document.tunnels)),
             mutation: tokio::sync::Mutex::new(()),
             tunnel_ready_timeout: options.tunnel_ready_timeout,
-            detected_openers,
+            program_locator,
+            preset_platform,
+            detected_openers: Mutex::new(detected_openers),
             reload_task: Mutex::new(None),
             scan_task: Mutex::new(None),
             is_shut_down: AtomicBool::new(false),
@@ -433,8 +449,32 @@ impl Engine {
             x11_anchors: self.inner.x11_anchors.snapshots(),
             x11_launchers: document.x11_launchers,
             x11_host_displays,
-            openers: available_openers(&self.inner.detected_openers, &document.openers),
+            openers: available_openers(&self.inner.detected_openers(), &document.openers),
         }
+    }
+
+    /// Looks again for the programs of the built-in openers, so that one
+    /// installed since the last look is offered and used. Publishes
+    /// [`EngineEvent::ConfigReloaded`], the event that tells clients to read
+    /// the snapshot again, only when the detected openers changed.
+    ///
+    /// The look checks many paths on disk: it runs off the async runtime.
+    pub async fn refresh_detected_openers(&self) {
+        let locator = Arc::clone(&self.inner.program_locator);
+        let platform = self.inner.preset_platform;
+        let detected = run_blocking(move || detect_presets(locator.as_ref(), platform)).await;
+        if self.replace_detected_openers(detected) {
+            self.inner.bus.publish(EngineEvent::ConfigReloaded);
+        }
+    }
+
+    fn replace_detected_openers(&self, detected: Vec<Opener>) -> bool {
+        let mut current = self.inner.detected_openers();
+        if *current == detected {
+            return false;
+        }
+        *current = detected;
+        true
     }
 
     /// Receives every event from now on. A subscriber that falls more than
@@ -664,9 +704,15 @@ impl Engine {
     /// over the choice saved in the tunnel; without either, the suggestion for
     /// the target port applies (unless `Settings::open_default` is the
     /// browser), else the browser. Only a local tunnel can be
-    /// opened.
-    pub fn open_plan(&self, id: TunnelId, with: Option<&str>) -> Result<OpenPlan, EngineError> {
+    /// opened. The built-in openers are detected again first, so that a
+    /// viewer installed since the engine started is used.
+    pub async fn open_plan(
+        &self,
+        id: TunnelId,
+        with: Option<&str>,
+    ) -> Result<OpenPlan, EngineError> {
         self.ensure_running()?;
+        self.refresh_detected_openers().await;
         let definition = self
             .tunnel_snapshot(id)
             .ok_or(EngineError::UnknownTunnel(id))?

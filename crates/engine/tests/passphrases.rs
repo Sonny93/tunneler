@@ -7,13 +7,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use engine::{
-    Engine, EngineDependencies, EngineEvent, Retention, Store, SystemClock, TunnelId, TunnelState,
+    Engine, EngineDependencies, EngineEvent, PresetPlatform, Retention, Store, SystemClock,
+    TunnelId, TunnelState,
 };
 use russh::keys::Algorithm;
 use support::{
-    FakeKeyring, FakePortScanner, FakeX11Environment, FakeX11Servers, MemoryStateStore,
-    ScriptedPrompter, TestServer, TestUser, Workspace, free_port, generate_key, wait_for_state,
-    wait_until, write_private_key,
+    FakeKeyring, FakePortScanner, FakeProgramLocator, FakeX11Environment, FakeX11Servers,
+    MemoryStateStore, ScriptedPrompter, TestServer, TestUser, Workspace, free_port, generate_key,
+    wait_for_state, wait_until, write_private_key,
 };
 use tokio::sync::broadcast::Receiver;
 
@@ -115,7 +116,8 @@ impl HarnessBuilder {
             x11_servers: Arc::new(FakeX11Servers::default()),
             state_store: state_store.clone(),
             keyring: Some(keyring.clone()),
-            detected_openers: Vec::new(),
+            program_locator: Arc::new(FakeProgramLocator::default()),
+            preset_platform: PresetPlatform::Unix,
         })
         .unwrap();
         let events = engine.subscribe();

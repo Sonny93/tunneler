@@ -34,7 +34,7 @@ use std::time::Duration;
 use engine::{
     ConnectorDependencies, Engine, EngineDependencies, FileStateStore, HostConfigResolver,
     PresetPlatform, SshConfigResolver, Store, SystemAgentLocator, SystemClock, SystemPortScanner,
-    SystemProgramLocator, SystemX11Environment, TunnelId, detect_presets,
+    SystemProgramLocator, SystemX11Environment, TunnelId,
 };
 use ipc::Endpoint;
 use ssh_config::{ConfigSources, SystemEnvironment};
@@ -119,7 +119,8 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         x11_servers: Arc::new(SystemX11Servers),
         state_store: Arc::new(FileStateStore::new(options.state_path.clone())),
         keyring: Some(Arc::new(OsKeyring)),
-        detected_openers: detect_presets(&SystemProgramLocator, PresetPlatform::current()),
+        program_locator: Arc::new(SystemProgramLocator),
+        preset_platform: PresetPlatform::current(),
     })?;
     let bridge = spawn_event_bridge(engine.subscribe(), wire_events.clone());
     let shutdown = CancellationToken::new();

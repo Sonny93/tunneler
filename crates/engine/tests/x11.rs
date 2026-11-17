@@ -6,14 +6,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use engine::{
-    Engine, EngineDependencies, EngineError, EngineEvent, EngineOptions, Store, SystemClock,
-    TunnelId, TunnelState, X11AnchorState, X11Launcher,
+    Engine, EngineDependencies, EngineError, EngineEvent, EngineOptions, PresetPlatform, Store,
+    SystemClock, TunnelId, TunnelState, X11AnchorState, X11Launcher,
 };
 use russh::keys::Algorithm;
 use support::{
-    FakePortScanner, FakeX11Environment, FakeX11Servers, FakeXServer, TestServer, TestUser,
-    Workspace, decode_hex, expected_server_setup, free_port, generate_key, wait_for_event,
-    wait_until, write_private_key, x_client_setup, x_client_setup_with_cookie,
+    FakePortScanner, FakeProgramLocator, FakeX11Environment, FakeX11Servers, FakeXServer,
+    TestServer, TestUser, Workspace, decode_hex, expected_server_setup, free_port, generate_key,
+    wait_for_event, wait_until, write_private_key, x_client_setup, x_client_setup_with_cookie,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::broadcast::Receiver;
@@ -139,7 +139,8 @@ impl HarnessBuilder {
                 x11_servers: Arc::new(FakeX11Servers::default()),
                 state_store: Arc::new(support::MemoryStateStore::default()),
                 keyring: None,
-                detected_openers: Vec::new(),
+                program_locator: Arc::new(FakeProgramLocator::default()),
+                preset_platform: PresetPlatform::Unix,
             },
             EngineOptions::default(),
         )
