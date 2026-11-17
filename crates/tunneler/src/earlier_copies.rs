@@ -4,7 +4,7 @@
 //! The search and the decisions are pure: the callers gather the facts and act
 //! on the answer.
 
-use std::fs;
+use std::fs::{self, Metadata};
 use std::path::{Path, PathBuf};
 
 use ipc::PORTABLE_MARKER_FILE_NAME;
@@ -14,14 +14,24 @@ pub const PORTABLE_MODE_DOCUMENTATION_URL: &str =
     "https://sonny93.github.io/tunneler/guide/updates-and-uninstall#portable-mode";
 
 const TUNNELS_FILE_NAME: &str = "tunnels.toml";
+#[cfg(unix)]
+const GROUP_OTHER_WRITE_BITS: u32 = 0o022;
+#[cfg(unix)]
+const SHARED_DIRECTORY_BITS: u32 = 0o1022;
 
 /// The folders next to `executable_directory` that hold a portable copy with
-/// tunnels: each has both a `portable` file and a `tunnels.toml`. Sorted;
-/// empty when the parent cannot be listed.
+/// tunnels: each is a real folder with both a `portable` file and a
+/// `tunnels.toml`, none of them a symlink. On Unix the copy must also belong to
+/// the user and be closed to others, inside a parent folder that others cannot
+/// write to, so that nobody else can plant a copy. Sorted; empty when the
+/// parent cannot be listed.
 pub fn find_earlier_portable_copies(executable_directory: &Path) -> Vec<PathBuf> {
     let Some(parent) = executable_directory.parent() else {
         return Vec::new();
     };
+    if !is_closed_parent(parent) {
+        return Vec::new();
+    }
     let Ok(entries) = fs::read_dir(parent) else {
         return Vec::new();
     };
@@ -36,8 +46,57 @@ pub fn find_earlier_portable_copies(executable_directory: &Path) -> Vec<PathBuf>
 }
 
 fn holds_a_portable_copy(directory: &Path) -> bool {
-    directory.join(PORTABLE_MARKER_FILE_NAME).is_file()
-        && directory.join(TUNNELS_FILE_NAME).is_file()
+    is_trusted_entry(directory, is_trusted_directory)
+        && is_trusted_entry(&directory.join(PORTABLE_MARKER_FILE_NAME), is_trusted_file)
+        && is_trusted_entry(&directory.join(TUNNELS_FILE_NAME), is_trusted_file)
+}
+
+fn is_trusted_entry(path: &Path, is_trusted: fn(&Metadata) -> bool) -> bool {
+    fs::symlink_metadata(path).is_ok_and(|metadata| is_trusted(&metadata))
+}
+
+#[cfg(unix)]
+fn is_closed_parent(parent: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    fs::metadata(parent).is_ok_and(|metadata| metadata.mode() & SHARED_DIRECTORY_BITS == 0)
+}
+
+#[cfg(not(unix))]
+fn is_closed_parent(_parent: &Path) -> bool {
+    true
+}
+
+/// Whether the metadata is of a real directory (not a symlink) that belongs
+/// to the user and that others cannot write to.
+#[cfg(unix)]
+pub fn is_trusted_directory(metadata: &Metadata) -> bool {
+    metadata.is_dir() && is_owned_and_closed(metadata)
+}
+
+#[cfg(not(unix))]
+pub fn is_trusted_directory(metadata: &Metadata) -> bool {
+    metadata.is_dir()
+}
+
+/// Whether the metadata is of a regular file (not a symlink) that belongs to
+/// the user and that others cannot write to.
+#[cfg(unix)]
+pub fn is_trusted_file(metadata: &Metadata) -> bool {
+    metadata.is_file() && is_owned_and_closed(metadata)
+}
+
+#[cfg(not(unix))]
+pub fn is_trusted_file(metadata: &Metadata) -> bool {
+    metadata.is_file()
+}
+
+#[cfg(unix)]
+fn is_owned_and_closed(metadata: &Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    metadata.uid() == rustix::process::geteuid().as_raw()
+        && metadata.mode() & GROUP_OTHER_WRITE_BITS == 0
 }
 
 /// What is known when the daemon starts.
@@ -127,14 +186,36 @@ mod tests {
     fn copy_in(parent: &Path, name: &str, has_marker: bool, has_tunnels: bool) -> PathBuf {
         let directory = parent.join(name);
         fs::create_dir_all(&directory).unwrap();
+        set_mode(&directory, 0o755);
         if has_marker {
-            fs::write(directory.join(PORTABLE_MARKER_FILE_NAME), "").unwrap();
+            write_file(&directory.join(PORTABLE_MARKER_FILE_NAME), "");
         }
         if has_tunnels {
-            fs::write(directory.join(TUNNELS_FILE_NAME), "version = 1\n").unwrap();
+            write_file(&directory.join(TUNNELS_FILE_NAME), "version = 1\n");
         }
         directory
     }
+
+    fn closed_tempdir() -> tempfile::TempDir {
+        let directory = tempfile::tempdir().unwrap();
+        set_mode(directory.path(), 0o700);
+        directory
+    }
+
+    fn write_file(path: &Path, content: &str) {
+        fs::write(path, content).unwrap();
+        set_mode(path, 0o644);
+    }
+
+    #[cfg(unix)]
+    fn set_mode(path: &Path, mode: u32) {
+        use std::os::unix::fs::PermissionsExt;
+
+        fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
+    }
+
+    #[cfg(not(unix))]
+    fn set_mode(_path: &Path, _mode: u32) {}
 
     fn facts(candidates: &[PathBuf]) -> MigrationFacts<'_> {
         MigrationFacts {
@@ -147,7 +228,7 @@ mod tests {
 
     #[test]
     fn should_find_a_sibling_that_has_the_marker_and_the_tunnels_file() {
-        let parent = tempfile::tempdir().unwrap();
+        let parent = closed_tempdir();
         let earlier = copy_in(parent.path(), "0.5.0", true, true);
         let current = copy_in(parent.path(), "0.6.0", false, false);
 
@@ -156,7 +237,7 @@ mod tests {
 
     #[test]
     fn should_ignore_a_sibling_without_the_marker() {
-        let parent = tempfile::tempdir().unwrap();
+        let parent = closed_tempdir();
         copy_in(parent.path(), "0.5.0", false, true);
         let current = copy_in(parent.path(), "0.6.0", false, false);
 
@@ -168,7 +249,7 @@ mod tests {
 
     #[test]
     fn should_ignore_a_sibling_without_the_tunnels_file() {
-        let parent = tempfile::tempdir().unwrap();
+        let parent = closed_tempdir();
         copy_in(parent.path(), "0.5.0", true, false);
         let current = copy_in(parent.path(), "0.6.0", false, false);
 
@@ -180,7 +261,7 @@ mod tests {
 
     #[test]
     fn should_exclude_the_directory_of_the_executable() {
-        let parent = tempfile::tempdir().unwrap();
+        let parent = closed_tempdir();
         let current = copy_in(parent.path(), "0.6.0", true, true);
 
         assert_eq!(
@@ -191,12 +272,80 @@ mod tests {
 
     #[test]
     fn should_sort_the_copies_when_several_are_found() {
-        let parent = tempfile::tempdir().unwrap();
+        let parent = closed_tempdir();
         let newer = copy_in(parent.path(), "0.5.0", true, true);
         let older = copy_in(parent.path(), "0.4.0", true, true);
         let current = copy_in(parent.path(), "0.6.0", false, false);
 
         assert_eq!(find_earlier_portable_copies(&current), vec![older, newer]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_ignore_a_symlink_to_a_copy_and_find_the_copy_once() {
+        let parent = closed_tempdir();
+        let earlier = copy_in(parent.path(), "0.5.0", true, true);
+        std::os::unix::fs::symlink("./0.5.0", parent.path().join("0.5")).unwrap();
+        let current = copy_in(parent.path(), "0.6.0", false, false);
+
+        assert_eq!(find_earlier_portable_copies(&current), vec![earlier]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_find_nothing_when_the_only_sibling_is_a_symlink_to_a_copy() {
+        let elsewhere = closed_tempdir();
+        let target = copy_in(elsewhere.path(), "0.5.0", true, true);
+        let parent = closed_tempdir();
+        std::os::unix::fs::symlink(&target, parent.path().join("0.5.0")).unwrap();
+        let current = copy_in(parent.path(), "0.6.0", false, false);
+
+        assert_eq!(
+            find_earlier_portable_copies(&current),
+            Vec::<PathBuf>::new()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_find_nothing_when_the_parent_is_writable_by_others() {
+        let parent = closed_tempdir();
+        copy_in(parent.path(), "0.5.0", true, true);
+        let current = copy_in(parent.path(), "0.6.0", false, false);
+        set_mode(parent.path(), 0o1777);
+
+        assert_eq!(
+            find_earlier_portable_copies(&current),
+            Vec::<PathBuf>::new()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_ignore_a_sibling_folder_writable_by_the_group() {
+        let parent = closed_tempdir();
+        let earlier = copy_in(parent.path(), "0.5.0", true, true);
+        set_mode(&earlier, 0o775);
+        let current = copy_in(parent.path(), "0.6.0", false, false);
+
+        assert_eq!(
+            find_earlier_portable_copies(&current),
+            Vec::<PathBuf>::new()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_ignore_a_tunnels_file_writable_by_others() {
+        let parent = closed_tempdir();
+        let earlier = copy_in(parent.path(), "0.5.0", true, true);
+        set_mode(&earlier.join(TUNNELS_FILE_NAME), 0o666);
+        let current = copy_in(parent.path(), "0.6.0", false, false);
+
+        assert_eq!(
+            find_earlier_portable_copies(&current),
+            Vec::<PathBuf>::new()
+        );
     }
 
     #[test]
@@ -301,7 +450,7 @@ mod tests {
 
     #[test]
     fn should_find_the_user_file_when_portable_and_the_file_exists() {
-        let directory = tempfile::tempdir().unwrap();
+        let directory = closed_tempdir();
         let user_file = directory.path().join(TUNNELS_FILE_NAME);
         fs::write(&user_file, "").unwrap();
 
@@ -313,7 +462,7 @@ mod tests {
 
     #[test]
     fn should_not_find_an_ignored_user_file_when_not_portable() {
-        let directory = tempfile::tempdir().unwrap();
+        let directory = closed_tempdir();
         let user_file = directory.path().join(TUNNELS_FILE_NAME);
         fs::write(&user_file, "").unwrap();
 

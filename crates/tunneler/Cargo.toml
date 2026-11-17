@@ -31,6 +31,9 @@ tracing-subscriber.workspace = true
 ulid.workspace = true
 zeroize.workspace = true
 
+[target.'cfg(unix)'.dependencies]
+rustix = { workspace = true, features = ["fs", "process"] }
+
 [target.'cfg(target_os = "linux")'.dependencies]
 futures-util.workspace = true
 tray-icon = { workspace = true, features = ["ksni"] }

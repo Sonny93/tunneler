@@ -7,6 +7,7 @@
 
 use std::fs;
 use std::io;
+use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -34,12 +35,14 @@ impl Scenario {
         let scenario = Self {
             root: tempfile::tempdir().unwrap(),
         };
+        set_mode(scenario.root.path(), 0o700);
         fs::create_dir_all(scenario.running_directory()).unwrap();
         fs::copy(BINARY, scenario.executable()).unwrap();
         fs::create_dir_all(scenario.earlier_directory().join("data")).unwrap();
-        fs::write(scenario.earlier_directory().join("portable"), "").unwrap();
-        fs::write(scenario.earlier_tunnels(), EARLIER_TUNNELS).unwrap();
-        fs::write(scenario.earlier_state(), EARLIER_STATE).unwrap();
+        set_mode(&scenario.earlier_directory(), 0o755);
+        write_file(&scenario.earlier_directory().join("portable"), "");
+        write_file(&scenario.earlier_tunnels(), EARLIER_TUNNELS);
+        write_file(&scenario.earlier_state(), EARLIER_STATE);
         scenario
     }
 
@@ -161,6 +164,15 @@ fn wait_until(description: &str, condition: impl Fn() -> bool) {
         );
         sleep(POLL_INTERVAL);
     }
+}
+
+fn set_mode(path: &Path, mode: u32) {
+    fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
+}
+
+fn write_file(path: &Path, content: &str) {
+    fs::write(path, content).unwrap();
+    set_mode(path, 0o644);
 }
 
 fn read(path: &Path) -> String {

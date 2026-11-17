@@ -36,7 +36,7 @@ use engine::{
     PresetPlatform, SshConfigResolver, Store, SystemAgentLocator, SystemClock, SystemPortScanner,
     SystemProgramLocator, SystemX11Environment, TunnelId,
 };
-use ipc::Endpoint;
+use ipc::{Endpoint, IpcServer};
 use ssh_config::{ConfigSources, SystemEnvironment};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
@@ -94,9 +94,7 @@ pub struct DaemonOptions {
 /// Fails when another daemon runs, when the store or the endpoint cannot be
 /// used, or when the engine cannot start.
 pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
-    let server = bind_single_instance(&options.endpoint).await?;
-    prepare_configuration(&options);
-    let (store, _) = Store::open(options.store_path.clone())?;
+    let (server, store) = lock_and_open_store(&options).await?;
     let (wire_events, wire_receiver) = broadcast::channel(WIRE_EVENT_CAPACITY);
     let ui = Arc::new(UiCoordinator::new(
         server.handle(),
@@ -193,6 +191,15 @@ pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
         }
     }
     Ok(())
+}
+
+/// Takes the single-instance lock, then prepares the configuration and opens
+/// the store: nothing else writes the files while they are copied.
+async fn lock_and_open_store(options: &DaemonOptions) -> Result<(IpcServer, Store), DaemonError> {
+    let server = bind_single_instance(&options.endpoint).await?;
+    prepare_configuration(options);
+    let (store, _) = Store::open(options.store_path.clone())?;
+    Ok((server, store))
 }
 
 async fn start_tray_service(

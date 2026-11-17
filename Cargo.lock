@@ -6536,6 +6536,7 @@ dependencies = [
  "pretty_assertions",
  "rpassword",
  "russh",
+ "rustix 1.1.6",
  "serde",
  "serde_json",
  "ssh-config",

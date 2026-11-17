@@ -16,6 +16,7 @@ use crate::daemon::DaemonOptions;
 use crate::earlier_copies::{
     ConfigurationNote, MigrationDecision, MigrationFacts, PORTABLE_MODE_DOCUMENTATION_URL,
     configuration_notes, decide_migration, find_earlier_portable_copies, find_ignored_user_file,
+    is_trusted_file,
 };
 use crate::layout::DataLayout;
 
@@ -27,6 +28,13 @@ pub struct MigrationError {
     to: PathBuf,
     source: io::Error,
 }
+
+#[cfg(unix)]
+const NO_FOLLOW_FLAG: i32 = rustix::fs::OFlags::NOFOLLOW.bits().cast_signed();
+#[cfg(unix)]
+const PRIVATE_FILE_MODE: u32 = 0o600;
+#[cfg(unix)]
+const PRIVATE_DIRECTORY_MODE: u32 = 0o700;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CopyOutcome {
@@ -54,12 +62,17 @@ pub fn prepare_configuration(options: &DaemonOptions) {
             return;
         }
     };
+    let is_migration_possible = options.store_path == default_layout.tunnels_file
+        && options.state_path == default_layout.state_file
+        && !options.store_path.exists();
+    if !is_migration_possible {
+        return;
+    }
     let candidates = find_earlier_portable_copies(&executable_directory);
     let decision = decide_migration(&MigrationFacts {
         is_portable: false,
-        has_location_override: options.store_path != default_layout.tunnels_file
-            || options.state_path != default_layout.state_file,
-        is_default_tunnels_file_present: options.store_path.exists(),
+        has_location_override: false,
+        is_default_tunnels_file_present: false,
         candidates: &candidates,
     });
     apply_decision(decision, options);
@@ -67,8 +80,12 @@ pub fn prepare_configuration(options: &DaemonOptions) {
 
 /// The notes to print under the configuration line of `tunneler status`.
 pub fn status_notes(configuration_file: &Path) -> Vec<ConfigurationNote> {
-    let candidates = running_executable_directory()
-        .map_or_default(|directory| find_earlier_portable_copies(&directory));
+    let candidates = if configuration_file.exists() {
+        Vec::new()
+    } else {
+        running_executable_directory()
+            .map_or_default(|directory| find_earlier_portable_copies(&directory))
+    };
     let ignored_user_file = default_store_path().ok().and_then(|user_file| {
         find_ignored_user_file(detect_portable_layout().is_some(), &user_file)
     });
@@ -150,7 +167,7 @@ fn copy_without_overwriting(
 }
 
 fn copy_file(source: &Path, destination: &Path) -> io::Result<CopyOutcome> {
-    let mut input = match File::open(source) {
+    let mut input = match open_source(source) {
         Ok(file) => file,
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
             return Ok(CopyOutcome::SourceMissing);
@@ -158,13 +175,9 @@ fn copy_file(source: &Path, destination: &Path) -> io::Result<CopyOutcome> {
         Err(error) => return Err(error),
     };
     if let Some(parent) = destination.parent() {
-        fs::create_dir_all(parent)?;
+        create_private_directories(parent)?;
     }
-    let mut output = match OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(destination)
-    {
+    let mut output = match create_private_file(destination) {
         Ok(file) => file,
         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
             return Ok(CopyOutcome::DestinationExists);
@@ -179,9 +192,41 @@ fn copy_file(source: &Path, destination: &Path) -> io::Result<CopyOutcome> {
     Ok(CopyOutcome::Copied)
 }
 
+/// Opens the source without following a symlink, and checks the handle that
+/// is going to be read: a regular file that only the user can write.
+fn open_source(source: &Path) -> io::Result<File> {
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::custom_flags(&mut options, NO_FOLLOW_FLAG);
+    let file = options.open(source)?;
+    if !is_trusted_file(&file.metadata()?) {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "the file is not a regular file owned by the user and closed to others",
+        ));
+    }
+    Ok(file)
+}
+
+fn create_private_file(path: &Path) -> io::Result<File> {
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, PRIVATE_FILE_MODE);
+    options.open(path)
+}
+
+fn create_private_directories(directory: &Path) -> io::Result<()> {
+    let mut builder = fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    std::os::unix::fs::DirBuilderExt::mode(&mut builder, PRIVATE_DIRECTORY_MODE);
+    builder.create(directory)
+}
+
 fn fill_destination(input: &mut File, output: &mut File) -> io::Result<()> {
     io::copy(input, output)?;
-    output.set_permissions(input.metadata()?.permissions())?;
     output.sync_all()
 }
 
@@ -227,12 +272,12 @@ mod tests {
 
         fn write_source_tunnels(&self) {
             fs::create_dir_all(self.source()).unwrap();
-            fs::write(self.source().join("tunnels.toml"), SOURCE_TUNNELS).unwrap();
+            write_with_mode(&self.source().join("tunnels.toml"), SOURCE_TUNNELS, 0o644);
         }
 
         fn write_source_state(&self) {
             fs::create_dir_all(self.source().join("data")).unwrap();
-            fs::write(self.source().join("data/state.toml"), SOURCE_STATE).unwrap();
+            write_with_mode(&self.source().join("data/state.toml"), SOURCE_STATE, 0o644);
         }
 
         fn copy(&self) -> Result<(), MigrationError> {
@@ -242,6 +287,19 @@ mod tests {
                 &self.state_destination(),
             )
         }
+    }
+
+    #[cfg(unix)]
+    fn write_with_mode(path: &Path, content: &str, mode: u32) {
+        use std::os::unix::fs::PermissionsExt;
+
+        fs::write(path, content).unwrap();
+        fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
+    }
+
+    #[cfg(not(unix))]
+    fn write_with_mode(path: &Path, content: &str, _mode: u32) {
+        fs::write(path, content).unwrap();
     }
 
     fn write_existing(path: &Path) {
@@ -345,6 +403,72 @@ mod tests {
         assert_eq!(
             (error.from, fixture.tunnels_destination().exists()),
             (fixture.source().join("tunnels.toml"), false)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_create_private_files_and_directories_whatever_the_mode_of_the_source() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let fixture = Fixture::new();
+        fixture.write_source_tunnels();
+        write_with_mode(
+            &fixture.source().join("tunnels.toml"),
+            SOURCE_TUNNELS,
+            0o644,
+        );
+        fixture.copy().unwrap();
+        let mode_of = |path: PathBuf| fs::metadata(path).unwrap().permissions().mode();
+
+        assert_eq!(
+            (
+                mode_of(fixture.tunnels_destination()) & 0o777,
+                mode_of(
+                    fixture
+                        .tunnels_destination()
+                        .parent()
+                        .unwrap()
+                        .to_path_buf()
+                ) & 0o777,
+            ),
+            (0o600, 0o700)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_copy_nothing_when_the_source_is_writable_by_others() {
+        let fixture = Fixture::new();
+        fixture.write_source_tunnels();
+        write_with_mode(
+            &fixture.source().join("tunnels.toml"),
+            SOURCE_TUNNELS,
+            0o666,
+        );
+
+        let outcome = fixture.copy();
+
+        assert_eq!(
+            (outcome.is_err(), fixture.tunnels_destination().exists()),
+            (true, false)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_copy_nothing_when_the_source_is_a_symlink() {
+        let fixture = Fixture::new();
+        fixture.write_source_tunnels();
+        let real = fixture.source().join("real.toml");
+        fs::rename(fixture.source().join("tunnels.toml"), &real).unwrap();
+        std::os::unix::fs::symlink(&real, fixture.source().join("tunnels.toml")).unwrap();
+
+        let outcome = fixture.copy();
+
+        assert_eq!(
+            (outcome.is_err(), fixture.tunnels_destination().exists()),
+            (true, false)
         );
     }
 }

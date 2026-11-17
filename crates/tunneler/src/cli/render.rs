@@ -415,19 +415,39 @@ pub fn render_configuration(configuration_file: &str, notes: &[ConfigurationNote
         .join("\n")
 }
 
+/// A path as text with the control characters replaced, so that a crafted
+/// folder name cannot drive the terminal.
+fn printable_path(path: &std::path::Path) -> String {
+    path.display()
+        .to_string()
+        .chars()
+        .map(|character| {
+            if character.is_control() {
+                '?'
+            } else {
+                character
+            }
+        })
+        .collect()
+}
+
 fn describe_configuration_note(note: &ConfigurationNote) -> Vec<String> {
     match note {
         ConfigurationNote::EarlierCopies(copies) => {
             let mut lines = vec![
                 "  This file does not exist, but earlier portable copies hold tunnels:".to_owned(),
             ];
-            lines.extend(copies.iter().map(|copy| format!("    {}", copy.display())));
+            lines.extend(
+                copies
+                    .iter()
+                    .map(|copy| format!("    {}", printable_path(copy))),
+            );
             lines.push(format!("  See {PORTABLE_MODE_DOCUMENTATION_URL}"));
             lines
         }
         ConfigurationNote::UserFileIgnored(user_file) => vec![format!(
             "  This copy is portable: the tunnels file in the user's directory is not read ({})",
-            user_file.display()
+            printable_path(user_file)
         )],
     }
 }
@@ -626,6 +646,17 @@ mod tests {
             render_configuration("/opt/0.6.0/tunnels.toml", &notes),
             "Configuration: /opt/0.6.0/tunnels.toml\n  This copy is portable: the tunnels file in the user's directory is not read (/home/me/.config/tunneler/tunnels.toml)"
         );
+    }
+
+    #[test]
+    fn should_replace_control_characters_when_printing_an_earlier_copy() {
+        let notes = [ConfigurationNote::EarlierCopies(vec![
+            std::path::PathBuf::from("/opt/\u{1b}[2Jevil"),
+        ])];
+
+        let rendered = render_configuration("/x/tunnels.toml", &notes);
+
+        assert!(rendered.contains("    /opt/?[2Jevil"), "{rendered}");
     }
 
     fn render_one(state: TunnelStateDto, style: Style) -> String {
