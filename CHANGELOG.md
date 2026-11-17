@@ -4,6 +4,15 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Added
+
+- `tunneler status` prints the path of the configuration file in use. When that file does not exist but earlier portable copies do, it lists them, and when a portable copy ignores the tunnels file in your user directory, it says so.
+
+### Changed
+
+- The Linux archive (`tar.gz`) is no longer portable: it keeps your files in your user directories, so a new version no longer starts empty and mise no longer deletes your tunnels with the old version. This applies to every earlier `tar.gz` too. Run `touch portable` next to the programs to keep the old behaviour.
+- When you upgrade from an earlier `tar.gz`, the daemon copies `tunnels.toml` and `state.toml` from the earlier copy to your user directories at start, if that copy sits next to the new one, it is the only one, and no tunnels file exists in your user directory yet. Nothing is moved, deleted or overwritten. Otherwise, run `tunneler quit`, copy `tunnels.toml` to `~/.config/tunneler/` and `data/state.toml` to `~/.local/state/tunneler/`. With mise, do it before the old version is pruned, or upgrade with `mise upgrade --no-prune`.
+
 ## [0.5.0] - 2026-10-29
 
 ### Fixed

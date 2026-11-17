@@ -15,7 +15,7 @@ Un fichier avec une erreur de syntaxe, une clé inconnue ou une règle non respe
 
 Sous Linux, les trois premiers respectent `XDG_CONFIG_HOME`, `XDG_STATE_HOME` et `XDG_DATA_HOME`. Les journaux sont des fichiers quotidiens, et le daemon en garde 7. Réglez `TUNNELER_LOG` sur un filtre comme `debug` pour plus de détails. « Ouvrir le dossier de configuration », dans les paramètres, ouvre le dossier de `tunnels.toml`.
 
-Le mode portable est actif tant qu'un fichier vide nommé `portable` se trouve à côté des programmes. Voyez [Mises à jour et désinstallation](../guide/updates-and-uninstall#mode-portable).
+Le mode portable est actif tant qu'un fichier vide nommé `portable` se trouve à côté des programmes. Le zip Windows le contient ; sous Linux, vous le créez vous-même. Voyez [Mises à jour et désinstallation](../guide/updates-and-uninstall#mode-portable).
 
 ### Choisir d'autres fichiers
 

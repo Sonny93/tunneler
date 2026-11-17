@@ -43,8 +43,8 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 - Les tunnels se désignent par port, par `hôte:port` ou par tag.
 
 ### Distribution
-- Installeur Windows (par utilisateur ou pour la machine), paquet Debian, zip et tar.gz portables, et une AppImage de l'interface.
-- Mode portable : tout reste à côté des exécutables.
+- Installeur Windows (par utilisateur ou pour la machine), paquet Debian, zip portable, tar.gz et une AppImage de l'interface.
+- Mode portable : tout reste à côté des exécutables. Le zip Windows est portable ; le tar.gz Linux ne l'est pas, sauf si vous créez le fichier `portable`. Le daemon copie les tunnels d'une copie portable précédente unique voisine de la sienne, et `tunneler status` affiche le fichier de configuration utilisé.
 - `tunneler purge` retire toutes les traces laissées sur la machine.
 - Mises à jour signées depuis les versions GitHub, appliquées automatiquement avec l'installeur Windows et proposées par un lien pour les autres formes. La vérification a lieu à l'ouverture de la fenêtre, ou à la demande depuis les paramètres et la palette.
 - Mémoire du daemon : environ 17 à 25 Mio. L'interface n'en consomme que fenêtre ouverte.
@@ -67,6 +67,7 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 
 ### Linux
 - **Paquet Debian.** Installer, lancer, mettre à jour et retirer le `.deb`.
+- **Mise à jour du tar.gz sous mise.** Installer une version qui contient encore `portable`, ajouter des tunnels, puis `mise upgrade` vers la nouvelle : le daemon doit copier `tunnels.toml` et `state.toml` dans les dossiers de l'utilisateur et le journaliser, et l'ancien dossier doit rester intact. Vérifier ensuite que `mise upgrade --no-prune` garde l'ancienne version.
 - **Sons et notifications.** Les sons de veille sur un vrai bureau avec PipeWire (`pw-play -`), et avec PulseAudio seul (`paplay`, jamais essayé). Les notifications D-Bus.
 - **Zone de notification sous KDE.**
 - **Lecteur d'écran.** Orca, écouté par une personne. Le passage au clavier et l'arbre d'accessibilité ont été vérifiés.

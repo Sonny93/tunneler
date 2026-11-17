@@ -3,8 +3,10 @@
 
 mod cli;
 mod daemon;
+mod earlier_copies;
 mod layout;
 mod logging;
+mod migration;
 
 use std::process::ExitCode;
 

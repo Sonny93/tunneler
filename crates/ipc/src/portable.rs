@@ -25,6 +25,15 @@ pub struct PortableLayout {
 }
 
 impl PortableLayout {
+    /// The layout of a portable installation living in `executable_directory`,
+    /// whether or not the marker is there: for reading the files of another
+    /// copy.
+    pub fn at(executable_directory: &Path) -> Self {
+        Self {
+            executable_directory: executable_directory.to_path_buf(),
+        }
+    }
+
     /// The directory holding the executables, the marker and `tunnels.toml`.
     pub fn executable_directory(&self) -> &Path {
         &self.executable_directory
@@ -143,6 +152,19 @@ mod tests {
     #[test]
     fn should_name_the_marker_next_to_the_executable() {
         assert_eq!(layout().marker_file(), Path::new("/opt/tunneler/portable"));
+    }
+
+    #[test]
+    fn should_locate_the_files_of_another_copy_without_looking_for_its_marker() {
+        let other = PortableLayout::at(Path::new("/opt/other"));
+
+        assert_eq!(
+            (other.tunnels_file(), other.state_file()),
+            (
+                PathBuf::from("/opt/other/tunnels.toml"),
+                PathBuf::from("/opt/other/data/state.toml")
+            )
+        );
     }
 
     #[test]

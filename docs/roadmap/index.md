@@ -43,8 +43,8 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 - Tunnels are selected by port, by `host:port` or by tag.
 
 ### Distribution
-- Windows installer (per user or per machine), Debian package, portable zip and tar.gz, and an AppImage of the UI.
-- Portable mode: everything lives next to the executables.
+- Windows installer (per user or per machine), Debian package, portable zip, tar.gz, and an AppImage of the UI.
+- Portable mode: everything lives next to the executables. The Windows zip is portable; the Linux tar.gz is not, unless you create the `portable` file. The daemon copies the tunnels of a single earlier portable copy next to it, and `tunneler status` shows the configuration file in use.
 - `tunneler purge` removes every trace the program left on the machine.
 - Signed updates from GitHub releases, applied automatically for the Windows installer and offered as a link for the other forms. A check runs when the window opens, or on demand from the settings and the palette.
 - Daemon memory: about 17 to 25 MiB. The UI only uses memory while its window is open.
@@ -67,6 +67,7 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 
 ### Linux
 - **Debian package.** Install, run, update and remove the `.deb`.
+- **Tar.gz upgrade under mise.** Install a version that still ships `portable`, add tunnels, then `mise upgrade` to the new one: the daemon should copy `tunnels.toml` and `state.toml` to the user's directories and log it, and the old folder should stay untouched. Then check that `mise upgrade --no-prune` keeps the old version.
 - **Sounds and notifications.** Standby sounds on a real desktop with PipeWire (`pw-play -`), and with PulseAudio only (`paplay`, never tried). D-Bus notifications.
 - **Tray under KDE.**
 - **Screen reader.** Orca, listened to by a person. The keyboard pass and the accessibility tree were checked.

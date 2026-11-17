@@ -32,7 +32,7 @@ Tunneler écrit `tunnels.toml`, `state.toml`, des journaux et les données web d
 
 ## Mode portable
 
-Le zip Windows et l'archive Linux contiennent un fichier vide nommé `portable` à côté des programmes. Tant qu'il est là, Tunneler garde ses fichiers dans ce dossier au lieu de vos dossiers d'utilisateur :
+Le zip Windows contient un fichier vide nommé `portable` à côté des programmes. L'archive Linux n'en contient pas : sous Linux, créez le fichier vous-même (`touch portable` à côté des programmes) pour activer le mode. Tant que le fichier est là, Tunneler garde ses fichiers dans ce dossier au lieu de vos dossiers d'utilisateur :
 
 | Fichier | Portable | Installé sous Linux |
 |---|---|---|
@@ -44,6 +44,37 @@ Le zip Windows et l'archive Linux contiennent un fichier vide nommé `portable` 
 Supprimez le fichier `portable` pour revenir aux dossiers d'utilisateur. Les fichiers déjà écrits ne sont pas déplacés. `--config` et `--state`, ou `TUNNELER_CONFIG` et `TUNNELER_STATE`, l'emportent sur les deux.
 
 L'entrée de lancement à l'ouverture de session et les passphrases du trousseau du système restent hors du dossier. `tunneler purge` les supprime.
+
+### Mettre à jour une copie portable
+
+Une copie portable garde ses tunnels dans son propre dossier : une nouvelle version démarre donc vide. Pour emporter vos tunnels :
+
+1. Lancez `tunneler quit`, pour que rien n'écrive `state.toml` pendant la copie.
+2. Copiez `tunnels.toml` et le dossier `data/` de l'ancienne copie dans le nouveau dossier.
+
+`state.toml`, dans `data/`, est la seule trace des passphrases gardées dans le trousseau du système : ne le perdez pas.
+
+### L'archive Linux était portable
+
+Les anciennes archives Linux contenaient le fichier `portable`, celle-ci n'en contient plus. Un outil qui extrait chaque version dans son propre dossier (mise, ou un simple `tar xzf`) laissait alors vos tunnels dans le dossier de l'ancienne version. mise supprime aussi l'ancienne version 24 heures après `mise upgrade`, tunnels compris.
+
+Le daemon les copie pour vous au démarrage quand tout ceci est vrai :
+
+- le programme n'est pas portable (pas de fichier `portable` à côté de lui) ;
+- vous n'avez donné ni `--config`, ni `--state`, ni `TUNNELER_CONFIG`, ni `TUNNELER_STATE` ;
+- le `tunnels.toml` par défaut (`~/.config/tunneler/`) n'existe pas encore ;
+- exactement un dossier voisin du dossier du programme en cours contient à la fois un fichier `portable` et un `tunnels.toml`.
+
+Il copie ce `tunnels.toml` vers `~/.config/tunneler/`, et `data/state.toml` vers `~/.local/state/tunneler/` s'il y en a un et qu'il n'en existe pas déjà là. Il ne déplace, ne supprime et n'écrase jamais un fichier, et il journalise ce qu'il a fait.
+
+Quand plusieurs dossiers conviennent, rien n'est copié et le daemon journalise un avertissement qui les liste. `tunneler status` affiche le chemin du fichier de configuration utilisé, et liste les copies précédentes quand ce fichier n'existe pas. Copiez alors les fichiers à la main :
+
+1. `tunneler quit`.
+2. Copiez `tunnels.toml` vers `~/.config/tunneler/` et `data/state.toml` vers `~/.local/state/tunneler/`.
+
+Avec mise, faites-le avant que l'ancienne version soit supprimée, ou mettez à jour avec `mise upgrade --no-prune` pour la garder.
+
+Pour garder l'ancien comportement, lancez `touch portable` à côté des programmes.
 
 Gardez `tunneler` et `tunneler-ui` dans le même dossier : le daemon cherche `tunneler-ui` à côté de lui, puis dans le `PATH`, puis au chemin donné par `TUNNELER_UI_BINARY`.
 

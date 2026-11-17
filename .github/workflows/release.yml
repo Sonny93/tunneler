@@ -120,7 +120,6 @@ jobs:
           name="tunneler-$VERSION-linux-x86_64"
           mkdir "$name"
           cp target/release/tunneler target/release/tunneler-ui "$name"
-          touch "$name/portable"
           tar -czf "$name.tar.gz" "$name"
           cp target/release/bundle/appimage/*.AppImage "tunneler-ui-$VERSION-x86_64.AppImage"
           cp target/release/bundle/appimage/*.AppImage.sig "tunneler-ui-$VERSION-x86_64.AppImage.sig"

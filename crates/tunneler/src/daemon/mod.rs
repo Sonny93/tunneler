@@ -42,6 +42,7 @@ use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
+use crate::migration::prepare_configuration;
 pub(crate) use console::release_console_if_owned;
 use display_language::DisplayLanguage;
 pub use error::DaemonError;
@@ -93,8 +94,9 @@ pub struct DaemonOptions {
 /// Fails when another daemon runs, when the store or the endpoint cannot be
 /// used, or when the engine cannot start.
 pub async fn run(options: DaemonOptions) -> Result<(), DaemonError> {
-    let (store, _) = Store::open(options.store_path.clone())?;
     let server = bind_single_instance(&options.endpoint).await?;
+    prepare_configuration(&options);
+    let (store, _) = Store::open(options.store_path.clone())?;
     let (wire_events, wire_receiver) = broadcast::channel(WIRE_EVENT_CAPACITY);
     let ui = Arc::new(UiCoordinator::new(
         server.handle(),

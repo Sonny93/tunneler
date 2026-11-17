@@ -12,6 +12,7 @@ use ipc::protocol::{
 use serde::Serialize;
 
 use super::style::{Style, Tone};
+use crate::earlier_copies::{ConfigurationNote, PORTABLE_MODE_DOCUMENTATION_URL};
 
 const DEFAULT_TARGET_HOST: &str = "127.0.0.1";
 const SECONDS_PER_MINUTE: u64 = 60;
@@ -405,6 +406,32 @@ pub fn render_daemon_summary(daemon_version: &str, snapshot: &SnapshotDto) -> St
     )
 }
 
+/// The configuration line of `status`, and the notes under it.
+pub fn render_configuration(configuration_file: &str, notes: &[ConfigurationNote]) -> String {
+    let lines = notes.iter().flat_map(describe_configuration_note);
+    std::iter::once(format!("Configuration: {configuration_file}"))
+        .chain(lines)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn describe_configuration_note(note: &ConfigurationNote) -> Vec<String> {
+    match note {
+        ConfigurationNote::EarlierCopies(copies) => {
+            let mut lines = vec![
+                "  This file does not exist, but earlier portable copies hold tunnels:".to_owned(),
+            ];
+            lines.extend(copies.iter().map(|copy| format!("    {}", copy.display())));
+            lines.push(format!("  See {PORTABLE_MODE_DOCUMENTATION_URL}"));
+            lines
+        }
+        ConfigurationNote::UserFileIgnored(user_file) => vec![format!(
+            "  This copy is portable: the tunnels file in the user's directory is not read ({})",
+            user_file.display()
+        )],
+    }
+}
+
 /// One line per configured tunnel: kind, route and tags.
 pub fn render_list(snapshot: &SnapshotDto, style: Style) -> String {
     if snapshot.tunnels.is_empty() {
@@ -564,6 +591,41 @@ mod tests {
             x11_host_displays: BTreeMap::new(),
             openers: Vec::new(),
         }
+    }
+
+    #[test]
+    fn should_print_only_the_configuration_line_when_there_is_no_note() {
+        assert_eq!(
+            render_configuration("/home/me/.config/tunneler/tunnels.toml", &[]),
+            "Configuration: /home/me/.config/tunneler/tunnels.toml"
+        );
+    }
+
+    #[test]
+    fn should_list_the_earlier_copies_and_the_documentation_when_the_file_is_missing() {
+        let notes = [ConfigurationNote::EarlierCopies(vec![
+            std::path::PathBuf::from("/opt/0.4.0"),
+            std::path::PathBuf::from("/opt/0.5.0"),
+        ])];
+
+        assert_eq!(
+            render_configuration("/home/me/.config/tunneler/tunnels.toml", &notes),
+            format!(
+                "Configuration: /home/me/.config/tunneler/tunnels.toml\n  This file does not exist, but earlier portable copies hold tunnels:\n    /opt/0.4.0\n    /opt/0.5.0\n  See {PORTABLE_MODE_DOCUMENTATION_URL}"
+            )
+        );
+    }
+
+    #[test]
+    fn should_say_the_user_file_is_not_read_when_the_copy_is_portable() {
+        let notes = [ConfigurationNote::UserFileIgnored(
+            std::path::PathBuf::from("/home/me/.config/tunneler/tunnels.toml"),
+        )];
+
+        assert_eq!(
+            render_configuration("/opt/0.6.0/tunnels.toml", &notes),
+            "Configuration: /opt/0.6.0/tunnels.toml\n  This copy is portable: the tunnels file in the user's directory is not read (/home/me/.config/tunneler/tunnels.toml)"
+        );
     }
 
     fn render_one(state: TunnelStateDto, style: Style) -> String {

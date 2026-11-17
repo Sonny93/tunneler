@@ -15,7 +15,7 @@ A file with a syntax error, an unknown key or a broken rule is refused, and Tunn
 
 On Linux the first three honour `XDG_CONFIG_HOME`, `XDG_STATE_HOME` and `XDG_DATA_HOME`. Logs are daily files, and the daemon keeps 7. Set `TUNNELER_LOG` to a filter such as `debug` for more detail. "Open the configuration folder" in the settings opens the folder of `tunnels.toml`.
 
-Portable mode is on while an empty file named `portable` sits next to the programs. See [Updates and uninstall](../guide/updates-and-uninstall#portable-mode).
+Portable mode is on while an empty file named `portable` sits next to the programs. The Windows zip ships it; on Linux you create it yourself. See [Updates and uninstall](../guide/updates-and-uninstall#portable-mode).
 
 ### Choosing other files
 

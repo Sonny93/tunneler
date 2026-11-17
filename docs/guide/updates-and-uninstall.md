@@ -32,7 +32,7 @@ Tunneler writes `tunnels.toml`, `state.toml`, logs and the window's web data. [C
 
 ## Portable mode
 
-The Windows zip and the Linux archive contain an empty file named `portable` next to the programs. While it is there, Tunneler keeps its files in that folder instead of your user directories:
+The Windows zip contains an empty file named `portable` next to the programs. The Linux archive does not: on Linux, create the file yourself (`touch portable` next to the programs) to opt in. While the file is there, Tunneler keeps its files in that folder instead of your user directories:
 
 | File | Portable | Installed on Linux |
 |---|---|---|
@@ -44,6 +44,37 @@ The Windows zip and the Linux archive contain an empty file named `portable` nex
 Delete the `portable` file to go back to the user directories. The files already written are not moved. `--config` and `--state`, or `TUNNELER_CONFIG` and `TUNNELER_STATE`, win over both.
 
 The launch-at-login entry and the passphrases in the system keyring stay outside the folder. `tunneler purge` removes them.
+
+### Updating a portable copy
+
+A portable copy keeps its tunnels in its own folder, so a new version starts empty. To bring your tunnels along:
+
+1. Run `tunneler quit`, so that nothing writes `state.toml` while you copy.
+2. Copy `tunnels.toml` and the `data/` folder of the old copy into the new folder.
+
+`state.toml`, in `data/`, is the only record of the passphrases kept in the system keyring: do not lose it.
+
+### The Linux archive used to be portable
+
+Earlier Linux archives contained the `portable` file, and this one no longer does. A tool that extracts every version into its own folder (mise, or a plain `tar xzf`) then left your tunnels in the folder of the old version. mise also deletes the old version 24 hours after `mise upgrade`, with your tunnels in it.
+
+The daemon copies them for you at start when all of this holds:
+
+- the program is not portable (no `portable` file next to it);
+- you gave no `--config`, `--state`, `TUNNELER_CONFIG` or `TUNNELER_STATE`;
+- the default `tunnels.toml` (`~/.config/tunneler/`) does not exist yet;
+- exactly one folder next to the running program's folder holds both a `portable` file and a `tunnels.toml`.
+
+It copies that `tunnels.toml` to `~/.config/tunneler/`, and `data/state.toml` to `~/.local/state/tunneler/` when there is one and none exists there. It never moves, deletes or overwrites a file, and it logs what it did.
+
+When several folders qualify, nothing is copied and the daemon logs a warning that lists them. `tunneler status` prints the path of the configuration file in use, and lists the earlier copies when that file does not exist. Copy the files by hand then:
+
+1. `tunneler quit`.
+2. Copy `tunnels.toml` to `~/.config/tunneler/` and `data/state.toml` to `~/.local/state/tunneler/`.
+
+With mise, do it before the old version is pruned, or upgrade with `mise upgrade --no-prune` so that the old version stays.
+
+To keep the previous behaviour, run `touch portable` next to the programs.
 
 Keep `tunneler` and `tunneler-ui` in the same folder: the daemon looks for `tunneler-ui` next to itself, then on the `PATH`, then at the path in `TUNNELER_UI_BINARY`.
 
