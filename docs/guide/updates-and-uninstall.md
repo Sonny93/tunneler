@@ -64,7 +64,7 @@ The daemon copies them for you at start when all of this holds:
 - you gave no `--config`, `--state`, `TUNNELER_CONFIG` or `TUNNELER_STATE`;
 - the default `tunnels.toml` (`~/.config/tunneler/`) does not exist yet;
 - exactly one folder next to the running program's folder holds both a `portable` file and a `tunnels.toml`, ignoring symlinks (mise keeps links such as `0.5` next to `0.5.0`);
-- that earlier copy is a real folder that you own and that others cannot write to, and so are its files, inside a folder that others cannot write to either, like a folder in your home. A copy extracted under `/tmp` is not used: copy its files by hand.
+- that earlier copy is a real folder that you own and that others cannot write to, and so are its files, inside a folder that others cannot write to either, like a folder in your home. A group shared with other users counts as others. A copy extracted under `/tmp` is not used: copy its files by hand.
 
 It copies that `tunnels.toml` to `~/.config/tunneler/`, and `data/state.toml` to `~/.local/state/tunneler/` when there is one and none exists there. It never moves, deletes or overwrites a file, and it logs what it did.
 

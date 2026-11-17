@@ -15,9 +15,11 @@ pub const PORTABLE_MODE_DOCUMENTATION_URL: &str =
 
 const TUNNELS_FILE_NAME: &str = "tunnels.toml";
 #[cfg(unix)]
-const GROUP_OTHER_WRITE_BITS: u32 = 0o022;
+const GROUP_WRITE_BIT: u32 = 0o020;
 #[cfg(unix)]
-const SHARED_DIRECTORY_BITS: u32 = 0o1022;
+const OTHER_WRITE_BIT: u32 = 0o002;
+#[cfg(unix)]
+const STICKY_BIT: u32 = 0o1000;
 
 /// The folders next to `executable_directory` that hold a portable copy with
 /// tunnels: each is a real folder with both a `portable` file and a
@@ -57,9 +59,11 @@ fn is_trusted_entry(path: &Path, is_trusted: fn(&Metadata) -> bool) -> bool {
 
 #[cfg(unix)]
 fn is_closed_parent(parent: &Path) -> bool {
-    use std::os::unix::fs::MetadataExt;
-
-    fs::metadata(parent).is_ok_and(|metadata| metadata.mode() & SHARED_DIRECTORY_BITS == 0)
+    let euid = rustix::process::geteuid().as_raw();
+    fs::metadata(parent).is_ok_and(|metadata| {
+        let access = Access::of(&metadata, euid);
+        is_closed_to_others(&access, true)
+    })
 }
 
 #[cfg(not(unix))]
@@ -93,10 +97,53 @@ pub fn is_trusted_file(metadata: &Metadata) -> bool {
 
 #[cfg(unix)]
 fn is_owned_and_closed(metadata: &Metadata) -> bool {
-    use std::os::unix::fs::MetadataExt;
+    let euid = rustix::process::geteuid().as_raw();
+    let access = Access::of(metadata, euid);
+    access.uid == euid && is_closed_to_others(&access, false)
+}
 
-    metadata.uid() == rustix::process::geteuid().as_raw()
-        && metadata.mode() & GROUP_OTHER_WRITE_BITS == 0
+/// Who owns an entry and who may write to it, as the permission decision
+/// needs it.
+#[cfg(unix)]
+#[derive(Debug, Clone, Copy)]
+struct Access {
+    mode: u32,
+    uid: u32,
+    gid: u32,
+    euid: u32,
+}
+
+#[cfg(unix)]
+impl Access {
+    fn of(metadata: &Metadata, euid: u32) -> Self {
+        use std::os::unix::fs::MetadataExt;
+
+        Self {
+            mode: metadata.mode(),
+            uid: metadata.uid(),
+            gid: metadata.gid(),
+            euid,
+        }
+    }
+}
+
+/// Whether nobody but the user can write to the entry. Other-write is always
+/// refused, and so is the sticky bit when `refuses_sticky` is set (a shared
+/// folder such as `/tmp`). Group-write is refused too, except under the
+/// user-private-group convention: the entry's group id equals its owner's id,
+/// which is the effective uid (the test `pam_umask` uses), so the group is the
+/// user alone.
+#[cfg(unix)]
+fn is_closed_to_others(access: &Access, refuses_sticky: bool) -> bool {
+    let has_private_group = access.uid == access.euid && access.gid == access.uid;
+    let mut refused_bits = OTHER_WRITE_BIT;
+    if !has_private_group {
+        refused_bits |= GROUP_WRITE_BIT;
+    }
+    if refuses_sticky {
+        refused_bits |= STICKY_BIT;
+    }
+    access.mode & refused_bits == 0
 }
 
 /// What is known when the daemon starts.
@@ -321,11 +368,74 @@ mod tests {
     }
 
     #[cfg(unix)]
+    fn access(mode: u32, uid: u32, gid: u32) -> Access {
+        Access {
+            mode,
+            uid,
+            gid,
+            euid: 1000,
+        }
+    }
+
+    #[cfg(unix)]
     #[test]
-    fn should_ignore_a_sibling_folder_writable_by_the_group() {
+    fn should_accept_a_group_writable_folder_when_the_group_is_the_private_group_of_the_user() {
+        assert!(is_closed_to_others(&access(0o40775, 1000, 1000), false));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_refuse_a_group_writable_folder_when_the_group_is_shared() {
+        assert!(!is_closed_to_others(&access(0o40775, 1000, 100), false));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_refuse_a_group_writable_folder_when_the_owner_is_not_the_user() {
+        assert!(!is_closed_to_others(&access(0o40775, 1001, 1001), false));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_refuse_other_write_even_with_a_private_group() {
+        assert!(!is_closed_to_others(&access(0o40757, 1000, 1000), false));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_refuse_the_sticky_bit_only_for_the_parent() {
+        let access = access(0o41755, 1000, 1000);
+
+        assert_eq!(
+            (
+                is_closed_to_others(&access, true),
+                is_closed_to_others(&access, false)
+            ),
+            (false, true)
+        );
+    }
+
+    /// Runs only when the test user's primary group id equals its user id.
+    #[cfg(unix)]
+    #[test]
+    fn should_find_a_sibling_folder_group_writable_when_the_user_has_a_private_group() {
+        if rustix::process::getegid().as_raw() != rustix::process::geteuid().as_raw() {
+            return;
+        }
         let parent = closed_tempdir();
         let earlier = copy_in(parent.path(), "0.5.0", true, true);
         set_mode(&earlier, 0o775);
+        let current = copy_in(parent.path(), "0.6.0", false, false);
+
+        assert_eq!(find_earlier_portable_copies(&current), vec![earlier]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn should_ignore_a_sibling_folder_writable_by_others() {
+        let parent = closed_tempdir();
+        let earlier = copy_in(parent.path(), "0.5.0", true, true);
+        set_mode(&earlier, 0o757);
         let current = copy_in(parent.path(), "0.6.0", false, false);
 
         assert_eq!(

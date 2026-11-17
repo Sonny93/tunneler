@@ -64,7 +64,7 @@ Le daemon les copie pour vous au démarrage quand tout ceci est vrai :
 - vous n'avez donné ni `--config`, ni `--state`, ni `TUNNELER_CONFIG`, ni `TUNNELER_STATE` ;
 - le `tunnels.toml` par défaut (`~/.config/tunneler/`) n'existe pas encore ;
 - exactement un dossier voisin du dossier du programme en cours contient à la fois un fichier `portable` et un `tunnels.toml`, sans compter les liens symboliques (mise garde des liens comme `0.5` à côté de `0.5.0`) ;
-- cette copie précédente est un vrai dossier qui vous appartient et où les autres ne peuvent pas écrire, de même que ses fichiers, dans un dossier où les autres ne peuvent pas écrire non plus, comme un dossier de votre répertoire personnel. Une copie extraite sous `/tmp` n'est pas utilisée : copiez ses fichiers à la main.
+- cette copie précédente est un vrai dossier qui vous appartient et où les autres ne peuvent pas écrire, de même que ses fichiers, dans un dossier où les autres ne peuvent pas écrire non plus, comme un dossier de votre répertoire personnel. Un groupe partagé avec d'autres utilisateurs compte comme les autres. Une copie extraite sous `/tmp` n'est pas utilisée : copiez ses fichiers à la main.
 
 Il copie ce `tunnels.toml` vers `~/.config/tunneler/`, et `data/state.toml` vers `~/.local/state/tunneler/` s'il y en a un et qu'il n'en existe pas déjà là. Il ne déplace, ne supprime et n'écrase jamais un fichier, et il journalise ce qu'il a fait.
 
