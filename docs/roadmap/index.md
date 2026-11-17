@@ -40,6 +40,7 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 
 ### Command line
 - `tunneler up`, `down`, `status`, `list`, `open`, `check`, `quit` and `purge`, with `--json` output and documented exit codes.
+- `tunneler desktop-entry install` gives the Linux archive an application menu entry and icons; the daemon keeps the entry pointing at the current `tunneler-ui`, and `tunneler purge` removes it.
 - Tunnels are selected by port, by `host:port` or by tag.
 
 ### Distribution
@@ -70,6 +71,7 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 - **Tar.gz upgrade under mise.** Install a version that still ships `portable`, add tunnels, then `mise upgrade` to the new one: the daemon should copy `tunnels.toml` and `state.toml` to the user's directories and log it, and the old folder should stay untouched. Then check that `mise upgrade --no-prune` keeps the old version.
 - **Sounds and notifications.** Standby sounds on a real desktop with PipeWire (`pw-play -`), and with PulseAudio only (`paplay`, never tried). D-Bus notifications.
 - **Tray under KDE.**
+- **Application menu entry of the archive.** `tunneler desktop-entry install` on KDE and on GNOME: the entry and its icon should show in the launcher, the window should group under that icon, and the entry should survive an update that moves the programs. With mise, the `postinstall` line of the [getting started](/guide/getting-started#linux) page should rewrite it at each install and upgrade.
 - **Screen reader.** Orca, listened to by a person. The keyboard pass and the accessibility tree were checked.
 - **Memory.** The UI weighs about 410 MiB PSS under Xvfb with software rendering. A real desktop with a GPU should be lower: a measurement would confirm it.
 

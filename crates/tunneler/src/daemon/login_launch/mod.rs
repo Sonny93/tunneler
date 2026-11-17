@@ -11,6 +11,8 @@
 mod linux;
 #[cfg(all(unix, not(target_os = "macos")))]
 use linux::SystemLoginLaunch;
+#[cfg(all(unix, not(target_os = "macos")))]
+pub(crate) use linux::repoint_owned_entry;
 #[cfg(not(any(all(unix, not(target_os = "macos")), windows)))]
 mod unsupported;
 #[cfg(not(any(all(unix, not(target_os = "macos")), windows)))]

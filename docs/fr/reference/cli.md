@@ -142,6 +142,21 @@ Supprime tout ce que Tunneler a laissé sur la machine, sauf les programmes. Voy
 | `-y`, `--yes` | Ne demande pas. Obligatoire hors terminal, sinon le code de sortie est 5. |
 | `--keep-config` | Garde `tunnels.toml`, `state.toml` et les passphrases mémorisées. |
 
+### `tunneler desktop-entry <install|uninstall>`
+
+Linux seulement. Ajoute Tunneler au menu des applications, ou l'en retire. L'archive n'a pas d'installeur : c'est ainsi qu'elle obtient une entrée de menu. Voyez [Premiers pas](../guide/getting-started#linux).
+
+`install` écrit `com.minimalstuff.tunneler.desktop` et trois icônes sous le dossier de données de l'utilisateur (`$XDG_DATA_HOME`, en général `~/.local/share`), avec le `tunneler-ui` qui est à côté de `tunneler`. Relancez-la après une mise à jour qui déplace les programmes dans un autre dossier. Elle fait aussi pointer une entrée de lancement à l'ouverture de session existante vers ce `tunneler`, sans jamais en créer une. Elle refuse de s'exécuter depuis `/usr`, où un paquet fournit sa propre entrée, et n'écrase jamais un fichier `.desktop` que Tunneler n'a pas écrit. Elle affiche les fichiers écrits et ne lance rien.
+
+`uninstall` supprime l'entrée et les icônes. Elle refuse de supprimer un fichier `.desktop` que Tunneler n'a pas écrit.
+
+Sur les autres systèmes, les deux échouent avec le code de sortie 2. Un refus (pas de `tunneler-ui` à côté de `tunneler`, un fichier en travers, un dossier non inscriptible) sort avec 1.
+
+```sh
+tunneler desktop-entry install
+tunneler desktop-entry uninstall
+```
+
 ## Sortie
 
 - `--json` existe sur `status` et `list`. La sortie tient sur une ligne, faite pour les scripts.

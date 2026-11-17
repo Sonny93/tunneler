@@ -21,6 +21,7 @@ use crate::daemon::notification_identity::system_notification_identity;
 use crate::daemon::os_keyring::OsKeyring;
 use crate::layout::DataLayout;
 use crate::logging;
+use crate::menu_entry::system_menu_entry;
 
 /// `tunneler purge`: lists what it removes, asks, stops the daemon and removes.
 pub async fn purge(context: &Context, arguments: &PurgeArguments) -> Result<(), CliError> {
@@ -35,11 +36,13 @@ pub async fn purge(context: &Context, arguments: &PurgeArguments) -> Result<(), 
         endpoint: &context.endpoint,
     };
     let login_launch = system_login_launch();
+    let menu_entry = system_menu_entry();
     let notification_identity = system_notification_identity();
     let purger = Purger {
         daemon: &daemon,
         filesystem: &SystemFilesystem,
         login_launch: login_launch.as_ref(),
+        menu_entry: menu_entry.as_ref(),
         notification_identity: notification_identity.as_ref(),
         keyring: &OsKeyring,
     };

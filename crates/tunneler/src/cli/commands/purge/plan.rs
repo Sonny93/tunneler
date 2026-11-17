@@ -15,6 +15,8 @@ use crate::layout::DataLayout;
 pub enum PurgeTarget {
     /// The entry that starts the daemon at login.
     LoginLaunch,
+    /// The application menu entry and its icons.
+    MenuEntry,
     /// The registry key of the Windows notification identity.
     NotificationIdentity,
     /// A directory and everything in it.
@@ -35,6 +37,7 @@ impl PurgeTarget {
     pub fn describe(&self) -> String {
         match self {
             Self::LoginLaunch => "launch-at-login entry".to_owned(),
+            Self::MenuEntry => "application menu entry and its icons".to_owned(),
             Self::NotificationIdentity => {
                 format!(
                     "notification identity, registry key {}",
@@ -68,6 +71,7 @@ pub fn build_plan(
 ) -> Vec<PurgeTarget> {
     let mut plan = vec![
         PurgeTarget::LoginLaunch,
+        PurgeTarget::MenuEntry,
         PurgeTarget::Directory(layout.log_directory.clone()),
         PurgeTarget::Directory(layout.webview_data_directory.clone()),
     ];
@@ -132,6 +136,7 @@ mod tests {
             build_plan(&user_layout(), false, &entries(), false),
             vec![
                 PurgeTarget::LoginLaunch,
+                PurgeTarget::MenuEntry,
                 PurgeTarget::Directory("/home/me/.local/share/tunneler/logs".into()),
                 PurgeTarget::Directory("/home/me/.local/share/com.minimalstuff.tunneler".into()),
                 PurgeTarget::KeyringPassphrase("/home/me/.ssh/id_ed25519".into()),
@@ -161,9 +166,10 @@ mod tests {
         let plan = build_plan(&user_layout(), true, &entries(), false);
 
         assert_eq!(
-            plan[..3],
+            plan[..4],
             [
                 PurgeTarget::LoginLaunch,
+                PurgeTarget::MenuEntry,
                 PurgeTarget::Directory("/home/me/.local/share/tunneler/logs".into()),
                 PurgeTarget::Directory("/home/me/.local/share/com.minimalstuff.tunneler".into()),
             ]
@@ -179,6 +185,7 @@ mod tests {
             build_plan(&layout, false, &BTreeSet::new(), false),
             vec![
                 PurgeTarget::LoginLaunch,
+                PurgeTarget::MenuEntry,
                 PurgeTarget::Directory("/opt/tunneler/data/logs".into()),
                 PurgeTarget::Directory("/opt/tunneler/data/webview".into()),
                 PurgeTarget::File("/opt/tunneler/tunnels.toml".into()),
@@ -210,7 +217,7 @@ mod tests {
     fn should_remove_the_notification_identity_after_the_webview_when_the_platform_has_one() {
         let plan = build_plan(&user_layout(), false, &entries(), true);
 
-        assert_eq!(plan[3], PurgeTarget::NotificationIdentity);
+        assert_eq!(plan[4], PurgeTarget::NotificationIdentity);
     }
 
     #[test]
@@ -225,6 +232,13 @@ mod tests {
         let plan = build_plan(&user_layout(), false, &entries(), false);
 
         assert!(!plan.contains(&PurgeTarget::NotificationIdentity));
+    }
+
+    #[test]
+    fn should_remove_the_menu_entry_even_when_the_configuration_is_kept() {
+        let plan = build_plan(&user_layout(), true, &entries(), false);
+
+        assert!(plan.contains(&PurgeTarget::MenuEntry));
     }
 
     #[test]

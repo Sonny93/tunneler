@@ -85,6 +85,7 @@ Keep `tunneler` and `tunneler-ui` in the same folder: the daemon looks for `tunn
 Removing the programs leaves your files behind. `tunneler purge` removes what Tunneler left on the machine, except the programs. It stops the daemon, then removes:
 
 - the launch-at-login entry;
+- the application menu entry and its icons, if you ran `tunneler desktop-entry install`;
 - the logs and the window's web data;
 - `tunnels.toml` and `state.toml`;
 - the passphrases in the system keyring that `state.toml` lists;

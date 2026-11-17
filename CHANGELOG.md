@@ -7,6 +7,7 @@ All notable changes to Tunneler are written here for the people who use it. The 
 ### Added
 
 - `tunneler status` prints the path of the configuration file in use. When that file does not exist but earlier portable copies do, it lists them, and when a portable copy ignores the tunnels file in your user directory, it says so.
+- `tunneler desktop-entry install` adds Tunneler and its icon to the application menu on Linux, for the tar.gz archive that has no installer; `uninstall` and `tunneler purge` remove them. The daemon keeps an existing entry pointing at the current program, and the getting started page shows a mise `postinstall` line that does the same at every install or upgrade.
 
 ### Changed
 
