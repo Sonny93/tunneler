@@ -4441,9 +4441,13 @@ async fn should_not_start_a_second_detection_when_one_is_running() {
     harness.program_locator.hang();
     let engine = harness.engine.clone();
     let first = tokio::spawn(async move { engine.refresh_detected_openers().await });
-    while harness.program_locator.lookup_count() == lookups_before {
-        tokio::task::yield_now().await;
-    }
+    timeout(WAIT, async {
+        while harness.program_locator.lookup_count() == lookups_before {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
 
     harness.engine.refresh_detected_openers().await;
 
@@ -4462,4 +4466,28 @@ async fn should_detect_again_when_the_previous_detection_ended() {
     harness.engine.refresh_detected_openers().await;
 
     assert!(harness.program_locator.lookup_count() > lookups_after_first);
+}
+
+#[tokio::test]
+async fn should_not_publish_a_change_when_the_detection_ends_after_the_shutdown() {
+    let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    let lookups_before = harness.program_locator.lookup_count();
+    harness.program_locator.install("vncviewer");
+    harness.program_locator.hang();
+    let engine = harness.engine.clone();
+    let refresh = tokio::spawn(async move { engine.refresh_detected_openers().await });
+    timeout(WAIT, async {
+        while harness.program_locator.lookup_count() == lookups_before {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    harness.engine.shutdown().await;
+    while harness.events.try_recv().is_ok() {}
+
+    harness.program_locator.release();
+    refresh.await.unwrap();
+
+    assert!(harness.events.try_recv().is_err());
 }

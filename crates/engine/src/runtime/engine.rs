@@ -488,7 +488,8 @@ impl Engine {
             let locator = Arc::clone(&engine.inner.program_locator);
             let platform = engine.inner.preset_platform;
             let detected = run_blocking(move || detect_presets(locator.as_ref(), platform)).await;
-            if engine.replace_detected_openers(detected) {
+            let is_changed = engine.replace_detected_openers(detected);
+            if is_changed && !engine.inner.is_shut_down.load(Ordering::SeqCst) {
                 engine.inner.bus.publish(EngineEvent::ConfigReloaded);
             }
         });
