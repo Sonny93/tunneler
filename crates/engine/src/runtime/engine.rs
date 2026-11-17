@@ -7,6 +7,8 @@ use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::{broadcast, oneshot, watch};
 use tokio::task::JoinHandle;
+use tokio::time::timeout;
+use tracing::warn;
 
 use crate::blocking::run_blocking;
 use crate::clock::Clock;
@@ -43,6 +45,19 @@ use crate::store::{
 use crate::x11::{
     LocalX11Resolver, LocalX11Servers, X11Environment, X11Error, X11Probe, X11ServerControl,
 };
+
+/// How long opening a tunnel waits for the detection of the built-in openers
+/// before it goes on with the openers already known: a hung mount in the
+/// `PATH` must not block the opening.
+const OPENER_REFRESH_TIMEOUT: Duration = Duration::from_secs(1);
+
+struct RefreshGuard<'flag>(&'flag AtomicBool);
+
+impl Drop for RefreshGuard<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
 
 /// Why an engine operation failed.
 #[derive(Debug, Error)]
@@ -255,6 +270,7 @@ pub(crate) struct EngineInner {
     reload_task: Mutex<Option<JoinHandle<()>>>,
     scan_task: Mutex<Option<JoinHandle<()>>>,
     pub(crate) is_shut_down: AtomicBool,
+    is_refreshing: AtomicBool,
 }
 
 impl EngineInner {
@@ -339,7 +355,6 @@ impl Engine {
             program_locator,
             preset_platform,
         } = dependencies;
-        let detected_openers = detect_presets(program_locator.as_ref(), preset_platform);
         let store = Arc::new(store);
         if store.has_pending_normalization() {
             store.save(store.document())?;
@@ -405,12 +420,13 @@ impl Engine {
             catalog: Mutex::new(Catalog::new(factory, document.tunnels)),
             mutation: tokio::sync::Mutex::new(()),
             tunnel_ready_timeout: options.tunnel_ready_timeout,
+            detected_openers: Mutex::new(detect_presets(program_locator.as_ref(), preset_platform)),
             program_locator,
             preset_platform,
-            detected_openers: Mutex::new(detected_openers),
             reload_task: Mutex::new(None),
             scan_task: Mutex::new(None),
             is_shut_down: AtomicBool::new(false),
+            is_refreshing: AtomicBool::new(false),
         });
         let reload_task = tokio::spawn(run_reload_loop(Arc::downgrade(&inner), watcher));
         *inner
@@ -458,13 +474,26 @@ impl Engine {
     /// [`EngineEvent::ConfigReloaded`], the event that tells clients to read
     /// the snapshot again, only when the detected openers changed.
     ///
-    /// The look checks many paths on disk: it runs off the async runtime.
+    /// The look checks many paths on disk: it runs off the async runtime, in
+    /// a task that outlives this call. At most one look runs at a time: when
+    /// one is already running, this returns at once and the list held stays
+    /// as it is until that look ends.
     pub async fn refresh_detected_openers(&self) {
-        let locator = Arc::clone(&self.inner.program_locator);
-        let platform = self.inner.preset_platform;
-        let detected = run_blocking(move || detect_presets(locator.as_ref(), platform)).await;
-        if self.replace_detected_openers(detected) {
-            self.inner.bus.publish(EngineEvent::ConfigReloaded);
+        if self.inner.is_refreshing.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        let engine = self.clone();
+        let task = tokio::spawn(async move {
+            let _release = RefreshGuard(&engine.inner.is_refreshing);
+            let locator = Arc::clone(&engine.inner.program_locator);
+            let platform = engine.inner.preset_platform;
+            let detected = run_blocking(move || detect_presets(locator.as_ref(), platform)).await;
+            if engine.replace_detected_openers(detected) {
+                engine.inner.bus.publish(EngineEvent::ConfigReloaded);
+            }
+        });
+        if task.await.is_err() {
+            warn!("the detection of the built-in openers failed");
         }
     }
 
@@ -712,7 +741,12 @@ impl Engine {
         with: Option<&str>,
     ) -> Result<OpenPlan, EngineError> {
         self.ensure_running()?;
-        self.refresh_detected_openers().await;
+        if timeout(OPENER_REFRESH_TIMEOUT, self.refresh_detected_openers())
+            .await
+            .is_err()
+        {
+            warn!("the detection of the built-in openers is slow: using the openers already known");
+        }
         let definition = self
             .tunnel_snapshot(id)
             .ok_or(EngineError::UnknownTunnel(id))?

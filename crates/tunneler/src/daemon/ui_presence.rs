@@ -25,10 +25,11 @@ pub(crate) const fn has_ui_just_connected(was_ui_present: bool, is_ui_present: b
     !was_ui_present && is_ui_present
 }
 
-async fn apply_presence(engine: &Engine, was_ui_present: bool, is_ui_present: bool) {
+fn apply_presence(engine: &Engine, was_ui_present: bool, is_ui_present: bool) {
     engine.set_port_scanning(is_ui_present);
     if has_ui_just_connected(was_ui_present, is_ui_present) {
-        engine.refresh_detected_openers().await;
+        let engine = engine.clone();
+        tokio::spawn(async move { engine.refresh_detected_openers().await });
     }
 }
 
@@ -36,7 +37,8 @@ async fn apply_presence(engine: &Engine, was_ui_present: bool, is_ui_present: bo
 ///
 /// It is on while at least one `ui` client is connected and off otherwise.
 /// When the first `ui` client connects, the engine also detects the built-in
-/// openers again. The task ends when `shutdown` is cancelled.
+/// openers again, in a task the follower does not wait for (a hung mount in
+/// the `PATH` must not hold back the shutdown or the port scanning). The task ends when `shutdown` is cancelled.
 pub(crate) fn spawn_ui_presence_follower(
     engine: Engine,
     server: ServerHandle,
@@ -45,7 +47,7 @@ pub(crate) fn spawn_ui_presence_follower(
     let mut notifications = server.subscribe_connections();
     tokio::spawn(async move {
         let mut is_ui_present = ui_wanted(&server);
-        apply_presence(&engine, is_ui_present, is_ui_present).await;
+        apply_presence(&engine, is_ui_present, is_ui_present);
         loop {
             tokio::select! {
                 () = shutdown.cancelled() => return,
@@ -55,7 +57,7 @@ pub(crate) fn spawn_ui_presence_follower(
                     }
                     let was_ui_present = is_ui_present;
                     is_ui_present = ui_wanted(&server);
-                    apply_presence(&engine, was_ui_present, is_ui_present).await;
+                    apply_presence(&engine, was_ui_present, is_ui_present);
                 }
             }
         }
