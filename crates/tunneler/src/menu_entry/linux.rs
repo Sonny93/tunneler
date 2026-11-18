@@ -11,7 +11,7 @@ use super::files::MenuEntryFiles;
 use super::programs::{
     expected_ui_program, find_ui_program, has_control_character, is_package_managed,
 };
-use super::{MenuEntry, MenuEntryError, MenuEntryReport};
+use super::{InstallReport, MenuEntry, MenuEntryError};
 use crate::daemon::login_launch::repoint_owned_entry;
 
 struct SystemMenuEntry;
@@ -40,7 +40,7 @@ pub(crate) fn system_menu_entry() -> Arc<dyn MenuEntry> {
 /// Fails, writing nothing, when the executable is managed by a package, when
 /// `tunneler-ui` is not next to it, or when a `.desktop` file that Tunneler
 /// did not write is in the way.
-pub(crate) fn install_menu_entry() -> Result<MenuEntryReport, MenuEntryError> {
+pub(crate) fn install_menu_entry() -> Result<InstallReport, MenuEntryError> {
     let executable = current_executable()?;
     if is_package_managed(&executable) {
         return Err(MenuEntryError::PackageManaged { executable });
@@ -51,23 +51,17 @@ pub(crate) fn install_menu_entry() -> Result<MenuEntryReport, MenuEntryError> {
         })?;
     reject_control_characters(&ui_program)?;
     let files = system_files()?.install(&ui_program)?;
-    let repointed_autostart = repoint_owned_entry(&executable)?;
-    Ok(MenuEntryReport {
-        files,
-        repointed_autostart,
-    })
+    let autostart = repoint_owned_entry(&executable)?;
+    Ok(InstallReport { files, autostart })
 }
 
-/// Removes the entry and the icons.
+/// Removes the entry and the icons, and returns what was removed.
 ///
 /// # Errors
 ///
 /// Fails, removing nothing, when the `.desktop` file is not Tunneler's.
-pub(crate) fn uninstall_menu_entry() -> Result<MenuEntryReport, MenuEntryError> {
-    Ok(MenuEntryReport {
-        files: system_files()?.uninstall()?,
-        repointed_autostart: None,
-    })
+pub(crate) fn uninstall_menu_entry() -> Result<Vec<PathBuf>, MenuEntryError> {
+    system_files()?.uninstall()
 }
 
 /// Points an installed entry at the `tunneler-ui` next to the running

@@ -95,8 +95,8 @@ pub struct Purger<'a> {
 
 impl Purger<'_> {
     /// The targets of `plan` that exist, so that the user is told about what is
-    /// really there. A launch-at-login entry, a notification identity and a
-    /// keyring passphrase cannot be probed cheaply, they always stay.
+    /// really there. A notification identity and a keyring passphrase cannot
+    /// be probed cheaply, they always stay.
     pub fn retain_present(&self, plan: Vec<PurgeTarget>) -> Vec<PurgeTarget> {
         plan.into_iter()
             .filter(|target| match target {
@@ -105,9 +105,8 @@ impl Purger<'_> {
                 | PurgeTarget::StateFile(path)
                 | PurgeTarget::DirectoryIfEmpty(path) => self.filesystem.exists(path),
                 PurgeTarget::MenuEntry => self.menu_entry.is_installed(),
-                PurgeTarget::LoginLaunch
-                | PurgeTarget::NotificationIdentity
-                | PurgeTarget::KeyringPassphrase(_) => true,
+                PurgeTarget::LoginLaunch => self.login_launch.is_installed(),
+                PurgeTarget::NotificationIdentity | PurgeTarget::KeyringPassphrase(_) => true,
             })
             .collect()
     }
@@ -249,6 +248,7 @@ mod tests {
     }
 
     struct FakeLoginLaunch<'a> {
+        presence: Presence,
         journal: &'a Journal,
     }
 
@@ -260,22 +260,26 @@ mod tests {
                 .push(format!("login launch enabled={is_enabled}"));
             Ok(())
         }
+
+        fn is_installed(&self) -> bool {
+            matches!(self.presence, Presence::Installed)
+        }
     }
 
     #[derive(Clone, Copy)]
-    enum MenuEntryPresence {
+    enum Presence {
         Installed,
         Absent,
     }
 
     struct FakeMenuEntry<'a> {
-        presence: MenuEntryPresence,
+        presence: Presence,
         journal: &'a Journal,
     }
 
     impl MenuEntry for FakeMenuEntry<'_> {
         fn is_installed(&self) -> bool {
-            matches!(self.presence, MenuEntryPresence::Installed)
+            matches!(self.presence, Presence::Installed)
         }
 
         fn remove(&self) -> Result<(), MenuEntryError> {
@@ -336,7 +340,8 @@ mod tests {
         is_daemon_running: bool,
         is_daemon_failing: bool,
         is_keyring_failing: bool,
-        menu_entry: MenuEntryPresence,
+        menu_entry: Presence,
+        login_launch: Presence,
         existing: BTreeSet<PathBuf>,
         failing: BTreeSet<PathBuf>,
     }
@@ -348,7 +353,8 @@ mod tests {
                 is_daemon_running: false,
                 is_daemon_failing: false,
                 is_keyring_failing: false,
-                menu_entry: MenuEntryPresence::Installed,
+                menu_entry: Presence::Installed,
+                login_launch: Presence::Installed,
                 existing: BTreeSet::new(),
                 failing: BTreeSet::new(),
             }
@@ -366,6 +372,7 @@ mod tests {
                 journal: &self.journal,
             };
             let login_launch = FakeLoginLaunch {
+                presence: self.login_launch,
                 journal: &self.journal,
             };
             let keyring = FakeKeyring {
@@ -403,6 +410,7 @@ mod tests {
                 journal: &self.journal,
             };
             let login_launch = FakeLoginLaunch {
+                presence: self.login_launch,
                 journal: &self.journal,
             };
             let keyring = FakeKeyring {
@@ -567,10 +575,29 @@ mod tests {
     #[test]
     fn should_skip_the_menu_entry_when_none_is_installed() {
         let mut fixture = Fixture::new();
-        fixture.menu_entry = MenuEntryPresence::Absent;
+        fixture.menu_entry = Presence::Absent;
 
         let present = fixture.retain_present(vec![PurgeTarget::MenuEntry]);
 
         assert_eq!(present, vec![]);
+    }
+
+    #[test]
+    fn should_skip_the_login_launch_entry_when_none_is_installed() {
+        let mut fixture = Fixture::new();
+        fixture.login_launch = Presence::Absent;
+
+        let present = fixture.retain_present(vec![PurgeTarget::LoginLaunch]);
+
+        assert_eq!(present, vec![]);
+    }
+
+    #[test]
+    fn should_keep_the_login_launch_entry_when_it_is_installed() {
+        let fixture = Fixture::new();
+
+        let present = fixture.retain_present(vec![PurgeTarget::LoginLaunch]);
+
+        assert_eq!(present, vec![PurgeTarget::LoginLaunch]);
     }
 }

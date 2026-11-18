@@ -64,6 +64,10 @@ pub(crate) trait LoginLaunch: Send + Sync {
     /// `is_enabled`, and removes it otherwise. Does nothing when the entry is
     /// already as wanted.
     fn apply(&self, is_enabled: bool) -> Result<(), LoginLaunchError>;
+
+    /// Whether an entry that Tunneler wrote is there. Errs on the side of
+    /// `true` when that cannot be told.
+    fn is_installed(&self) -> bool;
 }
 
 /// The entry of the platform the daemon runs on.
@@ -150,6 +154,10 @@ mod tests {
                 return Err(LoginLaunchError::Executable(io::Error::other("failing")));
             }
             Ok(())
+        }
+
+        fn is_installed(&self) -> bool {
+            true
         }
     }
 

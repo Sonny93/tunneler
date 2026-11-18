@@ -16,4 +16,8 @@ impl LoginLaunch for SystemLoginLaunch {
         }
         Ok(())
     }
+
+    fn is_installed(&self) -> bool {
+        false
+    }
 }

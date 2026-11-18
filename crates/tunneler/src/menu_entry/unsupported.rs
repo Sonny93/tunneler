@@ -1,8 +1,9 @@
 //! Systems without XDG desktops: there is no menu entry to manage.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use super::{MenuEntry, MenuEntryError, MenuEntryReport};
+use super::{InstallReport, MenuEntry, MenuEntryError};
 
 struct UnsupportedMenuEntry;
 
@@ -22,12 +23,12 @@ pub(crate) fn system_menu_entry() -> Arc<dyn MenuEntry> {
 }
 
 /// Always fails: only Linux has this entry.
-pub(crate) fn install_menu_entry() -> Result<MenuEntryReport, MenuEntryError> {
+pub(crate) fn install_menu_entry() -> Result<InstallReport, MenuEntryError> {
     Err(MenuEntryError::Unsupported)
 }
 
 /// Always fails: only Linux has this entry.
-pub(crate) fn uninstall_menu_entry() -> Result<MenuEntryReport, MenuEntryError> {
+pub(crate) fn uninstall_menu_entry() -> Result<Vec<PathBuf>, MenuEntryError> {
     Err(MenuEntryError::Unsupported)
 }
 

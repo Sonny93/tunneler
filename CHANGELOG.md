@@ -4,6 +4,11 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Fixed
+
+- `tunneler desktop-entry install` no longer says it wrote the files it left as they were: it prints `Unchanged` for them.
+- `tunneler purge --dry-run` no longer lists the launch-at-login entry when there is none.
+
 ## [0.6.0] - 2026-11-18
 
 ### Added

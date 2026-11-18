@@ -6,6 +6,8 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 
+use crate::file_change::FileChange;
+
 const EXEC_RESERVED_CHARACTERS: &str = " \t\n\"'\\><~|&;$*?#()`";
 
 /// Whether `content` carries `ownership_line` on a line of its own: the mark
@@ -40,6 +42,19 @@ fn write_synced(path: &Path, content: &[u8]) -> io::Result<()> {
     let mut file = fs::File::create(path)?;
     file.write_all(content)?;
     file.sync_all()
+}
+
+/// Writes `content` to `path` like [`write_atomically`], unless the file
+/// already holds exactly that, in which case it is not touched.
+pub(crate) fn write_if_changed(path: &Path, content: &[u8]) -> io::Result<FileChange> {
+    match fs::read(path) {
+        Ok(existing) if existing == content => return Ok(FileChange::Unchanged),
+        Ok(_) => {}
+        Err(source) if source.kind() == io::ErrorKind::NotFound => {}
+        Err(source) => return Err(source),
+    }
+    write_atomically(path, content)?;
+    Ok(FileChange::Written)
 }
 
 /// Quotes one argument of an `Exec` key: arguments with reserved characters
@@ -158,5 +173,30 @@ mod tests {
             .map(|file| file.unwrap().file_name())
             .collect();
         assert_eq!(names, vec!["entry.desktop"]);
+    }
+
+    #[test]
+    fn should_report_the_file_as_written_when_it_is_missing_or_different() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("entry.desktop");
+
+        let created = write_if_changed(&path, b"one").unwrap();
+        let replaced = write_if_changed(&path, b"two").unwrap();
+
+        assert_eq!(created, FileChange::Written);
+        assert_eq!(replaced, FileChange::Written);
+        assert_eq!(fs::read(&path).unwrap(), b"two");
+    }
+
+    #[test]
+    fn should_report_the_file_as_unchanged_when_it_already_has_the_content() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("entry.desktop");
+        write_if_changed(&path, b"one").unwrap();
+
+        assert_eq!(
+            write_if_changed(&path, b"one").unwrap(),
+            FileChange::Unchanged
+        );
     }
 }

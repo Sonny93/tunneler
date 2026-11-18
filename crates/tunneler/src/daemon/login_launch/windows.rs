@@ -34,6 +34,16 @@ impl LoginLaunch for SystemLoginLaunch {
             _ => Ok(()),
         }
     }
+
+    fn is_installed(&self) -> bool {
+        match RegKey::predef(HKEY_CURRENT_USER).open_subkey(RUN_KEY_PATH) {
+            Ok(run_key) => match run_key.get_raw_value(VALUE_NAME) {
+                Ok(_) => true,
+                Err(error) => error.kind() != io::ErrorKind::NotFound,
+            },
+            Err(error) => error.kind() != io::ErrorKind::NotFound,
+        }
+    }
 }
 
 fn run_command(executable: &Path) -> String {

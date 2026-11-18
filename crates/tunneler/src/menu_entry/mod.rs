@@ -33,6 +33,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 use crate::daemon::login_launch::LoginLaunchError;
+use crate::file_change::ChangedFile;
 
 /// Why the menu entry could not be installed, removed or refreshed.
 #[derive(Debug, Error)]
@@ -61,13 +62,13 @@ pub(crate) enum MenuEntryError {
     Autostart(#[from] LoginLaunchError),
 }
 
-/// What an install or an uninstall did to the files.
+/// What an install did to the files.
 #[derive(Debug, Default, PartialEq, Eq)]
-pub(crate) struct MenuEntryReport {
-    /// The files written or removed, the entry first.
-    pub(crate) files: Vec<PathBuf>,
-    /// The launch-at-login entry that was pointed at the running executable.
-    pub(crate) repointed_autostart: Option<PathBuf>,
+pub(crate) struct InstallReport {
+    /// The menu entry then its icons.
+    pub(crate) files: Vec<ChangedFile>,
+    /// The launch-at-login entry, when Tunneler wrote one.
+    pub(crate) autostart: Option<ChangedFile>,
 }
 
 /// The menu entry of the machine, as far as `purge` is concerned.

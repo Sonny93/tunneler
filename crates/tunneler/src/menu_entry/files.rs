@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 
 use super::MenuEntryError;
 use super::entry_text::{is_written_by_tunneler, render_menu_entry};
-use crate::desktop_file::{read_if_exists, write_atomically};
+use crate::desktop_file::{read_if_exists, write_atomically, write_if_changed};
+use crate::file_change::ChangedFile;
 use crate::layout::APPLICATION_IDENTIFIER;
 
 const APPLICATIONS_DIRECTORY: &str = "applications";
@@ -61,22 +62,22 @@ impl MenuEntryFiles {
         }
     }
 
-    /// Writes the icons, then the entry pointing at `ui_program`, and returns
-    /// what was written.
+    /// Writes the icons, then the entry pointing at `ui_program`, each only
+    /// when it is missing or different, and returns what happened to each
+    /// file, the entry first.
     ///
     /// # Errors
     ///
     /// Fails, writing nothing, when a `.desktop` file that Tunneler did not
     /// write is already there.
-    pub(super) fn install(&self, ui_program: &Path) -> Result<Vec<PathBuf>, MenuEntryError> {
+    pub(super) fn install(&self, ui_program: &Path) -> Result<Vec<ChangedFile>, MenuEntryError> {
         self.reject_foreign_entry()?;
+        let entry = write_changed(&self.entry_path, render_menu_entry(ui_program).as_bytes())?;
+        let mut files = vec![entry];
         for (path, icon) in self.icon_paths.iter().zip(&MENU_ICONS) {
-            write_atomically(path, icon.content).map_err(|source| io_error(path, source))?;
+            files.push(write_changed(path, icon.content)?);
         }
-        self.write_entry(ui_program)?;
-        let mut written = vec![self.entry_path.clone()];
-        written.extend(self.icon_paths.iter().cloned());
-        Ok(written)
+        Ok(files)
     }
 
     /// Points the entry at `ui_program` when Tunneler wrote it and it points
@@ -137,6 +138,14 @@ impl MenuEntryFiles {
     }
 }
 
+fn write_changed(path: &Path, content: &[u8]) -> Result<ChangedFile, MenuEntryError> {
+    let change = write_if_changed(path, content).map_err(|source| io_error(path, source))?;
+    Ok(ChangedFile {
+        path: path.to_path_buf(),
+        change,
+    })
+}
+
 fn icon_path(data_directory: &Path, icon: &MenuIcon) -> PathBuf {
     data_directory
         .join(ICONS_DIRECTORY)
@@ -165,7 +174,10 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
+    use std::os::unix::fs::MetadataExt;
+
     use super::*;
+    use crate::file_change::FileChange;
 
     const UI_PROGRAM: &str = "/opt/tunneler/tunneler-ui";
     const FOREIGN_ENTRY: &str = "[Desktop Entry]\nName=Someone else\n";
@@ -187,10 +199,63 @@ mod tests {
         let written = files.install(Path::new(UI_PROGRAM)).unwrap();
 
         assert_eq!(written.len(), 4);
-        assert!(written.iter().all(|path| path.is_file()));
+        assert!(
+            written
+                .iter()
+                .all(|file| file.change == FileChange::Written)
+        );
+        assert!(written.iter().all(|file| file.path.is_file()));
         assert_eq!(
             fs::read_to_string(&files.entry_path).unwrap(),
             render_menu_entry(Path::new(UI_PROGRAM))
+        );
+    }
+
+    #[test]
+    fn should_report_every_file_unchanged_and_not_replace_it_when_installing_twice() {
+        let directory = tempfile::tempdir().unwrap();
+        let files = files_in(&directory);
+        let first = files.install(Path::new(UI_PROGRAM)).unwrap();
+        let inodes: Vec<u64> = first
+            .iter()
+            .map(|file| fs::metadata(&file.path).unwrap().ino())
+            .collect();
+
+        let second = files.install(Path::new(UI_PROGRAM)).unwrap();
+
+        assert!(
+            second
+                .iter()
+                .all(|file| file.change == FileChange::Unchanged)
+        );
+        let inodes_after: Vec<u64> = second
+            .iter()
+            .map(|file| fs::metadata(&file.path).unwrap().ino())
+            .collect();
+        assert_eq!(inodes_after, inodes);
+    }
+
+    #[test]
+    fn should_report_only_the_entry_written_when_installing_with_another_program() {
+        let directory = tempfile::tempdir().unwrap();
+        let files = files_in(&directory);
+        files.install(Path::new("/old/tunneler-ui")).unwrap();
+
+        let changes: Vec<FileChange> = files
+            .install(Path::new(UI_PROGRAM))
+            .unwrap()
+            .iter()
+            .map(|file| file.change)
+            .collect();
+
+        assert_eq!(
+            changes,
+            vec![
+                FileChange::Written,
+                FileChange::Unchanged,
+                FileChange::Unchanged,
+                FileChange::Unchanged
+            ]
         );
     }
 

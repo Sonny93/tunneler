@@ -12,6 +12,7 @@ use super::{DAEMON_ARGUMENT, LoginLaunch, LoginLaunchError};
 use crate::desktop_file::{
     has_ownership_line, quote_exec_argument, read_if_exists, write_atomically,
 };
+use crate::file_change::{ChangedFile, FileChange};
 
 const AUTOSTART_DIRECTORY: &str = "autostart";
 const ENTRY_FILE_NAME: &str = "tunneler.desktop";
@@ -29,12 +30,21 @@ impl LoginLaunch for SystemLoginLaunch {
         let executable = std::env::current_exe().map_err(LoginLaunchError::Executable)?;
         entry.enable(&executable)
     }
+
+    fn is_installed(&self) -> bool {
+        BaseDirs::new().is_none_or(|base_directories| {
+            AutostartEntry::new(&base_directories.config_dir().join(AUTOSTART_DIRECTORY))
+                .is_installed()
+        })
+    }
 }
 
 /// Points the launch-at-login entry at `executable` when it exists and
-/// Tunneler wrote it, and returns its path then. Never creates it, and leaves
-/// a file that is not ours alone.
-pub(crate) fn repoint_owned_entry(executable: &Path) -> Result<Option<PathBuf>, LoginLaunchError> {
+/// Tunneler wrote it, and returns the entry and whether it had to be rewritten.
+/// Never creates it, and leaves a file that is not ours alone.
+pub(crate) fn repoint_owned_entry(
+    executable: &Path,
+) -> Result<Option<ChangedFile>, LoginLaunchError> {
     let base_directories = BaseDirs::new().ok_or(LoginLaunchError::NoConfigDirectory)?;
     let entry = AutostartEntry::new(&base_directories.config_dir().join(AUTOSTART_DIRECTORY));
     entry.repoint_if_owned(executable)
@@ -65,13 +75,31 @@ impl AutostartEntry {
         }
     }
 
-    fn repoint_if_owned(&self, executable: &Path) -> Result<Option<PathBuf>, LoginLaunchError> {
+    fn repoint_if_owned(&self, executable: &Path) -> Result<Option<ChangedFile>, LoginLaunchError> {
         match self.read()? {
             Some(existing) if is_written_by_tunneler(&existing) => {
-                self.enable(executable)?;
-                Ok(Some(self.path.clone()))
+                let change = if existing == desktop_entry(executable) {
+                    FileChange::Unchanged
+                } else {
+                    self.write(&desktop_entry(executable))?;
+                    FileChange::Written
+                };
+                Ok(Some(ChangedFile {
+                    path: self.path.clone(),
+                    change,
+                }))
             }
             _ => Ok(None),
+        }
+    }
+
+    /// Whether Tunneler's entry is there. A file that cannot be read counts as
+    /// there: better to list too much than to hide what a purge will try to
+    /// remove.
+    fn is_installed(&self) -> bool {
+        match self.read() {
+            Ok(existing) => existing.is_some_and(|content| is_written_by_tunneler(&content)),
+            Err(_) => true,
         }
     }
 
@@ -195,8 +223,57 @@ mod tests {
 
         let repointed = entry.repoint_if_owned(Path::new(EXECUTABLE)).unwrap();
 
-        assert_eq!(repointed, Some(entry.path.clone()));
+        assert_eq!(
+            repointed,
+            Some(ChangedFile {
+                path: entry.path.clone(),
+                change: FileChange::Written
+            })
+        );
         assert!(content_of(&entry).contains("Exec=/usr/bin/tunneler daemon\n"));
+    }
+
+    #[test]
+    fn should_report_the_entry_unchanged_when_it_already_points_at_the_executable() {
+        let directory = tempfile::tempdir().unwrap();
+        let entry = entry_in(&directory);
+        entry.enable(Path::new(EXECUTABLE)).unwrap();
+
+        let repointed = entry.repoint_if_owned(Path::new(EXECUTABLE)).unwrap();
+
+        assert_eq!(
+            repointed,
+            Some(ChangedFile {
+                path: entry.path.clone(),
+                change: FileChange::Unchanged
+            })
+        );
+    }
+
+    #[test]
+    fn should_not_be_installed_when_there_is_no_entry() {
+        let directory = tempfile::tempdir().unwrap();
+
+        assert!(!entry_in(&directory).is_installed());
+    }
+
+    #[test]
+    fn should_be_installed_when_the_entry_is_ours() {
+        let directory = tempfile::tempdir().unwrap();
+        let entry = entry_in(&directory);
+        entry.enable(Path::new(EXECUTABLE)).unwrap();
+
+        assert!(entry.is_installed());
+    }
+
+    #[test]
+    fn should_not_be_installed_when_the_file_is_not_ours() {
+        let directory = tempfile::tempdir().unwrap();
+        let entry = entry_in(&directory);
+        fs::create_dir_all(entry.path.parent().unwrap()).unwrap();
+        fs::write(&entry.path, "[Desktop Entry]\nName=Someone else\n").unwrap();
+
+        assert!(!entry.is_installed());
     }
 
     #[test]
