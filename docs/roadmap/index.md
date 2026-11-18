@@ -71,12 +71,13 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 - **Tar.gz upgrade under mise.** Install a version that still ships `portable`, add tunnels, then `mise upgrade` to the new one: the daemon should copy `tunnels.toml` and `state.toml` to the user's directories and log it, and the old folder should stay untouched. Then check that `mise upgrade --no-prune` keeps the old version.
 - **Sounds and notifications.** Standby sounds on a real desktop with PipeWire (`pw-play -`), and with PulseAudio only (`paplay`, never tried). D-Bus notifications.
 - **Tray under KDE.**
-- **Application menu entry of the archive.** `tunneler desktop-entry install` on KDE and on GNOME: the entry and its icon should show in the launcher, the window should group under that icon, and the entry should survive an update that moves the programs. With mise, the `postinstall` line of the [getting started](/guide/getting-started#linux) page should rewrite it at each install and upgrade.
+- **Application menu entry of the archive.** Checked on KDE, installed by the mise `postinstall` line of the [getting started](/guide/getting-started#linux) page: the entry, its icon, and the window grouping under it. Still to try: GNOME, and a `mise upgrade` from a version that already has the entry (the `postinstall` line should point it at the new folder).
 - **Screen reader.** Orca, listened to by a person. The keyboard pass and the accessibility tree were checked.
 - **Memory.** The UI weighs about 410 MiB PSS under Xvfb with software rendering. A real desktop with a GPU should be lower: a measurement would confirm it.
 
 ### Both
 - **X11.** VcXsrv on Windows and Xorg or Xwayland on Linux, against a real `sshd`: a remote `xeyes` should show up without `xauth`.
+- **Applications installed while Tunneler runs.** Install TigerVNC, Remmina or FreeRDP while Tunneler runs, then open the window: the application should show in Settings › Opening without a restart, and a tunnel on its port should open in it.
 - **SOCKS.** `curl --socks5` through a dynamic tunnel to a real `sshd`.
 - **The UI as a person sees it.** Forced standby (menu, selection bar, right-click on "All tunnels", tray entry), the drawers, the settings window and its tabs, the command palette, the collapsed side panel, tag rename and delete, the opening form and the applications section, standby badges, tooltips, right-click and multi-selection.
 - **Closing the settings window with unsaved changes.** Escape, a click outside and the close button should each ask "Discard your changes?". "Keep editing" should put the focus back on the field you were editing.
