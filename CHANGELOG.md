@@ -4,6 +4,8 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-18
+
 ### Added
 
 - `tunneler status` prints the path of the configuration file in use. When that file does not exist but earlier portable copies do, it lists them, and when a portable copy ignores the tunnels file in your user directory, it says so.
@@ -101,7 +103,8 @@ First release.
 - English and French, dark and light themes, and documentation opened from the app with F1.
 - A Windows installer, a Debian package, an AppImage and portable archives, with signed updates from the GitHub releases.
 
-[Unreleased]: https://github.com/Sonny93/tunneler/compare/v0.5.0...main
+[Unreleased]: https://github.com/Sonny93/tunneler/compare/v0.6.0...main
+[0.6.0]: https://github.com/Sonny93/tunneler/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Sonny93/tunneler/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Sonny93/tunneler/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Sonny93/tunneler/compare/v0.3.0...v0.4.0
