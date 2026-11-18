@@ -72,12 +72,14 @@ impl MenuEntryFiles {
     /// write is already there.
     pub(super) fn install(&self, ui_program: &Path) -> Result<Vec<ChangedFile>, MenuEntryError> {
         self.reject_foreign_entry()?;
+        let icons = self
+            .icon_paths
+            .iter()
+            .zip(&MENU_ICONS)
+            .map(|(path, icon)| write_changed(path, icon.content))
+            .collect::<Result<Vec<_>, _>>()?;
         let entry = write_changed(&self.entry_path, render_menu_entry(ui_program).as_bytes())?;
-        let mut files = vec![entry];
-        for (path, icon) in self.icon_paths.iter().zip(&MENU_ICONS) {
-            files.push(write_changed(path, icon.content)?);
-        }
-        Ok(files)
+        Ok(std::iter::once(entry).chain(icons).collect())
     }
 
     /// Points the entry at `ui_program` when Tunneler wrote it and it points
