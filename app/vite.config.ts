@@ -9,7 +9,11 @@ const isWindowsPlatform = process.env.TAURI_ENV_PLATFORM === 'windows';
 const isDebugBuild = Boolean(process.env.TAURI_ENV_DEBUG);
 
 export default defineConfig({
-	plugins: [react({ plugins: [linguiMacroSwcPlugin()] }), lingui(), UnoCSS({ inspector: false })],
+	plugins: [
+		react({ plugins: [linguiMacroSwcPlugin()] }),
+		lingui(),
+		UnoCSS({ inspector: false }),
+	],
 	clearScreen: false,
 	envPrefix: ['VITE_', 'TAURI_ENV_*'],
 	server: {
