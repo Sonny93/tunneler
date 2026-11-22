@@ -1,6 +1,8 @@
 # Tunnels from devslot
 
-devslot gives each checkout of a project its own ports and compose project on a machine. When your instances run on a host you reach over SSH, Tunneler can list them and open the tunnels to their ports in a few clicks, instead of you typing each port.
+[devslot](https://github.com/Sonny93/devslot) gives each checkout of a project its own ports and compose project on a machine. When your instances run on a host you reach over SSH, Tunneler can list them and open the tunnels to their ports in a few clicks, instead of you typing each port.
+
+To install devslot, follow the ["Install" section of its README](https://github.com/Sonny93/devslot#install): a prebuilt `.deb`, an Arch package or a tarball.
 
 ## Discover the instances
 
