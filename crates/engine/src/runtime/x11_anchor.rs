@@ -9,6 +9,7 @@ use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};
 use tracing::{error, info, warn};
 
+use crate::channel_event::{ChannelEvent, next_channel_event};
 use crate::clock::Clock;
 use crate::error::ConnectError;
 use crate::runtime::backoff::random_jitter_fraction;
@@ -18,10 +19,7 @@ use crate::runtime::session_manager::{AcquireError, SessionLease, SessionManager
 use crate::runtime::x11_state::X11AnchorState;
 use crate::session::SshSession;
 use crate::store::Settings;
-use crate::x11::{
-    ANCHOR_COMMAND, ChannelEvent, LocalX11Resolver, X11Error, next_channel_event,
-    read_display_line, start_command,
-};
+use crate::x11::{ANCHOR_COMMAND, LocalX11Resolver, X11Error, read_display_line, start_command};
 
 const FIRST_ATTEMPT: u32 = 1;
 const CLOSE_TIMEOUT: Duration = Duration::from_secs(5);

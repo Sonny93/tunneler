@@ -17,7 +17,8 @@ use crate::endpoint::Endpoint;
 use crate::error::ClientError;
 use crate::protocol::{
     AdoptResult, AvailableOpenerDto, CheckTargetResult, CredentialAnswer, CredentialResponseParams,
-    DaemonPathsResult, DeleteTagResult, EventMessage, ForgetSecretsResult, Hello,
+    DaemonPathsResult, DeleteTagResult, DevslotDiscoveryDto, DevslotResyncParams,
+    DevslotResyncResultDto, DevslotResyncTunnelDto, EventMessage, ForgetSecretsResult, Hello,
     HostKeyDecisionDto, HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto,
     ImportScriptParams, LogEntryDto, LogsResult, OpenTunnelParams, OpenTunnelResult, OpenerSpecDto,
     OpenersResult, PreviewSoundParams, ProcessParams, QuitParams, RememberDto, RenameTagResult,
@@ -264,6 +265,40 @@ impl IpcClient {
     pub async fn resolve_host(&self, host: &str) -> Result<ResolvedHostDto, ClientError> {
         self.call(Request::HostsResolve(HostParams {
             host: host.to_owned(),
+        }))
+        .await
+    }
+
+    /// Lists the devslot instances of a host and compares them with its
+    /// tunnels.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. The daemon answers
+    /// `not_found` for an unknown alias, and `devslot_not_found`,
+    /// `devslot_failed`, `devslot_invalid_output` or `remote_command_timeout`
+    /// when the host cannot give a listing.
+    pub async fn discover_devslot(&self, host: &str) -> Result<DevslotDiscoveryDto, ClientError> {
+        self.call(Request::DevslotDiscover(HostParams {
+            host: host.to_owned(),
+        }))
+        .await
+    }
+
+    /// Removes the stale devslot tunnels of a host that a discovery
+    /// returned.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn resync_devslot(
+        &self,
+        host: &str,
+        tunnels: Vec<DevslotResyncTunnelDto>,
+    ) -> Result<DevslotResyncResultDto, ClientError> {
+        self.call(Request::DevslotResync(DevslotResyncParams {
+            host: host.to_owned(),
+            tunnels,
         }))
         .await
     }

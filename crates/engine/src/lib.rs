@@ -54,11 +54,13 @@ mod agent;
 mod authentication;
 mod blocking;
 mod bounded;
+mod channel_event;
 mod client_config;
 mod clock;
 mod connect_timeouts;
 mod connection_chain;
 mod connector;
+mod devslot;
 mod error;
 mod external;
 mod handshake;
@@ -70,6 +72,7 @@ mod openers;
 mod opening;
 mod passphrase_vault;
 mod prompter;
+mod remote_command;
 mod remote_forwards;
 mod runtime;
 mod session;
@@ -83,6 +86,12 @@ pub use authentication::AuthenticationMethod;
 pub use clock::{Clock, SystemClock};
 pub use connect_timeouts::ConnectTimeouts;
 pub use connector::{Connector, ConnectorDependencies};
+pub use devslot::{
+    DevslotDiscovery, DevslotError, DevslotInstance, DevslotOrigin, DevslotPort, DevslotPortStatus,
+    DevslotResync, DevslotResyncTunnel, DevslotStaleAction, DevslotStaleReason, DevslotStaleTunnel,
+    DevslotWarning, MAX_DEVSLOT_INSTANCES, MAX_DEVSLOT_PORTS, MAX_DEVSLOT_PORTS_PER_INSTANCE,
+    devslot_project_tag,
+};
 pub use error::{ConnectError, HostKeyFailure, JumpChainError, SessionError, TransportError};
 pub use external::{
     ListeningSocket, PortOccupation, PortOwner, PortScanner, ProcessIdentity, ProcessInfo,
@@ -113,12 +122,13 @@ pub use runtime::{
 };
 pub use session::SshSession;
 pub use store::{
-    AppState, BROWSER_OPENER_ID, FileStateStore, HostOverrides, InvalidTunnelId, Language,
-    LoadOutcome, MAX_STANDBY_VOLUME, MIN_STANDBY_VOLUME, OpenDefault, OpenHost, OpenOptions,
-    OpenPathProblem, OpenScheme, Opener, OpenerIdProblem, Settings, SourceLocation, StandbyNotify,
-    StandbySound, StateStore, Store, StoreDocument, StoreError, StoreEvent, StoreWatcher,
-    TagProblem, TunnelDefinition, TunnelId, TunnelKind, TunnelReference, ValidationError,
-    X11Launcher, X11ServerStart, default_state_path, default_store_path,
+    AppState, BROWSER_OPENER_ID, DevslotPathProblem, DevslotStale, FileStateStore, HostNameProblem,
+    HostOverrides, InvalidTunnelId, Language, LoadOutcome, MAX_STANDBY_VOLUME, MIN_STANDBY_VOLUME,
+    OpenDefault, OpenHost, OpenOptions, OpenPathProblem, OpenScheme, Opener, OpenerIdProblem,
+    Settings, SourceLocation, StandbyNotify, StandbySound, StateStore, Store, StoreDocument,
+    StoreError, StoreEvent, StoreWatcher, TagProblem, TunnelDefinition, TunnelId, TunnelKind,
+    TunnelReference, ValidationError, X11Launcher, X11ServerStart, default_state_path,
+    default_store_path,
 };
 pub use x11::{
     DisplayPlatform, LocalX11Servers, SystemX11Environment, X11Environment, X11Error, X11Probe,

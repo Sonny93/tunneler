@@ -6,16 +6,19 @@ use engine::{
     StoreError, TunnelId, X11Error, preview_script, preview_ssh_config,
 };
 use ipc::protocol::{
-    AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, ForgetSecretsResult,
-    HostsResult, IpcError, LogsResult, OpenTunnelParams, OpenTunnelResult, OpenersResult,
-    PreviewSoundParams, ProcessParams, QuitParams, RenameTagResult, Request, ResponsePayload,
-    SettingsUpdateParams, TagParams, TagRenameParams, TunnelIdParams, UiClaimResult, X11HostParams,
-    X11LaunchParams,
+    AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, DevslotResyncParams,
+    ForgetSecretsResult, HostsResult, IpcError, LogsResult, OpenTunnelParams, OpenTunnelResult,
+    OpenersResult, PreviewSoundParams, ProcessParams, QuitParams, RenameTagResult, Request,
+    ResponsePayload, SettingsUpdateParams, TagParams, TagRenameParams, TunnelIdParams,
+    UiClaimResult, X11HostParams, X11LaunchParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
+use super::devslot_mapping::{
+    devslot_error_to_ipc, discovery_to_payload, resync_to_dto, resync_tunnels_from_dto,
+};
 use super::launch::Launcher;
 use super::mapping::{
     available_opener_to_dto, definition_from_dto, health_to_dto, import_preview_to_dto,
@@ -126,6 +129,8 @@ impl DaemonHandler {
             Request::TagsRename(params) => self.rename_tag(&params).await,
             Request::TagsDelete(params) => self.delete_tag(&params).await,
             Request::DaemonPaths {} => self.daemon_paths(),
+            Request::DevslotDiscover(params) => self.discover_devslot(&params.host).await,
+            Request::DevslotResync(params) => self.resync_devslot(params).await,
         }
     }
 
@@ -234,6 +239,43 @@ impl DaemonHandler {
         }))
     }
 
+    async fn discover_devslot(&self, host: &str) -> Result<ResponsePayload, IpcError> {
+        self.ensure_known_host(host).await?;
+        let discovery = self
+            .engine
+            .discover_devslot(host)
+            .await
+            .map_err(engine_error_to_ipc)?;
+        discovery_to_payload(&discovery).map(ResponsePayload::DevslotDiscovery)
+    }
+
+    async fn resync_devslot(
+        &self,
+        params: DevslotResyncParams,
+    ) -> Result<ResponsePayload, IpcError> {
+        self.ensure_known_host(&params.host).await?;
+        let tunnels = resync_tunnels_from_dto(params.tunnels)?;
+        let resync = self
+            .engine
+            .resync_devslot(&params.host, tunnels)
+            .await
+            .map_err(engine_error_to_ipc)?;
+        Ok(ResponsePayload::DevslotResync(resync_to_dto(&resync)))
+    }
+
+    async fn ensure_known_host(&self, host: &str) -> Result<(), IpcError> {
+        let hosts = Arc::clone(&self.hosts);
+        let known = run_blocking(move || hosts.list_hosts())
+            .await?
+            .map_err(|error| IpcError::internal(error.to_string()))?;
+        if known.iter().any(|alias| alias == host) {
+            return Ok(());
+        }
+        Err(IpcError::not_found(format!(
+            "no host alias \"{host}\" in the ssh_config"
+        )))
+    }
+
     fn daemon_paths(&self) -> Result<ResponsePayload, IpcError> {
         let config_file = std::path::absolute(self.engine.config_path())
             .map_err(|error| IpcError::internal(error.to_string()))?;
@@ -265,9 +307,10 @@ impl DaemonHandler {
         &self,
         spec: ipc::protocol::TemporaryTunnelSpecDto,
     ) -> Result<ResponsePayload, IpcError> {
+        let (new_tunnel, origin) = new_temporary_tunnel_from_spec(spec);
         let id = self
             .engine
-            .start_temporary_tunnel(new_temporary_tunnel_from_spec(spec))
+            .start_temporary_tunnel(new_tunnel, origin)
             .await
             .map_err(engine_error_to_ipc)?;
         self.tunnel_response(id)
@@ -547,7 +590,10 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         EngineError::UnknownTag(tag) => {
             IpcError::not_found(format!("no tunnel carries the tag \"{tag}\""))
         }
-        EngineError::InvalidTag { .. } => IpcError::validation_failed(&[error.to_string()]),
+        EngineError::InvalidTag { .. } | EngineError::InvalidDevslotProjectTag(_) => {
+            IpcError::validation_failed(&[error.to_string()])
+        }
+        EngineError::Devslot(failure) => devslot_error_to_ipc(&failure),
         EngineError::Store(error) => store_error_to_ipc(error),
         EngineError::ShutDown => IpcError::internal("the daemon is shutting down"),
         EngineError::NotExternal(_)
@@ -1872,6 +1918,7 @@ mod tests {
                         path: Some("/admin".to_owned()),
                         host: None,
                         with: None,
+                        host_name: None,
                     },
                     ..spec(listen_port)
                 }),
@@ -1923,6 +1970,7 @@ mod tests {
             path: Some("/admin".to_owned()),
             host: Some(OpenHostDto::Ip),
             with: None,
+            host_name: None,
         };
 
         let created = fixture
@@ -2192,6 +2240,8 @@ mod tests {
             listen_address: None,
             target_host: None,
             target_port: None,
+            open: ipc::protocol::OpenOptionsDto::default(),
+            devslot: None,
         }
     }
 
@@ -2366,5 +2416,181 @@ mod tests {
 
     fn settings_to_dto_of(fixture: &Fixture) -> SettingsDto {
         crate::daemon::mapping::settings_to_dto(&fixture.engine.snapshot().settings)
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_discovering_on_an_alias_the_ssh_config_lacks() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::DevslotDiscover(ipc::protocol::HostParams {
+                    host: "nowhere".to_owned(),
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_resyncing_on_an_alias_the_ssh_config_lacks() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::DevslotResync(ipc::protocol::DevslotResyncParams {
+                    host: "nowhere".to_owned(),
+                    tunnels: Vec::new(),
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    async fn should_not_answer_not_found_when_discovering_on_a_known_alias_that_is_unreachable() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::DevslotDiscover(ipc::protocol::HostParams {
+                    host: "dead".to_owned(),
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::Internal);
+    }
+
+    #[tokio::test]
+    async fn should_count_a_tunnel_as_removed_when_resyncing_one_that_no_longer_exists() {
+        let fixture = fixture();
+        let definition = ipc::protocol::TunnelDefinitionDto {
+            id: "01J9ZK3Q8M5N7R2T4V6X8Y0ABC".to_owned(),
+            spec: ipc::protocol::TunnelSpecDto {
+                host: "dead".to_owned(),
+                kind: TunnelKindDto::Local,
+                listen_port: 20050,
+                listen_address: None,
+                target_host: None,
+                target_port: None,
+                tags: vec!["devslot".to_owned()],
+                open: OpenOptionsDto::default(),
+                standby: None,
+            },
+        };
+
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::DevslotResync(ipc::protocol::DevslotResyncParams {
+                    host: "dead".to_owned(),
+                    tunnels: vec![ipc::protocol::DevslotResyncTunnelDto {
+                        id: definition.id.clone(),
+                        definition,
+                        is_temporary: false,
+                    }],
+                }),
+            )
+            .await
+            .unwrap();
+
+        let ResponsePayload::DevslotResync(result) = response else {
+            panic!("expected a resync result");
+        };
+        assert_eq!(
+            (result.removed, result.skipped),
+            (vec!["01J9ZK3Q8M5N7R2T4V6X8Y0ABC".to_owned()], Vec::new())
+        );
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_open_options_and_the_devslot_origin_when_a_temporary_tunnel_is_started()
+     {
+        let fixture = fixture();
+        let mut spec = temporary_spec(free_port().await);
+        spec.open.host_name = Some("my-app.localhost".to_owned());
+        spec.devslot = Some(ipc::protocol::DevslotOriginDto {
+            project_tag: Some("ds-web-shop".to_owned()),
+        });
+
+        let response = fixture
+            .handler
+            .dispatch(None, Request::TunnelStartTemporary(spec))
+            .await
+            .unwrap();
+
+        let ResponsePayload::Tunnel(tunnel) = response else {
+            panic!("expected a tunnel");
+        };
+        assert_eq!(
+            (
+                tunnel.definition.spec.open.host_name,
+                tunnel.devslot.and_then(|origin| origin.project_tag),
+                tunnel.definition.spec.tags
+            ),
+            (
+                Some("my-app.localhost".to_owned()),
+                Some("ds-web-shop".to_owned()),
+                Vec::new()
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_validation_failed_when_a_devslot_project_tag_lacks_the_prefix() {
+        let fixture = fixture();
+        let mut spec = temporary_spec(free_port().await);
+        spec.devslot = Some(ipc::protocol::DevslotOriginDto {
+            project_tag: Some("web-shop".to_owned()),
+        });
+
+        let error = fixture
+            .handler
+            .dispatch(None, Request::TunnelStartTemporary(spec))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::ValidationFailed);
+    }
+
+    #[tokio::test]
+    async fn should_save_the_devslot_tags_when_a_devslot_temporary_tunnel_is_persisted() {
+        let fixture = fixture();
+        let mut spec = temporary_spec(free_port().await);
+        spec.devslot = Some(ipc::protocol::DevslotOriginDto {
+            project_tag: Some("ds-web-shop".to_owned()),
+        });
+        let response = fixture
+            .handler
+            .dispatch(None, Request::TunnelStartTemporary(spec))
+            .await
+            .unwrap();
+        let ResponsePayload::Tunnel(tunnel) = response else {
+            panic!("expected a tunnel");
+        };
+
+        fixture
+            .handler
+            .dispatch(None, Request::TunnelPersist(tunnel_id_params(&tunnel)))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            fixture.engine.snapshot().tunnels[0].definition.tags,
+            vec!["devslot".to_owned(), "ds-web-shop".to_owned()]
+        );
     }
 }

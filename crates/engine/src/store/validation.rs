@@ -1,15 +1,19 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::time::Duration;
 
 use thiserror::Error;
 
 use super::model::{
-    BROWSER_OPENER_ID, MAX_STANDBY_VOLUME, MIN_STANDBY_VOLUME, Opener, Settings, StoreDocument,
-    TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
+    BROWSER_OPENER_ID, HostOverrides, MAX_STANDBY_VOLUME, MIN_STANDBY_VOLUME, Opener, Settings,
+    StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
 };
 
 const MIN_PORT: u16 = 1;
+const MAX_HOST_NAME_BYTES: usize = 253;
+const MAX_HOST_NAME_LABEL_BYTES: usize = 63;
+const MAX_DEVSLOT_PATH_BYTES: usize = 4096;
+const HOST_NAME_SUFFIX_LABEL: &str = "localhost";
 
 /// Names a tunnel in an error message.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,6 +71,43 @@ pub enum OpenPathProblem {
     /// The path contains whitespace.
     #[error("it contains whitespace")]
     ContainsWhitespace,
+    /// The path contains a control character.
+    #[error("it contains a control character")]
+    ContainsControlCharacter,
+}
+
+/// What is wrong with the host name of an open URL.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum HostNameProblem {
+    /// The name is not `<label>.localhost`, possibly with more labels before.
+    #[error("it must be a name ending with \".localhost\", with at least one label before")]
+    NotLocalhostSubdomain,
+    /// The name has an empty label.
+    #[error("it has an empty label")]
+    EmptyLabel,
+    /// A label holds something other than lowercase letters, digits and dashes.
+    #[error("labels may only hold lowercase letters, digits and dashes")]
+    InvalidCharacter,
+    /// A label starts or ends with a dash.
+    #[error("a label must not start or end with a dash")]
+    LabelEdgeDash,
+    /// A label is longer than 63 bytes.
+    #[error("a label is longer than {MAX_HOST_NAME_LABEL_BYTES} bytes")]
+    LabelTooLong,
+    /// The name is longer than 253 bytes.
+    #[error("it is longer than {MAX_HOST_NAME_BYTES} bytes")]
+    TooLong,
+}
+
+/// What is wrong with the path of the `ds` program of a host.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum DevslotPathProblem {
+    /// The path is empty.
+    #[error("it is empty")]
+    Empty,
+    /// The path is longer than 4096 bytes.
+    #[error("it is longer than {MAX_DEVSLOT_PATH_BYTES} bytes")]
+    TooLong,
     /// The path contains a control character.
     #[error("it contains a control character")]
     ContainsControlCharacter,
@@ -186,6 +227,24 @@ pub enum ValidationError {
         /// What is wrong with it.
         problem: OpenPathProblem,
     },
+    /// The host name of the open URL breaks the host name rules.
+    #[error("{tunnel}: open.host_name \"{host_name}\" is invalid: {problem}")]
+    InvalidOpenHostName {
+        /// The offending tunnel.
+        tunnel: TunnelReference,
+        /// The host name.
+        host_name: String,
+        /// What is wrong with it.
+        problem: HostNameProblem,
+    },
+    /// The `devslot_path` of a host is not acceptable.
+    #[error("hosts.{host}: devslot_path is invalid: {problem}")]
+    InvalidDevslotPath {
+        /// The host alias.
+        host: String,
+        /// What is wrong with it.
+        problem: DevslotPathProblem,
+    },
     /// The id of an opener is not acceptable.
     #[error("openers entry {position}: the id \"{id}\" is invalid: {problem}")]
     InvalidOpenerId {
@@ -293,6 +352,7 @@ pub(crate) fn validate(document: &StoreDocument) -> Result<(), Vec<ValidationErr
     let errors: Vec<ValidationError> = validate_settings(&document.settings)
         .into_iter()
         .chain(validate_tunnels(document))
+        .chain(validate_hosts(&document.hosts))
         .chain(validate_launchers(&document.x11_launchers))
         .chain(validate_openers(&document.openers))
         .collect();
@@ -392,7 +452,85 @@ fn validate_tunnel(tunnel: &TunnelDefinition) -> Vec<ValidationError> {
     errors.extend(validate_dynamic_target(tunnel, &reference));
     errors.extend(validate_tags(tunnel, &reference));
     errors.extend(validate_open_path(tunnel, &reference));
+    errors.extend(validate_open_host_name(tunnel, &reference));
     errors
+}
+
+fn validate_open_host_name(
+    tunnel: &TunnelDefinition,
+    reference: &TunnelReference,
+) -> Option<ValidationError> {
+    let host_name = tunnel.open.host_name.as_ref()?;
+    let problem = find_host_name_problem(host_name)?;
+    Some(ValidationError::InvalidOpenHostName {
+        tunnel: reference.clone(),
+        host_name: host_name.clone(),
+        problem,
+    })
+}
+
+/// Checks the rules of an open host name: `<label>(.<label>)*.localhost`,
+/// labels of lowercase ASCII letters, digits and dashes.
+pub(crate) fn find_host_name_problem(host_name: &str) -> Option<HostNameProblem> {
+    if host_name.len() > MAX_HOST_NAME_BYTES {
+        return Some(HostNameProblem::TooLong);
+    }
+    let labels: Vec<&str> = host_name.split('.').collect();
+    if let Some(problem) = labels.iter().find_map(|label| find_label_problem(label)) {
+        return Some(problem);
+    }
+    let is_subdomain_of_localhost =
+        labels.len() >= 2 && labels.last() == Some(&HOST_NAME_SUFFIX_LABEL);
+    if is_subdomain_of_localhost {
+        return None;
+    }
+    Some(HostNameProblem::NotLocalhostSubdomain)
+}
+
+fn find_label_problem(label: &str) -> Option<HostNameProblem> {
+    if label.is_empty() {
+        return Some(HostNameProblem::EmptyLabel);
+    }
+    if label.len() > MAX_HOST_NAME_LABEL_BYTES {
+        return Some(HostNameProblem::LabelTooLong);
+    }
+    let is_valid_character = |character: char| {
+        character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
+    };
+    if !label.chars().all(is_valid_character) {
+        return Some(HostNameProblem::InvalidCharacter);
+    }
+    if label.starts_with('-') || label.ends_with('-') {
+        return Some(HostNameProblem::LabelEdgeDash);
+    }
+    None
+}
+
+fn validate_hosts(hosts: &BTreeMap<String, HostOverrides>) -> Vec<ValidationError> {
+    hosts
+        .iter()
+        .filter_map(|(host, overrides)| {
+            let path = overrides.devslot_path.as_ref()?;
+            let problem = find_devslot_path_problem(path)?;
+            Some(ValidationError::InvalidDevslotPath {
+                host: host.clone(),
+                problem,
+            })
+        })
+        .collect()
+}
+
+pub(crate) fn find_devslot_path_problem(path: &str) -> Option<DevslotPathProblem> {
+    if path.is_empty() {
+        return Some(DevslotPathProblem::Empty);
+    }
+    if path.len() > MAX_DEVSLOT_PATH_BYTES {
+        return Some(DevslotPathProblem::TooLong);
+    }
+    if path.contains(char::is_control) {
+        return Some(DevslotPathProblem::ContainsControlCharacter);
+    }
+    None
 }
 
 fn validate_open_path(
@@ -1378,6 +1516,176 @@ mod tests {
                 "tunnel \"0 → nova:0\" ({}): listen_port must be between 1 and 65535, found 0",
                 definition.id
             )
+        );
+    }
+
+    fn host_name_problem_of(host_name: &str) -> Option<HostNameProblem> {
+        find_host_name_problem(host_name)
+    }
+
+    #[test]
+    fn should_accept_a_host_name_when_it_is_a_label_under_localhost() {
+        assert_eq!(host_name_problem_of("my-app-3f2a.localhost"), None);
+    }
+
+    #[test]
+    fn should_accept_a_host_name_when_it_has_several_labels_under_localhost() {
+        assert_eq!(host_name_problem_of("feat.my-app.localhost"), None);
+    }
+
+    #[test]
+    fn should_reject_a_host_name_when_it_has_an_uppercase_letter() {
+        assert_eq!(
+            host_name_problem_of("My-App.localhost"),
+            Some(HostNameProblem::InvalidCharacter)
+        );
+    }
+
+    #[test]
+    fn should_reject_a_host_name_when_it_is_localhost_alone() {
+        assert_eq!(
+            host_name_problem_of("localhost"),
+            Some(HostNameProblem::NotLocalhostSubdomain)
+        );
+    }
+
+    #[test]
+    fn should_reject_a_host_name_when_it_is_not_under_localhost() {
+        assert_eq!(
+            host_name_problem_of("evil.example"),
+            Some(HostNameProblem::NotLocalhostSubdomain)
+        );
+    }
+
+    #[test]
+    fn should_reject_a_host_name_when_it_is_an_ip_address() {
+        assert_eq!(
+            host_name_problem_of("127.0.0.1"),
+            Some(HostNameProblem::NotLocalhostSubdomain)
+        );
+    }
+
+    #[test]
+    fn should_reject_a_host_name_when_a_label_is_longer_than_63_bytes() {
+        assert_eq!(
+            host_name_problem_of(&format!("{}.localhost", "a".repeat(64))),
+            Some(HostNameProblem::LabelTooLong)
+        );
+    }
+
+    #[test]
+    fn should_accept_a_host_name_when_a_label_is_exactly_63_bytes() {
+        assert_eq!(
+            host_name_problem_of(&format!("{}.localhost", "a".repeat(63))),
+            None
+        );
+    }
+
+    #[test]
+    fn should_reject_a_host_name_when_it_is_longer_than_253_bytes() {
+        let name = format!("{}.localhost", vec!["a".repeat(60); 5].join("."));
+
+        assert_eq!(host_name_problem_of(&name), Some(HostNameProblem::TooLong));
+    }
+
+    #[test]
+    fn should_reject_a_host_name_when_a_label_is_empty() {
+        assert_eq!(
+            host_name_problem_of("a..localhost"),
+            Some(HostNameProblem::EmptyLabel)
+        );
+    }
+
+    #[test]
+    fn should_reject_a_host_name_when_a_label_starts_with_a_dash() {
+        assert_eq!(
+            host_name_problem_of("-a.localhost"),
+            Some(HostNameProblem::LabelEdgeDash)
+        );
+    }
+
+    #[test]
+    fn should_reject_a_tunnel_when_its_open_host_name_is_invalid() {
+        let definition = TunnelDefinition {
+            open: crate::store::OpenOptions {
+                host_name: Some("evil.example".to_owned()),
+                ..crate::store::OpenOptions::default()
+            },
+            ..tunnel(TunnelKind::Local)
+        };
+
+        assert!(matches!(
+            errors_of(&document_with(vec![definition])).as_slice(),
+            [ValidationError::InvalidOpenHostName {
+                problem: HostNameProblem::NotLocalhostSubdomain,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn should_reject_a_tunnel_definition_when_its_open_host_name_is_invalid() {
+        let definition = TunnelDefinition {
+            open: crate::store::OpenOptions {
+                host_name: Some("Evil.localhost".to_owned()),
+                ..crate::store::OpenOptions::default()
+            },
+            ..tunnel(TunnelKind::Local)
+        };
+
+        assert!(validate_tunnel_definition(&definition).is_err());
+    }
+
+    fn document_with_devslot_path(path: &str) -> StoreDocument {
+        let mut document = StoreDocument::default();
+        document.hosts.insert(
+            "vega".to_owned(),
+            HostOverrides {
+                devslot_path: Some(path.to_owned()),
+                ..HostOverrides::default()
+            },
+        );
+        document
+    }
+
+    fn devslot_path_problems(path: &str) -> Vec<DevslotPathProblem> {
+        errors_of(&document_with_devslot_path(path))
+            .into_iter()
+            .filter_map(|error| match error {
+                ValidationError::InvalidDevslotPath { problem, .. } => Some(problem),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn should_accept_a_devslot_path_when_it_is_a_plain_path() {
+        assert_eq!(devslot_path_problems("~/.cargo/bin/ds"), []);
+    }
+
+    #[test]
+    fn should_reject_a_devslot_path_when_it_is_empty() {
+        assert_eq!(devslot_path_problems(""), [DevslotPathProblem::Empty]);
+    }
+
+    #[test]
+    fn should_reject_a_devslot_path_when_it_is_longer_than_4096_bytes() {
+        assert_eq!(
+            devslot_path_problems(&"a".repeat(4097)),
+            [DevslotPathProblem::TooLong]
+        );
+    }
+
+    #[test]
+    fn should_accept_a_devslot_path_when_it_is_exactly_4096_bytes() {
+        assert_eq!(devslot_path_problems(&"a".repeat(4096)), []);
+    }
+
+    #[test]
+    fn should_reject_a_devslot_path_when_it_has_a_control_character() {
+        assert_eq!(
+            devslot_path_problems("ds\nrm"),
+            [DevslotPathProblem::ContainsControlCharacter]
         );
     }
 }

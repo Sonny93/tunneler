@@ -6,24 +6,24 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use engine::{
-    AvailableOpener, DefaultOpener, EngineEvent, EngineSnapshot, FailureReason, HostKeyDecision,
-    ImportCandidate, ImportPreview, ImportWarning, InvalidTunnelId, Language, LogLevel, NewTunnel,
-    OpenDefault, OpenHost, OpenOptions, OpenScheme, Opener, OpenerSource, PortOwner,
-    RejectedHostKey, RejectionReason, Retention, Settings, SshForward, StandbyNotify, StandbySound,
-    TargetHealth, TunnelDefinition, TunnelId, TunnelKind, TunnelLogEntry, TunnelMetrics,
-    TunnelSnapshot, TunnelState, UnmanagedProcess, X11AnchorSnapshot, X11AnchorState, X11Launcher,
-    X11Probe, X11ServerStart, default_opener,
+    AvailableOpener, DefaultOpener, DevslotOrigin, DevslotStale, EngineEvent, EngineSnapshot,
+    FailureReason, HostKeyDecision, ImportCandidate, ImportPreview, ImportWarning, InvalidTunnelId,
+    Language, LogLevel, NewTunnel, OpenDefault, OpenHost, OpenOptions, OpenScheme, Opener,
+    OpenerSource, PortOwner, RejectedHostKey, RejectionReason, Retention, Settings, SshForward,
+    StandbyNotify, StandbySound, TargetHealth, TunnelDefinition, TunnelId, TunnelKind,
+    TunnelLogEntry, TunnelMetrics, TunnelSnapshot, TunnelState, UnmanagedProcess,
+    X11AnchorSnapshot, X11AnchorState, X11Launcher, X11Probe, X11ServerStart, default_opener,
 };
 use ipc::protocol::{
-    AvailableOpenerDto, ConfigInvalidEvent, DefaultOpenerDto, EpochMillis, EventMessage,
-    ExternalForwardDto, ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto,
-    HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent, HostOptionDto,
-    ImportCandidateDto, ImportPreviewDto, ImportWarningDto, LanguageDto, LogEntryDto, LogLevelDto,
-    MetricsDto, OpenDefaultDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto,
-    OpenerSpecDto, PortOwnerDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto,
-    SoundEventDto, StandbyNotifyDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto,
-    TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelKindDto,
-    TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
+    AvailableOpenerDto, ConfigInvalidEvent, DefaultOpenerDto, DevslotOriginDto,
+    DevslotStalePolicyDto, EpochMillis, EventMessage, ExternalForwardDto, ExternalProcessDto,
+    ExternalsChangedEvent, FailureReasonDto, HostKeyAlertReasonDto, HostKeyDecisionDto,
+    HostKeyRequestEvent, HostOptionDto, ImportCandidateDto, ImportPreviewDto, ImportWarningDto,
+    LanguageDto, LogEntryDto, LogLevelDto, MetricsDto, OpenDefaultDto, OpenHostDto, OpenOptionsDto,
+    OpenSchemeDto, OpenerSourceDto, OpenerSpecDto, PortOwnerDto, RememberDto, ResolvedHostDto,
+    SettingsDto, SnapshotDto, SoundEventDto, StandbyNotifyDto, StandbySoundDto, TargetHealthDto,
+    TemporaryTunnelSpecDto, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
+    TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, X11AnchorDto,
     X11ChangedEvent, X11LauncherDto, X11ProbeDto, X11ServerStartDto, X11StateDto,
 };
 
@@ -84,6 +84,7 @@ fn open_options_to_dto(options: &OpenOptions) -> OpenOptionsDto {
         path: options.path.clone(),
         host: options.host.map(open_host_to_dto),
         with: options.with.clone(),
+        host_name: options.host_name.clone(),
     }
 }
 
@@ -93,6 +94,7 @@ fn open_options_from_dto(dto: OpenOptionsDto) -> OpenOptions {
         path: dto.path,
         host: dto.host.map(open_host_from_dto),
         with: dto.with,
+        host_name: dto.host_name,
     }
 }
 
@@ -193,6 +195,20 @@ pub(crate) fn x11_probe_to_dto(probe: X11Probe) -> X11ProbeDto {
     }
 }
 
+fn devslot_stale_to_dto(policy: DevslotStale) -> DevslotStalePolicyDto {
+    match policy {
+        DevslotStale::Ask => DevslotStalePolicyDto::Ask,
+        DevslotStale::Delete => DevslotStalePolicyDto::Delete,
+    }
+}
+
+fn devslot_stale_from_dto(policy: DevslotStalePolicyDto) -> DevslotStale {
+    match policy {
+        DevslotStalePolicyDto::Ask => DevslotStale::Ask,
+        DevslotStalePolicyDto::Delete => DevslotStale::Delete,
+    }
+}
+
 fn open_default_to_dto(open_default: OpenDefault) -> OpenDefaultDto {
     match open_default {
         OpenDefault::Suggested => OpenDefaultDto::Suggested,
@@ -254,8 +270,13 @@ pub(crate) fn new_tunnel_from_spec(spec: TunnelSpecDto) -> NewTunnel {
     }
 }
 
-pub(crate) fn new_temporary_tunnel_from_spec(spec: TemporaryTunnelSpecDto) -> NewTunnel {
-    NewTunnel {
+pub(crate) fn new_temporary_tunnel_from_spec(
+    spec: TemporaryTunnelSpecDto,
+) -> (NewTunnel, Option<DevslotOrigin>) {
+    let origin = spec.devslot.map(|origin| DevslotOrigin {
+        project_tag: origin.project_tag,
+    });
+    let new_tunnel = NewTunnel {
         host: spec.host,
         kind: kind_from_dto(spec.kind),
         listen_port: spec.listen_port,
@@ -263,9 +284,10 @@ pub(crate) fn new_temporary_tunnel_from_spec(spec: TemporaryTunnelSpecDto) -> Ne
         target_host: spec.target_host,
         target_port: spec.target_port,
         tags: Vec::new(),
-        open: OpenOptions::default(),
+        open: open_options_from_dto(spec.open),
         standby: None,
-    }
+    };
+    (new_tunnel, origin)
 }
 
 fn failure_to_dto(reason: &FailureReason) -> FailureReasonDto {
@@ -412,6 +434,9 @@ pub(crate) fn tunnel_to_dto(
         metrics: metrics_to_dto(&snapshot.metrics),
         is_awake: snapshot.is_awake,
         is_temporary: snapshot.is_temporary,
+        devslot: snapshot.devslot.as_ref().map(|origin| DevslotOriginDto {
+            project_tag: origin.project_tag.clone(),
+        }),
         default_opener: default_opener_to_dto(default_opener(
             &snapshot.definition,
             openers,
@@ -444,6 +469,8 @@ pub(crate) fn settings_to_dto(settings: &Settings) -> SettingsDto {
         standby_volume: settings.standby_volume,
         language: language_to_dto(settings.language),
         check_for_updates: settings.check_for_updates,
+        devslot_persist: settings.devslot_persist,
+        devslot_stale: devslot_stale_to_dto(settings.devslot_stale),
     }
 }
 
@@ -471,6 +498,8 @@ pub(crate) fn settings_from_dto(dto: SettingsDto) -> Settings {
         standby_volume: dto.standby_volume,
         language: language_from_dto(dto.language),
         check_for_updates: dto.check_for_updates,
+        devslot_persist: dto.devslot_persist,
+        devslot_stale: devslot_stale_from_dto(dto.devslot_stale),
     }
 }
 
@@ -847,6 +876,7 @@ mod tests {
                 path: Some("/admin".to_owned()),
                 host: Some(OpenHost::Ip),
                 with: Some("remmina-vnc".to_owned()),
+                host_name: None,
             },
             standby: Some(true),
         }
@@ -918,6 +948,7 @@ mod tests {
             metrics: TunnelMetrics::default(),
             is_awake: false,
             is_temporary: false,
+            devslot: None,
         };
 
         assert_eq!(
@@ -947,6 +978,7 @@ mod tests {
             metrics: TunnelMetrics::default(),
             is_awake: false,
             is_temporary: false,
+            devslot: None,
         };
 
         assert_eq!(
@@ -1421,6 +1453,7 @@ mod tests {
             metrics: TunnelMetrics::default(),
             is_awake: true,
             is_temporary: false,
+            devslot: None,
         };
 
         assert!(tunnel_to_dto(&snapshot, &[], OpenDefault::Suggested).is_awake);

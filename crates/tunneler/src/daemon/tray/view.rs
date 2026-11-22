@@ -264,6 +264,7 @@ mod tests {
             metrics: TunnelMetrics::default(),
             is_awake: false,
             is_temporary: false,
+            devslot: None,
         }
     }
 

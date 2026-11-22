@@ -18,6 +18,10 @@ const OPEN_SCHEME_KEY: &str = "scheme";
 const OPEN_PATH_KEY: &str = "path";
 const OPEN_HOST_KEY: &str = "host";
 const OPEN_WITH_KEY: &str = "with";
+const OPEN_HOST_NAME_KEY: &str = "host_name";
+const DEVSLOT_PERSIST_KEY: &str = "devslot_persist";
+const DEVSLOT_STALE_KEY: &str = "devslot_stale";
+const DEVSLOT_PATH_KEY: &str = "devslot_path";
 const OPENERS_KEY: &str = "openers";
 const REMOVED_SETTINGS_KEYS: [&str; 1] = ["health_probe"];
 const SECTION_SEPARATOR: &str = "\n";
@@ -45,6 +49,11 @@ fn update_settings(root: &mut Table, settings: &Settings) {
     if let Some(table) = section.as_table_like_mut() {
         for (key, entry) in settings_entries(settings) {
             set_value(table, key, entry);
+        }
+        for (key, entry, is_default) in devslot_settings_entries(settings) {
+            if !is_default || table.contains_key(key) {
+                set_value(table, key, entry);
+            }
         }
         for key in REMOVED_SETTINGS_KEYS {
             table.remove(key);
@@ -115,6 +124,25 @@ fn settings_entries(settings: &Settings) -> Vec<(&'static str, Value)> {
         ),
         ("language", Value::from(settings.language.as_str())),
         ("check_for_updates", Value::from(settings.check_for_updates)),
+    ]
+}
+
+/// The devslot settings, with whether each holds its default: a default is
+/// written only when the file already has the key, so that files written
+/// before devslot existed stay unchanged.
+fn devslot_settings_entries(settings: &Settings) -> [(&'static str, Value, bool); 2] {
+    let defaults = Settings::default();
+    [
+        (
+            DEVSLOT_PERSIST_KEY,
+            Value::from(settings.devslot_persist),
+            settings.devslot_persist == defaults.devslot_persist,
+        ),
+        (
+            DEVSLOT_STALE_KEY,
+            Value::from(settings.devslot_stale.as_str()),
+            settings.devslot_stale == defaults.devslot_stale,
+        ),
     ]
 }
 
@@ -238,6 +266,11 @@ fn set_open_fields(table: &mut dyn TableLike, open: &OpenOptions) {
         open.host.map(|host| Value::from(host.as_str())),
     );
     set_optional(table, OPEN_WITH_KEY, open.with.as_deref().map(Value::from));
+    set_optional(
+        table,
+        OPEN_HOST_NAME_KEY,
+        open.host_name.as_deref().map(Value::from),
+    );
 }
 
 fn update_openers(root: &mut Table, openers: &[Opener]) {
@@ -329,6 +362,16 @@ fn apply_host(table: &mut dyn TableLike, overrides: &HostOverrides) {
         table,
         X11_DISPLAY_KEY,
         overrides.x11_display.as_deref().map(Value::from),
+    );
+    set_optional(
+        table,
+        DEVSLOT_PATH_KEY,
+        overrides.devslot_path.as_deref().map(Value::from),
+    );
+    set_optional(
+        table,
+        DEVSLOT_PERSIST_KEY,
+        overrides.devslot_persist.map(Value::from),
     );
 }
 
@@ -730,6 +773,7 @@ tags = []
             path: Some("/admin".to_owned()),
             host: Some(OpenHost::Ip),
             with: Some("remmina-vnc".to_owned()),
+            host_name: None,
         };
 
         let updated = update(COMMENTED_FILE, &document);
@@ -904,5 +948,56 @@ tags = []
         let updated = update("", &StoreDocument::default());
 
         assert!(updated.starts_with("version = 1\n"), "{updated}");
+    }
+
+    #[test]
+    fn should_keep_the_comments_of_a_host_when_a_devslot_override_is_added() {
+        let text = "version = 1\n\n# my box\n[hosts.vega]\n# the display\nx11_display = \":1\"\n";
+        let mut document = load(text);
+        document.hosts.get_mut("vega").unwrap().devslot_path = Some("~/bin/ds".to_owned());
+
+        let updated = update(text, &document);
+
+        assert!(
+            updated.contains("# my box\n[hosts.vega]\n# the display\nx11_display = \":1\"")
+                && updated.contains("devslot_path = \"~/bin/ds\""),
+            "{updated}"
+        );
+    }
+
+    #[test]
+    fn should_write_the_open_host_name_inside_the_inline_table_when_it_is_set() {
+        let mut document = load(COMMENTED_FILE);
+        document.tunnels[0].open.host_name = Some("my-app.localhost".to_owned());
+
+        let updated = update(COMMENTED_FILE, &document);
+
+        assert!(
+            updated.contains("open = { host_name = \"my-app.localhost\" }"),
+            "{updated}"
+        );
+    }
+
+    #[test]
+    fn should_keep_the_comments_of_the_file_when_the_devslot_settings_are_written() {
+        let mut document = load(COMMENTED_FILE);
+        document.settings.devslot_persist = true;
+
+        let updated = update(COMMENTED_FILE, &document);
+
+        assert!(
+            updated.contains("# bind on loopback only\ndefault_bind_address")
+                && updated.contains("keepalive_max = 3  # drop after three misses"),
+            "{updated}"
+        );
+    }
+
+    #[test]
+    fn should_leave_the_text_untouched_when_the_devslot_settings_hold_their_defaults() {
+        let document = load(COMMENTED_FILE);
+
+        let updated = update(COMMENTED_FILE, &document);
+
+        assert!(!updated.contains("devslot"), "{updated}");
     }
 }

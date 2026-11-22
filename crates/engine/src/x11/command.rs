@@ -1,12 +1,13 @@
 use std::time::Duration;
 
+use russh::Channel;
 use russh::client::Msg;
-use russh::{Channel, ChannelMsg};
 use tokio::time::timeout;
 
 use super::cookie::MIT_MAGIC_COOKIE_PROTOCOL;
 use super::error::X11Error;
 use super::router::X11Forwarding;
+use crate::channel_event::{ChannelEvent, next_channel_event};
 
 /// Prints the `DISPLAY` the server set up, then keeps the channel open.
 pub(crate) const ANCHOR_COMMAND: &str = r#"echo "$DISPLAY"; exec sleep 2147483647"#;
@@ -14,38 +15,6 @@ pub(crate) const ANCHOR_COMMAND: &str = r#"echo "$DISPLAY"; exec sleep 214748364
 const X11_SCREEN_NUMBER: u32 = 0;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 const DISPLAY_TIMEOUT: Duration = Duration::from_secs(15);
-const STDERR_EXTENDED_DATA: u32 = 1;
-
-/// What a session channel tells the client.
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum ChannelEvent {
-    Accepted,
-    Refused,
-    Stdout(Vec<u8>),
-    Stderr(Vec<u8>),
-    ExitStatus(u32),
-    Closed,
-}
-
-/// Waits for the next message of the channel that matters to a command.
-pub(crate) async fn next_channel_event(channel: &mut Channel<Msg>) -> ChannelEvent {
-    loop {
-        let Some(message) = channel.wait().await else {
-            return ChannelEvent::Closed;
-        };
-        match message {
-            ChannelMsg::Success => return ChannelEvent::Accepted,
-            ChannelMsg::Failure => return ChannelEvent::Refused,
-            ChannelMsg::Data { data } => return ChannelEvent::Stdout(data.to_vec()),
-            ChannelMsg::ExtendedData { data, ext } if ext == STDERR_EXTENDED_DATA => {
-                return ChannelEvent::Stderr(data.to_vec());
-            }
-            ChannelMsg::ExitStatus { exit_status } => return ChannelEvent::ExitStatus(exit_status),
-            ChannelMsg::Close => return ChannelEvent::Closed,
-            _ => {}
-        }
-    }
-}
 
 /// Asks the server to forward X11 connections to the session, giving X
 /// clients the fake cookie of the session.
@@ -85,8 +54,11 @@ async fn await_acceptance(channel: &mut Channel<Msg>, refusal: X11Error) -> Resu
                 ChannelEvent::Accepted => return Ok(()),
                 ChannelEvent::Refused => return Err(refusal),
                 ChannelEvent::Closed => return Err(X11Error::ChannelClosed),
-                ChannelEvent::Stdout(_) | ChannelEvent::Stderr(_) | ChannelEvent::ExitStatus(_) => {
-                }
+                ChannelEvent::Stdout(_)
+                | ChannelEvent::Stderr(_)
+                | ChannelEvent::ExitStatus(_)
+                | ChannelEvent::ExitSignal
+                | ChannelEvent::Eof => {}
             }
         }
     };
@@ -106,7 +78,9 @@ pub(crate) async fn read_display_line(channel: &mut Channel<Msg>) -> Result<Stri
                 ChannelEvent::Accepted
                 | ChannelEvent::Refused
                 | ChannelEvent::Stderr(_)
-                | ChannelEvent::ExitStatus(_) => {}
+                | ChannelEvent::ExitStatus(_)
+                | ChannelEvent::ExitSignal
+                | ChannelEvent::Eof => {}
             }
             if let Some(line) = first_line(&output) {
                 return Ok(line);

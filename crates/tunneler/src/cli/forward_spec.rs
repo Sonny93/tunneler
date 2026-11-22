@@ -169,6 +169,8 @@ impl ForwardRequest {
     /// The definition of the temporary tunnel through `host`.
     pub fn into_temporary_spec(self, host: &str) -> TemporaryTunnelSpecDto {
         TemporaryTunnelSpecDto {
+            open: ipc::protocol::OpenOptionsDto::default(),
+            devslot: None,
             host: host.to_owned(),
             kind: self.kind,
             listen_port: self.listen_port,
@@ -399,6 +401,7 @@ mod tests {
             metrics: MetricsDto::default(),
             is_awake: false,
             is_temporary: false,
+            devslot: None,
             default_opener: ipc::protocol::DefaultOpenerDto {
                 id: "browser".to_owned(),
                 name: "Browser".to_owned(),
@@ -450,6 +453,8 @@ mod tests {
                 standby_volume: 50,
                 language: ipc::protocol::LanguageDto::System,
                 check_for_updates: true,
+                devslot_persist: false,
+                devslot_stale: ipc::protocol::DevslotStalePolicyDto::Ask,
             },
             tray: TrayStatusDto::default(),
             externals: Vec::new(),

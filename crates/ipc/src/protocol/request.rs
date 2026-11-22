@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use crate::protocol::devslot::DevslotResyncParams;
 use crate::protocol::dto::{
     HostKeyDecisionDto, OpenerSpecDto, RememberDto, SettingsDto, SoundEventDto, StandbySoundDto,
     TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelSpecDto,
@@ -17,7 +18,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 41] = [
+pub const METHOD_NAMES: [&str; 43] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -59,6 +60,8 @@ pub const METHOD_NAMES: [&str; 41] = [
     "tags.rename",
     "tags.delete",
     "daemon.paths",
+    "devslot.discover",
+    "devslot.resync",
 ];
 
 /// The parameters of the methods that address one tunnel.
@@ -366,6 +369,17 @@ pub enum Request {
     /// Reads where the daemon keeps its files.
     #[serde(rename = "daemon.paths")]
     DaemonPaths {},
+    /// Runs `ds ls --json` on a host, compares the instances it lists with
+    /// the tunnels of the host and answers with the ports and the stale
+    /// devslot tunnels. Answers `not_found` when the alias is unknown,
+    /// `devslot_not_found`, `devslot_failed`, `devslot_invalid_output` or
+    /// `remote_command_timeout` when the command cannot give a listing.
+    #[serde(rename = "devslot.discover")]
+    DevslotDiscover(HostParams),
+    /// Removes the stale devslot tunnels of a host that a discovery returned,
+    /// skipping those that changed since.
+    #[serde(rename = "devslot.resync")]
+    DevslotResync(DevslotResyncParams),
 }
 
 /// A [`Request`] and the identifier its response will carry.

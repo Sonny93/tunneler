@@ -3,6 +3,7 @@
 //! Requests carry an `id` the response echoes; events carry none. See
 //! [`Request`] for the methods and [`EventMessage`] for the events.
 
+mod devslot;
 mod dto;
 mod error;
 mod event;
@@ -13,6 +14,12 @@ mod request;
 mod response;
 mod secret;
 
+pub use devslot::{
+    DevslotDiscoveryDto, DevslotInstanceDto, DevslotOriginDto, DevslotPortDto,
+    DevslotPortStatusDto, DevslotResyncParams, DevslotResyncResultDto, DevslotResyncTunnelDto,
+    DevslotStaleActionDto, DevslotStaleDto, DevslotStaleReasonDto, DevslotWarningDto,
+};
+pub use dto::DevslotStalePolicyDto;
 pub use dto::{
     AvailableOpenerDto, CredentialRequestDto, DefaultOpenerDto, EpochMillis, ExternalForwardDto,
     ExternalProcessDto, FailureReasonDto, HostKeyAlertReasonDto, HostKeyDecisionDto, HostOptionDto,

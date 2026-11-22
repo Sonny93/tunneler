@@ -79,11 +79,23 @@ pub(crate) fn build_open_address(
         });
     }
     let preference = definition.open.host.unwrap_or(settings.open_host);
-    let host = host_to_open(definition.effective_listen_address(settings), preference)?;
+    let listen_address = definition.effective_listen_address(settings);
+    let host = host_to_open(listen_address, preference)?;
+    let url_host = url_host(&host, listen_address, definition.open.host_name.as_deref());
     let scheme = definition.open.scheme.unwrap_or(OpenScheme::Http);
     let port = definition.listen_port;
-    let url = format!("{}://{host}:{port}{path}", scheme.as_str());
+    let url = format!("{}://{url_host}:{port}{path}", scheme.as_str());
     Ok(OpenAddress { host, port, url })
+}
+
+/// The host of the URL: the configured host name when the tunnel listens on
+/// a loopback or wildcard address, else the host to open.
+fn url_host(host: &str, listen_address: &str, host_name: Option<&str>) -> String {
+    let address = listen_address.trim().trim_matches(['[', ']']);
+    match host_name {
+        Some(name) if is_loopback_or_wildcard(address) => name.to_owned(),
+        _ => host.to_owned(),
+    }
 }
 
 fn host_to_open(listen_address: &str, preference: OpenHost) -> Result<String, OpenUrlError> {
@@ -210,6 +222,7 @@ mod tests {
                 path: Some("/admin?tab=1".to_owned()),
                 host: None,
                 with: None,
+                host_name: None,
             },
             ..local_tunnel(None)
         };
@@ -354,6 +367,61 @@ mod tests {
         assert_eq!(
             build_open_url(&local_tunnel(None), &settings),
             Ok("http://198.51.100.50:3333/".to_owned())
+        );
+    }
+
+    const HOST_NAME: &str = "my-app.localhost";
+
+    fn definition_with_host_name(listen_address: Option<&str>) -> TunnelDefinition {
+        TunnelDefinition {
+            open: OpenOptions {
+                host_name: Some(HOST_NAME.to_owned()),
+                ..OpenOptions::default()
+            },
+            ..local_tunnel(listen_address)
+        }
+    }
+
+    #[test]
+    fn should_open_the_host_name_when_the_tunnel_listens_on_loopback() {
+        assert_eq!(
+            url_of(&definition_with_host_name(Some("127.0.0.1"))),
+            Ok("http://my-app.localhost:3333/".to_owned())
+        );
+    }
+
+    #[test]
+    fn should_open_the_host_name_when_the_tunnel_listens_on_a_wildcard_address() {
+        assert_eq!(
+            url_of(&definition_with_host_name(Some("0.0.0.0"))),
+            Ok("http://my-app.localhost:3333/".to_owned())
+        );
+    }
+
+    #[test]
+    fn should_ignore_the_host_name_when_the_tunnel_listens_on_a_non_loopback_address() {
+        assert_eq!(
+            url_of(&definition_with_host_name(Some("192.0.2.120"))),
+            Ok("http://192.0.2.120:3333/".to_owned())
+        );
+    }
+
+    #[test]
+    fn should_keep_the_loopback_host_for_programs_when_a_host_name_is_set() {
+        let address = build_open_address(
+            &definition_with_host_name(Some("127.0.0.1")),
+            &Settings::default(),
+        )
+        .unwrap();
+
+        assert_eq!(address.host, "localhost");
+    }
+
+    #[test]
+    fn should_open_the_loopback_name_when_no_host_name_is_set() {
+        assert_eq!(
+            url_of(&local_tunnel(Some("127.0.0.1"))),
+            Ok("http://localhost:3333/".to_owned())
         );
     }
 }

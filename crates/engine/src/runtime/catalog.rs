@@ -5,6 +5,7 @@ use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
 use crate::clock::Clock;
+use crate::devslot::DevslotOrigin;
 use crate::external::{ProcessIdentity, SystemScan, occupation_of};
 use crate::runtime::definition_diff::{ReloadPlan, plan_reload};
 use crate::runtime::events::EventBus;
@@ -35,6 +36,16 @@ pub struct TunnelSnapshot {
     /// Whether the tunnel lives only in the daemon: it is never saved to the
     /// store and is removed when it is stopped.
     pub is_temporary: bool,
+    /// Where a temporary tunnel comes from when it was started from a
+    /// devslot listing. Never written to the store nor to the state file.
+    pub devslot: Option<DevslotOrigin>,
+}
+
+/// What a temporary tunnel was before it was saved, to put it back when the
+/// save fails.
+pub(crate) struct SavedTemporary {
+    definition: TunnelDefinition,
+    devslot: Option<DevslotOrigin>,
 }
 
 /// Builds the task of a tunnel.
@@ -48,7 +59,12 @@ pub(crate) struct TunnelFactory {
 }
 
 impl TunnelFactory {
-    fn spawn(&self, definition: TunnelDefinition, is_temporary: bool) -> TunnelEntry {
+    fn spawn(
+        &self,
+        definition: TunnelDefinition,
+        is_temporary: bool,
+        devslot: Option<DevslotOrigin>,
+    ) -> TunnelEntry {
         let shared = TunnelShared::new(definition.id, self.bus.clone(), Arc::clone(&self.clock));
         let handle = spawn_tunnel(TunnelContext {
             definition: definition.clone(),
@@ -63,6 +79,7 @@ impl TunnelFactory {
             definition,
             handle,
             is_temporary,
+            devslot,
         }
     }
 }
@@ -71,6 +88,7 @@ pub(crate) struct TunnelEntry {
     definition: TunnelDefinition,
     handle: TunnelHandle,
     is_temporary: bool,
+    devslot: Option<DevslotOrigin>,
 }
 
 impl TunnelEntry {
@@ -87,6 +105,7 @@ impl TunnelEntry {
             metrics: self.handle.shared.metrics(),
             is_awake: status.is_awake,
             is_temporary: self.is_temporary,
+            devslot: self.devslot.clone(),
         }
     }
 
@@ -111,7 +130,7 @@ impl Catalog {
     pub(crate) fn new(factory: TunnelFactory, definitions: Vec<TunnelDefinition>) -> Self {
         let entries = definitions
             .into_iter()
-            .map(|definition| factory.spawn(definition, false))
+            .map(|definition| factory.spawn(definition, false, None))
             .collect();
         Self { factory, entries }
     }
@@ -240,7 +259,7 @@ impl Catalog {
     }
 
     pub(crate) fn add(&mut self, definition: TunnelDefinition) {
-        let entry = self.factory.spawn(definition, false);
+        let entry = self.factory.spawn(definition, false, None);
         let position = self
             .entries
             .iter()
@@ -249,33 +268,55 @@ impl Catalog {
         self.entries.insert(position, entry);
     }
 
-    pub(crate) fn add_temporary(&mut self, definition: TunnelDefinition) {
-        self.entries.push(self.factory.spawn(definition, true));
+    pub(crate) fn add_temporary(
+        &mut self,
+        definition: TunnelDefinition,
+        devslot: Option<DevslotOrigin>,
+    ) {
+        self.entries
+            .push(self.factory.spawn(definition, true, devslot));
     }
 
-    /// Turns a temporary tunnel into a persistent one; `false` when there is
-    /// no temporary tunnel with this id.
-    pub(crate) fn mark_persistent(&mut self, id: TunnelId) -> bool {
-        self.set_temporary(id, true, false)
+    /// Turns a temporary tunnel into a persistent one, which takes the tags
+    /// of its devslot origin and drops the origin. Returns what the tunnel
+    /// was, to give to [`restore_temporary`](Self::restore_temporary); `None`
+    /// when there is no temporary tunnel with this id.
+    pub(crate) fn mark_persistent(&mut self, id: TunnelId) -> Option<SavedTemporary> {
+        let entry = self
+            .entries
+            .iter_mut()
+            .find(|entry| entry.definition.id == id && entry.is_temporary)?;
+        let previous = SavedTemporary {
+            definition: entry.definition.clone(),
+            devslot: entry.devslot.take(),
+        };
+        if let Some(origin) = &previous.devslot {
+            entry.definition.tags = origin.tags();
+            entry.send(TunnelCommand::UpdateDefinition(entry.definition.clone()));
+        }
+        entry.is_temporary = false;
+        self.entries.sort_by_key(|entry| entry.is_temporary);
+        Some(previous)
     }
 
-    /// Turns a persistent tunnel back into a temporary one; `false` when
-    /// there is no persistent tunnel with this id.
-    pub(crate) fn mark_temporary(&mut self, id: TunnelId) -> bool {
-        self.set_temporary(id, false, true)
-    }
-
-    fn set_temporary(&mut self, id: TunnelId, from: bool, to: bool) -> bool {
+    /// Turns a tunnel made persistent by
+    /// [`mark_persistent`](Self::mark_persistent) back into the temporary
+    /// tunnel it was.
+    pub(crate) fn restore_temporary(&mut self, id: TunnelId, previous: SavedTemporary) {
         let Some(entry) = self
             .entries
             .iter_mut()
-            .find(|entry| entry.definition.id == id && entry.is_temporary == from)
+            .find(|entry| entry.definition.id == id && !entry.is_temporary)
         else {
-            return false;
+            return;
         };
-        entry.is_temporary = to;
+        if entry.definition != previous.definition {
+            entry.send(TunnelCommand::UpdateDefinition(previous.definition.clone()));
+        }
+        entry.definition = previous.definition;
+        entry.devslot = previous.devslot;
+        entry.is_temporary = true;
         self.entries.sort_by_key(|entry| entry.is_temporary);
-        true
     }
 
     /// Removes a temporary tunnel and tells it to terminate; `false` when

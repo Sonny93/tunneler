@@ -7,6 +7,7 @@ mod backoff;
 mod catalog;
 mod counting_stream;
 mod definition_diff;
+mod devslot_service;
 mod dynamic_forward;
 mod engine;
 mod events;

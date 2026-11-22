@@ -36,6 +36,17 @@ pub enum ErrorCode {
     /// The opener does not exist or is not available on this machine; `data`
     /// lists the ids that can be used.
     UnknownOpener,
+    /// The `ds` program does not exist on the host; `data` holds `host` and
+    /// `path`.
+    DevslotNotFound,
+    /// `ds ls --json` failed on the host; `data` holds `host`, `status` (when
+    /// there is one) and `stderr`.
+    DevslotFailed,
+    /// The output of `ds ls --json` cannot be used; `data` holds `host` and
+    /// `reason`.
+    DevslotInvalidOutput,
+    /// The command did not end in time; `data` holds `host` and `seconds`.
+    RemoteCommandTimeout,
     /// The daemon failed unexpectedly.
     Internal,
 }
@@ -57,6 +68,10 @@ impl ErrorCode {
             Self::KillFailed => "kill_failed",
             Self::OpenFailed => "open_failed",
             Self::UnknownOpener => "unknown_opener",
+            Self::DevslotNotFound => "devslot_not_found",
+            Self::DevslotFailed => "devslot_failed",
+            Self::DevslotInvalidOutput => "devslot_invalid_output",
+            Self::RemoteCommandTimeout => "remote_command_timeout",
             Self::Internal => "internal",
         }
     }
@@ -185,6 +200,42 @@ impl IpcError {
         Self::new(ErrorCode::UnknownOpener, message).with_data(json!(available))
     }
 
+    /// The `ds` program does not exist on the host.
+    pub fn devslot_not_found(host: &str, path: &str) -> Self {
+        Self::new(
+            ErrorCode::DevslotNotFound,
+            format!("\"{path}\" was not found on host {host}"),
+        )
+        .with_data(json!({ "host": host, "path": path }))
+    }
+
+    /// The command failed; `status` is `None` when it reported none.
+    pub fn devslot_failed(host: &str, status: Option<u32>, stderr: &str) -> Self {
+        Self::new(
+            ErrorCode::DevslotFailed,
+            format!("the devslot listing failed on host {host}"),
+        )
+        .with_data(json!({ "host": host, "status": status, "stderr": stderr }))
+    }
+
+    /// The output of the command cannot be used.
+    pub fn devslot_invalid_output(host: &str, reason: &str) -> Self {
+        Self::new(
+            ErrorCode::DevslotInvalidOutput,
+            format!("the devslot listing of host {host} is not usable"),
+        )
+        .with_data(json!({ "host": host, "reason": reason }))
+    }
+
+    /// The command did not end in time.
+    pub fn remote_command_timeout(host: &str, seconds: u64) -> Self {
+        Self::new(
+            ErrorCode::RemoteCommandTimeout,
+            format!("the devslot listing of host {host} did not end within {seconds} seconds"),
+        )
+        .with_data(json!({ "host": host, "seconds": seconds }))
+    }
+
     /// The daemon failed unexpectedly.
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::Internal, message)
@@ -195,7 +246,7 @@ impl IpcError {
 mod tests {
     use super::*;
 
-    const ALL_CODES: [ErrorCode; 14] = [
+    const ALL_CODES: [ErrorCode; 18] = [
         ErrorCode::InvalidRequest,
         ErrorCode::UnknownMethod,
         ErrorCode::HandshakeRequired,
@@ -209,6 +260,10 @@ mod tests {
         ErrorCode::KillFailed,
         ErrorCode::OpenFailed,
         ErrorCode::UnknownOpener,
+        ErrorCode::DevslotNotFound,
+        ErrorCode::DevslotFailed,
+        ErrorCode::DevslotInvalidOutput,
+        ErrorCode::RemoteCommandTimeout,
         ErrorCode::Internal,
     ];
 

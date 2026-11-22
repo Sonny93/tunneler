@@ -3142,7 +3142,7 @@ async fn start_active_temporary(harness: &mut Harness) -> (TunnelId, u16) {
     let port = free_port().await;
     let id = harness
         .engine
-        .start_temporary_tunnel(temporary_tunnel(port, harness.echo.port))
+        .start_temporary_tunnel(temporary_tunnel(port, harness.echo.port), None)
         .await
         .unwrap();
     wait_for_state(
@@ -3171,7 +3171,7 @@ async fn should_drop_the_tags_when_a_temporary_tunnel_is_started() {
 
     let id = harness
         .engine
-        .start_temporary_tunnel(new_tunnel(free_port().await))
+        .start_temporary_tunnel(new_tunnel(free_port().await), None)
         .await
         .unwrap();
 
@@ -3301,7 +3301,7 @@ async fn should_keep_a_temporary_tunnel_in_its_failed_state_when_the_connection_
 
     let id = harness
         .engine
-        .start_temporary_tunnel(temporary_tunnel(free_port().await, harness.echo.port))
+        .start_temporary_tunnel(temporary_tunnel(free_port().await, harness.echo.port), None)
         .await
         .unwrap();
     wait_for_state(
@@ -3322,7 +3322,7 @@ async fn should_refuse_a_temporary_tunnel_when_its_definition_is_invalid() {
 
     let outcome = harness
         .engine
-        .start_temporary_tunnel(temporary_tunnel(0, harness.echo.port))
+        .start_temporary_tunnel(temporary_tunnel(0, harness.echo.port), None)
         .await;
 
     assert!(matches!(
@@ -3339,7 +3339,7 @@ async fn should_report_a_conflict_when_the_port_of_a_temporary_tunnel_is_already
 
     let id = harness
         .engine
-        .start_temporary_tunnel(temporary_tunnel(port, harness.echo.port))
+        .start_temporary_tunnel(temporary_tunnel(port, harness.echo.port), None)
         .await
         .unwrap();
 

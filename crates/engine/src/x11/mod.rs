@@ -15,8 +15,7 @@ mod setup;
 mod xauthority;
 
 pub(crate) use command::{
-    ANCHOR_COMMAND, ChannelEvent, next_channel_event, read_display_line, request_x11_forwarding,
-    start_command,
+    ANCHOR_COMMAND, read_display_line, request_x11_forwarding, start_command,
 };
 pub use environment::{DisplayPlatform, SystemX11Environment, X11Environment};
 pub use error::X11Error;

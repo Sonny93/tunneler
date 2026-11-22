@@ -4,9 +4,10 @@ use russh::Channel;
 use russh::client::Msg;
 use tracing::{info, warn};
 
+use crate::channel_event::{ChannelEvent, next_channel_event};
 use crate::runtime::session_manager::{AcquireError, SessionLease, SessionManager};
 use crate::store::X11Launcher;
-use crate::x11::{ChannelEvent, LocalX11Resolver, X11Error, next_channel_event, start_command};
+use crate::x11::{LocalX11Resolver, X11Error, start_command};
 
 /// Runs the saved commands of the hosts in sessions with X11 forwarding.
 pub(crate) struct X11Launches {
@@ -66,7 +67,10 @@ async fn follow_command(lease: SessionLease, mut channel: Channel<Msg>, launcher
             ChannelEvent::Stderr(chunk) => log_output(&launcher, &chunk, OutputStream::Error),
             ChannelEvent::ExitStatus(status) => exit_status = Some(status),
             ChannelEvent::Closed => break,
-            ChannelEvent::Accepted | ChannelEvent::Refused => {}
+            ChannelEvent::Accepted
+            | ChannelEvent::Refused
+            | ChannelEvent::ExitSignal
+            | ChannelEvent::Eof => {}
         }
     }
     log_end(&launcher, exit_status);

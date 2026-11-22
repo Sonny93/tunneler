@@ -5,7 +5,10 @@ use std::collections::BTreeMap;
 use ipc::protocol::{
     AdoptResult, AvailableOpenerDto, CheckTargetResult, ClientKind, ConfigInvalidEvent,
     CredentialAnswer, CredentialRequestDto, CredentialRequestEvent, CredentialResponseParams,
-    DaemonPathsResult, DefaultOpenerDto, DeleteTagResult, ErrorCode, EventMessage,
+    DaemonPathsResult, DefaultOpenerDto, DeleteTagResult, DevslotDiscoveryDto, DevslotInstanceDto,
+    DevslotOriginDto, DevslotPortDto, DevslotPortStatusDto, DevslotResyncParams,
+    DevslotResyncResultDto, DevslotResyncTunnelDto, DevslotStaleActionDto, DevslotStaleDto,
+    DevslotStalePolicyDto, DevslotStaleReasonDto, DevslotWarningDto, ErrorCode, EventMessage,
     ExternalForwardDto, ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto,
     ForgetSecretsResult, Hello, HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent,
     HostKeyResponseParams, HostOptionDto, HostParams, HostsResult, ImportCandidateDto,
@@ -71,6 +74,8 @@ fn settings() -> SettingsDto {
         standby_volume: 50,
         language: ipc::protocol::LanguageDto::System,
         check_for_updates: true,
+        devslot_persist: false,
+        devslot_stale: DevslotStalePolicyDto::Ask,
     }
 }
 
@@ -104,6 +109,7 @@ fn tunnel() -> TunnelDto {
         },
         is_awake: false,
         is_temporary: false,
+        devslot: None,
         default_opener: DefaultOpenerDto {
             id: "browser".to_owned(),
             name: "Browser".to_owned(),
@@ -119,6 +125,81 @@ fn temporary_spec() -> TemporaryTunnelSpecDto {
         listen_address: None,
         target_host: None,
         target_port: None,
+        open: OpenOptionsDto::default(),
+        devslot: None,
+    }
+}
+
+fn devslot_instance() -> DevslotInstanceDto {
+    DevslotInstanceDto {
+        name: "web-shop-feat-auth-3f2a".to_owned(),
+        project: Some("web-shop".to_owned()),
+        project_tag: Some("ds-web-shop".to_owned()),
+        path: "/home/me/dev/web-shop.feat-auth".to_owned(),
+        worktree: Some(true),
+        slot: 1,
+        app_url: Some("http://web-shop-feat-auth-3f2a.localhost:20050".to_owned()),
+        services_running: Some(true),
+        ports: vec![
+            DevslotPortDto {
+                var: "PORT".to_owned(),
+                port: 20050,
+                kind: "web".to_owned(),
+                service: None,
+                target: None,
+                url: Some("http://web-shop-feat-auth-3f2a.localhost:20050".to_owned()),
+                host_name: Some("web-shop-feat-auth-3f2a.localhost".to_owned()),
+                forced: false,
+                status: DevslotPortStatusDto::New,
+                tunnel_id: None,
+            },
+            DevslotPortDto {
+                var: "DB_PORT".to_owned(),
+                port: 20052,
+                kind: "service".to_owned(),
+                service: Some("postgres".to_owned()),
+                target: Some(5432),
+                url: None,
+                host_name: None,
+                forced: false,
+                status: DevslotPortStatusDto::AlreadyTunneled,
+                tunnel_id: Some(TUNNEL_ID.to_owned()),
+            },
+        ],
+    }
+}
+
+fn devslot_discovery() -> DevslotDiscoveryDto {
+    DevslotDiscoveryDto {
+        host: "vega".to_owned(),
+        persist_default: false,
+        instances: vec![devslot_instance()],
+        stale: vec![DevslotStaleDto {
+            tunnel: definition(),
+            is_temporary: true,
+            reason: DevslotStaleReasonDto::PortGone,
+            action: DevslotStaleActionDto::Remove,
+        }],
+        warnings: vec![
+            DevslotWarningDto::InvalidPort {
+                instance: "a".to_owned(),
+                var: "X".to_owned(),
+            },
+            DevslotWarningDto::ProjectWithoutTag {
+                instance: "b".to_owned(),
+            },
+        ],
+    }
+}
+
+fn devslot_resync() -> DevslotResyncParams {
+    DevslotResyncParams {
+        host: "vega".to_owned(),
+        tunnels: vec![DevslotResyncTunnelDto {
+            id: TUNNEL_ID.to_owned(),
+            definition: definition(),
+            is_temporary: true,
+        }],
     }
 }
 
@@ -260,6 +341,10 @@ fn every_request() -> Vec<Request> {
             tag: "dev".to_owned(),
         }),
         Request::DaemonPaths {},
+        Request::DevslotDiscover(HostParams {
+            host: "vega".to_owned(),
+        }),
+        Request::DevslotResync(devslot_resync()),
     ]
 }
 
@@ -421,6 +506,7 @@ fn should_serialize_the_open_options_of_a_tunnel_when_they_are_set() {
             path: Some("/admin".to_owned()),
             host: Some(OpenHostDto::Ip),
             with: Some("remmina-vnc".to_owned()),
+            host_name: None,
         },
         ..spec()
     };
@@ -586,7 +672,7 @@ fn should_serialize_settings_update_as_documented() {
 
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
-        r#"{"id":8,"method":"settings.update","params":{"settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"x11ServerStart":"ask","openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","standbyVolume":50,"language":"system","checkForUpdates":true},"openers":[{"id":"dbeaver","name":"DBeaver","command":"dbeaver","args":["-con","host={host}"],"ports":[5432]}]}}"#
+        r#"{"id":8,"method":"settings.update","params":{"settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"x11ServerStart":"ask","openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","standbyVolume":50,"language":"system","checkForUpdates":true,"devslotPersist":false,"devslotStale":"ask"},"openers":[{"id":"dbeaver","name":"DBeaver","command":"dbeaver","args":["-con","host={host}"],"ports":[5432]}]}}"#
     );
 }
 
@@ -1280,7 +1366,7 @@ fn should_serialize_a_snapshot_response_as_documented() {
             r#""state":{"kind":"reconnecting","attempt":2,"nextRetryAt":1700000005000},"#,
             r#""health":{"kind":"unreachable","since":1700000000000,"error":"connection refused"},"#,
             r#""metrics":{"activeConnections":1,"totalConnections":4,"bytesIn":10,"bytesOut":20,"lastActivity":1700000001000},"isAwake":false,"isTemporary":false,"defaultOpener":{"id":"browser","name":"Browser"}}],"#,
-            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"x11ServerStart":"ask","openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","standbyVolume":50,"language":"system","checkForUpdates":true},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
+            r#""settings":{"defaultBindAddress":"127.0.0.1","defaultRemoteBindAddress":"127.0.0.1","keepaliveIntervalMs":30000,"keepaliveMax":3,"sessionIdleGraceMs":60000,"reconnectInitialDelayMs":1000,"reconnectMaxDelayMs":60000,"restoreOnLaunch":true,"startOnLaunchTags":["dev"],"launchAtLogin":false,"useOsKeyring":false,"x11ServerStart":"ask","openHost":"localhost","openDefault":"suggested","standby":false,"standbyIdleS":300,"standbyNotify":"visual","standbySound":"pluck","standbyVolume":50,"language":"system","checkForUpdates":true,"devslotPersist":false,"devslotStale":"ask"},"tray":{"kind":"active"},"externals":[],"x11Anchors":[],"x11Launchers":[],"openers":[]}}"#,
             "\n"
         )
     );
@@ -1852,8 +1938,8 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_forty_one_methods() {
-    assert_eq!(METHOD_NAMES.len(), 41);
+fn should_list_forty_three_methods() {
+    assert_eq!(METHOD_NAMES.len(), 43);
 }
 
 #[test]
@@ -2000,6 +2086,307 @@ fn should_serialize_the_x11_requests_as_documented() {
             json!({"method":"x11.start","params":{"host":"nova"}}),
             json!({"method":"x11.stop","params":{"host":"nova"}}),
             json!({"method":"x11.launch","params":{"host":"nova","name":"xterm"}}),
+        ]
+    );
+}
+
+#[test]
+fn should_serialize_devslot_discover_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 5,
+        request: Request::DevslotDiscover(HostParams {
+            host: "vega".to_owned(),
+        }),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":5,"method":"devslot.discover","params":{"host":"vega"}}"#
+    );
+}
+
+#[test]
+fn should_serialize_devslot_resync_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 6,
+        request: Request::DevslotResync(devslot_resync()),
+    };
+
+    let value = to_json(&envelope);
+
+    assert_eq!(
+        (
+            value["method"].clone(),
+            value["params"]["host"].clone(),
+            value["params"]["tunnels"][0]["id"].clone(),
+            value["params"]["tunnels"][0]["isTemporary"].clone(),
+            value["params"]["tunnels"][0]["definition"]["id"].clone()
+        ),
+        (
+            json!("devslot.resync"),
+            json!("vega"),
+            json!(TUNNEL_ID),
+            json!(true),
+            json!(TUNNEL_ID)
+        )
+    );
+}
+
+#[test]
+fn should_serialize_a_devslot_discovery_as_documented() {
+    let value = to_json(&devslot_discovery());
+
+    assert_eq!(
+        value["instances"][0],
+        json!({
+            "name": "web-shop-feat-auth-3f2a",
+            "project": "web-shop",
+            "projectTag": "ds-web-shop",
+            "path": "/home/me/dev/web-shop.feat-auth",
+            "worktree": true,
+            "slot": 1,
+            "appUrl": "http://web-shop-feat-auth-3f2a.localhost:20050",
+            "servicesRunning": true,
+            "ports": [
+                {
+                    "var": "PORT",
+                    "port": 20050,
+                    "kind": "web",
+                    "url": "http://web-shop-feat-auth-3f2a.localhost:20050",
+                    "hostName": "web-shop-feat-auth-3f2a.localhost",
+                    "forced": false,
+                    "status": "new"
+                },
+                {
+                    "var": "DB_PORT",
+                    "port": 20052,
+                    "kind": "service",
+                    "service": "postgres",
+                    "target": 5432,
+                    "forced": false,
+                    "status": "alreadyTunneled",
+                    "tunnelId": TUNNEL_ID
+                }
+            ]
+        })
+    );
+}
+
+#[test]
+fn should_serialize_the_other_parts_of_a_devslot_discovery_as_documented() {
+    let value = to_json(&devslot_discovery());
+
+    assert_eq!(
+        (
+            value["host"].clone(),
+            value["persistDefault"].clone(),
+            value["stale"][0]["isTemporary"].clone(),
+            value["stale"][0]["reason"].clone(),
+            value["stale"][0]["action"].clone(),
+            value["stale"][0]["tunnel"]["id"].clone(),
+            value["warnings"].clone()
+        ),
+        (
+            json!("vega"),
+            json!(false),
+            json!(true),
+            json!("portGone"),
+            json!("remove"),
+            json!(TUNNEL_ID),
+            json!([
+                {"kind": "invalidPort", "instance": "a", "var": "X"},
+                {"kind": "projectWithoutTag", "instance": "b"}
+            ])
+        )
+    );
+}
+
+#[test]
+fn should_omit_the_optional_keys_of_a_devslot_instance_when_they_are_absent() {
+    let instance = DevslotInstanceDto {
+        project: None,
+        project_tag: None,
+        worktree: None,
+        app_url: None,
+        services_running: None,
+        ports: Vec::new(),
+        ..devslot_instance()
+    };
+
+    assert_eq!(
+        to_json(&instance),
+        json!({"name": "web-shop-feat-auth-3f2a", "path": "/home/me/dev/web-shop.feat-auth", "slot": 1, "ports": []})
+    );
+}
+
+#[test]
+fn should_serialize_every_stale_reason_and_action_as_a_camel_case_word() {
+    assert_eq!(
+        [
+            to_json(&DevslotStaleReasonDto::PortGone),
+            to_json(&DevslotStaleReasonDto::Reassigned),
+            to_json(&DevslotStaleActionDto::Remove),
+            to_json(&DevslotStaleActionDto::Ask),
+        ],
+        [
+            json!("portGone"),
+            json!("reassigned"),
+            json!("remove"),
+            json!("ask")
+        ]
+    );
+}
+
+#[test]
+fn should_serialize_the_result_of_a_resync_as_documented() {
+    let result = DevslotResyncResultDto {
+        removed: vec![TUNNEL_ID.to_owned()],
+        skipped: Vec::new(),
+    };
+
+    assert_eq!(
+        to_json(&result),
+        json!({"removed": [TUNNEL_ID], "skipped": []})
+    );
+}
+
+#[test]
+fn should_answer_a_devslot_discovery_as_a_bare_result() {
+    let line = encode_response(
+        Some(4),
+        &Ok(ResponsePayload::DevslotDiscovery(devslot_discovery())),
+    )
+    .unwrap();
+
+    let value: Value = serde_json::from_str(line.trim_end()).unwrap();
+
+    assert_eq!(
+        (value["id"].clone(), value["result"]["host"].clone()),
+        (json!(4), json!("vega"))
+    );
+}
+
+#[test]
+fn should_serialize_the_devslot_origin_of_a_temporary_spec_and_a_tunnel() {
+    let origin = DevslotOriginDto {
+        project_tag: Some("ds-web-shop".to_owned()),
+    };
+    let spec = TemporaryTunnelSpecDto {
+        open: OpenOptionsDto {
+            host_name: Some("my-app.localhost".to_owned()),
+            ..OpenOptionsDto::default()
+        },
+        devslot: Some(origin.clone()),
+        ..temporary_spec()
+    };
+    let tunnel = TunnelDto {
+        is_temporary: true,
+        devslot: Some(origin),
+        ..tunnel()
+    };
+
+    assert_eq!(
+        (
+            to_json(&spec)["open"].clone(),
+            to_json(&spec)["devslot"].clone(),
+            to_json(&tunnel)["devslot"].clone()
+        ),
+        (
+            json!({"hostName": "my-app.localhost"}),
+            json!({"projectTag": "ds-web-shop"}),
+            json!({"projectTag": "ds-web-shop"})
+        )
+    );
+}
+
+#[test]
+fn should_omit_the_open_options_and_the_devslot_origin_of_a_plain_temporary_spec() {
+    let value = to_json(&temporary_spec());
+
+    assert_eq!((value.get("open"), value.get("devslot")), (None, None));
+}
+
+#[test]
+fn should_omit_the_devslot_origin_of_a_tunnel_without_one() {
+    assert_eq!(to_json(&tunnel()).get("devslot"), None);
+}
+
+#[test]
+fn should_serialize_the_open_host_name_when_it_is_set() {
+    let spec = TunnelSpecDto {
+        open: OpenOptionsDto {
+            host_name: Some("my-app.localhost".to_owned()),
+            ..OpenOptionsDto::default()
+        },
+        ..spec()
+    };
+
+    assert_eq!(
+        to_json(&spec)["open"],
+        json!({"hostName": "my-app.localhost"})
+    );
+}
+
+#[test]
+fn should_serialize_the_devslot_settings_and_default_them_when_absent() {
+    let mut value = to_json(&SettingsDto {
+        devslot_persist: true,
+        devslot_stale: DevslotStalePolicyDto::Delete,
+        ..settings()
+    });
+    let serialized = (
+        value["devslotPersist"].clone(),
+        value["devslotStale"].clone(),
+    );
+    let object = value.as_object_mut().unwrap();
+    object.remove("devslotPersist");
+    object.remove("devslotStale");
+
+    let parsed: SettingsDto = serde_json::from_value(value).unwrap();
+
+    assert_eq!(
+        (serialized, parsed.devslot_persist, parsed.devslot_stale),
+        (
+            (json!(true), json!("delete")),
+            false,
+            DevslotStalePolicyDto::Ask
+        )
+    );
+}
+
+#[test]
+fn should_serialize_the_devslot_errors_with_their_data() {
+    let errors = [
+        IpcError::devslot_not_found("vega", "~/bin/ds"),
+        IpcError::devslot_failed("vega", Some(2), "locked"),
+        IpcError::devslot_failed("vega", None, "killed"),
+        IpcError::devslot_invalid_output("vega", "not json"),
+        IpcError::remote_command_timeout("vega", 20),
+    ];
+
+    assert_eq!(
+        errors.map(|error| (error.code.as_str(), error.data.unwrap())),
+        [
+            (
+                "devslot_not_found",
+                json!({"host": "vega", "path": "~/bin/ds"})
+            ),
+            (
+                "devslot_failed",
+                json!({"host": "vega", "status": 2, "stderr": "locked"})
+            ),
+            (
+                "devslot_failed",
+                json!({"host": "vega", "status": null, "stderr": "killed"})
+            ),
+            (
+                "devslot_invalid_output",
+                json!({"host": "vega", "reason": "not json"})
+            ),
+            (
+                "remote_command_timeout",
+                json!({"host": "vega", "seconds": 20})
+            ),
         ]
     );
 }

@@ -154,6 +154,27 @@ impl X11ServerStart {
     }
 }
 
+/// What happens to a saved devslot tunnel whose port the remote `ds` no
+/// longer lists.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum DevslotStale {
+    /// Ask the user before deleting it.
+    #[default]
+    Ask,
+    /// Delete it without asking.
+    Delete,
+}
+
+impl DevslotStale {
+    /// The preference as written in the store file.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ask => "ask",
+            Self::Delete => "delete",
+        }
+    }
+}
+
 /// How the daemon signals that a standby tunnel woke up or failed to.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub enum StandbyNotify {
@@ -242,12 +263,20 @@ pub struct OpenOptions {
     /// What opens the tunnel: [`BROWSER_OPENER_ID`] or the id of an opener.
     /// Absent means the suggestion for the target port, else the browser.
     pub with: Option<String>,
+    /// The `<label>.localhost` name the browser is pointed at instead of the
+    /// loopback name, when the tunnel listens on a loopback or wildcard
+    /// address.
+    pub host_name: Option<String>,
 }
 
 impl OpenOptions {
     /// Whether no option is set.
     pub fn is_empty(&self) -> bool {
-        self.scheme.is_none() && self.path.is_none() && self.host.is_none() && self.with.is_none()
+        self.scheme.is_none()
+            && self.path.is_none()
+            && self.host.is_none()
+            && self.with.is_none()
+            && self.host_name.is_none()
     }
 }
 
@@ -411,6 +440,10 @@ pub struct Settings {
     pub language: Language,
     /// Whether the UI looks for a newer release when it opens.
     pub check_for_updates: bool,
+    /// Whether tunnels discovered through devslot are saved by default.
+    pub devslot_persist: bool,
+    /// What happens to a saved devslot tunnel whose port is no longer listed.
+    pub devslot_stale: DevslotStale,
 }
 
 impl Default for Settings {
@@ -438,6 +471,8 @@ impl Default for Settings {
             standby_volume: DEFAULT_STANDBY_VOLUME,
             language: Language::default(),
             check_for_updates: true,
+            devslot_persist: false,
+            devslot_stale: DevslotStale::default(),
         }
     }
 }
@@ -447,6 +482,10 @@ impl Default for Settings {
 pub struct HostOverrides {
     /// The local X11 display used for this host.
     pub x11_display: Option<String>,
+    /// The `ds` program of the host, when it is not `ds` in the `PATH`.
+    pub devslot_path: Option<String>,
+    /// Overrides `Settings::devslot_persist` for this host.
+    pub devslot_persist: Option<bool>,
 }
 
 /// A command run in an X11-enabled session on a host.

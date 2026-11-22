@@ -400,6 +400,7 @@ mod tests {
                     metrics: ipc::protocol::MetricsDto::default(),
                     is_awake: false,
                     is_temporary: false,
+                    devslot: None,
                     default_opener: ipc::protocol::DefaultOpenerDto {
                         id: "browser".to_owned(),
                         name: "Browser".to_owned(),
@@ -429,6 +430,8 @@ mod tests {
                 standby_volume: 50,
                 language: ipc::protocol::LanguageDto::System,
                 check_for_updates: true,
+                devslot_persist: false,
+                devslot_stale: ipc::protocol::DevslotStalePolicyDto::Ask,
             },
             tray: TrayStatusDto::default(),
             externals: Vec::new(),

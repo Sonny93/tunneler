@@ -19,6 +19,10 @@ pub(crate) const X11_SERVER_START_TIMEOUT: Duration = Duration::from_secs(10);
 /// How often the display of a starting X server is tried.
 pub(crate) const X11_SERVER_POLL_INTERVAL: Duration = Duration::from_millis(200);
 
+/// How long a command run on a host for the daemon, such as the devslot
+/// listing, may take once its session is open.
+pub(crate) const REMOTE_COMMAND_TIMEOUT: Duration = Duration::from_secs(20);
+
 const SHORTEST_INTERVAL: Duration = Duration::from_millis(1);
 
 /// Tunes the timing of the runtime. The defaults suit production; tests
@@ -43,6 +47,10 @@ pub struct EngineOptions {
     /// How often the display of a starting X server is tried. Defaults to
     /// 200 milliseconds.
     pub x11_server_poll_interval: Duration,
+    /// How long a command run on a host, such as the devslot listing, may
+    /// take once its session is open, from opening its channel to its end.
+    /// Defaults to 20 seconds.
+    pub remote_command_timeout: Duration,
 }
 
 impl Default for EngineOptions {
@@ -54,6 +62,7 @@ impl Default for EngineOptions {
             tunnel_ready_timeout: TUNNEL_READY_TIMEOUT,
             x11_server_start_timeout: X11_SERVER_START_TIMEOUT,
             x11_server_poll_interval: X11_SERVER_POLL_INTERVAL,
+            remote_command_timeout: REMOTE_COMMAND_TIMEOUT,
         }
     }
 }
@@ -67,6 +76,7 @@ impl EngineOptions {
             tunnel_ready_timeout: self.tunnel_ready_timeout.max(SHORTEST_INTERVAL),
             x11_server_start_timeout: self.x11_server_start_timeout.max(SHORTEST_INTERVAL),
             x11_server_poll_interval: self.x11_server_poll_interval.max(SHORTEST_INTERVAL),
+            remote_command_timeout: self.remote_command_timeout.max(SHORTEST_INTERVAL),
         }
     }
 }
@@ -105,6 +115,14 @@ mod tests {
 
         assert_eq!(options.x11_server_start_timeout, Duration::from_secs(10));
         assert_eq!(options.x11_server_poll_interval, Duration::from_millis(200));
+    }
+
+    #[test]
+    fn should_wait_twenty_seconds_for_a_remote_command_by_default() {
+        assert_eq!(
+            EngineOptions::default().remote_command_timeout,
+            Duration::from_secs(20)
+        );
     }
 
     #[test]

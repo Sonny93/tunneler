@@ -6,6 +6,7 @@
 //! until a termination signal or an accepted `daemon.quit` stops it.
 
 mod console;
+mod devslot_mapping;
 mod display_language;
 mod error;
 mod events;

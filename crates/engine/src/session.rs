@@ -188,6 +188,11 @@ impl SshSession {
         Ok(channel)
     }
 
+    /// Opens a session channel, on which a command can be run.
+    pub(crate) async fn open_session_channel(&self) -> Result<Channel<Msg>, russh::Error> {
+        self.handle.channel_open_session().await
+    }
+
     /// Resolves once this session, or any jump host it runs through, has
     /// ended: disconnected by either side, or lost with the network.
     pub async fn closed(&self) {

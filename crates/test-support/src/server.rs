@@ -33,11 +33,42 @@ enum X11Policy {
     ReportingEmptyDisplay,
 }
 
+/// Whether the server answers requests to open a session channel.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ChannelOpenPolicy {
+    Answering,
+    Stalling,
+}
+
 /// Whether the server answers authentication requests.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum AuthenticationPolicy {
     Answering,
     Stalling,
+}
+
+/// How a scripted command ends.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommandEnding {
+    /// Reports this exit status, then closes the channel.
+    ExitStatus(u32),
+    /// Closes the channel without reporting an exit status, like a command
+    /// killed by a signal.
+    NoStatus,
+    /// Never ends: the channel stays open.
+    Hang,
+}
+
+/// What every command run on a session channel prints and how it ends,
+/// except the X11 anchor command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScriptedCommand {
+    /// Written to the standard output.
+    pub stdout: Vec<u8>,
+    /// Written to the standard error.
+    pub stderr: Vec<u8>,
+    /// How the command ends.
+    pub ending: CommandEnding,
 }
 
 /// An `x11-req` request a client made on a session channel.
@@ -80,6 +111,8 @@ struct Behavior {
     x11_requests: Arc<Mutex<Vec<X11Request>>>,
     executed_commands: Arc<Mutex<Vec<String>>>,
     latest_session: Arc<Mutex<Option<server::Handle>>>,
+    command_script: Option<ScriptedCommand>,
+    channel_open_policy: ChannelOpenPolicy,
 }
 
 /// The live connections of the server, so that they can be cut.
@@ -141,6 +174,8 @@ pub struct TestServerBuilder {
     allows_remote_forwards: bool,
     x11_policy: X11Policy,
     authentication_policy: AuthenticationPolicy,
+    command_script: Option<ScriptedCommand>,
+    channel_open_policy: ChannelOpenPolicy,
 }
 
 impl TestServerBuilder {
@@ -206,6 +241,20 @@ impl TestServerBuilder {
         self
     }
 
+    /// Makes every command run on a session channel (but the X11 anchor
+    /// command) print and end as `script` says.
+    pub fn answering_commands(mut self, script: ScriptedCommand) -> Self {
+        self.command_script = Some(script);
+        self
+    }
+
+    /// Never answers the request to open a session channel, like a half-dead
+    /// connection.
+    pub fn stalling_session_channels(mut self) -> Self {
+        self.channel_open_policy = ChannelOpenPolicy::Stalling;
+        self
+    }
+
     /// Starts listening on loopback.
     pub async fn start(self) -> TestServer {
         let listener = TcpListener::bind(("127.0.0.1", self.port)).await.unwrap();
@@ -236,6 +285,8 @@ impl TestServerBuilder {
             x11_requests: Arc::clone(&x11_requests),
             executed_commands: Arc::clone(&executed_commands),
             latest_session: Arc::clone(&latest_session),
+            command_script: self.command_script,
+            channel_open_policy: self.channel_open_policy,
         });
         let config = Arc::new(config);
         let connections = Arc::new(Connections::default());
@@ -316,6 +367,8 @@ impl TestServer {
             allows_remote_forwards: true,
             x11_policy: X11Policy::Anchoring,
             authentication_policy: AuthenticationPolicy::Answering,
+            command_script: None,
+            channel_open_policy: ChannelOpenPolicy::Answering,
         }
     }
 
@@ -656,6 +709,9 @@ impl server::Handler for ConnectionHandler {
         reply: server::ChannelOpenHandle,
         _session: &mut Session,
     ) -> Result<(), Self::Error> {
+        if self.behavior.channel_open_policy == ChannelOpenPolicy::Stalling {
+            std::future::pending::<()>().await;
+        }
         reply.accept().await;
         Ok(())
     }
@@ -699,6 +755,10 @@ impl server::Handler for ConnectionHandler {
         session.channel_success(channel)?;
         if is_anchor_command {
             session.data(channel, self.display_line().into_bytes())?;
+            return Ok(());
+        }
+        if let Some(script) = &self.behavior.command_script {
+            play_script(script, channel, session)?;
         }
         Ok(())
     }
@@ -795,6 +855,28 @@ impl server::Handler for ConnectionHandler {
         let _ = task.await;
         Ok(true)
     }
+}
+
+const STDERR_EXTENDED_DATA: u32 = 1;
+
+fn play_script(
+    script: &ScriptedCommand,
+    channel: ChannelId,
+    session: &mut Session,
+) -> Result<(), russh::Error> {
+    if !script.stdout.is_empty() {
+        session.data(channel, script.stdout.clone())?;
+    }
+    if !script.stderr.is_empty() {
+        session.extended_data(channel, STDERR_EXTENDED_DATA, script.stderr.clone())?;
+    }
+    match script.ending {
+        CommandEnding::Hang => return Ok(()),
+        CommandEnding::ExitStatus(status) => session.exit_status_request(channel, status)?,
+        CommandEnding::NoStatus => {}
+    }
+    session.eof(channel)?;
+    session.close(channel)
 }
 
 async fn bind_forward_listener(port: u16) -> Option<TcpListener> {

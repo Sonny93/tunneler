@@ -13,6 +13,9 @@ use tracing::warn;
 use crate::blocking::run_blocking;
 use crate::clock::Clock;
 use crate::connector::{Connector, ConnectorDependencies};
+use crate::devslot::{
+    DevslotDiscovery, DevslotError, DevslotOrigin, DevslotResync, DevslotResyncTunnel,
+};
 use crate::error::SessionError;
 use crate::external::{PortScanner, ScanError, TerminateError, UnmanagedProcess};
 use crate::keyring::SecretKeyring;
@@ -143,6 +146,14 @@ pub enum EngineError {
     /// Another process holds the listening port of the tunnel.
     #[error("another process holds the listening port of the tunnel")]
     TunnelPortConflict,
+    /// The project tag of a devslot origin is not a tag starting with `ds-`.
+    #[error(
+        "the devslot project tag \"{0}\" must be a valid tag that starts with \"ds-\" and fits in 64 bytes"
+    )]
+    InvalidDevslotProjectTag(String),
+    /// The devslot instances of a host could not be listed.
+    #[error(transparent)]
+    Devslot(#[from] DevslotError),
     /// The tunnel was stopped while it was being started.
     #[error("the tunnel was stopped while it was starting")]
     TunnelStoppedWhileStarting,
@@ -264,6 +275,7 @@ pub(crate) struct EngineInner {
     catalog: Mutex<Catalog>,
     pub(crate) mutation: tokio::sync::Mutex<()>,
     tunnel_ready_timeout: Duration,
+    pub(crate) remote_command_timeout: Duration,
     program_locator: Arc<dyn ProgramLocator>,
     preset_platform: PresetPlatform,
     detected_openers: Mutex<Vec<Opener>>,
@@ -339,6 +351,10 @@ impl Engine {
     }
 
     /// Like [`start`](Self::start), with the timing of the runtime tuned.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the constructor wires every collaborator of the engine in one place"
+    )]
     pub fn start_with_options(
         dependencies: EngineDependencies,
         options: EngineOptions,
@@ -420,6 +436,7 @@ impl Engine {
             catalog: Mutex::new(Catalog::new(factory, document.tunnels)),
             mutation: tokio::sync::Mutex::new(()),
             tunnel_ready_timeout: options.tunnel_ready_timeout,
+            remote_command_timeout: options.remote_command_timeout,
             detected_openers: Mutex::new(detect_presets(program_locator.as_ref(), preset_platform)),
             program_locator,
             preset_platform,
@@ -674,12 +691,22 @@ impl Engine {
     /// never saved to the store nor remembered in the state file. It is
     /// removed when it is stopped. Its tags are dropped: it has none. Use
     /// [`persist_tunnel`](Self::persist_tunnel) to keep it.
+    ///
+    /// `devslot` marks a tunnel started from a devslot listing: the mark
+    /// stays in the daemon, lets [`resync_devslot`](Self::resync_devslot)
+    /// recognise the tunnel, and becomes tags when the tunnel is saved.
     pub async fn start_temporary_tunnel(
         &self,
         new_tunnel: NewTunnel,
+        devslot: Option<DevslotOrigin>,
     ) -> Result<TunnelId, EngineError> {
         let _serialized = self.inner.mutation.lock().await;
         self.ensure_running()?;
+        if let Some(origin) = devslot.as_ref().filter(|origin| !origin.is_valid()) {
+            return Err(EngineError::InvalidDevslotProjectTag(
+                origin.project_tag.clone().unwrap_or_default(),
+            ));
+        }
         let definition = NewTunnel {
             tags: Vec::new(),
             ..new_tunnel
@@ -689,7 +716,7 @@ impl Engine {
         let id = definition.id;
         {
             let mut catalog = self.inner.catalog();
-            catalog.add_temporary(definition);
+            catalog.add_temporary(definition, devslot);
             catalog.send(id, TunnelCommand::Start);
         }
         self.inner.bus.publish(EngineEvent::ConfigReloaded);
@@ -697,22 +724,24 @@ impl Engine {
     }
 
     /// Saves a temporary tunnel to the store with its current definition. It
-    /// becomes a regular tunnel and keeps running, without restarting.
+    /// becomes a regular tunnel and keeps running, without restarting. A
+    /// tunnel started from devslot is saved with the tags `devslot` and its
+    /// project tag.
     pub async fn persist_tunnel(&self, id: TunnelId) -> Result<(), EngineError> {
         let _serialized = self.inner.mutation.lock().await;
         self.ensure_running()?;
-        let tunnels = {
+        let (previous, tunnels) = {
             let mut catalog = self.inner.catalog();
             if !catalog.contains(id) {
                 return Err(EngineError::UnknownTunnel(id));
             }
-            if !catalog.mark_persistent(id) {
+            let Some(previous) = catalog.mark_persistent(id) else {
                 return Err(EngineError::TunnelIsNotTemporary(id));
-            }
-            catalog.persistent_definitions()
+            };
+            (previous, catalog.persistent_definitions())
         };
         if let Err(error) = self.inner.persist_tunnels(tunnels).await {
-            self.inner.catalog().mark_temporary(id);
+            self.inner.catalog().restore_temporary(id, previous);
             return Err(error.into());
         }
         if self.inner.catalog().is_running(id) {
@@ -1004,6 +1033,33 @@ impl Engine {
                 name: name.to_owned(),
             })?;
         Ok(self.inner.x11_launches.launch(launcher).await?)
+    }
+
+    /// Lists the devslot instances of the host by running `ds ls --json`
+    /// there, over the shared SSH session, and compares them with the tunnels
+    /// of the host: which listed ports are already tunneled, and which devslot
+    /// tunnels no longer match. The command is fixed; only the host selects
+    /// the session and the `devslot_path` and `devslot_persist` overrides.
+    pub async fn discover_devslot(&self, host: &str) -> Result<DevslotDiscovery, EngineError> {
+        self.ensure_running()?;
+        Ok(self.inner.discover_devslot(host).await?)
+    }
+
+    /// Removes the stale devslot tunnels of a host that a discovery returned.
+    ///
+    /// Under the mutation lock, a tunnel is removed only when the catalog
+    /// still holds exactly that definition, with the same temporary status,
+    /// and it is still a devslot tunnel of `host`; otherwise it is skipped. A
+    /// tunnel that is no longer there counts as removed. Temporary tunnels are
+    /// removed from the catalog and clients are told as for a deletion; saved
+    /// ones are deleted with one write of the store.
+    pub async fn resync_devslot(
+        &self,
+        host: &str,
+        tunnels: Vec<DevslotResyncTunnel>,
+    ) -> Result<DevslotResync, EngineError> {
+        self.ensure_running()?;
+        self.inner.resync_devslot(host, tunnels).await
     }
 
     /// How many X11 anchors hold resources: starting, active or reconnecting.

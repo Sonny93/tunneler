@@ -1509,6 +1509,7 @@ dependencies = [
  "pretty_assertions",
  "russh",
  "serde",
+ "serde_json",
  "ssh-config",
  "sysinfo",
  "tempfile",

@@ -13,8 +13,8 @@ use super::document_update;
 use super::error::{SourceLocation, StoreError};
 use super::migration::{CURRENT_VERSION, migrate};
 use super::model::{
-    HostOverrides, Language, OpenDefault, OpenHost, OpenOptions, OpenScheme, Opener, Settings,
-    StandbyNotify, StandbySound, StoreDocument, TunnelDefinition, TunnelId, TunnelKind,
+    DevslotStale, HostOverrides, Language, OpenDefault, OpenHost, OpenOptions, OpenScheme, Opener,
+    Settings, StandbyNotify, StandbySound, StoreDocument, TunnelDefinition, TunnelId, TunnelKind,
     X11Launcher, X11ServerStart,
 };
 use super::validation::validate;
@@ -95,6 +95,15 @@ struct StoredSettings {
     standby_volume: Option<u8>,
     language: Option<StoredLanguage>,
     check_for_updates: Option<bool>,
+    devslot_persist: Option<bool>,
+    devslot_stale: Option<StoredDevslotStale>,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum StoredDevslotStale {
+    Ask,
+    Delete,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -161,6 +170,7 @@ struct StoredOpen {
     path: Option<String>,
     host: Option<StoredOpenHost>,
     with: Option<String>,
+    host_name: Option<String>,
 }
 
 #[derive(Clone, Copy, Deserialize)]
@@ -194,6 +204,8 @@ struct StoredTunnel {
 #[serde(deny_unknown_fields)]
 struct StoredHostOverrides {
     x11_display: Option<String>,
+    devslot_path: Option<String>,
+    devslot_persist: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -352,6 +364,19 @@ impl StoredSettings {
             standby_volume: self.standby_volume.unwrap_or(defaults.standby_volume),
             language: self.language.map_or(defaults.language, Language::from),
             check_for_updates: self.check_for_updates.unwrap_or(defaults.check_for_updates),
+            devslot_persist: self.devslot_persist.unwrap_or(defaults.devslot_persist),
+            devslot_stale: self
+                .devslot_stale
+                .map_or(defaults.devslot_stale, DevslotStale::from),
+        }
+    }
+}
+
+impl From<StoredDevslotStale> for DevslotStale {
+    fn from(stale: StoredDevslotStale) -> Self {
+        match stale {
+            StoredDevslotStale::Ask => Self::Ask,
+            StoredDevslotStale::Delete => Self::Delete,
         }
     }
 }
@@ -432,6 +457,7 @@ impl StoredOpen {
             path: self.path,
             host: self.host.map(OpenHost::from),
             with: self.with,
+            host_name: self.host_name,
         }
     }
 }
@@ -467,6 +493,8 @@ impl StoredHostOverrides {
     fn into_overrides(self) -> HostOverrides {
         HostOverrides {
             x11_display: self.x11_display.filter(|display| !display.is_empty()),
+            devslot_path: self.devslot_path,
+            devslot_persist: self.devslot_persist,
         }
     }
 }
@@ -865,6 +893,7 @@ mod tests {
             "build.example.com".to_owned(),
             HostOverrides {
                 x11_display: Some(":1".to_owned()),
+                ..HostOverrides::default()
             },
         );
 
@@ -893,6 +922,7 @@ mod tests {
                 path: Some("/admin".to_owned()),
                 host: Some(OpenHost::Ip),
                 with: Some("remmina-vnc".to_owned()),
+                host_name: None,
             }
         );
     }
@@ -1151,6 +1181,7 @@ mod tests {
                     path: Some("/admin".to_owned()),
                     host: None,
                     with: Some("browser".to_owned()),
+                    host_name: None,
                 },
                 ..tunnel_on(TunnelKind::Local, 3333)
             }],
@@ -1256,5 +1287,136 @@ mod tests {
         let location = locate("ab\ncdé\nfg", &(7..8));
 
         assert_eq!(location, SourceLocation { line: 2, column: 4 });
+    }
+
+    #[test]
+    fn should_read_the_devslot_settings_when_they_are_given() {
+        let outcome =
+            parse("[settings]\ndevslot_persist = true\ndevslot_stale = \"delete\"\n").unwrap();
+
+        assert_eq!(
+            (
+                outcome.document.settings.devslot_persist,
+                outcome.document.settings.devslot_stale
+            ),
+            (true, DevslotStale::Delete)
+        );
+    }
+
+    #[test]
+    fn should_default_the_devslot_settings_when_they_are_omitted() {
+        let settings = parse("version = 1\n").unwrap().document.settings;
+
+        assert_eq!(
+            (settings.devslot_persist, settings.devslot_stale),
+            (false, DevslotStale::Ask)
+        );
+    }
+
+    #[test]
+    fn should_reject_an_unknown_devslot_stale_value() {
+        assert!(matches!(
+            parse("[settings]\ndevslot_stale = \"maybe\"\n"),
+            Err(StoreError::Parse { .. })
+        ));
+    }
+
+    #[test]
+    fn should_read_the_devslot_overrides_of_a_host_when_they_are_given() {
+        let document =
+            parse("[hosts.vega]\ndevslot_path = \"~/.cargo/bin/ds\"\ndevslot_persist = true\n")
+                .unwrap()
+                .document;
+        let overrides = &document.hosts["vega"];
+
+        assert_eq!(
+            (&overrides.devslot_path, overrides.devslot_persist),
+            (&Some("~/.cargo/bin/ds".to_owned()), Some(true))
+        );
+    }
+
+    #[test]
+    fn should_reject_a_host_when_its_devslot_path_is_empty() {
+        assert!(matches!(
+            parse("[hosts.vega]\ndevslot_path = \"\"\n"),
+            Err(StoreError::Validation(_))
+        ));
+    }
+
+    #[test]
+    fn should_read_the_open_host_name_when_it_is_given() {
+        let options = open_options_of("open = { host_name = \"my-app.localhost\" }").unwrap();
+
+        assert_eq!(options.host_name.as_deref(), Some("my-app.localhost"));
+    }
+
+    #[test]
+    fn should_reject_a_tunnel_when_its_open_host_name_is_invalid() {
+        assert!(matches!(
+            open_options_of("open = { host_name = \"evil.example\" }"),
+            Err(StoreError::Validation(_))
+        ));
+    }
+
+    #[test]
+    fn should_not_write_the_devslot_settings_when_they_hold_their_defaults() {
+        let rendered = render(None, &StoreDocument::default());
+
+        assert!(!rendered.contains("devslot"), "{rendered}");
+    }
+
+    #[test]
+    fn should_write_the_devslot_settings_when_they_differ_from_the_defaults() {
+        let mut document = StoreDocument::default();
+        document.settings.devslot_persist = true;
+        document.settings.devslot_stale = DevslotStale::Delete;
+
+        let rendered = render(None, &document);
+
+        assert!(
+            rendered.contains("devslot_persist = true")
+                && rendered.contains("devslot_stale = \"delete\""),
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn should_keep_the_devslot_settings_in_the_file_when_they_return_to_their_defaults() {
+        let text = "[settings]\ndevslot_persist = true # mine\n";
+        let mut document = parse(text).unwrap().document;
+        document.settings.devslot_persist = false;
+
+        let rendered = render(Some(text), &document);
+
+        assert!(
+            rendered.contains("devslot_persist = false # mine"),
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn should_round_trip_the_devslot_keys_through_a_fresh_render() {
+        let mut document = StoreDocument::default();
+        document.settings.devslot_persist = true;
+        document.settings.devslot_stale = DevslotStale::Delete;
+        document.hosts.insert(
+            "vega".to_owned(),
+            HostOverrides {
+                devslot_path: Some("~/bin/ds".to_owned()),
+                devslot_persist: Some(false),
+                ..HostOverrides::default()
+            },
+        );
+        document.tunnels.push(TunnelDefinition {
+            open: OpenOptions {
+                host_name: Some("my-app.localhost".to_owned()),
+                ..OpenOptions::default()
+            },
+            ..tunnel_on(TunnelKind::Local, 3333)
+        });
+
+        let rendered = render(None, &document);
+
+        assert_eq!(parse(&rendered).unwrap().document, document);
     }
 }

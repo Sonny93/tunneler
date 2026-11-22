@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::protocol::devslot::DevslotOriginDto;
+
 /// The default of `standby_idle_s`, in seconds.
 pub const DEFAULT_STANDBY_IDLE_S: u64 = 300;
 
@@ -111,6 +113,17 @@ pub enum LanguageDto {
     Fr,
 }
 
+/// What happens to a saved devslot tunnel whose port is no longer listed.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DevslotStalePolicyDto {
+    /// Ask the user before deleting it.
+    #[default]
+    Ask,
+    /// Delete it without asking.
+    Delete,
+}
+
 /// What a sound announces.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -138,12 +151,21 @@ pub struct OpenOptionsDto {
     /// the suggestion for the target port, else the browser.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub with: Option<String>,
+    /// The `<label>.localhost` name the browser is pointed at instead of the
+    /// loopback name, when the tunnel listens on a loopback or wildcard
+    /// address.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host_name: Option<String>,
 }
 
 impl OpenOptionsDto {
     /// Whether no option is set.
     pub fn is_empty(&self) -> bool {
-        self.scheme.is_none() && self.path.is_none() && self.host.is_none() && self.with.is_none()
+        self.scheme.is_none()
+            && self.path.is_none()
+            && self.host.is_none()
+            && self.with.is_none()
+            && self.host_name.is_none()
     }
 }
 
@@ -228,7 +250,8 @@ pub struct TunnelSpecDto {
 }
 
 /// The definition of a temporary tunnel: a [`TunnelSpecDto`] without tags,
-/// since a temporary tunnel is never saved and so is never selected by tag.
+/// since a temporary tunnel is never saved and so is never selected by tag,
+/// and with an optional devslot origin.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TemporaryTunnelSpecDto {
@@ -247,6 +270,12 @@ pub struct TemporaryTunnelSpecDto {
     /// The port the traffic is forwarded to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target_port: Option<u16>,
+    /// How the tunnel is opened; absent when nothing is set.
+    #[serde(default, skip_serializing_if = "OpenOptionsDto::is_empty")]
+    pub open: OpenOptionsDto,
+    /// Marks the tunnel as started from a devslot listing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub devslot: Option<DevslotOriginDto>,
 }
 
 /// A configured tunnel: its identifier and its [`TunnelSpecDto`].
@@ -415,6 +444,10 @@ pub struct TunnelDto {
     /// stopping it removes it.
     #[serde(default)]
     pub is_temporary: bool,
+    /// Where a temporary tunnel comes from when it was started from a devslot
+    /// listing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub devslot: Option<DevslotOriginDto>,
     /// What the tunnel opens with when nothing is asked: the choice saved in
     /// its `open.with`, else the opener suggested for its target port, else
     /// the browser.
@@ -510,6 +543,12 @@ pub struct SettingsDto {
     /// Whether the UI looks for a newer release when it opens.
     #[serde(default = "default_check_for_updates")]
     pub check_for_updates: bool,
+    /// Whether tunnels discovered through devslot are saved by default.
+    #[serde(default)]
+    pub devslot_persist: bool,
+    /// What happens to a saved devslot tunnel whose port is no longer listed.
+    #[serde(default)]
+    pub devslot_stale: DevslotStalePolicyDto,
 }
 
 fn default_check_for_updates() -> bool {
