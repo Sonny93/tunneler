@@ -24,6 +24,7 @@ All notable changes to Tunneler are written here for the people who use it. The 
 ### Fixed
 
 - When the SSH connection fails while launching an X11 app or discovering devslot instances, the window now says which host could not be reached and why, instead of showing an internal error.
+- The daemon no longer waits for the detection of the applications before it starts, so a slow folder in the `PATH` (for example on an unreachable network share) no longer delays it.
 
 ## [0.6.1] - 2026-11-18
 

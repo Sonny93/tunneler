@@ -7,7 +7,7 @@ use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::{broadcast, oneshot, watch};
 use tokio::task::JoinHandle;
-use tokio::time::timeout;
+use tokio::time::{Instant, timeout, timeout_at};
 use tracing::warn;
 
 use crate::blocking::run_blocking;
@@ -54,11 +54,11 @@ use crate::x11::{
 /// `PATH` must not block the opening.
 const OPENER_REFRESH_TIMEOUT: Duration = Duration::from_secs(1);
 
-struct RefreshGuard<'flag>(&'flag AtomicBool);
+struct RefreshGuard<'flag>(&'flag watch::Sender<Option<Instant>>);
 
 impl Drop for RefreshGuard<'_> {
     fn drop(&mut self) {
-        self.0.store(false, Ordering::Release);
+        self.0.send_replace(None);
     }
 }
 
@@ -196,8 +196,8 @@ pub struct EngineDependencies {
     /// `Settings::use_os_keyring` is on; `None` when there is none.
     pub keyring: Option<Arc<dyn SecretKeyring>>,
     /// Where the programs of the built-in openers are looked for; see
-    /// [`detect_presets`](crate::detect_presets). The engine looks at start
-    /// and again when asked, see [`Engine::refresh_detected_openers`].
+    /// [`detect_presets`](crate::detect_presets). The engine looks in the
+    /// background once started, and again when asked, see [`Engine::refresh_detected_openers`].
     pub program_locator: Arc<dyn ProgramLocator>,
     /// The operating system the built-in openers are chosen for.
     pub preset_platform: PresetPlatform,
@@ -288,7 +288,7 @@ pub(crate) struct EngineInner {
     reload_task: Mutex<Option<JoinHandle<()>>>,
     scan_task: Mutex<Option<JoinHandle<()>>>,
     pub(crate) is_shut_down: AtomicBool,
-    is_refreshing: AtomicBool,
+    is_refreshing: watch::Sender<Option<Instant>>,
 }
 
 impl EngineInner {
@@ -444,13 +444,13 @@ impl Engine {
             devslot_up_lock: tokio::sync::Mutex::new(()),
             tunnel_ready_timeout: options.tunnel_ready_timeout,
             remote_command_timeout: options.remote_command_timeout,
-            detected_openers: Mutex::new(detect_presets(program_locator.as_ref(), preset_platform)),
+            detected_openers: Mutex::new(Vec::new()),
             program_locator,
             preset_platform,
             reload_task: Mutex::new(None),
             scan_task: Mutex::new(None),
             is_shut_down: AtomicBool::new(false),
-            is_refreshing: AtomicBool::new(false),
+            is_refreshing: watch::channel(None).0,
         });
         let reload_task = tokio::spawn(run_reload_loop(Arc::downgrade(&inner), watcher));
         *inner
@@ -466,7 +466,10 @@ impl Engine {
             .scan_task
             .lock()
             .unwrap_or_else(PoisonError::into_inner) = Some(scan_task);
-        Ok(Self { inner })
+        let engine = Self { inner };
+        let detection_engine = engine.clone();
+        tokio::spawn(async move { detection_engine.refresh_detected_openers().await });
+        Ok(engine)
     }
 
     /// The path of the configuration file the engine reads and writes.
@@ -500,10 +503,22 @@ impl Engine {
     ///
     /// The look checks many paths on disk: it runs off the async runtime, in
     /// a task that outlives this call. At most one look runs at a time: when
-    /// one is already running, this returns at once and the list held stays
-    /// as it is until that look ends.
+    /// one is already running, this waits for it instead of starting another,
+    /// so the list it leaves is the one that look found, but only until that
+    /// look is [`OPENER_REFRESH_TIMEOUT`] old. A look older than that is a
+    /// hung one: this returns at once and the list held stays as it is.
+    /// The engine starts with no detected opener and runs the first look in
+    /// the background, so a call right after the start waits for it.
     pub async fn refresh_detected_openers(&self) {
-        if self.inner.is_refreshing.swap(true, Ordering::AcqRel) {
+        let is_started = self.inner.is_refreshing.send_if_modified(|started_at| {
+            if started_at.is_some() {
+                return false;
+            }
+            *started_at = Some(Instant::now());
+            true
+        });
+        if !is_started {
+            self.wait_for_running_detection().await;
             return;
         }
         let engine = self.clone();
@@ -520,6 +535,15 @@ impl Engine {
         if task.await.is_err() {
             warn!("the detection of the built-in openers failed");
         }
+    }
+
+    async fn wait_for_running_detection(&self) {
+        let mut running = self.inner.is_refreshing.subscribe();
+        let Some(started_at) = *running.borrow() else {
+            return;
+        };
+        let deadline = started_at + OPENER_REFRESH_TIMEOUT;
+        let _ = timeout_at(deadline, running.wait_for(Option::is_none)).await;
     }
 
     fn replace_detected_openers(&self, detected: Vec<Opener>) -> bool {

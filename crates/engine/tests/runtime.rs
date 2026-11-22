@@ -84,6 +84,19 @@ struct HarnessBuilder {
     port_scanner: Option<Arc<dyn PortScanner>>,
     previously_running: Vec<&'static str>,
     standby_overrides: Vec<(&'static str, bool)>,
+    installed_programs: Vec<&'static str>,
+    is_locator_hanging: bool,
+}
+
+fn locator_with(programs: &[&str], is_hanging: bool) -> Arc<FakeProgramLocator> {
+    let program_locator = Arc::new(FakeProgramLocator::default());
+    for program in programs {
+        program_locator.install(program);
+    }
+    if is_hanging {
+        program_locator.hang();
+    }
+    program_locator
 }
 
 struct Harness {
@@ -124,6 +137,8 @@ impl HarnessBuilder {
             clock: Arc::new(SystemClock),
             port_scanner: None,
             previously_running: Vec::new(),
+            installed_programs: Vec::new(),
+            is_locator_hanging: false,
             standby_overrides: Vec::new(),
         }
     }
@@ -193,6 +208,16 @@ impl HarnessBuilder {
 
     fn port_scanner(mut self, scanner: Arc<dyn PortScanner>) -> Self {
         self.port_scanner = Some(scanner);
+        self
+    }
+
+    fn with_installed_program(mut self, program: &'static str) -> Self {
+        self.installed_programs.push(program);
+        self
+    }
+
+    fn with_hanging_locator(mut self) -> Self {
+        self.is_locator_hanging = true;
         self
     }
 
@@ -269,7 +294,7 @@ impl HarnessBuilder {
                 .collect(),
             ..AppState::default()
         }));
-        let program_locator = Arc::new(FakeProgramLocator::default());
+        let program_locator = locator_with(&self.installed_programs, self.is_locator_hanging);
         let scanner = Arc::new(FakePortScanner::default());
         let port_scanner = self
             .port_scanner
@@ -4367,6 +4392,7 @@ fn tigervnc_of(snapshot: &engine::EngineSnapshot) -> bool {
 #[tokio::test]
 async fn should_offer_a_preset_installed_after_the_start_when_the_openers_are_refreshed() {
     let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.engine.refresh_detected_openers().await;
     assert!(!tigervnc_of(&harness.engine.snapshot()));
     harness.program_locator.install("vncviewer");
 
@@ -4378,6 +4404,7 @@ async fn should_offer_a_preset_installed_after_the_start_when_the_openers_are_re
 #[tokio::test]
 async fn should_publish_a_change_when_the_detected_openers_changed() {
     let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.engine.refresh_detected_openers().await;
     harness.program_locator.install("vncviewer");
 
     harness.engine.refresh_detected_openers().await;
@@ -4400,6 +4427,7 @@ async fn should_not_publish_a_change_when_the_detected_openers_did_not_change() 
 #[tokio::test]
 async fn should_plan_a_preset_installed_after_the_start_when_opening_a_tunnel() {
     let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.engine.refresh_detected_openers().await;
     harness.program_locator.install("vncviewer");
 
     let plan = harness
@@ -4423,6 +4451,7 @@ async fn should_plan_a_preset_installed_after_the_start_when_opening_a_tunnel() 
 #[tokio::test]
 async fn should_plan_with_the_known_openers_when_the_detection_hangs() {
     let harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.engine.refresh_detected_openers().await;
     harness.program_locator.hang();
 
     let plan = harness
@@ -4434,13 +4463,9 @@ async fn should_plan_with_the_known_openers_when_the_detection_hangs() {
     assert!(matches!(plan, Ok(OpenPlan::Browser { .. })), "{plan:?}");
 }
 
-#[tokio::test]
-async fn should_not_start_a_second_detection_when_one_is_running() {
-    let harness = HarnessBuilder::new(&["alpha"]).start().await;
-    let lookups_before = harness.program_locator.lookup_count();
-    harness.program_locator.hang();
-    let engine = harness.engine.clone();
-    let first = tokio::spawn(async move { engine.refresh_detected_openers().await });
+const SETTLE: Duration = Duration::from_millis(150);
+
+async fn wait_for_a_lookup_after(harness: &Harness, lookups_before: usize) {
     timeout(WAIT, async {
         while harness.program_locator.lookup_count() == lookups_before {
             tokio::task::yield_now().await;
@@ -4448,13 +4473,90 @@ async fn should_not_start_a_second_detection_when_one_is_running() {
     })
     .await
     .unwrap();
+}
 
+#[tokio::test]
+async fn should_not_start_a_second_detection_when_one_is_running() {
+    let harness = HarnessBuilder::new(&["alpha"]).start().await;
     harness.engine.refresh_detected_openers().await;
+    let lookups_before = harness.program_locator.lookup_count();
+    harness.program_locator.hang();
+    let engine = harness.engine.clone();
+    let first = tokio::spawn(async move { engine.refresh_detected_openers().await });
+    wait_for_a_lookup_after(&harness, lookups_before).await;
+    let engine = harness.engine.clone();
+    let second = tokio::spawn(async move { engine.refresh_detected_openers().await });
+    tokio::time::sleep(SETTLE).await;
 
     let lookups = harness.program_locator.lookup_count();
     harness.program_locator.release();
     first.await.unwrap();
+    second.await.unwrap();
     assert_eq!(lookups, lookups_before + 1);
+}
+
+#[tokio::test]
+async fn should_detect_the_installed_presets_in_the_background_after_the_start() {
+    let mut harness = HarnessBuilder::new(&["alpha"])
+        .with_installed_program("vncviewer")
+        .start()
+        .await;
+
+    let event = timeout(WAIT, harness.events.recv()).await.unwrap().unwrap();
+
+    assert_eq!(event, EngineEvent::ConfigReloaded);
+    assert!(tigervnc_of(&harness.engine.snapshot()));
+}
+
+#[tokio::test]
+async fn should_start_when_the_detection_hangs() {
+    let harness = HarnessBuilder::new(&["alpha"])
+        .with_installed_program("vncviewer")
+        .with_hanging_locator()
+        .start()
+        .await;
+
+    let has_detected_preset = !harness.engine.snapshot().openers.is_empty();
+
+    harness.program_locator.release();
+    assert!(!has_detected_preset);
+}
+
+#[tokio::test]
+async fn should_wait_for_the_running_detection_when_refreshing() {
+    let harness = HarnessBuilder::new(&["alpha"])
+        .with_installed_program("vncviewer")
+        .with_hanging_locator()
+        .start()
+        .await;
+    wait_for_a_lookup_after(&harness, 0).await;
+    let engine = harness.engine.clone();
+    let refresh = tokio::spawn(async move { engine.refresh_detected_openers().await });
+    tokio::time::sleep(SETTLE).await;
+
+    let is_finished_while_hanging = refresh.is_finished();
+    harness.program_locator.release();
+    timeout(WAIT, refresh).await.unwrap().unwrap();
+
+    assert!(!is_finished_while_hanging);
+    assert!(tigervnc_of(&harness.engine.snapshot()));
+}
+
+#[tokio::test]
+async fn should_return_at_once_when_the_running_detection_is_older_than_the_budget() {
+    let harness = HarnessBuilder::new(&["alpha"])
+        .with_hanging_locator()
+        .start()
+        .await;
+    wait_for_a_lookup_after(&harness, 0).await;
+    tokio::time::sleep(Duration::from_millis(1100)).await;
+    let engine = harness.engine.clone();
+    let refresh = tokio::spawn(async move { engine.refresh_detected_openers().await });
+
+    let outcome = timeout(SETTLE, refresh).await;
+
+    harness.program_locator.release();
+    outcome.unwrap().unwrap();
 }
 
 #[tokio::test]
@@ -4471,6 +4573,7 @@ async fn should_detect_again_when_the_previous_detection_ended() {
 #[tokio::test]
 async fn should_not_publish_a_change_when_the_detection_ends_after_the_shutdown() {
     let mut harness = HarnessBuilder::new(&["alpha"]).start().await;
+    harness.engine.refresh_detected_openers().await;
     let lookups_before = harness.program_locator.lookup_count();
     harness.program_locator.install("vncviewer");
     harness.program_locator.hang();
