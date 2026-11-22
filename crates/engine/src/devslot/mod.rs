@@ -11,6 +11,7 @@ mod command;
 mod discovery;
 mod host_name;
 mod listing;
+mod local_ports;
 mod origin;
 mod parse;
 mod project_tag;
@@ -22,6 +23,7 @@ pub(crate) use analysis::{KnownTunnel, assign_port_statuses, find_stale_tunnels}
 pub(crate) use command::{DEFAULT_PROGRAM, build_listing_command};
 pub use discovery::{DevslotDiscovery, DevslotError, DevslotResync, DevslotResyncTunnel};
 pub use listing::{DevslotInstance, DevslotPort, DevslotPortStatus, DevslotWarning};
+pub(crate) use local_ports::{BindProbe, assign_local_ports};
 pub use origin::DevslotOrigin;
 pub(crate) use parse::parse_listing;
 pub use parse::{MAX_DEVSLOT_INSTANCES, MAX_DEVSLOT_PORTS, MAX_DEVSLOT_PORTS_PER_INSTANCE};

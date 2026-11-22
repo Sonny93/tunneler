@@ -178,6 +178,8 @@ fn convert_port(raw: RawPort, instance: &str) -> Result<DevslotPort, DevslotWarn
         target: raw.target.and_then(|target| u16::try_from(target).ok()),
         is_forced: raw.forced.unwrap_or(false),
         status: DevslotPortStatus::New,
+        is_local_port_busy: false,
+        suggested_local_port: None,
     })
 }
 

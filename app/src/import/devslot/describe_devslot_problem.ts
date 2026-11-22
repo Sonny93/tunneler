@@ -11,5 +11,11 @@ export function describeDevslotProblem(
 	if (problem.kind === 'invalidLocalPort') {
 		return i18n._(msg`Enter a port between 1 and 65535.`);
 	}
+	if (problem.kind === 'localPortBusy') {
+		const { port } = problem;
+		return i18n._(
+			msg`Port ${port} is already in use on this computer: choose another local port.`
+		);
+	}
 	return describeImportConflict(problem, i18n);
 }

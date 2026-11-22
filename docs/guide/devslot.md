@@ -13,7 +13,7 @@ The ports an instance forces in its own configuration can be shared with other i
 
 Tunneler runs `ds ls --json` on the host, over the SSH session it already shares with that host's tunnels. This is the only command it ever runs there, and only when you select "Discover". A discovery that takes more than 20 seconds is cancelled, apart from the time spent waiting for a passphrase or password.
 
-Every discovered tunnel is a local tunnel that listens on `127.0.0.1`, whatever the default bind address in the settings, and reaches the same port on the host. If that port is taken here, change the local port in the list. Links the app builds (such as an absolute URL in a page) still point at the remote port, so they stop working when the two ports differ.
+Every discovered tunnel is a local tunnel that listens on `127.0.0.1`, whatever the default bind address in the settings, and reaches the same port on the host. If that port is already in use on your computer (for example by devslot running there too, since it hands out the same ports), Tunneler suggests a free local port (the remote port plus 10000, or the next free one) and fills it in; you can change it in the list. Links the app builds (such as an absolute URL in a page) still point at the remote port, so they stop working when the two ports differ.
 
 ## Where `ds` is
 

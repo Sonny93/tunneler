@@ -13,7 +13,7 @@ Les ports qu'une instance impose dans sa propre configuration peuvent être part
 
 Tunneler exécute `ds ls --json` sur l'hôte, dans la session SSH qu'il partage déjà avec les tunnels de cet hôte. C'est la seule commande qu'il y lance, et seulement quand vous choisissez « Découvrir ». Une découverte qui dépasse 20 secondes est annulée, sans compter l'attente d'une passphrase ou d'un mot de passe.
 
-Chaque tunnel découvert est un tunnel local qui écoute sur `127.0.0.1`, quelle que soit l'adresse d'écoute par défaut des réglages, et atteint le même port sur l'hôte. Si ce port est pris ici, changez le port local dans la liste. Les liens que l'application construit (une URL absolue dans une page, par exemple) pointent toujours vers le port distant : ils cessent de marcher quand les deux ports diffèrent.
+Chaque tunnel découvert est un tunnel local qui écoute sur `127.0.0.1`, quelle que soit l'adresse d'écoute par défaut des réglages, et atteint le même port sur l'hôte. Si ce port est déjà utilisé sur votre ordinateur (par exemple par un devslot qui y tourne aussi, puisqu'il attribue les mêmes ports), Tunneler propose un port local libre (le port distant plus 10000, ou le suivant libre) et le remplit ; vous pouvez le changer dans la liste. Les liens que l'application construit (une URL absolue dans une page, par exemple) pointent toujours vers le port distant : ils cessent de marcher quand les deux ports diffèrent.
 
 ## Où se trouve `ds`
 

@@ -626,4 +626,93 @@ describe('Import from devslot', () => {
 			/Port already used by/
 		);
 	});
+
+	describe('with a local port busy on this computer', () => {
+		const fieldName = /^Local port for PORT of /;
+		const renderBusy = (suggestedLocalPort?: number) =>
+			renderDrawer(
+				buildFullDiscovery({
+					instances: [
+						buildDevslotInstance({
+							ports: [
+								buildDevslotPort({ localPortBusy: true, suggestedLocalPort }),
+							],
+						}),
+					],
+				})
+			);
+
+		it('should prefill the suggested local port, keep the port checked and start with it', async () => {
+			const user = userEvent.setup();
+			const { gateway } = renderBusy(30_050);
+			await discover(user);
+
+			expect(getPort(/^PORT/)).toBeChecked();
+			const field = screen.getByRole('textbox', { name: fieldName });
+			expect(field).toHaveValue('30050');
+			expect(field).toHaveAccessibleDescription(/with port 20050/);
+			await user.click(screen.getByRole('button', { name: 'Start 1 tunnel' }));
+
+			expect(gateway.startTemporaryTunnel).toHaveBeenCalledWith(
+				expect.objectContaining({ listenPort: 30_050, targetPort: 20_050 })
+			);
+		});
+
+		it('should not preselect a busy port without suggestion and explain it', async () => {
+			const user = userEvent.setup();
+			renderBusy();
+			await discover(user);
+
+			expect(getPort(/^PORT/)).not.toBeChecked();
+			expect(
+				screen.getByRole('textbox', { name: fieldName })
+			).toHaveAccessibleDescription(
+				'Port 20050 is already in use on this computer: choose another local port.'
+			);
+		});
+
+		it('should block the start and focus the field while the busy port is unchanged', async () => {
+			const user = userEvent.setup();
+			const { gateway } = renderBusy();
+			await discover(user);
+
+			await user.click(getPort(/^PORT/));
+			expect(getPort(/^PORT/)).toHaveAccessibleDescription(
+				/already in use on this computer/
+			);
+			await user.click(screen.getByRole('button', { name: 'Start 1 tunnel' }));
+
+			const field = screen.getByRole('textbox', { name: fieldName });
+			expect(field).toHaveFocus();
+			expect(field).toBeInvalid();
+			expect(gateway.startTemporaryTunnel).not.toHaveBeenCalled();
+		});
+
+		it('should have no accessibility violation', async () => {
+			const user = userEvent.setup();
+			const { container } = renderBusy();
+			await discover(user);
+
+			expect(await axe(container)).toHaveNoViolations();
+		});
+	});
+
+	it('should keep the local port field of a port whose start failed', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		gateway.startTemporaryTunnel.mockRejectedValue(
+			new DaemonCommandError('port_in_use', 'busy')
+		);
+		await discover(user);
+		const fieldName = /^Local port for PORT of /;
+		expect(
+			screen.queryByRole('textbox', { name: fieldName })
+		).not.toBeInTheDocument();
+
+		await user.click(screen.getByRole('button', { name: 'Start 1 tunnel' }));
+
+		expect(
+			await screen.findByRole('textbox', { name: fieldName })
+		).toBeInTheDocument();
+	});
 });

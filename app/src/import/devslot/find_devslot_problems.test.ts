@@ -86,6 +86,43 @@ describe('findDevslotProblems', () => {
 		expect(one.get('0:1')).toBeNull();
 	});
 
+	it('should report a busy port without suggestion while its local port is the remote one', () => {
+		const common = {
+			entries: buildEntries([buildDevslotPort({ localPortBusy: true })]),
+			selectedKeys: new Set(['0:0']),
+			tunnels: [],
+			settings,
+			host: 'vega',
+		};
+
+		const unchanged = findDevslotProblems({ ...common, localPorts: {} });
+		const changed = findDevslotProblems({
+			...common,
+			localPorts: { '0:0': '30050' },
+		});
+
+		expect(unchanged.get('0:0')).toEqual({
+			kind: 'localPortBusy',
+			port: 20_050,
+		});
+		expect(changed.get('0:0')).toBeNull();
+	});
+
+	it('should accept a busy port that has a suggestion', () => {
+		const problems = findDevslotProblems({
+			entries: buildEntries([
+				buildDevslotPort({ localPortBusy: true, suggestedLocalPort: 30_050 }),
+			]),
+			localPorts: {},
+			selectedKeys: new Set(['0:0']),
+			tunnels: [],
+			settings,
+			host: 'vega',
+		});
+
+		expect(problems.get('0:0')).toBeNull();
+	});
+
 	it('should ignore a port that is already tunneled', () => {
 		const problems = findDevslotProblems({
 			entries: buildEntries([buildDevslotPort({ status: 'alreadyTunneled' })]),

@@ -15,6 +15,7 @@ type DevslotInstanceFieldsetProps = {
 	problems: ReadonlyMap<string, DevslotPortProblem | null>;
 	localPorts: DevslotLocalPorts;
 	isShowingErrors: boolean;
+	pinnedKeys: ReadonlySet<string>;
 	onToggle: (key: string) => void;
 	onLocalPortChange: (key: string, text: string) => void;
 };
@@ -26,6 +27,7 @@ export function DevslotInstanceFieldset({
 	problems,
 	localPorts,
 	isShowingErrors,
+	pinnedKeys,
 	onToggle,
 	onLocalPortChange,
 }: Readonly<DevslotInstanceFieldsetProps>) {
@@ -57,6 +59,7 @@ export function DevslotInstanceFieldset({
 					problem={problems.get(entry.key) ?? null}
 					localPortText={getLocalPortText(entry, localPorts)}
 					isShowingErrors={isShowingErrors}
+					isFieldPinned={pinnedKeys.has(entry.key)}
 					onToggle={onToggle}
 					onLocalPortChange={onLocalPortChange}
 				/>

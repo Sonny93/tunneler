@@ -16,6 +16,7 @@ type DevslotPortRowProps = {
 	problem: DevslotPortProblem | null;
 	localPortText: string;
 	isShowingErrors: boolean;
+	isFieldPinned: boolean;
 	onToggle: (key: string) => void;
 	onLocalPortChange: (key: string, text: string) => void;
 };
@@ -26,6 +27,7 @@ export function DevslotPortRow({
 	problem,
 	localPortText,
 	isShowingErrors,
+	isFieldPinned,
 	onToggle,
 	onLocalPortChange,
 }: Readonly<DevslotPortRowProps>) {
@@ -36,7 +38,8 @@ export function DevslotPortRow({
 	const remotePort = port.port;
 	const isTunnelable = isPortTunnelable(entry);
 	const isLocalPortChanged = localPortText.trim() !== String(remotePort);
-	const isFieldShown = isTunnelable && (problem !== null || isLocalPortChanged);
+	const isFieldShown =
+		isTunnelable && (problem !== null || isLocalPortChanged || isFieldPinned);
 	const problemText =
 		problem === null ? undefined : describeDevslotProblem(problem, i18n);
 	const hasError = isShowingErrors && isSelected && problemText !== undefined;

@@ -150,6 +150,8 @@ fn devslot_instance() -> DevslotInstanceDto {
                 url: Some("http://web-shop-feat-auth-3f2a.localhost:20050".to_owned()),
                 host_name: Some("web-shop-feat-auth-3f2a.localhost".to_owned()),
                 forced: false,
+                local_port_busy: true,
+                suggested_local_port: Some(30050),
                 status: DevslotPortStatusDto::New,
                 tunnel_id: None,
             },
@@ -162,6 +164,8 @@ fn devslot_instance() -> DevslotInstanceDto {
                 url: None,
                 host_name: None,
                 forced: false,
+                local_port_busy: false,
+                suggested_local_port: None,
                 status: DevslotPortStatusDto::AlreadyTunneled,
                 tunnel_id: Some(TUNNEL_ID.to_owned()),
             },
@@ -2155,6 +2159,8 @@ fn should_serialize_a_devslot_discovery_as_documented() {
                     "url": "http://web-shop-feat-auth-3f2a.localhost:20050",
                     "hostName": "web-shop-feat-auth-3f2a.localhost",
                     "forced": false,
+                    "localPortBusy": true,
+                    "suggestedLocalPort": 30050,
                     "status": "new"
                 },
                 {

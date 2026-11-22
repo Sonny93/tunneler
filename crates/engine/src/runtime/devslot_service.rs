@@ -4,10 +4,12 @@
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
+use crate::blocking::run_blocking;
 use crate::devslot::{
-    DEFAULT_PROGRAM, DevslotDiscovery, DevslotError, DevslotResync, DevslotResyncTunnel,
-    KnownTunnel, MAX_PATH_BYTES, assign_port_statuses, build_listing_command, find_stale_tunnels,
-    parse_listing, plan_resync, sanitize_stderr, sanitize_text,
+    BindProbe, DEFAULT_PROGRAM, DevslotDiscovery, DevslotError, DevslotInstance, DevslotResync,
+    DevslotResyncTunnel, KnownTunnel, MAX_PATH_BYTES, assign_local_ports, assign_port_statuses,
+    build_listing_command, find_stale_tunnels, parse_listing, plan_resync, sanitize_stderr,
+    sanitize_text,
 };
 use crate::remote_command::{CommandOutput, RemoteCommandError, run_remote_command};
 use crate::runtime::catalog::TunnelSnapshot;
@@ -47,9 +49,19 @@ impl EngineInner {
                 .devslot_persist
                 .unwrap_or(settings.devslot_persist),
             stale: find_stale_tunnels(host, &parsed.instances, &known, settings.devslot_stale),
-            instances: assign_port_statuses(host, parsed.instances, &known),
+            instances: self.assign_local_ports(host, parsed.instances, known).await,
             warnings: parsed.warnings,
         })
+    }
+
+    async fn assign_local_ports(
+        &self,
+        host: &str,
+        instances: Vec<DevslotInstance>,
+        known: Vec<KnownTunnel>,
+    ) -> Vec<DevslotInstance> {
+        let with_statuses = assign_port_statuses(host, instances, &known);
+        run_blocking(move || assign_local_ports(with_statuses, &known, &BindProbe)).await
     }
 
     async fn list_devslot_instances(

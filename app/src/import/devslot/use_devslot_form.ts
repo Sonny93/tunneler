@@ -43,6 +43,7 @@ type UseDevslotFormReturn = {
 	localPorts: DevslotLocalPorts;
 	isPersistent: boolean;
 	isShowingErrors: boolean;
+	pinnedKeys: ReadonlySet<string>;
 	isStarting: boolean;
 	statusMessage: string;
 	summary: ReturnType<typeof useFormErrorSummary>;
@@ -78,6 +79,7 @@ export function useDevslotForm(
 	const [localPorts, setLocalPorts] = useState<DevslotLocalPorts>({});
 	const [isPersistent, setIsPersistent] = useState(discovery.persistDefault);
 	const [isShowingErrors, setIsShowingErrors] = useState(false);
+	const [pinnedKeys, setPinnedKeys] = useState<ReadonlySet<string>>(new Set());
 	const [isStarting, setIsStarting] = useState(false);
 	const [statusMessage, setStatusMessage] = useState('');
 	const [summaryTitle, setSummaryTitle] = useState('');
@@ -120,6 +122,15 @@ export function useDevslotForm(
 		setSelectedKeys(
 			(current) =>
 				new Set([...current].filter((key) => !outcome.doneKeys.includes(key)))
+		);
+		setPinnedKeys(
+			(current) =>
+				new Set([
+					...current,
+					...outcome.failures
+						.filter(({ stage }) => stage !== 'start')
+						.map(({ key }) => key),
+				])
 		);
 		const startedCount = outcome.startedCount;
 		const failedCount = outcome.failures.length;
@@ -191,6 +202,7 @@ export function useDevslotForm(
 		localPorts,
 		isPersistent,
 		isShowingErrors,
+		pinnedKeys,
 		isStarting,
 		statusMessage,
 		summary,

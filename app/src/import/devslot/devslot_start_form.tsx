@@ -43,6 +43,7 @@ export function DevslotStartForm({
 					problems={form.problems}
 					localPorts={form.localPorts}
 					isShowingErrors={form.isShowingErrors}
+					pinnedKeys={form.pinnedKeys}
 					onToggle={form.togglePort}
 					onLocalPortChange={form.changeLocalPort}
 				/>

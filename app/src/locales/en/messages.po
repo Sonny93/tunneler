@@ -178,7 +178,7 @@ msgstr "{selectedCount, plural, one {# selected} other {# selected}}"
 msgid "{startedCount} started, {failedCount} failed"
 msgstr "{startedCount} started, {failedCount} failed"
 
-#: src/import/devslot/use_devslot_form.ts:127
+#: src/import/devslot/use_devslot_form.ts:138
 msgid "{startedCount} started, {failedCount} failed:"
 msgstr "{startedCount} started, {failedCount} failed:"
 
@@ -250,7 +250,7 @@ msgstr "{usageCount, plural, one {# tunnel uses this application and will not be
 msgid "{value} %"
 msgstr "{value} %"
 
-#: src/import/devslot/devslot_port_row.tsx:63
+#: src/import/devslot/devslot_port_row.tsx:66
 msgid "{variable} ({remotePort})"
 msgstr "{variable} ({remotePort})"
 
@@ -391,7 +391,7 @@ msgstr "Analyze"
 msgid "App host name:"
 msgstr "App host name:"
 
-#: src/import/devslot/devslot_instance_fieldset.tsx:47
+#: src/import/devslot/devslot_instance_fieldset.tsx:49
 msgid "App: {appUrl}"
 msgstr "App: {appUrl}"
 
@@ -1333,7 +1333,7 @@ msgstr "Keep discovered tunnels by default"
 msgid "Keep editing"
 msgstr "Keep editing"
 
-#: src/import/devslot/devslot_start_form.tsx:53
+#: src/import/devslot/devslot_start_form.tsx:54
 msgid "Keep these tunnels"
 msgstr "Keep these tunnels"
 
@@ -1464,7 +1464,7 @@ msgstr "Local display: DISPLAY variable (127.0.0.1:0.0 on Windows) (general sett
 msgid "Local forward {route}"
 msgstr "Local forward {route}"
 
-#: src/import/devslot/devslot_port_row.tsx:72
+#: src/import/devslot/devslot_port_row.tsx:75
 msgid "Local port for {variable} of {instanceName}"
 msgstr "Local port for {variable} of {instanceName}"
 
@@ -1651,7 +1651,7 @@ msgstr "Notification icon unavailable"
 msgid "Now belongs to another project"
 msgstr "Now belongs to another project"
 
-#: src/import/devslot/devslot_start_form.tsx:54
+#: src/import/devslot/devslot_start_form.tsx:55
 msgid "On: the tunnels are saved and tagged devslot. Off: they live until stopped."
 msgstr "On: the tunnels are saved and tagged devslot. Off: they live until stopped."
 
@@ -1763,7 +1763,7 @@ msgstr "Paste a script, a list of ports or -L/-R/-D options."
 msgid "Path"
 msgstr "Path"
 
-#: src/import/devslot/devslot_instance_fieldset.tsx:46
+#: src/import/devslot/devslot_instance_fieldset.tsx:48
 msgid "Path: {path}"
 msgstr "Path: {path}"
 
@@ -1782,6 +1782,10 @@ msgstr "Plucked string"
 #: src/tunnels/tunnel_endpoint_label.ts:63
 msgid "port {listenPort} of server {host} to {target}"
 msgstr "port {listenPort} of server {host} to {target}"
+
+#: src/import/devslot/describe_devslot_problem.ts:17
+msgid "Port {port} is already in use on this computer: choose another local port."
+msgstr "Port {port} is already in use on this computer: choose another local port."
 
 #: src/import/devslot/devslot_texts.ts:106
 msgid "Port {variable} of {instance} was skipped: it is not a valid port number."
@@ -1823,7 +1827,7 @@ msgstr "Process {description} ignored"
 msgid "Process {description} stopped"
 msgstr "Process {description} stopped"
 
-#: src/import/devslot/devslot_instance_fieldset.tsx:45
+#: src/import/devslot/devslot_instance_fieldset.tsx:47
 msgid "Project: {project}"
 msgstr "Project: {project}"
 
@@ -2092,7 +2096,7 @@ msgstr "Service {service}"
 msgid "Service {service}, target {target}"
 msgstr "Service {service}, target {target}"
 
-#: src/import/devslot/devslot_instance_fieldset.tsx:49
+#: src/import/devslot/devslot_instance_fieldset.tsx:51
 msgid "Services are not running"
 msgstr "Services are not running"
 
@@ -2732,7 +2736,7 @@ msgstr "Wait in standby"
 msgid "Warning"
 msgstr "Warning"
 
-#: src/import/devslot/devslot_port_row.tsx:44
+#: src/import/devslot/devslot_port_row.tsx:47
 msgid "Warning: the app builds its links with port {remotePort}, which will not match this local port."
 msgstr "Warning: the app builds its links with port {remotePort}, which will not match this local port."
 

@@ -80,6 +80,8 @@ fn port_to_dto(port: &DevslotPort) -> DevslotPortDto {
         url: port.url.clone(),
         host_name: port.host_name.clone(),
         forced: port.is_forced,
+        local_port_busy: port.is_local_port_busy,
+        suggested_local_port: port.suggested_local_port,
         status,
         tunnel_id,
     }
@@ -194,6 +196,8 @@ mod tests {
             target: None,
             is_forced: true,
             status,
+            is_local_port_busy: true,
+            suggested_local_port: Some(30050),
         }
     }
 
@@ -211,6 +215,16 @@ mod tests {
                 true,
                 Some("a.localhost".to_owned())
             )
+        );
+    }
+
+    #[test]
+    fn should_carry_the_busy_flag_and_the_suggestion_when_the_local_port_is_busy() {
+        let dto = port_to_dto(&port(DevslotPortStatus::New));
+
+        assert_eq!(
+            (dto.local_port_busy, dto.suggested_local_port),
+            (true, Some(30050))
         );
     }
 
@@ -365,6 +379,8 @@ mod tests {
             status: DevslotPortStatus::AlreadyTunneled {
                 tunnel_id: TunnelId::generate(),
             },
+            is_local_port_busy: false,
+            suggested_local_port: None,
         }
     }
 
@@ -380,6 +396,8 @@ mod tests {
             target: None,
             is_forced: false,
             status: DevslotPortStatus::New,
+            is_local_port_busy: false,
+            suggested_local_port: None,
         }
     }
 

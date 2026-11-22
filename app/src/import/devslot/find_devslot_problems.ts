@@ -11,7 +11,10 @@ import { parsePort } from '#/tunnel_form/parse_port';
 
 export const DEVSLOT_LISTEN_ADDRESS = '127.0.0.1';
 
-export type DevslotPortProblem = { kind: 'invalidLocalPort' } | ImportConflict;
+export type DevslotPortProblem =
+	| { kind: 'invalidLocalPort' }
+	| { kind: 'localPortBusy'; port: number }
+	| ImportConflict;
 
 export type DevslotLocalPorts = Readonly<Record<string, string>>;
 
@@ -29,7 +32,10 @@ export function getLocalPortText(
 	entry: Readonly<DevslotPortEntry>,
 	localPorts: DevslotLocalPorts
 ): string {
-	return localPorts[entry.key] ?? String(entry.port.port);
+	return (
+		localPorts[entry.key] ??
+		String(entry.port.suggestedLocalPort ?? entry.port.port)
+	);
 }
 
 function buildCandidate(
@@ -44,6 +50,18 @@ function buildCandidate(
 		listenAddress: DEVSLOT_LISTEN_ADDRESS,
 		targetPort: entry.port.port,
 	} as const;
+}
+
+function isBusyWithoutAlternative(
+	entry: Readonly<DevslotPortEntry>,
+	listenPort: number
+): boolean {
+	const { port } = entry;
+	return (
+		port.localPortBusy === true &&
+		port.suggestedLocalPort === undefined &&
+		listenPort === port.port
+	);
 }
 
 /**
@@ -72,6 +90,11 @@ export function findDevslotProblems({
 		listenPort === null ? [] : [{ entry, listenPort }]
 	);
 	const chosen = valid.filter(({ entry }) => selectedKeys.has(entry.key));
+	for (const { entry, listenPort } of valid) {
+		if (isBusyWithoutAlternative(entry, listenPort)) {
+			problems.set(entry.key, { kind: 'localPortBusy', port: listenPort });
+		}
+	}
 	const chosenConflicts = findImportConflicts(
 		chosen.map(({ entry, listenPort }) =>
 			buildCandidate(entry, listenPort, host)
@@ -81,10 +104,11 @@ export function findDevslotProblems({
 		host
 	);
 	for (const [position, { entry }] of chosen.entries()) {
+		if (problems.has(entry.key)) continue;
 		problems.set(entry.key, chosenConflicts[position] ?? null);
 	}
 	for (const { entry, listenPort } of valid) {
-		if (selectedKeys.has(entry.key)) continue;
+		if (selectedKeys.has(entry.key) || problems.has(entry.key)) continue;
 		const [conflict] = findImportConflicts(
 			[buildCandidate(entry, listenPort, host)],
 			tunnels,

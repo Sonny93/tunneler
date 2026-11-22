@@ -208,6 +208,10 @@ export type DevslotPortDto = {
 	forced: boolean;
 	status: DevslotPortStatusDto;
 	tunnelId?: string;
+	/** Present only when true: another program already listens on the same local port. */
+	localPortBusy?: boolean;
+	/** A free local port the daemon found; may be absent. */
+	suggestedLocalPort?: number;
 };
 
 export type DevslotInstanceDto = {

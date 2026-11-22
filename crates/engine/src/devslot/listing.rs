@@ -41,6 +41,11 @@ pub struct DevslotPort {
     pub is_forced: bool,
     /// Whether the port can be tunneled.
     pub status: DevslotPortStatus,
+    /// Whether something else already holds this port on the loopback of
+    /// this machine, so a tunnel cannot listen on it.
+    pub is_local_port_busy: bool,
+    /// A free local port to listen on instead, when the port is busy.
+    pub suggested_local_port: Option<u16>,
 }
 
 /// A devslot instance of a host: a checkout with its own ports.

@@ -301,6 +301,8 @@ mod tests {
             target: None,
             is_forced: false,
             status: DevslotPortStatus::New,
+            is_local_port_busy: false,
+            suggested_local_port: None,
         }
     }
 

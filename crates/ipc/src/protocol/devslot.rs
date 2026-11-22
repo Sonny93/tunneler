@@ -52,11 +52,26 @@ pub struct DevslotPortDto {
     /// Whether the port is forced: it may be shared with another instance.
     #[serde(default)]
     pub forced: bool,
+    /// Whether something else holds this port on the machine of the daemon,
+    /// so a tunnel cannot listen on it.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub local_port_busy: bool,
+    /// A free local port to listen on instead, when the port is busy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suggested_local_port: Option<u16>,
     /// Whether the port can be tunneled.
     pub status: DevslotPortStatusDto,
     /// The tunnel that already forwards to the port.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tunnel_id: Option<String>,
+}
+
+#[allow(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "serde passes the field by reference to skip_serializing_if"
+)]
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 /// A devslot instance of a host.
