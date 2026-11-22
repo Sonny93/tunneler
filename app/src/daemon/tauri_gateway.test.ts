@@ -88,6 +88,13 @@ describe('createTauriGateway', () => {
 		['resolveHost', ['nova'], 'resolve_host', { host: 'nova' }],
 		['importSshConfig', [], 'import_ssh_config', undefined],
 		['importScript', ['3333'], 'import_script', { text: '3333' }],
+		['discoverDevslot', ['vega'], 'discover_devslot', { host: 'vega' }],
+		[
+			'resyncDevslot',
+			['vega', [{ id: '1' }]],
+			'resync_devslot',
+			{ host: 'vega', tunnels: [{ id: '1' }] },
+		],
 		['openTunnel', ['1'], 'open_tunnel', { id: '1', with: undefined }],
 		['openTunnel', ['1', 'viewer'], 'open_tunnel', { id: '1', with: 'viewer' }],
 		[

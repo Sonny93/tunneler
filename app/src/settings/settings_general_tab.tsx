@@ -1,4 +1,5 @@
 import { OpenConfigFolderButton } from '#/settings/open_config_folder_button';
+import { SettingsDevslotFieldset } from '#/settings/settings_devslot_fieldset';
 import { SettingsLanguageFieldset } from '#/settings/settings_language_fieldset';
 import { SettingsStartupFieldset } from '#/settings/settings_startup_fieldset';
 import { SettingsTabContent } from '#/settings/settings_tab_content';
@@ -21,6 +22,11 @@ export const SettingsGeneralTab = ({
 			values={form.values}
 			onChangeText={form.changeText}
 			onChangeToggle={form.changeToggle}
+		/>
+		<SettingsDevslotFieldset
+			values={form.values}
+			onChangeToggle={form.changeToggle}
+			onChangeStale={form.changeDevslotStale}
 		/>
 		<SettingsUpdatesFieldset
 			values={form.values}

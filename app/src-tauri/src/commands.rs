@@ -1,10 +1,11 @@
 //! The commands the front end invokes; each one forwards to the daemon.
 
 use ipc::protocol::{
-    AvailableOpenerDto, DeleteTagResult, ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto,
-    LogEntryDto, OpenTunnelResult, OpenerSpecDto, RememberDto, ResolvedHostDto, SettingsDto,
-    SnapshotDto, SoundEventDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto,
-    TunnelDefinitionDto, TunnelDto, TunnelSpecDto, X11ProbeDto,
+    AvailableOpenerDto, DeleteTagResult, DevslotDiscoveryDto, DevslotResyncResultDto,
+    DevslotResyncTunnelDto, ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto, LogEntryDto,
+    OpenTunnelResult, OpenerSpecDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto,
+    SoundEventDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto,
+    TunnelDto, TunnelSpecDto, X11ProbeDto,
 };
 use std::path::Path;
 
@@ -56,6 +57,26 @@ pub async fn import_script(
     text: String,
 ) -> CommandResult<ImportPreviewDto> {
     Ok(state.client()?.import_script(&text).await?)
+}
+
+/// Runs `ds ls --json` on the host and analyses the instances against the
+/// host's tunnels.
+#[tauri::command]
+pub async fn discover_devslot(
+    state: State<'_, BridgeState>,
+    host: String,
+) -> CommandResult<DevslotDiscoveryDto> {
+    Ok(state.client()?.discover_devslot(&host).await?)
+}
+
+/// Removes the stale devslot tunnels the last discovery returned.
+#[tauri::command]
+pub async fn resync_devslot(
+    state: State<'_, BridgeState>,
+    host: String,
+    tunnels: Vec<DevslotResyncTunnelDto>,
+) -> CommandResult<DevslotResyncResultDto> {
+    Ok(state.client()?.resync_devslot(&host, tunnels).await?)
 }
 
 #[tauri::command]

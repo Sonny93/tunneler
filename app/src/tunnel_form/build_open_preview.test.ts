@@ -23,6 +23,25 @@ describe('buildOpenPreview', () => {
 		expect(preview(values, settings)).toBe('Opens http://localhost:3333/');
 	});
 
+	it('should use the open host name in the URL on a loopback address', () => {
+		expect(
+			preview({ ...values, openHostName: 'web-shop.localhost' }, settings)
+		).toBe('Opens http://web-shop.localhost:3333/');
+	});
+
+	it('should ignore the open host name on a non-loopback address', () => {
+		expect(
+			preview(
+				{
+					...values,
+					listenAddress: '192.0.2.5',
+					openHostName: 'web-shop.localhost',
+				},
+				settings
+			)
+		).toBe('Opens http://192.0.2.5:3333/');
+	});
+
 	it('should give nothing while the listen port is invalid', () => {
 		expect(preview({ ...values, listenPort: 'abc' }, settings)).toBeNull();
 	});

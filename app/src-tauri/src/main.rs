@@ -44,6 +44,8 @@ fn main() -> tauri::Result<()> {
             commands::resolve_host,
             commands::import_ssh_config,
             commands::import_script,
+            commands::discover_devslot,
+            commands::resync_devslot,
             commands::tunnel_logs,
             commands::open_tunnel,
             commands::create_tunnel,

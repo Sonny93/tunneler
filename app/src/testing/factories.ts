@@ -1,5 +1,9 @@
 import type {
 	AvailableOpenerDto,
+	DevslotDiscoveryDto,
+	DevslotInstanceDto,
+	DevslotPortDto,
+	DevslotStaleTunnelDto,
 	ImportCandidateDto,
 	ImportPreviewDto,
 	X11AnchorDto,
@@ -117,6 +121,8 @@ export function buildSettings(
 		standbyVolume: 50,
 		language: 'system',
 		checkForUpdates: true,
+		devslotPersist: false,
+		devslotStale: 'ask',
 		...overrides,
 	};
 }
@@ -172,4 +178,61 @@ export function buildImportPreview(
 	overrides: Readonly<Partial<ImportPreviewDto>> = {}
 ): ImportPreviewDto {
 	return { candidates: [], warnings: [], ...overrides };
+}
+
+export function buildDevslotPort(
+	overrides: Readonly<Partial<DevslotPortDto>> = {}
+): DevslotPortDto {
+	return {
+		var: 'PORT',
+		port: 20_050,
+		kind: 'web',
+		forced: false,
+		status: 'new',
+		...overrides,
+	};
+}
+
+export function buildDevslotInstance(
+	overrides: Readonly<Partial<DevslotInstanceDto>> = {}
+): DevslotInstanceDto {
+	return {
+		name: 'web-shop-feat-auth-3f2a',
+		project: 'web-shop',
+		projectTag: 'ds-web-shop',
+		path: '/home/me/dev/web-shop.feat-auth',
+		ports: [buildDevslotPort()],
+		...overrides,
+	};
+}
+
+export function buildDevslotStale(
+	overrides: Readonly<Partial<DevslotStaleTunnelDto>> = {}
+): DevslotStaleTunnelDto {
+	return {
+		tunnel: {
+			id: 'stale-1',
+			host: 'vega',
+			kind: 'local',
+			listenPort: 20_060,
+			tags: ['devslot'],
+		},
+		isTemporary: false,
+		reason: 'portGone',
+		action: 'ask',
+		...overrides,
+	};
+}
+
+export function buildDevslotDiscovery(
+	overrides: Readonly<Partial<DevslotDiscoveryDto>> = {}
+): DevslotDiscoveryDto {
+	return {
+		host: 'vega',
+		persistDefault: false,
+		instances: [buildDevslotInstance()],
+		stale: [],
+		warnings: [],
+		...overrides,
+	};
 }

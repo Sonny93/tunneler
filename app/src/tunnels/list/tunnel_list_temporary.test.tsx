@@ -66,6 +66,29 @@ describe('TunnelList with a temporary tunnel', () => {
 		expect(screen.getAllByText('Temporary')).toHaveLength(1);
 	});
 
+	it('should show the project tag of a devslot temporary tunnel next to the Temporary badge', () => {
+		useDaemonStore.setState({
+			tunnels: [
+				buildTunnel({
+					id: 'devslot',
+					isTemporary: true,
+					devslot: { projectTag: 'ds-web-shop' },
+				}),
+			],
+		});
+		renderWithGateway(<TunnelList />);
+
+		expect(screen.getByText('Temporary')).toBeInTheDocument();
+		expect(screen.getByText('ds-web-shop')).toBeInTheDocument();
+		expect(screen.getByText(/devslot project:/)).toBeInTheDocument();
+	});
+
+	it('should show no devslot badge on a plain temporary tunnel', () => {
+		renderList();
+
+		expect(screen.queryByText('devslot')).not.toBeInTheDocument();
+	});
+
 	it('should put the temporary state in the accessible name of the switch', () => {
 		renderList();
 

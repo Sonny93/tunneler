@@ -56,6 +56,14 @@ function pickHost(address: string, preference: OpenHostDto): string | null {
 	return null;
 }
 
+/** A host name set on the tunnel replaces the loopback host in the URL, as the daemon does. */
+function pickUrlHost(address: string, host: string, hostName: string): string {
+	if (hostName === '') return host;
+	return LOOPBACK_OR_WILDCARD_ADDRESSES.includes(address.toLowerCase())
+		? hostName
+		: host;
+}
+
 function buildAddress(
 	values: Readonly<TunnelFormValues>,
 	settings: Readonly<SettingsDto> | null
@@ -73,7 +81,12 @@ function buildAddress(
 	const host = pickHost(address, preference);
 	if (host === null) return 'hostname';
 	const path = values.openPath.trim() || DEFAULT_PATH;
-	return { host, port, url: `${values.openScheme}://${host}:${port}${path}` };
+	const urlHost = pickUrlHost(address, host, values.openHostName);
+	return {
+		host,
+		port,
+		url: `${values.openScheme}://${urlHost}:${port}${path}`,
+	};
 }
 
 function quoteForDisplay(text: string): string {

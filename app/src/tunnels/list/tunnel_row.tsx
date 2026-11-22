@@ -4,6 +4,7 @@ import { useContext, useId, type ChangeEvent, type MouseEvent } from 'react';
 
 import type { TunnelDto } from '#/daemon/protocol';
 import { cn } from '#/shared/cn';
+import { DevslotBadge } from '#/shared/devslot_badge';
 import { TargetHealthBadge } from '#/shared/health_badge';
 import { TunnelStatusBadge } from '#/shared/status_badge';
 import { TemporaryBadge } from '#/shared/temporary_badge';
@@ -138,6 +139,9 @@ export function TunnelRow({ tunnel, isActiveRow }: Readonly<TunnelRowProps>) {
 					<div className="flex min-w-0 flex-1 basis-56 flex-col items-start gap-1">
 						<div className="flex w-full min-w-0 flex-nowrap gap-1">
 							{tunnel.isTemporary && <TemporaryBadge />}
+							{tunnel.devslot !== undefined && (
+								<DevslotBadge projectTag={tunnel.devslot.projectTag} />
+							)}
 							<TunnelStatusBadge state={tunnel.state} isDetailTruncated />
 							<TargetHealthBadge health={tunnel.health} isDetailTruncated />
 						</div>

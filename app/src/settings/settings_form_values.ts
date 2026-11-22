@@ -1,4 +1,5 @@
 import type {
+	DevslotStalePolicyDto,
 	OpenDefaultDto,
 	OpenHostDto,
 	SettingsDto,
@@ -35,6 +36,8 @@ export type SettingsFormValues = {
 	standbyVolume: number;
 	language: LanguageSettingDto;
 	checkForUpdates: boolean;
+	devslotPersist: boolean;
+	devslotStale: DevslotStalePolicyDto;
 };
 
 export function millisecondsToSeconds(milliseconds: number): string {
@@ -79,6 +82,8 @@ export function toSettingsFormValues(
 		standbyVolume: settings.standbyVolume,
 		language: settings.language,
 		checkForUpdates: settings.checkForUpdates,
+		devslotPersist: settings.devslotPersist,
+		devslotStale: settings.devslotStale,
 	};
 }
 
@@ -114,5 +119,7 @@ export function toSettings(
 		standbyVolume: values.standbyVolume,
 		language: values.language,
 		checkForUpdates: values.checkForUpdates,
+		devslotPersist: values.devslotPersist,
+		devslotStale: values.devslotStale,
 	};
 }

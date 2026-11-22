@@ -3,6 +3,9 @@ import type {
 	HostKeyDecisionDto,
 	ImportPreviewDto,
 	DeleteTagResultDto,
+	DevslotDiscoveryDto,
+	DevslotResyncResultDto,
+	DevslotResyncTunnelDto,
 	DocumentationPageDto,
 	AvailableOpenerDto,
 	OpenerSpecDto,
@@ -77,6 +80,13 @@ export type DaemonGateway = {
 	resolveHost(host: string): Promise<ResolvedHostDto>;
 	importSshConfig(): Promise<ImportPreviewDto>;
 	importScript(text: string): Promise<ImportPreviewDto>;
+	/** Runs `ds ls --json` on the host and analyses the instances against the tunnels of that host. */
+	discoverDevslot(host: string): Promise<DevslotDiscoveryDto>;
+	/** Removes the stale devslot tunnels the last discovery returned; a tunnel that changed since is skipped. */
+	resyncDevslot(
+		host: string,
+		tunnels: readonly DevslotResyncTunnelDto[]
+	): Promise<DevslotResyncResultDto>;
 	/** The daemon builds the URL, starts a stopped tunnel and waits until it is ready, then opens it with `opener` (`browser` or an id) or the default action. */
 	openTunnel(id: string, opener?: string): Promise<OpenTunnelResultDto>;
 	adoptExternal(id: string): Promise<readonly string[]>;

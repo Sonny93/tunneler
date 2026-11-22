@@ -16,6 +16,39 @@ describe('describeDaemonError', () => {
 		expect(describeDaemonError(error, i18n)).toBe(expected);
 	});
 
+	it.each([
+		[
+			'devslot_not_found',
+			{ host: 'vega', path: 'ds' },
+			'devslot was not found on vega (looked for ds). The snippet to add to the configuration file is shown in the From devslot tab.',
+		],
+		[
+			'devslot_failed',
+			{ host: 'vega', status: 2, stderr: 'boom' },
+			'devslot failed on vega (2): boom',
+		],
+		[
+			'devslot_invalid_output',
+			{ host: 'vega', reason: 'not json' },
+			'devslot on vega answered something unusable: not json',
+		],
+		[
+			'remote_command_timeout',
+			{ host: 'vega', seconds: 20 },
+			'The command on vega did not finish within 20 s',
+		],
+	])('should describe the %s code from its data', (code, data, expected) => {
+		const error = new DaemonCommandError(code, 'raw bridge text', data);
+
+		expect(describeDaemonError(error, i18n)).toBe(expected);
+	});
+
+	it('should return the raw message when a devslot error has no usable data', () => {
+		const error = new DaemonCommandError('devslot_not_found', 'raw text');
+
+		expect(describeDaemonError(error, i18n)).toBe('raw text');
+	});
+
 	it('should return the raw message when the code is not mapped', () => {
 		const error = new DaemonCommandError('not_found', 'unknown tunnel');
 

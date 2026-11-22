@@ -629,6 +629,41 @@ describe('SettingsDialog', () => {
 		);
 	});
 
+	it('should offer the devslot settings in a fieldset of the general tab', async () => {
+		openSettings(
+			buildSettings({ devslotPersist: true, devslotStale: 'delete' })
+		);
+		await renderDialog();
+
+		const fieldset = screen.getByRole('group', { name: 'devslot' });
+		expect(
+			within(fieldset).getByRole('switch', {
+				name: 'Keep discovered tunnels by default',
+			})
+		).toBeChecked();
+		expect(
+			within(fieldset).getByRole('radio', { name: 'Delete them' })
+		).toBeChecked();
+	});
+
+	it('should save the devslot settings', async () => {
+		const settings = buildSettings();
+		openSettings(settings);
+		const user = userEvent.setup();
+		const { gateway } = await renderDialog();
+
+		await user.click(
+			screen.getByRole('switch', { name: 'Keep discovered tunnels by default' })
+		);
+		await user.click(screen.getByRole('radio', { name: 'Delete them' }));
+		await clickSave(user);
+
+		expect(gateway.updateSettings).toHaveBeenCalledWith(
+			{ ...settings, devslotPersist: true, devslotStale: 'delete' },
+			[]
+		);
+	});
+
 	it('should save the start-up tags parsed from the text', async () => {
 		openSettings();
 		const user = userEvent.setup();

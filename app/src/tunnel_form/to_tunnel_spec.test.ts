@@ -14,6 +14,15 @@ const valid = {
 };
 
 describe('toTunnelSpec', () => {
+	it('should keep the open host name of the tunnel', () => {
+		const spec = toTunnelSpec({
+			...valid,
+			openHostName: 'web-shop.localhost',
+		});
+
+		expect(spec.open).toEqual({ hostName: 'web-shop.localhost' });
+	});
+
 	it('should omit the target port while linked', () => {
 		expect(toTunnelSpec(valid).targetPort).toBeUndefined();
 	});

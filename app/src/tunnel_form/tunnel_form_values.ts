@@ -27,6 +27,8 @@ export type TunnelFormValues = {
 	openHost: OpenHostChoice;
 	/** Empty means automatic: the suggestion for the target port, else the browser. */
 	openWith: string;
+	/** Not editable here: kept so that saving a tunnel never drops the host name devslot discovery set. */
+	openHostName: string;
 	standby: StandbyChoice;
 };
 
@@ -43,6 +45,7 @@ export const EMPTY_TUNNEL_FORM_VALUES: TunnelFormValues = {
 	openPath: '',
 	openHost: '',
 	openWith: '',
+	openHostName: '',
 	standby: '',
 };
 
@@ -73,6 +76,7 @@ export function toTunnelFormValues(
 		openPath: definition.open?.path ?? '',
 		openHost: definition.open?.host ?? '',
 		openWith: definition.open?.with ?? '',
+		openHostName: definition.open?.hostName ?? '',
 		standby: toStandbyChoice(definition.standby),
 	};
 }

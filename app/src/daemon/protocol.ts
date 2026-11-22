@@ -26,6 +26,8 @@ export type OpenOptionsDto = {
 	host?: OpenHostDto;
 	/** `browser` or the id of an opener; absent means the suggestion for the target port. */
 	with?: string;
+	/** A `<label>.localhost` name the URL uses instead of the loopback address; set by devslot discovery. */
+	hostName?: string;
 };
 
 export type TunnelSpecDto = {
@@ -44,11 +46,13 @@ export type TunnelSpecDto = {
 /** What `tunnel.open` opened: the URL for the browser. */
 export type OpenTunnelResultDto = { target: string };
 
+/** Where a temporary tunnel comes from when devslot discovery started it; kept in memory only. */
+export type DevslotOriginDto = { projectTag?: string };
+
 /** A temporary tunnel is never selected by tag, so it has none. */
-export type TemporaryTunnelSpecDto = Omit<
-	TunnelSpecDto,
-	'tags' | 'open' | 'standby'
->;
+export type TemporaryTunnelSpecDto = Omit<TunnelSpecDto, 'tags' | 'standby'> & {
+	devslot?: DevslotOriginDto;
+};
 
 export type TunnelDefinitionDto = TunnelSpecDto & { id: string };
 
@@ -108,6 +112,8 @@ export type TunnelDto = TunnelDefinitionDto & {
 	/** Lives only in the daemon: never saved, and stopping it removes it. */
 	isTemporary: boolean;
 	defaultOpener: DefaultOpenerDto;
+	/** Present only for a temporary tunnel started by devslot discovery. */
+	devslot?: DevslotOriginDto;
 };
 
 export type LogLevelDto = 'info' | 'warn' | 'error';
@@ -157,6 +163,9 @@ export type LanguageSettingDto = 'system' | 'en' | 'fr';
 
 export type SoundEventDto = 'woke' | 'wakeFailed';
 
+/** What happens to a saved devslot tunnel whose port is no longer listed. */
+export type DevslotStalePolicyDto = 'ask' | 'delete';
+
 export type SettingsDto = {
 	defaultBindAddress: string;
 	defaultRemoteBindAddress: string;
@@ -181,6 +190,73 @@ export type SettingsDto = {
 	standbyVolume: number;
 	language: LanguageSettingDto;
 	checkForUpdates: boolean;
+	devslotPersist: boolean;
+	devslotStale: DevslotStalePolicyDto;
+};
+
+export type DevslotPortStatusDto = 'new' | 'ambiguous' | 'alreadyTunneled';
+
+export type DevslotPortDto = {
+	var: string;
+	port: number;
+	/** `web` or `service`; any other value is treated like `service`. */
+	kind: string;
+	service?: string;
+	target?: number;
+	url?: string;
+	hostName?: string;
+	forced: boolean;
+	status: DevslotPortStatusDto;
+	tunnelId?: string;
+};
+
+export type DevslotInstanceDto = {
+	name: string;
+	project?: string;
+	projectTag?: string;
+	path: string;
+	worktree?: boolean;
+	slot?: number;
+	appUrl?: string;
+	servicesRunning?: boolean;
+	ports: DevslotPortDto[];
+};
+
+export type DevslotStaleReasonDto = 'portGone' | 'reassigned';
+
+export type DevslotStaleActionDto = 'remove' | 'ask';
+
+export type DevslotStaleTunnelDto = {
+	tunnel: TunnelDefinitionDto;
+	isTemporary: boolean;
+	reason: DevslotStaleReasonDto;
+	action: DevslotStaleActionDto;
+};
+
+export type DevslotWarningDto = {
+	kind: 'invalidPort' | 'projectWithoutTag';
+	instance: string;
+	var?: string;
+};
+
+export type DevslotDiscoveryDto = {
+	host: string;
+	/** The host override, else the `devslotPersist` setting. */
+	persistDefault: boolean;
+	instances: DevslotInstanceDto[];
+	stale: DevslotStaleTunnelDto[];
+	warnings: DevslotWarningDto[];
+};
+
+export type DevslotResyncTunnelDto = {
+	id: string;
+	definition: TunnelDefinitionDto;
+	isTemporary: boolean;
+};
+
+export type DevslotResyncResultDto = {
+	removed: string[];
+	skipped: string[];
 };
 
 /** The pages of the documentation site the app can open. */

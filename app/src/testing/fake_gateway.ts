@@ -75,6 +75,18 @@ export function createFakeGateway(
 		importScript: vi.fn(() =>
 			Promise.resolve({ candidates: [], warnings: [] })
 		),
+		discoverDevslot: vi.fn((host) =>
+			Promise.resolve({
+				host,
+				persistDefault: false,
+				instances: [],
+				stale: [],
+				warnings: [],
+			})
+		),
+		resyncDevslot: vi.fn((_host, tunnels) =>
+			Promise.resolve({ removed: tunnels.map(({ id }) => id), skipped: [] })
+		),
 		openTunnel: vi.fn(() =>
 			Promise.resolve({ target: 'http://localhost:3333/' })
 		),

@@ -140,6 +140,11 @@ export function OpenOptionsFields({
 				value={values.openHost}
 				onChange={changeHost}
 			/>
+			{values.openHostName !== '' && (
+				<p className="m-0 text-sm">
+					{t`App host name:`} <code>{values.openHostName}</code>
+				</p>
+			)}
 			{preview !== null && (
 				<p id={previewId} className="m-0 text-sm text-tn-muted">
 					{preview}

@@ -32,6 +32,7 @@ function toOpenOptions(
 		path: toOptionalText(values.openPath),
 		host: values.openHost === '' ? undefined : values.openHost,
 		with: values.openWith === '' ? undefined : values.openWith,
+		hostName: toOptionalText(values.openHostName),
 	};
 	const isEmpty = Object.values(options).every((value) => value === undefined);
 	return isEmpty ? undefined : options;

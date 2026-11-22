@@ -891,6 +891,25 @@ describe('TunnelFormDrawer when editing', () => {
 		);
 	});
 
+	it('should show the open host name of the tunnel and keep it when saving', async () => {
+		storeTunnel({
+			kind: 'local',
+			targetHost: undefined,
+			open: { hostName: 'web-shop.localhost', path: '/admin' },
+		});
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+
+		await user.click(screen.getByRole('button', { name: 'Save' }));
+
+		expect(screen.getByText('web-shop.localhost')).toBeInTheDocument();
+		expect(gateway.updateTunnel).toHaveBeenCalledWith(
+			expect.objectContaining({
+				open: { path: '/admin', hostName: 'web-shop.localhost' },
+			})
+		);
+	});
+
 	it('should toast "saved" after updating', async () => {
 		storeTunnel();
 		const user = userEvent.setup();

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import type {
+	DevslotStalePolicyDto,
 	LanguageSettingDto,
 	OpenDefaultDto,
 	OpenHostDto,
@@ -31,6 +32,7 @@ export type UseSettingsValuesReturn = {
 	changeStandbySound: (sound: StandbySoundDto) => void;
 	changeStandbyVolume: (volume: number) => void;
 	changeLanguage: (language: LanguageSettingDto) => void;
+	changeDevslotStale: (devslotStale: DevslotStalePolicyDto) => void;
 };
 
 /** The values of the settings fields, starting from the stored settings. */
@@ -58,6 +60,8 @@ export function useSettingsValues(
 		setValues((current) => ({ ...current, standbyVolume }));
 	const changeLanguage = (language: LanguageSettingDto) =>
 		setValues((current) => ({ ...current, language }));
+	const changeDevslotStale = (devslotStale: DevslotStalePolicyDto) =>
+		setValues((current) => ({ ...current, devslotStale }));
 
 	return {
 		values,
@@ -71,5 +75,6 @@ export function useSettingsValues(
 		changeStandbySound,
 		changeStandbyVolume,
 		changeLanguage,
+		changeDevslotStale,
 	};
 }
