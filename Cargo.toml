@@ -23,8 +23,8 @@ interprocess = { version = "2.4", default-features = false, features = ["tokio"]
 keyring = "4"
 known-hosts = { path = "crates/known-hosts" }
 listeners = "0.6"
-notify = "8"
-notify-debouncer-mini = { version = "0.7", default-features = false }
+notify = "9"
+notify-debouncer-mini = { version = "0.8", default-features = false }
 open = "5"
 pretty_assertions = "1"
 rustix = { version = "1", features = ["process"] }

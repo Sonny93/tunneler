@@ -1,9 +1,9 @@
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::sync::Arc;
 use std::time::Duration;
 
 use notify::{RecommendedWatcher, RecursiveMode};
-use notify_debouncer_mini::{DebounceEventResult, Debouncer, new_debouncer};
+use notify_debouncer_mini::{DebounceEventResult, DebouncedEventBatch, Debouncer, new_debouncer};
 use tokio::sync::mpsc;
 
 use super::atomic_file::{create_private_directories, parent_directory};
@@ -54,7 +54,7 @@ impl Store {
         let handler = reload_handler(shared, sender);
         let watch_error = |source| StoreError::Watch {
             path: directory.clone(),
-            source,
+            source: Box::new(source),
         };
         let mut debouncer = new_debouncer(RELOAD_DEBOUNCE, handler).map_err(watch_error)?;
         debouncer
@@ -75,23 +75,30 @@ fn reload_handler(
     let file_name: Option<OsString> = shared.path().file_name().map(OsString::from);
     move |result| {
         let event = match result {
-            Ok(events) => {
-                let touches_store_file = events
-                    .iter()
-                    .any(|event| event.path.file_name() == file_name.as_deref());
-                if !touches_store_file {
+            Ok(batch) => {
+                if !batch_may_touch_store_file(&batch, file_name.as_deref()) {
                     return;
                 }
                 shared.reload_if_changed()
             }
             Err(source) => Some(StoreEvent::Invalid(StoreError::Watch {
                 path: shared.path().to_path_buf(),
-                source,
+                source: Box::new(source),
             })),
         };
         if let Some(event) = event {
             let _ = sender.send(event);
         }
+    }
+}
+
+/// A rescan (missed events) or an unknown batch kind may hide a store change, so it counts as one.
+fn batch_may_touch_store_file(batch: &DebouncedEventBatch, file_name: Option<&OsStr>) -> bool {
+    match batch {
+        DebouncedEventBatch::Events(events) => events
+            .iter()
+            .any(|event| event.path.file_name() == file_name),
+        _ => true,
     }
 }
 
@@ -242,5 +249,27 @@ mod tests {
         let closed = timeout(EVENT_TIMEOUT, events.recv()).await;
 
         assert!(matches!(closed, Ok(None)), "{closed:?}");
+    }
+
+    #[test]
+    fn should_treat_a_rescan_as_a_possible_store_change() {
+        let store_file = OsStr::new("tunnels.toml");
+
+        assert!(batch_may_touch_store_file(
+            &DebouncedEventBatch::Rescan,
+            Some(store_file)
+        ));
+    }
+
+    #[test]
+    fn should_skip_a_batch_whose_events_all_target_other_files() {
+        let store_file = OsStr::new("tunnels.toml");
+        let other_file = notify_debouncer_mini::DebouncedEvent::new(
+            PathBuf::from("/config/other.toml"),
+            notify_debouncer_mini::DebouncedEventKind::Any,
+        );
+        let batch = DebouncedEventBatch::Events(vec![other_file]);
+
+        assert!(!batch_may_touch_store_file(&batch, Some(store_file)));
     }
 }

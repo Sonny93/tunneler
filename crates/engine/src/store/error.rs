@@ -55,8 +55,8 @@ pub enum StoreError {
     Watch {
         /// The directory being watched.
         path: PathBuf,
-        /// The underlying error.
-        source: notify::Error,
+        /// The underlying error, boxed because it is large on Windows.
+        source: Box<notify::Error>,
     },
     /// The platform has no user configuration directory.
     #[error("cannot determine the user configuration directory")]
