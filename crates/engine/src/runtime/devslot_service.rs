@@ -73,7 +73,7 @@ impl EngineInner {
             .sessions
             .acquire(host)
             .await
-            .map_err(acquisition_failure)?;
+            .map_err(|error| acquisition_failure(host, error))?;
         let command = build_listing_command(program);
         let outcome =
             run_remote_command(&lease.session(), &command, self.remote_command_timeout).await;
@@ -145,9 +145,12 @@ fn known_tunnels(snapshots: Vec<TunnelSnapshot>) -> Vec<KnownTunnel> {
         .collect()
 }
 
-fn acquisition_failure(error: AcquireError) -> DevslotError {
+fn acquisition_failure(host: &str, error: AcquireError) -> DevslotError {
     match error {
-        AcquireError::Connect(error) => DevslotError::Connect(error),
+        AcquireError::Connect(source) => DevslotError::Connect {
+            host: host.to_owned(),
+            source,
+        },
         AcquireError::Aborted => DevslotError::ShuttingDown,
     }
 }

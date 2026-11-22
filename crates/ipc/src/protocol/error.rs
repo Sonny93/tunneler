@@ -47,6 +47,9 @@ pub enum ErrorCode {
     DevslotInvalidOutput,
     /// The command did not end in time; `data` holds `host` and `seconds`.
     RemoteCommandTimeout,
+    /// The SSH session to the host could not be opened (network, host key or
+    /// authentication); `data` holds `host`, the message says why.
+    ConnectionFailed,
     /// The daemon failed unexpectedly.
     Internal,
 }
@@ -72,6 +75,7 @@ impl ErrorCode {
             Self::DevslotFailed => "devslot_failed",
             Self::DevslotInvalidOutput => "devslot_invalid_output",
             Self::RemoteCommandTimeout => "remote_command_timeout",
+            Self::ConnectionFailed => "connection_failed",
             Self::Internal => "internal",
         }
     }
@@ -236,6 +240,11 @@ impl IpcError {
         .with_data(json!({ "host": host, "seconds": seconds }))
     }
 
+    /// The SSH session to the host could not be opened; `message` says why.
+    pub fn connection_failed(host: &str, message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::ConnectionFailed, message).with_data(json!({ "host": host }))
+    }
+
     /// The daemon failed unexpectedly.
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::Internal, message)
@@ -246,7 +255,7 @@ impl IpcError {
 mod tests {
     use super::*;
 
-    const ALL_CODES: [ErrorCode; 18] = [
+    const ALL_CODES: [ErrorCode; 19] = [
         ErrorCode::InvalidRequest,
         ErrorCode::UnknownMethod,
         ErrorCode::HandshakeRequired,
@@ -264,6 +273,7 @@ mod tests {
         ErrorCode::DevslotFailed,
         ErrorCode::DevslotInvalidOutput,
         ErrorCode::RemoteCommandTimeout,
+        ErrorCode::ConnectionFailed,
         ErrorCode::Internal,
     ];
 

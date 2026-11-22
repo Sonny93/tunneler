@@ -632,6 +632,10 @@ msgstr "Copier l'empreinte"
 msgid "Copy the ssh command"
 msgstr "Copier la commande ssh"
 
+#: src/daemon/describe_daemon_error.ts:58
+msgid "Could not connect to {host}: {message}"
+msgstr "Connexion à {host} impossible : {message}"
+
 #: src/import/devslot/run_devslot_start.ts:136
 msgid "Could not create {label}: {messageList}"
 msgstr "Impossible de créer {label} : {messageList}"
@@ -1301,7 +1305,7 @@ msgstr "Installée ailleurs, par exemple une version portable ? Ajoutez-la ci-de
 msgid "Installing, Tunneler will restart."
 msgstr "Installation en cours, Tunneler va redémarrer."
 
-#: src/daemon/describe_daemon_error.ts:74
+#: src/daemon/describe_daemon_error.ts:84
 msgid "Internal error"
 msgstr "Erreur interne"
 
@@ -1592,7 +1596,7 @@ msgstr "Aucun tunnel à modifier"
 msgid "No tunnels yet."
 msgstr "Aucun tunnel configuré."
 
-#: src/daemon/describe_daemon_error.ts:78
+#: src/daemon/describe_daemon_error.ts:88
 msgid "No update is available"
 msgstr "Aucune mise à jour disponible"
 
@@ -2435,11 +2439,11 @@ msgstr "Les modifications apportées aux paramètres ne sont pas encore enregist
 msgid "The command is required."
 msgstr "La commande est obligatoire."
 
-#: src/daemon/describe_daemon_error.ts:58
+#: src/daemon/describe_daemon_error.ts:68
 msgid "The command on {host} did not finish within {seconds} s"
 msgstr "La commande sur {host} ne s'est pas terminée en {seconds} s"
 
-#: src/daemon/describe_daemon_error.ts:72
+#: src/daemon/describe_daemon_error.ts:82
 msgid "The daemon is not reachable"
 msgstr "Le daemon est injoignable"
 
@@ -2559,7 +2563,7 @@ msgstr "Le tunnel est retiré de la configuration, et arrêté s’il est en cou
 msgid "The tunnel keeps its port without an SSH session until the first connection. Takes effect on the next start."
 msgstr "Le tunnel garde son port sans session SSH jusqu'à la première connexion. Prend effet au prochain démarrage."
 
-#: src/daemon/describe_daemon_error.ts:76
+#: src/daemon/describe_daemon_error.ts:86
 msgid "The update failed"
 msgstr "La mise à jour a échoué"
 

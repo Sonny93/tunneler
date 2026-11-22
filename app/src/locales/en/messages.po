@@ -632,6 +632,10 @@ msgstr "Copy the fingerprint"
 msgid "Copy the ssh command"
 msgstr "Copy the ssh command"
 
+#: src/daemon/describe_daemon_error.ts:58
+msgid "Could not connect to {host}: {message}"
+msgstr "Could not connect to {host}: {message}"
+
 #: src/import/devslot/run_devslot_start.ts:136
 msgid "Could not create {label}: {messageList}"
 msgstr "Could not create {label}: {messageList}"
@@ -1301,7 +1305,7 @@ msgstr "Installed somewhere else, like a portable version? Add it below with the
 msgid "Installing, Tunneler will restart."
 msgstr "Installing, Tunneler will restart."
 
-#: src/daemon/describe_daemon_error.ts:74
+#: src/daemon/describe_daemon_error.ts:84
 msgid "Internal error"
 msgstr "Internal error"
 
@@ -1592,7 +1596,7 @@ msgstr "No tunnels to update"
 msgid "No tunnels yet."
 msgstr "No tunnels yet."
 
-#: src/daemon/describe_daemon_error.ts:78
+#: src/daemon/describe_daemon_error.ts:88
 msgid "No update is available"
 msgstr "No update is available"
 
@@ -2435,11 +2439,11 @@ msgstr "The changes you made to the settings are not saved yet."
 msgid "The command is required."
 msgstr "The command is required."
 
-#: src/daemon/describe_daemon_error.ts:58
+#: src/daemon/describe_daemon_error.ts:68
 msgid "The command on {host} did not finish within {seconds} s"
 msgstr "The command on {host} did not finish within {seconds} s"
 
-#: src/daemon/describe_daemon_error.ts:72
+#: src/daemon/describe_daemon_error.ts:82
 msgid "The daemon is not reachable"
 msgstr "The daemon is not reachable"
 
@@ -2559,7 +2563,7 @@ msgstr "The tunnel is removed from the configuration, and stopped if it is runni
 msgid "The tunnel keeps its port without an SSH session until the first connection. Takes effect on the next start."
 msgstr "The tunnel keeps its port without an SSH session until the first connection. Takes effect on the next start."
 
-#: src/daemon/describe_daemon_error.ts:76
+#: src/daemon/describe_daemon_error.ts:86
 msgid "The update failed"
 msgstr "The update failed"
 

@@ -48,6 +48,16 @@ function describeDevslotInvalidOutput(
 	return i18n._(msg`devslot on ${host} answered something unusable: ${reason}`);
 }
 
+function describeConnectionFailed(
+	error: Readonly<DaemonCommandError>,
+	i18n: I18n
+): string {
+	const host = readText(error.data, 'host');
+	if (host === null) return error.message;
+	const { message } = error;
+	return i18n._(msg`Could not connect to ${host}: ${message}`);
+}
+
 function describeCommandTimeout(
 	error: Readonly<DaemonCommandError>,
 	i18n: I18n
@@ -82,6 +92,8 @@ export function describeDaemonError(
 			return describeDevslotFailure(error, i18n);
 		case 'devslot_invalid_output':
 			return describeDevslotInvalidOutput(error, i18n);
+		case 'connection_failed':
+			return describeConnectionFailed(error, i18n);
 		case 'remote_command_timeout':
 			return describeCommandTimeout(error, i18n);
 		default:

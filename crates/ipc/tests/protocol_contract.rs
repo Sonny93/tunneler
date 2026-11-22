@@ -2368,6 +2368,7 @@ fn should_serialize_the_devslot_errors_with_their_data() {
         IpcError::devslot_failed("vega", None, "killed"),
         IpcError::devslot_invalid_output("vega", "not json"),
         IpcError::remote_command_timeout("vega", 20),
+        IpcError::connection_failed("vega", "authentication failed"),
     ];
 
     assert_eq!(
@@ -2393,6 +2394,7 @@ fn should_serialize_the_devslot_errors_with_their_data() {
                 "remote_command_timeout",
                 json!({"host": "vega", "seconds": 20})
             ),
+            ("connection_failed", json!({"host": "vega"})),
         ]
     );
 }

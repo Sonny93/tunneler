@@ -156,9 +156,10 @@ pub(crate) fn devslot_error_to_ipc(error: &DevslotError) -> IpcError {
             IpcError::devslot_invalid_output(host, reason)
         }
         DevslotError::Timeout { host, seconds } => IpcError::remote_command_timeout(host, *seconds),
-        DevslotError::Connect(_) | DevslotError::ShuttingDown => {
-            IpcError::internal(error.to_string())
+        DevslotError::Connect { host, source } => {
+            IpcError::connection_failed(host, source.to_string())
         }
+        DevslotError::ShuttingDown => IpcError::internal(error.to_string()),
     }
 }
 
@@ -328,6 +329,12 @@ mod tests {
                 seconds: 20,
             },
             DevslotError::ShuttingDown,
+            DevslotError::Connect {
+                host: "vega".to_owned(),
+                source: std::sync::Arc::new(engine::ConnectError::Authentication {
+                    tried: Vec::new(),
+                }),
+            },
         ];
 
         assert_eq!(
@@ -339,7 +346,8 @@ mod tests {
                 ErrorCode::DevslotFailed,
                 ErrorCode::DevslotInvalidOutput,
                 ErrorCode::RemoteCommandTimeout,
-                ErrorCode::Internal
+                ErrorCode::Internal,
+                ErrorCode::ConnectionFailed
             ]
         );
     }

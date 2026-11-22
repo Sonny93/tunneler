@@ -185,7 +185,7 @@ impl DaemonHandler {
             .launch_x11(&params.host, &params.name)
             .await
             .map(|()| ResponsePayload::empty())
-            .map_err(engine_error_to_ipc)
+            .map_err(|error| launch_error_to_ipc(error, &params.host))
     }
 
     async fn probe_x11(&self, params: &X11HostParams) -> Result<ResponsePayload, IpcError> {
@@ -624,6 +624,15 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         EngineError::PortScan(_) | EngineError::X11(_) | EngineError::TargetCheckFailed(_) => {
             IpcError::internal(error.to_string())
         }
+    }
+}
+
+fn launch_error_to_ipc(error: EngineError, host: &str) -> IpcError {
+    match error {
+        EngineError::X11(X11Error::Connect(source)) => {
+            IpcError::connection_failed(host, source.to_string())
+        }
+        other => engine_error_to_ipc(other),
     }
 }
 
@@ -2418,6 +2427,50 @@ mod tests {
         crate::daemon::mapping::settings_to_dto(&fixture.engine.snapshot().settings)
     }
 
+    fn authentication_failure() -> Arc<engine::ConnectError> {
+        Arc::new(engine::ConnectError::Authentication { tried: Vec::new() })
+    }
+
+    #[test]
+    fn should_answer_connection_failed_with_the_host_when_a_launch_cannot_connect() {
+        let error = launch_error_to_ipc(
+            EngineError::X11(X11Error::Connect(authentication_failure())),
+            "vega",
+        );
+
+        assert_eq!(
+            (error.code, error.data, error.message),
+            (
+                ErrorCode::ConnectionFailed,
+                Some(serde_json::json!({"host": "vega"})),
+                authentication_failure().to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn should_keep_the_other_launch_failures_as_they_are() {
+        let error = launch_error_to_ipc(EngineError::X11(X11Error::Refused), "vega");
+
+        assert_eq!(error.code, ErrorCode::InvalidState);
+    }
+
+    #[test]
+    fn should_answer_connection_failed_when_discovering_cannot_connect() {
+        let error = engine_error_to_ipc(EngineError::Devslot(engine::DevslotError::Connect {
+            host: "vega".to_owned(),
+            source: authentication_failure(),
+        }));
+
+        assert_eq!(
+            (error.code, error.data),
+            (
+                ErrorCode::ConnectionFailed,
+                Some(serde_json::json!({"host": "vega"}))
+            )
+        );
+    }
+
     #[tokio::test]
     async fn should_answer_not_found_when_discovering_on_an_alias_the_ssh_config_lacks() {
         let fixture = fixture();
@@ -2456,7 +2509,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_not_answer_not_found_when_discovering_on_a_known_alias_that_is_unreachable() {
+    async fn should_answer_connection_failed_when_discovering_on_a_known_alias_that_is_unreachable()
+    {
         let fixture = fixture();
 
         let error = fixture
@@ -2470,7 +2524,7 @@ mod tests {
             .await
             .unwrap_err();
 
-        assert_eq!(error.code, ErrorCode::Internal);
+        assert_eq!(error.code, ErrorCode::ConnectionFailed);
     }
 
     #[tokio::test]

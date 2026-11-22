@@ -43,6 +43,29 @@ describe('describeDaemonError', () => {
 		expect(describeDaemonError(error, i18n)).toBe(expected);
 	});
 
+	it('should describe a connection failure with the host and the daemon message', () => {
+		const error = new DaemonCommandError(
+			'connection_failed',
+			'Permission denied',
+			{
+				host: 'vega',
+			}
+		);
+
+		expect(describeDaemonError(error, i18n)).toBe(
+			'Could not connect to vega: Permission denied'
+		);
+	});
+
+	it('should return the raw message when a connection failure has no host', () => {
+		const error = new DaemonCommandError(
+			'connection_failed',
+			'Permission denied'
+		);
+
+		expect(describeDaemonError(error, i18n)).toBe('Permission denied');
+	});
+
 	it('should return the raw message when a devslot error has no usable data', () => {
 		const error = new DaemonCommandError('devslot_not_found', 'raw text');
 

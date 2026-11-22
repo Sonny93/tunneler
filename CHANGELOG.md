@@ -10,6 +10,10 @@ All notable changes to Tunneler are written here for the people who use it. The 
 - Settings `devslot_persist` and `devslot_stale`, and per host `devslot_path` (where `ds` is on the host) and `devslot_persist`, in `tunnels.toml`.
 - `open.host_name` on a tunnel: a `<label>.localhost` name used in the URL opened in the browser.
 
+### Fixed
+
+- When the SSH connection fails while launching an X11 app or discovering devslot instances, the window now says which host could not be reached and why, instead of showing an internal error.
+
 ## [0.6.1] - 2026-11-18
 
 ### Fixed

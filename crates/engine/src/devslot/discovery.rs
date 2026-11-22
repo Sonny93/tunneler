@@ -48,8 +48,13 @@ pub struct DevslotResync {
 #[derive(Debug, Error)]
 pub enum DevslotError {
     /// The SSH session could not be opened.
-    #[error("{0}")]
-    Connect(Arc<ConnectError>),
+    #[error("{source}")]
+    Connect {
+        /// The host alias.
+        host: String,
+        /// Why the session could not be opened.
+        source: Arc<ConnectError>,
+    },
     /// The session manager shut down.
     #[error("the engine is shutting down")]
     ShuttingDown,
