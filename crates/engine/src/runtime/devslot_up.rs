@@ -48,11 +48,30 @@ impl Engine {
     pub async fn devslot_up(&self, host: &str, instance: &str) -> Result<DevslotUp, EngineError> {
         self.ensure_running()?;
         let listing = self.inner.list_devslot(host).await?;
-        let applied = self.apply_devslot_up(host, instance, &listing).await?;
+        let applied = self.apply_devslot_up(host, instance, listing).await?;
         Ok(self.wait_for_devslot_up(applied).await)
     }
 
+    /// Runs the locked steps in a task of their own: a caller that goes away
+    /// (a dropped connection) must not leave a store write half applied.
     async fn apply_devslot_up(
+        &self,
+        host: &str,
+        instance: &str,
+        listing: RemoteDevslotListing,
+    ) -> Result<Applied, EngineError> {
+        let engine = self.clone();
+        let (host, instance) = (host.to_owned(), instance.to_owned());
+        tokio::spawn(async move {
+            engine
+                .apply_devslot_up_locked(&host, &instance, &listing)
+                .await
+        })
+        .await
+        .map_err(|_| EngineError::DevslotTaskFailed)?
+    }
+
+    async fn apply_devslot_up_locked(
         &self,
         host: &str,
         instance: &str,
@@ -69,6 +88,7 @@ impl Engine {
             self.inner.analyse_devslot(host, listing).await
         };
         let target = find_instance(host, instance, &analysis)?;
+        let default_bind_address = self.inner.settings.borrow().default_bind_address.clone();
         let plan = plan_devslot_up(&UpPlanInput {
             host,
             instance: target,
@@ -76,6 +96,7 @@ impl Engine {
             is_persisted: analysis.discovery.persist_default,
             stale: &analysis.discovery.stale,
             known: &analysis.known,
+            default_bind_address: &default_bind_address,
         });
         let tunnels = self.create_planned_tunnels(&plan).await;
         Ok(Applied {

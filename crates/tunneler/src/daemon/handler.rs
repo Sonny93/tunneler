@@ -634,6 +634,7 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         EngineError::Devslot(failure) => devslot_error_to_ipc(&failure),
         EngineError::Store(error) => store_error_to_ipc(error),
         EngineError::ShutDown => IpcError::internal("the daemon is shutting down"),
+        EngineError::DevslotTaskFailed => IpcError::internal(error.to_string()),
         EngineError::NotExternal(_)
         | EngineError::TunnelIsTemporary(_)
         | EngineError::TunnelIsNotTemporary(_)

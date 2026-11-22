@@ -9,7 +9,7 @@ pub const USAGE: u8 = 2;
 /// The command needs the daemon and it is not running.
 pub const DAEMON_NOT_RUNNING: u8 = 3;
 /// `up`: at least one tunnel failed to start. `devslot`: a web port failed
-/// or was skipped.
+/// or is blocked (not a port below 1024, which is skipped by design).
 pub const TARGETS_FAILED: u8 = 4;
 /// A confirmation is needed but cannot be asked: not a terminal and no `--yes`.
 pub const CONFIRMATION_REQUIRED: u8 = 5;
@@ -31,7 +31,7 @@ pub fn describe_exit_codes() -> String {
         (ERROR, "error"),
         (USAGE, "invalid usage"),
         (DAEMON_NOT_RUNNING, "the daemon is not running"),
-        (TARGETS_FAILED, "some tunnels failed to start or are blocked by another program (up), or some web ports of the instance failed or were skipped (devslot); a tunnel provided by an external ssh counts as started"),
+        (TARGETS_FAILED, "some tunnels failed to start or are blocked by another program (up), or some web ports of the instance failed or are blocked (devslot); a tunnel provided by an external ssh counts as started"),
         (
             CONFIRMATION_REQUIRED,
             "confirmation required but not possible: not a terminal, pass --yes (quit, purge)",

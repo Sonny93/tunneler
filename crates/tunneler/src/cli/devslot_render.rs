@@ -118,6 +118,9 @@ fn describe_skipped_port(port: &DevslotSkippedPortDto, style: Style) -> String {
         }
         DevslotSkipReasonDto::NeedsReview => "a stale tunnel holds it and needs your decision",
         DevslotSkipReasonDto::PrivilegedPort => "ports below 1024 are not tunneled here",
+        DevslotSkipReasonDto::ExistingTunnel => {
+            "a tunnel you configured already forwards it: start it yourself"
+        }
     };
     format!(
         "port {}: {}, {reason}",

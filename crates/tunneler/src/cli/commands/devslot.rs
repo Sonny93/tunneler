@@ -1,7 +1,9 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use ipc::protocol::{DevslotUpResultDto, ErrorCode, EventMessage, HostKeyRequestEvent};
+use ipc::protocol::{
+    DevslotSkipReasonDto, DevslotUpResultDto, ErrorCode, EventMessage, HostKeyRequestEvent,
+};
 use ipc::{ClientError, EventReceiver};
 
 use super::super::args::DevslotArguments;
@@ -120,12 +122,21 @@ fn devslot_error(error: ClientError, host: &str, instance: &str) -> CliError {
 /// The failure to report once the result is shown: a port that failed or was
 /// skipped, else a browser that did not open.
 fn find_outcome_error(result: &DevslotUpResultDto) -> Option<CliError> {
-    let problems = result.skipped.len() + result.failed.len();
+    let blocked = result
+        .skipped
+        .iter()
+        .filter(|port| port.reason != DevslotSkipReasonDto::PrivilegedPort)
+        .count();
+    let problems = blocked + result.failed.len();
     if problems > 0 {
+        let total = result.started.len()
+            + result.existing.len()
+            + result.skipped.len()
+            + result.failed.len();
         return Some(CliError::PortsNotTunneled {
             instance: result.instance.clone(),
             count: problems,
-            total: problems + result.started.len() + result.existing.len(),
+            total,
         });
     }
     result
@@ -202,11 +213,11 @@ mod tests {
     }
 
     #[test]
-    fn should_exit_with_4_when_a_port_was_skipped() {
+    fn should_exit_with_4_when_a_port_was_skipped_because_it_is_blocked() {
         let result = DevslotUpResultDto {
             skipped: vec![DevslotSkippedPortDto {
-                remote_port: 80,
-                reason: DevslotSkipReasonDto::PrivilegedPort,
+                remote_port: 20053,
+                reason: DevslotSkipReasonDto::NeedsReview,
             }],
             ..healthy_result()
         };
@@ -215,11 +226,50 @@ mod tests {
     }
 
     #[test]
-    fn should_count_the_ports_that_are_not_tunneled_out_of_all_the_web_ports() {
+    fn should_exit_with_4_when_a_port_was_skipped_because_the_local_port_is_busy() {
+        let result = DevslotUpResultDto {
+            skipped: vec![DevslotSkippedPortDto {
+                remote_port: 20053,
+                reason: DevslotSkipReasonDto::LocalPortBusy,
+            }],
+            ..healthy_result()
+        };
+
+        assert_eq!(exit_code_of(&result), exit_code::TARGETS_FAILED);
+    }
+
+    #[test]
+    fn should_exit_with_4_when_a_port_was_skipped_because_a_configured_tunnel_holds_it() {
+        let result = DevslotUpResultDto {
+            skipped: vec![DevslotSkippedPortDto {
+                remote_port: 20053,
+                reason: DevslotSkipReasonDto::ExistingTunnel,
+            }],
+            ..healthy_result()
+        };
+
+        assert_eq!(exit_code_of(&result), exit_code::TARGETS_FAILED);
+    }
+
+    #[test]
+    fn should_exit_with_0_when_the_only_skipped_port_is_below_1024() {
         let result = DevslotUpResultDto {
             skipped: vec![DevslotSkippedPortDto {
                 remote_port: 80,
                 reason: DevslotSkipReasonDto::PrivilegedPort,
+            }],
+            ..healthy_result()
+        };
+
+        assert_eq!(exit_code_of(&result), exit_code::SUCCESS);
+    }
+
+    #[test]
+    fn should_count_the_ports_that_are_not_tunneled_out_of_all_the_web_ports() {
+        let result = DevslotUpResultDto {
+            skipped: vec![DevslotSkippedPortDto {
+                remote_port: 20053,
+                reason: DevslotSkipReasonDto::NeedsReview,
             }],
             ..healthy_result()
         };

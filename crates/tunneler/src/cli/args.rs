@@ -165,7 +165,7 @@ be confirmed, you are asked here if this is a terminal.
 Exit codes:
   0  the instance is open
   1  error: unknown host, instance not listed, connection or `ds` failure
-  4  some web ports failed or were skipped
+  4  some web ports failed or were blocked (busy local port, stale tunnel); ports below 1024 do not count
   6  the command on the host timed out
   8  the browser could not be opened"
         .to_owned()
@@ -679,7 +679,7 @@ mod tests {
 
         assert!(
             help.contains("Exit codes:")
-                && help.contains("  4  some web ports failed or were skipped")
+                && help.contains("  4  some web ports failed or were blocked (busy local port, stale tunnel); ports below 1024 do not count")
                 && help.contains("tunneler devslot vega web-shop-098a")
         );
     }

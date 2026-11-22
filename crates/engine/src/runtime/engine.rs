@@ -154,6 +154,9 @@ pub enum EngineError {
     /// The devslot instances of a host could not be listed.
     #[error(transparent)]
     Devslot(#[from] DevslotError),
+    /// The task that applies a devslot opening ended without a result.
+    #[error("the devslot opening ended unexpectedly")]
+    DevslotTaskFailed,
     /// The tunnel was stopped while it was being started.
     #[error("the tunnel was stopped while it was starting")]
     TunnelStoppedWhileStarting,

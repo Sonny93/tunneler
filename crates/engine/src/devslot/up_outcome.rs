@@ -22,6 +22,9 @@ pub enum DevslotSkipReason {
     NeedsReview,
     /// The port is below 1024: it is left to the import panel.
     PrivilegedPort,
+    /// A tunnel the user configured forwards the port: it is not started
+    /// nor duplicated.
+    ExistingTunnel,
 }
 
 /// A port of the instance that was left alone.

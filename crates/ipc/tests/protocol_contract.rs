@@ -260,6 +260,10 @@ fn devslot_up_result() -> DevslotUpResultDto {
                 remote_port: 80,
                 reason: DevslotSkipReasonDto::PrivilegedPort,
             },
+            DevslotSkippedPortDto {
+                remote_port: 20055,
+                reason: DevslotSkipReasonDto::ExistingTunnel,
+            },
         ],
         failed: vec![DevslotFailedPortDto {
             remote_port: 20054,
@@ -2213,7 +2217,8 @@ fn should_serialize_a_devslot_up_result_as_documented() {
             "skipped": [
                 {"remotePort": 20052, "reason": "localPortBusy"},
                 {"remotePort": 20053, "reason": "needsReview"},
-                {"remotePort": 80, "reason": "privilegedPort"}
+                {"remotePort": 80, "reason": "privilegedPort"},
+                {"remotePort": 20055, "reason": "existingTunnel"}
             ],
             "failed": [{"remotePort": 20054, "message": "the tunnel failed to start"}],
             "removed": [{"listenPort": 20999, "remotePort": 20999, "isTemporary": true}],

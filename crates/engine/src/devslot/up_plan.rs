@@ -5,7 +5,7 @@
 
 use std::collections::HashSet;
 
-use super::analysis::{DevslotStaleTunnel, KnownTunnel};
+use super::analysis::{DevslotStaleTunnel, KnownTunnel, is_devslot_tunnel_of};
 use super::listing::{DevslotInstance, DevslotPort, DevslotPortStatus};
 use super::origin::DevslotOrigin;
 use super::up_outcome::{DevslotSkipReason, DevslotSkippedPort, DevslotUpPort};
@@ -15,6 +15,7 @@ use crate::store::{OpenOptions, TunnelId, TunnelKind};
 const WEB_PORT_KIND: &str = "web";
 const PRIVILEGED_PORT_LIMIT: u16 = 1024;
 const LISTEN_ADDRESS: &str = "127.0.0.1";
+const LOOPBACK_ADDRESSES: [&str; 3] = ["127.0.0.1", "::1", "localhost"];
 
 /// What the plan needs to know.
 pub(crate) struct UpPlanInput<'input> {
@@ -31,6 +32,8 @@ pub(crate) struct UpPlanInput<'input> {
     pub(crate) stale: &'input [DevslotStaleTunnel],
     /// The tunnels of the engine.
     pub(crate) known: &'input [KnownTunnel],
+    /// The address a tunnel without `listen_address` binds to.
+    pub(crate) default_bind_address: &'input str,
 }
 
 /// How a new tunnel lives.
@@ -122,11 +125,28 @@ fn reuse_or_review(
         .known
         .iter()
         .find(|tunnel| tunnel.definition.id == tunnel_id)?;
+    if !is_reusable(tunnel, input) {
+        return Some(Decision::Skip(skip(
+            port,
+            DevslotSkipReason::ExistingTunnel,
+        )));
+    }
     Some(Decision::Reuse(DevslotUpPort {
         remote_port: port.port,
         listen_port: tunnel.definition.listen_port,
         tunnel_id,
     }))
+}
+
+/// Only a devslot tunnel of the host that listens on the loopback is started
+/// again: a tunnel the user made, or one open to the network, is theirs.
+fn is_reusable(tunnel: &KnownTunnel, input: &UpPlanInput<'_>) -> bool {
+    let address = tunnel
+        .definition
+        .listen_address
+        .as_deref()
+        .unwrap_or(input.default_bind_address);
+    is_devslot_tunnel_of(tunnel, input.host) && LOOPBACK_ADDRESSES.contains(&address)
 }
 
 fn start_or_skip(port: &DevslotPort, input: &UpPlanInput<'_>) -> Decision {
@@ -330,6 +350,7 @@ mod tests {
             is_persisted,
             stale,
             known,
+            default_bind_address: "127.0.0.1",
         })
     }
 
@@ -517,6 +538,82 @@ mod tests {
                 }]
             )
         );
+    }
+
+    fn tunneled_port(tunnel: &KnownTunnel) -> DevslotPort {
+        with_status(
+            web_port(APP_PORT),
+            DevslotPortStatus::AlreadyTunneled {
+                tunnel_id: tunnel.definition.id,
+            },
+        )
+    }
+
+    fn existing_tunnel_skip() -> Vec<DevslotSkippedPort> {
+        vec![DevslotSkippedPort {
+            remote_port: APP_PORT,
+            reason: DevslotSkipReason::ExistingTunnel,
+        }]
+    }
+
+    #[test]
+    fn should_skip_a_port_held_by_a_tunnel_that_is_not_a_devslot_one() {
+        let mut existing = known_tunnel(APP_PORT, APP_PORT);
+        existing.definition.tags.clear();
+        let listed = instance(vec![tunneled_port(&existing)]);
+
+        let plan = plan_with(&[listed], false, &[], &[existing]);
+
+        assert_eq!(
+            (plan.to_start.len(), plan.existing.len(), plan.skipped),
+            (0, 0, existing_tunnel_skip())
+        );
+    }
+
+    #[test]
+    fn should_skip_a_port_held_by_a_devslot_tunnel_that_listens_on_every_interface() {
+        let mut existing = known_tunnel(APP_PORT, APP_PORT);
+        existing.definition.listen_address = Some("0.0.0.0".to_owned());
+        let listed = instance(vec![tunneled_port(&existing)]);
+
+        let plan = plan_with(&[listed], false, &[], &[existing]);
+
+        assert_eq!(
+            (plan.existing.len(), plan.skipped),
+            (0, existing_tunnel_skip())
+        );
+    }
+
+    #[test]
+    fn should_skip_a_devslot_tunnel_without_address_when_the_default_bind_address_is_open() {
+        let mut existing = known_tunnel(APP_PORT, APP_PORT);
+        existing.definition.listen_address = None;
+        let listed = instance(vec![tunneled_port(&existing)]);
+
+        let plan = plan_devslot_up(&UpPlanInput {
+            host: HOST,
+            instance: &listed,
+            all_instances: std::slice::from_ref(&listed),
+            is_persisted: false,
+            stale: &[],
+            known: &[existing],
+            default_bind_address: "0.0.0.0",
+        });
+
+        assert_eq!(plan.skipped, existing_tunnel_skip());
+    }
+
+    #[test]
+    fn should_reuse_a_temporary_devslot_tunnel_on_the_loopback() {
+        let mut existing = known_tunnel(APP_PORT, APP_PORT);
+        existing.definition.tags.clear();
+        existing.is_temporary = true;
+        existing.origin = Some(DevslotOrigin::default());
+        let listed = instance(vec![tunneled_port(&existing)]);
+
+        let plan = plan_with(&[listed], false, &[], &[existing]);
+
+        assert_eq!(plan.existing.len(), 1);
     }
 
     #[test]

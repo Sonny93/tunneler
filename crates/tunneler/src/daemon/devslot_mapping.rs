@@ -228,6 +228,7 @@ fn skipped_port_to_dto(port: DevslotSkippedPort) -> DevslotSkippedPortDto {
             DevslotSkipReason::LocalPortBusy => DevslotSkipReasonDto::LocalPortBusy,
             DevslotSkipReason::NeedsReview => DevslotSkipReasonDto::NeedsReview,
             DevslotSkipReason::PrivilegedPort => DevslotSkipReasonDto::PrivilegedPort,
+            DevslotSkipReason::ExistingTunnel => DevslotSkipReasonDto::ExistingTunnel,
         },
     }
 }
