@@ -42,7 +42,7 @@ The tunnels are temporary or saved following `devslot_persist`, like in the impo
 
 ### The link
 
-Clicking a `tunneler://devslot/<host>/<instance>` link opens Tunneler, which always shows a confirmation naming the host and the instance before it makes any SSH connection. Any web page can point to a link of this kind, so the confirmation is what keeps a page from opening connections from your computer. A link that does not follow the format, or whose host is not an alias of your `ssh_config`, shows an error and nothing else happens. While a confirmation is shown, a new link is ignored: answer the first one.
+Clicking a `tunneler://devslot/<host>/<instance>` link opens Tunneler, which always shows a confirmation naming the host and the instance before it makes any SSH connection. Any web page can point to a link of this kind, so the confirmation is what keeps a page from opening connections from your computer. A link that does not follow the format, or whose host is not an alias of your `ssh_config`, shows an error and nothing else happens. "Open" only responds one second after the confirmation appears or the window comes back to the front, so a click meant for the page that sent the link cannot land on it. While a confirmation is shown, a new link is ignored: answer the first one.
 
 A browser usually asks before it hands a link to another application. A terminal may not make `tunneler://` links clickable: the command is the path that always works.
 

@@ -42,7 +42,7 @@ Les tunnels sont temporaires ou enregistrés selon `devslot_persist`, comme dans
 
 ### Le lien
 
-Cliquer sur un lien `tunneler://devslot/<hôte>/<instance>` ouvre Tunneler, qui affiche toujours une confirmation nommant l'hôte et l'instance avant toute connexion SSH. N'importe quelle page web peut pointer vers un lien de ce type : la confirmation empêche une page d'ouvrir des connexions depuis votre ordinateur. Un lien qui ne respecte pas le format, ou dont l'hôte n'est pas un alias de votre `ssh_config`, affiche une erreur et rien d'autre ne se passe. Tant qu'une confirmation est affichée, un nouveau lien est ignoré : répondez d'abord à la première.
+Cliquer sur un lien `tunneler://devslot/<hôte>/<instance>` ouvre Tunneler, qui affiche toujours une confirmation nommant l'hôte et l'instance avant toute connexion SSH. N'importe quelle page web peut pointer vers un lien de ce type : la confirmation empêche une page d'ouvrir des connexions depuis votre ordinateur. Un lien qui ne respecte pas le format, ou dont l'hôte n'est pas un alias de votre `ssh_config`, affiche une erreur et rien d'autre ne se passe. « Ouvrir » ne répond qu'une seconde après l'apparition de la confirmation ou le retour de la fenêtre au premier plan : un clic destiné à la page qui a envoyé le lien ne peut pas tomber dessus. Tant qu'une confirmation est affichée, un nouveau lien est ignoré : répondez d'abord à la première.
 
 Un navigateur demande en général une confirmation avant de passer un lien à une autre application. Un terminal ne rend pas toujours les liens `tunneler://` cliquables : la commande est la voie qui marche toujours.
 

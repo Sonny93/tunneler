@@ -2,7 +2,13 @@ import { create } from 'zustand';
 
 export type ToastTone = 'info' | 'success' | 'warning' | 'error';
 
-export type Toast = { id: number; tone: ToastTone; message: string };
+export type Toast = {
+	id: number;
+	tone: ToastTone;
+	message: string;
+	/** Stays until the user dismisses it, whatever its tone (WCAG 2.2.1). */
+	persistent?: boolean;
+};
 
 type ToastDraft = Omit<Toast, 'id'>;
 

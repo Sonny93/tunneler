@@ -1,7 +1,8 @@
-import { useLingui } from '@lingui/react/macro';
+import { Trans, useLingui } from '@lingui/react/macro';
 import { Button, ModalFooter } from '@minimalstuff/ui';
 import { useEffect, useRef, type RefObject } from 'react';
 
+import { useActivationDelay } from '#/devslot_link/use_activation_delay';
 import {
 	useOpenDevslotInstance,
 	type OpenPhase,
@@ -22,6 +23,7 @@ function Failure({ phase }: Readonly<{ phase: FailedPhase }>) {
 	return (
 		<div role="alert" className="flex flex-col gap-2">
 			{phase.summary !== null && <p className="m-0">{phase.summary}</p>}
+			<p className="m-0">{phase.leadIn}</p>
 			<ul className="m-0 flex list-disc flex-col gap-1 pl-5">
 				{phase.problems.map((problem) => (
 					<li key={problem}>{problem}</li>
@@ -34,18 +36,26 @@ function Failure({ phase }: Readonly<{ phase: FailedPhase }>) {
 function Question({
 	host,
 	instance,
-	isRunning,
-}: Readonly<{ host: string; instance: string; isRunning: boolean }>) {
+}: Readonly<{ host: string; instance: string }>) {
 	const { t } = useLingui();
 
 	return (
 		<div className="flex flex-col gap-2">
-			<p className="m-0">{t`A link asks Tunneler to open the instance ${instance} on the host ${host}.`}</p>
 			<p className="m-0">
-				{t`Tunneler will connect to the host over SSH, run ds ls --json, start tunnels for the web ports of the instance (temporary, unless your devslot setting saves them) and open the application in your browser.`}
+				<Trans>
+					A link asks Tunneler to open the instance <strong>{instance}</strong>{' '}
+					on the host <strong>{host}</strong>.
+				</Trans>
+			</p>
+			<p className="m-0">
+				<Trans>
+					Tunneler will connect to the host over SSH, run{' '}
+					<code>ds ls --json</code>, start tunnels for the web ports of the
+					instance (temporary, unless your devslot setting saves them) and open
+					the application in your browser.
+				</Trans>
 			</p>
 			<p className="m-0">{t`Only continue if you trust where this link comes from.`}</p>
-			{isRunning && <p className="m-0">{t`Opening ${instance} on ${host}…`}</p>}
 		</div>
 	);
 }
@@ -63,11 +73,14 @@ export function DevslotLinkConfirmContent({
 		host,
 		instance,
 	});
+	const isArmed = useActivationDelay();
 	const closeButtonRef = useRef<HTMLButtonElement>(null);
 	const isRunning = phase.kind === 'running';
 	const isFailed = phase.kind === 'failed';
 	const close = () => useUiStore.getState().closeDevslotLink(requestId);
-	const handleOpen = () => void open();
+	const handleOpen = () => {
+		if (isArmed) void open();
+	};
 
 	useEffect(() => {
 		if (isFailed) closeButtonRef.current?.focus();
@@ -76,10 +89,13 @@ export function DevslotLinkConfirmContent({
 	return (
 		<>
 			<div aria-busy={isRunning}>
+				<output className="block">
+					{isRunning ? t`Opening ${instance} on ${host}…` : ''}
+				</output>
 				{phase.kind === 'failed' ? (
 					<Failure phase={phase} />
 				) : (
-					<Question host={host} instance={instance} isRunning={isRunning} />
+					<Question host={host} instance={instance} />
 				)}
 			</div>
 			<ModalFooter>
@@ -98,7 +114,11 @@ export function DevslotLinkConfirmContent({
 						>
 							{t`Cancel`}
 						</Button>
-						<Button loading={isRunning} onClick={handleOpen}>
+						<Button
+							loading={isRunning}
+							aria-disabled={!isArmed || isRunning || undefined}
+							onClick={handleOpen}
+						>
 							{t`Open`}
 						</Button>
 					</>

@@ -7,7 +7,9 @@ use ipc::protocol::{
 use ipc::{ClientError, EventReceiver};
 
 use super::super::args::DevslotArguments;
-use super::super::devslot_render::{render_devslot_up, render_devslot_up_json};
+use super::super::devslot_render::{
+    describe_devslot_start, render_devslot_up, render_devslot_up_json,
+};
 use super::super::launcher::ensure_daemon_running;
 use super::super::prompting::{LocalPrompts, describe_host_key_alert};
 use super::super::session::{ConnectionMode, connect};
@@ -33,6 +35,16 @@ pub async fn devslot(context: &Context, arguments: DevslotArguments) -> Result<(
         .can_prompt
         .then(|| LocalPrompts::new(Arc::clone(&client), Arc::new(StandardTerminal)));
     let is_open_requested = !arguments.no_open;
+    if !arguments.json {
+        eprintln!(
+            "{}",
+            describe_devslot_start(
+                arguments.instance.as_str(),
+                arguments.host.as_str(),
+                context.style
+            )
+        );
+    }
     let call = client.devslot_up(
         arguments.host.clone(),
         arguments.instance.clone(),

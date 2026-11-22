@@ -130,7 +130,7 @@ msgstr "{host} : forward non pris en charge (socket Unix ou SOCKS distant) : "
 msgid "{importedText}, {failedCount} failed:"
 msgstr "{importedText}, {failedCount} en échec :"
 
-#: src/devslot_link/describe_devslot_up.ts:145
+#: src/devslot_link/describe_devslot_up.ts:146
 msgid "{instance} on {host}:"
 msgstr "{instance} sur {host} :"
 
@@ -282,11 +282,11 @@ msgstr "0 pour désactiver"
 msgid "127.0.0.1, or [::1] when the tunnel listens on IPv6"
 msgstr "127.0.0.1, ou [::1] quand le tunnel écoute en IPv6"
 
-#: src/devslot_link/devslot_link_confirm_content.tsx:43
-msgid "A link asks Tunneler to open the instance {instance} on the host {host}."
-msgstr "Un lien demande à Tunneler d'ouvrir l'instance {instance} sur l'hôte {host}."
+#: src/devslot_link/devslot_link_confirm_content.tsx:45
+msgid "A link asks Tunneler to open the instance <0>{instance}</0> on the host <1>{host}</1>."
+msgstr "Un lien demande à Tunneler d'ouvrir l'instance <0>{instance}</0> sur l'hôte <1>{host}</1>."
 
-#: src/devslot_link/use_devslot_link_listener.ts:24
+#: src/devslot_link/use_devslot_link_listener.ts:26
 msgid "A Tunneler link is already waiting for your answer"
 msgstr "Un lien Tunneler attend déjà votre réponse"
 
@@ -480,7 +480,7 @@ msgstr "Les deux"
 msgid "Browser"
 msgstr "Navigateur"
 
-#: src/devslot_link/devslot_link_confirm_content.tsx:99
+#: src/devslot_link/devslot_link_confirm_content.tsx:115
 #: src/openers/opener_form.tsx:183
 #: src/prompts/credential_prompt_content.tsx:95
 #: src/settings/settings_dialog_form.tsx:46
@@ -568,7 +568,7 @@ msgstr "Effacer la sélection"
 msgid "click"
 msgstr "clic"
 
-#: src/devslot_link/devslot_link_confirm_content.tsx:88
+#: src/devslot_link/devslot_link_confirm_content.tsx:104
 #: src/devslot_link/devslot_link_problem_content.tsx:28
 #: src/shared/app_ui_provider.tsx:11
 msgid "Close"
@@ -740,9 +740,13 @@ msgstr "Mise à jour impossible"
 msgid "Couldn't launch {name} on {host}"
 msgstr "Lancement de {name} sur {host} impossible"
 
-#: src/devslot_link/use_open_devslot_instance.ts:80
+#: src/devslot_link/use_open_devslot_instance.ts:84
 msgid "Couldn't open {instance} on {host}: {description}"
 msgstr "Impossible d'ouvrir {instance} sur {host} : {description}"
+
+#: src/devslot_link/use_open_devslot_instance.ts:76
+msgid "Couldn't open {instance} on {host}."
+msgstr "Impossible d'ouvrir {instance} sur {host}."
 
 #: src/documentation/use_open_documentation.ts:20
 msgid "Couldn't open the documentation"
@@ -778,6 +782,10 @@ msgstr "Lecture de {host} impossible : "
 #: src/host_config/host_config_panel.tsx:47
 msgid "Couldn't read the configuration: {errorMessage}"
 msgstr "Lecture impossible : {errorMessage}"
+
+#: src/devslot_link/use_devslot_link_listener.ts:49
+msgid "Couldn't read the link this app was started with: {description}"
+msgstr "Impossible de lire le lien avec lequel l'application a été lancée : {description}"
 
 #: src/tag_rename/tag_rename_content.tsx:89
 msgid "Couldn't rename the tag"
@@ -1710,7 +1718,7 @@ msgstr "Activé : les tunnels sont enregistrés et étiquetés devslot. Désacti
 msgid "One argument per line, passed as is: no shell interprets quotes or spaces. {hostPlaceholder} is the address the tunnel listens on (localhost or its IP), {portPlaceholder} is the local port of the tunnel (not the target port), {urlPlaceholder} is the full address, as opened in the browser."
 msgstr "Un argument par ligne, transmis tel quel : aucun shell n’interprète les guillemets ni les espaces. {hostPlaceholder} est l’adresse d’écoute du tunnel (localhost ou son IP), {portPlaceholder} est le port local du tunnel (pas le port de la cible), {urlPlaceholder} est l’adresse complète, telle qu’ouverte dans le navigateur."
 
-#: src/devslot_link/devslot_link_confirm_content.tsx:47
+#: src/devslot_link/devslot_link_confirm_content.tsx:58
 msgid "Only continue if you trust where this link comes from."
 msgstr "Ne continuez que si vous faites confiance à la source de ce lien."
 
@@ -1718,7 +1726,7 @@ msgstr "Ne continuez que si vous faites confiance à la source de ce lien."
 msgid "Only one tag, without a comma."
 msgstr "Un seul tag, sans virgule."
 
-#: src/devslot_link/devslot_link_confirm_content.tsx:102
+#: src/devslot_link/devslot_link_confirm_content.tsx:122
 msgid "Open"
 msgstr "Ouvrir"
 
@@ -1773,6 +1781,10 @@ msgstr "Ouvrir avec {name}"
 msgid "Open with…"
 msgstr "Ouvrir avec…"
 
+#: src/devslot_link/describe_devslot_up.ts:162
+msgid "Opened {instance} on {host}"
+msgstr "{instance} ouvert sur {host}"
+
 #: src/devslot_link/describe_devslot_up.ts:54
 msgid "Opened {opened} in the browser."
 msgstr "{opened} ouvert dans le navigateur."
@@ -1784,8 +1796,8 @@ msgstr "{opened} ouvert dans le navigateur."
 msgid "Opening"
 msgstr "Ouverture"
 
-#: src/devslot_link/devslot_link_confirm_content.tsx:48
-#: src/devslot_link/use_open_devslot_instance.ts:88
+#: src/devslot_link/devslot_link_confirm_content.tsx:93
+#: src/devslot_link/use_open_devslot_instance.ts:92
 msgid "Opening {instance} on {host}…"
 msgstr "Ouverture de {instance} sur {host}…"
 
@@ -2263,6 +2275,10 @@ msgstr "proxy SOCKS sur le port {listenPort} via {host}"
 msgid "SOCKS proxy on this computer"
 msgstr "Proxy SOCKS sur ce poste"
 
+#: src/devslot_link/use_open_devslot_instance.ts:60
+msgid "Some ports are not up:"
+msgstr "Certains ports ne sont pas actifs :"
+
 #: src/settings/standby_notify_options.tsx:16
 #: src/settings/standby_sound_options.tsx:74
 msgid "Sound"
@@ -2689,7 +2705,7 @@ msgstr "Cet identifiant est déjà utilisé par une de vos applications."
 
 #: src/devslot_link/build_devslot_link_modal_request.tsx:48
 msgid "This is not a valid Tunneler devslot link. A devslot link looks like tunneler://devslot/host/instance, with an SSH host of your configuration and the name of a devslot instance."
-msgstr "Ce n'est pas un lien devslot Tunneler valide. Un lien devslot ressemble à tunneler://devslot/hôte/instance, avec un hôte SSH de votre configuration et le nom d'une instance devslot."
+msgstr "Ce n'est pas un lien devslot Tunneler valide. Un lien devslot ressemble à tunneler://devslot/host/instance, avec un hôte SSH de votre configuration et le nom d'une instance devslot."
 
 #: src/devslot_link/build_devslot_link_modal_request.tsx:19
 msgid "This link cannot be opened"
@@ -2764,9 +2780,9 @@ msgstr "Tunneler peut démarrer VcXsrv ou Xming s'il est installé (Windows)."
 msgid "Tunneler keeps running when you close this window. To reopen it, run “tunneler” again. On GNOME, install the “AppIndicator and KStatusNotifierItem Support” extension to show the icon."
 msgstr "Tunneler continue de tourner quand vous fermez cette fenêtre. Pour la rouvrir, relancez « tunneler ». Sous GNOME, installez l’extension « AppIndicator and KStatusNotifierItem Support » pour afficher l’icône."
 
-#: src/devslot_link/devslot_link_confirm_content.tsx:45
-msgid "Tunneler will connect to the host over SSH, run ds ls --json, start tunnels for the web ports of the instance (temporary, unless your devslot setting saves them) and open the application in your browser."
-msgstr "Tunneler va se connecter à l'hôte en SSH, exécuter ds ls --json, démarrer des tunnels pour les ports web de l'instance (temporaires, sauf si votre réglage devslot les enregistre) et ouvrir l'application dans votre navigateur."
+#: src/devslot_link/devslot_link_confirm_content.tsx:51
+msgid "Tunneler will connect to the host over SSH, run <0>ds ls --json</0>, start tunnels for the web ports of the instance (temporary, unless your devslot setting saves them) and open the application in your browser."
+msgstr "Tunneler va se connecter à l'hôte en SSH, exécuter <0>ds ls --json</0>, démarrer des tunnels pour les ports web de l'instance (temporaires, sauf si votre réglage devslot les enregistre) et ouvrir l'application dans votre navigateur."
 
 #: src/settings/settings_open_fieldset.tsx:49
 msgid "Tunnels without an application"

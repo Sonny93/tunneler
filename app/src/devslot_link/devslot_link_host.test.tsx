@@ -1,7 +1,7 @@
 import { ModalProvider } from '@minimalstuff/ui';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
 
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
@@ -14,6 +14,10 @@ import { useUiStore } from '#/state/ui_store';
 import { buildDevslotUpResult } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+
+vi.mock('#/devslot_link/use_activation_delay', () => ({
+	useActivationDelay: () => true,
+}));
 
 const VALID_LINK: DevslotLinkDto = {
 	kind: 'devslotUp',
@@ -145,6 +149,52 @@ describe('DevslotLinkHost', () => {
 		);
 	});
 
+	it('should lead the error with a sentence that names the problem', async () => {
+		const user = userEvent.setup();
+		const gateway = createFakeGateway();
+		gateway.devslotUp.mockRejectedValue(
+			new DaemonCommandError('internal', 'x')
+		);
+		renderHost(gateway);
+		offer(VALID_LINK);
+
+		await user.click(await screen.findByRole('button', { name: 'Open' }));
+
+		expect(await screen.findByRole('alert')).toHaveTextContent(
+			"Couldn't open web-shop-098a on vega."
+		);
+	});
+
+	it('should keep the toast of a closed dialog with problems until dismissed', async () => {
+		const user = userEvent.setup();
+		let resolveCall: (
+			value: ReturnType<typeof buildDevslotUpResult>
+		) => void = () => undefined;
+		const gateway = createFakeGateway();
+		gateway.devslotUp.mockReturnValue(
+			new Promise((resolve) => (resolveCall = resolve))
+		);
+		renderHost(gateway);
+		offer(VALID_LINK);
+		await user.click(await screen.findByRole('button', { name: 'Open' }));
+		await user.keyboard('{Escape}');
+		await waitFor(() =>
+			expect(useUiStore.getState().devslotLinkRequest).toBeNull()
+		);
+
+		act(() =>
+			resolveCall(
+				buildDevslotUpResult({ failed: [{ remotePort: 1, message: 'no' }] })
+			)
+		);
+
+		await waitFor(() =>
+			expect(useToastStore.getState().toasts).toEqual([
+				expect.objectContaining({ tone: 'warning', persistent: true }),
+			])
+		);
+	});
+
 	it('should show an error in the dialog with a Close button', async () => {
 		const user = userEvent.setup();
 		const gateway = createFakeGateway();
@@ -228,6 +278,20 @@ describe('DevslotLinkHost', () => {
 });
 
 describe('useDevslotLinkListener', () => {
+	it('should toast an error when the launch link cannot be read', async () => {
+		const gateway = createFakeGateway();
+		gateway.takeLaunchLink.mockRejectedValue(
+			new DaemonCommandError('internal', 'x')
+		);
+		renderHost(gateway);
+
+		await waitFor(() =>
+			expect(useToastStore.getState().toasts).toEqual([
+				expect.objectContaining({ tone: 'error' }),
+			])
+		);
+	});
+
 	it('should take the launch link once', async () => {
 		const gateway = createFakeGateway();
 		gateway.takeLaunchLink.mockResolvedValueOnce(VALID_LINK);

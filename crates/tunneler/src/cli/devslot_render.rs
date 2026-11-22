@@ -15,6 +15,11 @@ pub fn render_devslot_up_json(result: &DevslotUpResultDto) -> Result<String, ser
     serde_json::to_string(result)
 }
 
+/// The line shown before the call, so that the wait is not silent.
+pub fn describe_devslot_start(instance: &str, host: &str, style: Style) -> String {
+    format!("Opening {instance} on {host}{}", style.ellipsis())
+}
+
 /// The result as lines of text; `is_open_requested` tells whether the browser
 /// was asked for, so that a missing address can be explained.
 pub fn render_devslot_up(
@@ -217,6 +222,22 @@ mod tests {
             opened: opened.map(str::to_owned),
             ..empty_result()
         }
+    }
+
+    #[test]
+    fn should_announce_the_instance_and_the_host_with_an_ellipsis() {
+        assert_eq!(
+            describe_devslot_start("web-shop-098a", "vega", UNICODE),
+            "Opening web-shop-098a on vega…"
+        );
+    }
+
+    #[test]
+    fn should_announce_with_three_dots_when_the_terminal_has_no_unicode() {
+        assert_eq!(
+            describe_devslot_start("web-shop-098a", "vega", ASCII),
+            "Opening web-shop-098a on vega..."
+        );
     }
 
     #[test]

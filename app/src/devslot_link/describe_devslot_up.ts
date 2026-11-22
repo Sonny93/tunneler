@@ -141,19 +141,25 @@ export function describeDevslotUp(
 	i18n: I18n
 ): DevslotUpReport {
 	const { instance, host } = result;
+	const sideEffects = describeSideEffects(result, i18n);
 	const sentences = [
 		i18n._(msg`${instance} on ${host}:`),
 		describeTunnels(result, i18n),
 		describeOpening(result, i18n),
-		...describeSideEffects(result, i18n),
+		...sideEffects,
 	];
-	return {
-		summary: sentences.join(' '),
-		problems: [
-			...result.failed.map((failure) => describeFailedPort(failure, i18n)),
-			...result.skipped
-				.filter(({ reason }) => reason !== 'privilegedPort')
-				.map((skipped) => describeSkippedPort(skipped, i18n)),
-		],
-	};
+	const problems = [
+		...result.failed.map((failure) => describeFailedPort(failure, i18n)),
+		...result.skipped
+			.filter(({ reason }) => reason !== 'privilegedPort')
+			.map((skipped) => describeSkippedPort(skipped, i18n)),
+	];
+	const isPlainSuccess =
+		problems.length === 0 &&
+		result.opened !== undefined &&
+		sideEffects.length === 0;
+	if (isPlainSuccess) {
+		return { summary: i18n._(msg`Opened ${instance} on ${host}`), problems };
+	}
+	return { summary: sentences.join(' '), problems };
 }

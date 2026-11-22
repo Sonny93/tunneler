@@ -4,6 +4,7 @@
 		"targets": ["appimage", "deb"],
 		"linux": {
 			"deb": {
+				"desktopTemplate": "linux/tunneler.desktop",
 				"files": {
 					"/usr/bin/tunneler": "../../target/release/tunneler"
 				}

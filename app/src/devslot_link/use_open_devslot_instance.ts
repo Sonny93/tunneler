@@ -1,5 +1,5 @@
 import { useLingui } from '@lingui/react/macro';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import { describeDaemonError } from '#/daemon/describe_daemon_error';
@@ -15,6 +15,8 @@ export type OpenPhase =
 	| { kind: 'running' }
 	| {
 			kind: 'failed';
+			/** Names the problem before the list, so it is never conveyed by position alone. */
+			leadIn: string;
 			/** What worked, when part of the instance came up. */
 			summary: string | null;
 			problems: readonly string[];
@@ -43,15 +45,10 @@ export function useOpenDevslotInstance({
 }: Readonly<OpenTarget>): UseOpenDevslotInstanceReturn {
 	const { t, i18n } = useLingui();
 	const gateway = useDaemonGateway();
-	const isDialogOpen = useRef(true);
 	const [phase, setPhase] = useState<OpenPhase>({ kind: 'confirm' });
 
-	useEffect(() => {
-		isDialogOpen.current = true;
-		return () => {
-			isDialogOpen.current = false;
-		};
-	}, []);
+	const isDialogOpen = () =>
+		useUiStore.getState().devslotLinkRequest?.id === requestId;
 
 	const reportResult = (result: Readonly<DevslotUpResultDto>) => {
 		const { summary, problems } = describeDevslotUp(result, i18n);
@@ -60,19 +57,26 @@ export function useOpenDevslotInstance({
 			useUiStore.getState().closeDevslotLink(requestId);
 			return;
 		}
-		if (isDialogOpen.current) {
-			setPhase({ kind: 'failed', summary, problems });
+		const leadIn = t`Some ports are not up:`;
+		if (isDialogOpen()) {
+			setPhase({ kind: 'failed', leadIn, summary, problems });
 			return;
 		}
 		useToastStore.getState().pushToast({
 			tone: 'warning',
-			message: [summary, ...problems].join(' '),
+			persistent: true,
+			message: [summary, leadIn, ...problems].join(' '),
 		});
 	};
 
 	const reportFailure = (description: string) => {
-		if (isDialogOpen.current) {
-			setPhase({ kind: 'failed', summary: null, problems: [description] });
+		if (isDialogOpen()) {
+			setPhase({
+				kind: 'failed',
+				leadIn: t`Couldn't open ${instance} on ${host}.`,
+				summary: null,
+				problems: [description],
+			});
 			return;
 		}
 		useToastStore.getState().pushToast({

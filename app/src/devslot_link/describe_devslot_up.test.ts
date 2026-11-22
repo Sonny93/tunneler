@@ -9,8 +9,7 @@ describe('describeDevslotUp', () => {
 		const report = describeDevslotUp(buildDevslotUpResult(), i18n);
 
 		expect(report).toEqual({
-			summary:
-				'web-shop-098a on vega: 1 tunnel started. Opened http://web-shop.localhost:20050 in the browser.',
+			summary: 'Opened web-shop-098a on vega',
 			problems: [],
 		});
 	});

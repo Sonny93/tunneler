@@ -35,7 +35,7 @@ export function ToastItem({ toast, onDismiss }: Readonly<ToastItemProps>) {
 	const pause = () => setIsPaused(true);
 	const resume = () => setIsPaused(false);
 
-	useAutoDismiss(!isError, isPaused, dismiss);
+	useAutoDismiss(!isError && !toast.persistent, isPaused, dismiss);
 
 	return (
 		<div
