@@ -77,7 +77,7 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 - **Mémoire.** L'interface pèse environ 410 Mio PSS sous Xvfb en rendu logiciel. Un vrai bureau avec GPU devrait en prendre moins : une mesure le confirmerait.
 
 ### Les deux systèmes
-- **Découverte devslot.** Contre un vrai hôte qui exécute devslot : découvrir, démarrer des tunnels temporaires et enregistrés, ouvrir un port web dans le navigateur, arrêter une instance puis redécouvrir (les tunnels périmés doivent partir ou faire l'objet d'une question), un hôte où `ds` n'est pas dans le `PATH` non interactif (avec et sans `devslot_path`), et une instance avec un port imposé.
+- **Découverte devslot.** Vérifié contre un vrai hôte : découvrir, démarrer des tunnels temporaires (y compris sur un port déjà utilisé localement), ouvrir un port web dans le navigateur. Reste à vérifier : les tunnels enregistrés, arrêter une instance puis redécouvrir (les tunnels périmés doivent partir ou faire l'objet d'une question), un hôte où `ds` n'est pas dans le `PATH` non interactif (avec et sans `devslot_path`), et une instance avec un port imposé.
 - **X11.** VcXsrv sous Windows et Xorg ou Xwayland sous Linux, contre un vrai `sshd` : un `xeyes` distant doit s'afficher sans `xauth`.
 - **Applications installées pendant que Tunneler tourne.** Installer TigerVNC, Remmina ou FreeRDP pendant que Tunneler tourne, puis ouvrir la fenêtre : l'application doit apparaître dans Paramètres › Ouverture sans redémarrage, et un tunnel sur son port doit s'ouvrir avec elle.
 - **SOCKS.** `curl --socks5` à travers un tunnel dynamique vers un vrai `sshd`.

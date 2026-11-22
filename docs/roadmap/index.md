@@ -77,7 +77,7 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 - **Memory.** The UI weighs about 410 MiB PSS under Xvfb with software rendering. A real desktop with a GPU should be lower: a measurement would confirm it.
 
 ### Both
-- **devslot discovery.** Against a real host that runs devslot: discover, start temporary and saved tunnels, open a web port in the browser, stop an instance and discover again (the stale tunnels should go or be asked about), a host where `ds` is missing from the non-interactive `PATH` (with and without `devslot_path`), and an instance with a forced port.
+- **devslot discovery.** Checked against a real host: discover, start temporary tunnels (including on a port already used locally), open a web port in the browser. Still to check: saved tunnels, stop an instance and discover again (the stale tunnels should go or be asked about), a host where `ds` is missing from the non-interactive `PATH` (with and without `devslot_path`), and an instance with a forced port.
 - **X11.** VcXsrv on Windows and Xorg or Xwayland on Linux, against a real `sshd`: a remote `xeyes` should show up without `xauth`.
 - **Applications installed while Tunneler runs.** Install TigerVNC, Remmina or FreeRDP while Tunneler runs, then open the window: the application should show in Settings › Opening without a restart, and a tunnel on its port should open in it.
 - **SOCKS.** `curl --socks5` through a dynamic tunnel to a real `sshd`.
