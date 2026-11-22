@@ -52,6 +52,7 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 
 ## Prochainement
 
+- Découverte devslot : depuis le panneau d'import, lister les instances d'un hôte avec `ds ls --json`, démarrer des tunnels vers leurs ports (temporaires ou enregistrés, avec les tags `devslot` et `ds-<projet>`), ouvrir les ports web sur `http://<label>.localhost:<port>`, et nettoyer les tunnels dont le port a disparu. Voir [Tunnels depuis devslot](/fr/guide/devslot).
 - Ce que la section [À tester](#a-tester) fera ressortir.
 
 ## À tester
@@ -76,6 +77,7 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 - **Mémoire.** L'interface pèse environ 410 Mio PSS sous Xvfb en rendu logiciel. Un vrai bureau avec GPU devrait en prendre moins : une mesure le confirmerait.
 
 ### Les deux systèmes
+- **Découverte devslot.** Contre un vrai hôte qui exécute devslot : découvrir, démarrer des tunnels temporaires et enregistrés, ouvrir un port web dans le navigateur, arrêter une instance puis redécouvrir (les tunnels périmés doivent partir ou faire l'objet d'une question), un hôte où `ds` n'est pas dans le `PATH` non interactif (avec et sans `devslot_path`), et une instance avec un port imposé.
 - **X11.** VcXsrv sous Windows et Xorg ou Xwayland sous Linux, contre un vrai `sshd` : un `xeyes` distant doit s'afficher sans `xauth`.
 - **Applications installées pendant que Tunneler tourne.** Installer TigerVNC, Remmina ou FreeRDP pendant que Tunneler tourne, puis ouvrir la fenêtre : l'application doit apparaître dans Paramètres › Ouverture sans redémarrage, et un tunnel sur son port doit s'ouvrir avec elle.
 - **SOCKS.** `curl --socks5` à travers un tunnel dynamique vers un vrai `sshd`.
@@ -103,6 +105,11 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 - La destination de `ssh` n'est pas comparée pour associer un tunnel.
 - Sous Linux, les sockets d'un autre utilisateur n'ont pas de pid sans root.
 - Il n'y a pas de `adopt`, `kill` ni `ignore` en ligne de commande.
+
+### Découverte devslot
+- Il n'y a pas d'équivalent en ligne de commande : la découverte n'existe que dans le panneau d'import.
+- `devslot_path` et `devslot_persist` d'un hôte s'éditent à la main dans `tunnels.toml` : la fenêtre ne les écrit pas.
+- Quand le port local diffère du port distant, les liens que l'application construit (URL absolues dans une page) pointent toujours vers le port distant et ne fonctionnent pas.
 
 ### Interface et ligne de commande
 - L'import ne reprend pas le `$env:DISPLAY` d'un script dans `x11_display`, et il n'y a pas d'import en ligne de commande.

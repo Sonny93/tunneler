@@ -52,6 +52,7 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 
 ## Next
 
+- devslot discovery: from the import panel, list the instances of a host with `ds ls --json`, start tunnels to their ports (temporary or saved, tagged `devslot` and `ds-<project>`), open web ports at `http://<label>.localhost:<port>`, and clean up the tunnels whose port is gone. See [Tunnels from devslot](/guide/devslot).
 - Whatever the [Needs testing](#needs-testing) section turns up.
 
 ## Needs testing
@@ -76,6 +77,7 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 - **Memory.** The UI weighs about 410 MiB PSS under Xvfb with software rendering. A real desktop with a GPU should be lower: a measurement would confirm it.
 
 ### Both
+- **devslot discovery.** Against a real host that runs devslot: discover, start temporary and saved tunnels, open a web port in the browser, stop an instance and discover again (the stale tunnels should go or be asked about), a host where `ds` is missing from the non-interactive `PATH` (with and without `devslot_path`), and an instance with a forced port.
 - **X11.** VcXsrv on Windows and Xorg or Xwayland on Linux, against a real `sshd`: a remote `xeyes` should show up without `xauth`.
 - **Applications installed while Tunneler runs.** Install TigerVNC, Remmina or FreeRDP while Tunneler runs, then open the window: the application should show in Settings › Opening without a restart, and a tunnel on its port should open in it.
 - **SOCKS.** `curl --socks5` through a dynamic tunnel to a real `sshd`.
@@ -103,6 +105,11 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 - The `ssh` destination is not compared when matching a tunnel.
 - On Linux, sockets of another user show no pid without root.
 - There is no `adopt`, `kill` or `ignore` on the command line.
+
+### devslot discovery
+- There is no command line equivalent: discovery is in the import panel only.
+- `devslot_path` and `devslot_persist` of a host are edited by hand in `tunnels.toml`; the window does not write them.
+- When the local port differs from the remote one, links the app builds (absolute URLs in a page) still point at the remote port and do not work.
 
 ### Interface and command line
 - The import does not take `$env:DISPLAY` from a script into `x11_display`, and there is no import on the command line.

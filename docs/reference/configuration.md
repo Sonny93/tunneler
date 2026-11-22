@@ -56,6 +56,8 @@ standby_sound = "pluck"             # system | chime | marimba | pluck
 standby_volume = 50                 # 5 to 100 (%), for chime, marimba and pluck
 language = "system"                 # system | en | fr
 check_for_updates = true            # look for a newer release when the window opens
+devslot_persist = false             # devslot discovery saves the tunnels instead of keeping them temporary
+devslot_stale = "ask"               # ask | delete: a saved devslot tunnel whose port is gone
 
 [[tunnels]]
 id = "01JA0000000000000000000000"   # a ULID; Tunneler adds it when it is missing
@@ -123,6 +125,8 @@ command = "code --wait"
 | `standby_volume` | integer | `50` | The volume of the `chime`, `marimba` and `pluck` sounds, in percent, from 5 to 100. The `system` sound ignores it and follows the system volume. |
 | `language` | `"system"`, `"en"` or `"fr"` | `"system"` | Language of the window, the tray and the notifications. `system` follows the operating system. |
 | `check_for_updates` | boolean | `true` | Look for a newer release when the window opens. |
+| `devslot_persist` | boolean | `false` | Initial value of "Keep these tunnels" in [devslot discovery](../guide/devslot): save the tunnels instead of keeping them temporary. A host can override it. |
+| `devslot_stale` | `"ask"` or `"delete"` | `"ask"` | What a discovery does with a saved devslot tunnel whose port is no longer listed. `ask`: offer to delete it. `delete`: delete it. It never deletes anything unasked when the listing is empty or when every saved devslot tunnel of the host would go. |
 
 ## `[[tunnels]]`
 
@@ -147,7 +151,8 @@ Two local or dynamic tunnels cannot listen on the same address and port. Two rem
 |---|---|---|---|
 | `scheme` | `"http"` or `"https"` | `"http"` | Scheme of the URL opened in the browser. |
 | `path` | string | `"/"` | Path of that URL. Starts with `/`, not `//`, with no whitespace or control character. |
-| `host` | `"localhost"` or `"ip"` | `settings.open_host` | Name used for a loopback or wildcard listen address. A tunnel listening on a specific IP opens that IP. A host name is never used. |
+| `host` | `"localhost"` or `"ip"` | `settings.open_host` | Name used for a loopback or wildcard listen address. A tunnel listening on a specific IP opens that IP. A remote host name is never used (see `host_name` for the `.localhost` exception). |
+| `host_name` | string | none | A name of the form `<label>.localhost`, with lowercase letters, digits and dashes in each label. Used instead of `localhost` or the IP in the URL opened in the browser, when the tunnel listens on a loopback or wildcard address. Ignored on a specific IP. Programs still get the usual host in `{host}`. Any other name is refused. Set by [devslot discovery](../guide/devslot). |
 | `with` | string | automatic | `"browser"` or the identifier of an application. When absent, the application suggested for the target port (unless `settings.open_default` is `"browser"`), else the browser. |
 
 ## `[[openers]]`
@@ -167,6 +172,10 @@ See [Opening tunnels with an application](../guide/applications).
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `x11_display` | string | none | Local X display used for this host, before `settings.x11_display` and `$DISPLAY`. |
+| `devslot_path` | string | `"ds"` | Command that runs devslot on this host, for [devslot discovery](../guide/devslot). Not empty, at most 4096 bytes, no control character. A leading `~/` is expanded by the remote shell. Set it when `ds` is not in the `PATH` of a non-interactive SSH shell. |
+| `devslot_persist` | boolean | `settings.devslot_persist` | Overrides the setting for this host. |
+
+The `devslot_*` keys of a host are edited by hand: the window does not write them.
 
 ## `[[x11_launchers]]`
 

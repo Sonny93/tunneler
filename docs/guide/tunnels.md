@@ -73,6 +73,8 @@ In the window it shows a "Temporary" badge. To keep one, use "Save tunnel" in it
 
 If a saved tunnel already makes the same forward, `tunneler up` starts that one instead.
 
+Temporary tunnels started from [devslot discovery](./devslot) show their project, and the next discovery of that host removes the ones whose port is gone.
+
 ## Health
 
 A tunnel's state says whether the link to the server works. It does not say whether the service behind it answers. Tunneler learns that passively: when the server refuses a connection to the target, the tunnel is marked "Target unreachable" with the reason.

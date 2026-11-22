@@ -20,6 +20,7 @@ function englishSidebar(): DefaultTheme.Sidebar {
 				items: [
 					{ text: 'Getting started', link: '/guide/getting-started' },
 					{ text: 'Tunnels', link: '/guide/tunnels' },
+					{ text: 'Tunnels from devslot', link: '/guide/devslot' },
 					{ text: 'Opening tunnels with an application', link: '/guide/applications' },
 					{ text: 'X11 forwarding', link: '/guide/x11' },
 					{ text: 'Tunnels started outside Tunneler', link: '/guide/external-tunnels' },
@@ -78,6 +79,7 @@ function frenchSidebar(): DefaultTheme.Sidebar {
 				items: [
 					{ text: 'Prise en main', link: '/fr/guide/getting-started' },
 					{ text: 'Tunnels', link: '/fr/guide/tunnels' },
+					{ text: 'Tunnels depuis devslot', link: '/fr/guide/devslot' },
 					{ text: 'Ouvrir un tunnel avec une application', link: '/fr/guide/applications' },
 					{ text: 'Transfert X11', link: '/fr/guide/x11' },
 					{ text: 'Tunnels lancés hors de Tunneler', link: '/fr/guide/external-tunnels' },

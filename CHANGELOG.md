@@ -4,6 +4,12 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Added
+
+- devslot discovery: the import panel has a "From devslot" tab that lists the instances of a host (`ds ls --json` over SSH) and starts tunnels to their ports, temporary by default or saved with "Keep these tunnels" (tags `devslot` and `ds-<project>`). Each discovery removes the temporary tunnels whose port is gone and asks about the saved ones, or deletes them with `devslot_stale = "delete"`. Web ports open at `http://<label>.localhost:<port>`.
+- Settings `devslot_persist` and `devslot_stale`, and per host `devslot_path` (where `ds` is on the host) and `devslot_persist`, in `tunnels.toml`.
+- `open.host_name` on a tunnel: a `<label>.localhost` name used in the URL opened in the browser.
+
 ## [0.6.1] - 2026-11-18
 
 ### Fixed

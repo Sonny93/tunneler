@@ -54,6 +54,18 @@ Le daemon implémente l'ouverture (navigateur ou application externe) une seule 
 ### Distribution
 Un zip portable, un tar.gz, un installeur NSIS sous Windows, un `.deb` sous Linux, une commande `purge` pour nettoyer, et des mises à jour signées par les versions GitHub. Le bundler Tauri produit NSIS et `.deb` sans autre outil. NSIS plutôt que MSI : installation par utilisateur sans droits d'administrateur, choix utilisateur ou machine natif, hooks d'installation. Le nettoyage vit dans le binaire, en une seule implémentation testée qui connaît les chemins et le trousseau, et sert au désinstalleur, à la version portable et à Linux. Le tar.gz n'est pas portable : les outils qui extraient chaque version dans son propre dossier (mise, `tar xzf`) repartiraient d'une configuration vide à chaque mise à jour, et mise supprime la version remplacée. Il utilise les dossiers de l'utilisateur, et `touch portable` active le mode. Un daemon qui trouve exactement une copie portable précédente à côté de son propre dossier en copie le `tunnels.toml` et le `state.toml`, sans jamais rien écraser. Seul l'installeur Windows se met à jour tout seul. Les autres formes sont prévenues qu'une nouvelle version existe.
 
+### Lancer une commande distante fixe, à la demande
+La découverte devslot lance `<chemin de ds> ls --json` sur l'hôte, dans la session que les tunnels de l'hôte partagent déjà. La commande est fixe : seul le chemin de `ds` varie, et il vient de la config de l'utilisateur (`devslot_path`, ou `ds`), jamais d'un paramètre IPC, qui ne désigne que l'hôte. Elle ne tourne que sur demande de l'utilisateur, jamais sur un minuteur, ce qui reste cohérent avec « Une sonde de santé périodique » plus bas. La sortie n'est pas fiable : sa taille est plafonnée, les caractères de contrôle sont retirés, et elle ne décide jamais où va un tunnel (les cibles sont toujours la boucle locale de l'hôte).
+
+### Les tunnels devslot temporaires restent sans tag
+Un tunnel temporaire ne porte jamais de tags : les commandes de tags et `tunnels.toml` ne changent pas. Une origine devslot gardée en mémoire par le daemon marque les temporaires issus d'une découverte, et une découverte ultérieure s'en sert pour les nettoyer. Rien n'est écrit sur disque, et enregistrer le tunnel transforme l'origine en tags `devslot` et `ds-<projet>`.
+
+### Un nom d'hôte `.localhost` pour l'ouverture
+`open.host_name` n'accepte que des noms `<label>.localhost`. Ils se résolvent vers l'adresse de boucle (RFC 6761) : le navigateur atteint donc toujours le tunnel sur cette machine, ce qui reste cohérent avec « Ouvrir un nom d'hôte distant » plus bas. Chaque instance devslot obtient ainsi sa propre origine, donc ses propres cookies.
+
+### La découverte vit du côté de Tunneler
+Tunneler liste les instances avec `ds ls --json` et calcule lui-même les tunnels. Il n'utilise pas `ds tunnels` : les règles de tags, de ports et de nettoyage restent en un seul endroit, et ne dépendent pas de la version de `ds` installée sur l'hôte.
+
 ## Fermeture
 
 Les tunnels vivent dans le daemon : ils ne peuvent pas lui survivre.
@@ -85,7 +97,7 @@ Voir « Les tags sont le seul nom » plus haut. Un `name` resté dans un ancien 
 Les applications sont lancées à partir d'une liste d'arguments, où seuls `{host}`, `{port}` et `{url}` sont remplacés. Avec un shell, toute valeur qui finit dans une commande deviendrait un risque d'injection.
 
 ### Ouvrir un nom d'hôte distant
-L'ouverture d'un tunnel utilise `localhost`, l'adresse de boucle, ou l'IP exacte sur laquelle le tunnel écoute, jamais un nom d'hôte distant : il contournerait le tunnel.
+L'ouverture d'un tunnel utilise `localhost`, l'adresse de boucle, ou l'IP exacte sur laquelle le tunnel écoute, jamais un nom d'hôte distant : il contournerait le tunnel. Seuls les noms `*.localhost` sont permis, car ils se résolvent vers la boucle locale.
 
 ### Un préréglage de client SQL
 Les arguments changent d'un pilote de base de données à l'autre, il n'y a donc rien de raisonnable à préconfigurer. Ajoutez votre propre application avec les ports pour lesquels elle doit être proposée.

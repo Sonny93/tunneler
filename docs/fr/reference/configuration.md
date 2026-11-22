@@ -56,6 +56,8 @@ standby_sound = "pluck"             # system | chime | marimba | pluck
 standby_volume = 50                 # 5 à 100 (%), pour chime, marimba et pluck
 language = "system"                 # system | en | fr
 check_for_updates = true            # cherche une version plus récente à l'ouverture de la fenêtre
+devslot_persist = false             # la découverte devslot enregistre les tunnels au lieu de les garder temporaires
+devslot_stale = "ask"               # ask | delete : un tunnel devslot enregistré dont le port a disparu
 
 [[tunnels]]
 id = "01JA0000000000000000000000"   # un ULID ; Tunneler l'ajoute s'il manque
@@ -123,6 +125,8 @@ command = "code --wait"
 | `standby_volume` | entier | `50` | Le volume des sons `chime`, `marimba` et `pluck`, en pourcentage, de 5 à 100. Le son `system` l'ignore et suit le volume du système. |
 | `language` | `"system"`, `"en"` ou `"fr"` | `"system"` | Langue de la fenêtre, de l'icône et des notifications. `system` suit le système d'exploitation. |
 | `check_for_updates` | booléen | `true` | Cherche une version plus récente à l'ouverture de la fenêtre. |
+| `devslot_persist` | booléen | `false` | Valeur initiale de « Garder ces tunnels » dans la [découverte devslot](../guide/devslot) : enregistrer les tunnels au lieu de les garder temporaires. Un hôte peut la surcharger. |
+| `devslot_stale` | `"ask"` ou `"delete"` | `"ask"` | Ce que fait une découverte d'un tunnel devslot enregistré dont le port n'est plus listé. `ask` : proposer de le supprimer. `delete` : le supprimer. Rien n'est supprimé sans demander quand la liste est vide ou quand tous les tunnels devslot enregistrés de l'hôte seraient supprimés. |
 
 ## `[[tunnels]]`
 
@@ -147,7 +151,8 @@ Deux tunnels locaux ou dynamiques ne peuvent pas écouter sur la même adresse e
 |---|---|---|---|
 | `scheme` | `"http"` ou `"https"` | `"http"` | Schéma de l'URL ouverte dans le navigateur. |
 | `path` | chaîne | `"/"` | Chemin de cette URL. Commence par `/`, pas par `//`, sans espace ni caractère de contrôle. |
-| `host` | `"localhost"` ou `"ip"` | `settings.open_host` | Nom utilisé pour une adresse d'écoute de bouclage ou joker. Un tunnel qui écoute sur une IP précise ouvre cette IP. Un nom d'hôte n'est jamais utilisé. |
+| `host` | `"localhost"` ou `"ip"` | `settings.open_host` | Nom utilisé pour une adresse d'écoute de bouclage ou joker. Un tunnel qui écoute sur une IP précise ouvre cette IP. Un nom d'hôte distant n'est jamais utilisé (voir `host_name` pour l'exception `.localhost`). |
+| `host_name` | chaîne | aucun | Un nom de la forme `<label>.localhost`, avec lettres minuscules, chiffres et tirets dans chaque label. Utilisé à la place de `localhost` ou de l'IP dans l'URL ouverte dans le navigateur, quand le tunnel écoute sur une adresse de bouclage ou joker. Ignoré sur une IP précise. Les programmes reçoivent toujours l'hôte habituel dans `{host}`. Tout autre nom est refusé. Renseigné par la [découverte devslot](../guide/devslot). |
 | `with` | chaîne | automatique | `"browser"` ou l'identifiant d'une application. Absent : l'application suggérée pour le port cible (sauf si `settings.open_default` vaut `"browser"`), sinon le navigateur. |
 
 ## `[[openers]]`
@@ -167,6 +172,10 @@ Voyez [Ouvrir un tunnel avec une application](../guide/applications).
 | Clé | Type | Défaut | Signification |
 |---|---|---|---|
 | `x11_display` | chaîne | aucun | Display X local utilisé pour cet hôte, avant `settings.x11_display` et `$DISPLAY`. |
+| `devslot_path` | chaîne | `"ds"` | Commande qui lance devslot sur cet hôte, pour la [découverte devslot](../guide/devslot). Non vide, 4096 octets au plus, sans caractère de contrôle. Un `~/` en tête est développé par le shell distant. À renseigner quand `ds` n'est pas dans le `PATH` d'un shell SSH non interactif. |
+| `devslot_persist` | booléen | `settings.devslot_persist` | Surcharge le réglage pour cet hôte. |
+
+Les clés `devslot_*` d'un hôte s'éditent à la main : la fenêtre ne les écrit pas.
 
 ## `[[x11_launchers]]`
 

@@ -54,6 +54,18 @@ The daemon implements opening (browser or external application) once, for the UI
 ### Distribution
 A portable zip, a tar.gz, an NSIS installer on Windows, a `.deb` on Linux, a `purge` command to clean up, and signed updates through GitHub releases. The Tauri bundler produces NSIS and `.deb` with no other tool. NSIS rather than MSI allows a per-user install without administrator rights, a native choice between user and machine, and install hooks. Cleaning lives in the binary, as one tested implementation that knows the paths and the keyring, and it serves the uninstaller, the portable copy and Linux. The tar.gz is not portable: tools that extract each version into its own folder (mise, `tar xzf`) would start every update from an empty configuration, and mise deletes the replaced version. It keeps the user's directories, and `touch portable` opts in. A daemon that finds exactly one earlier portable copy next to its own folder copies its `tunnels.toml` and `state.toml` over, never overwriting. Only the Windows installer updates itself. The other forms are told that a new version exists.
 
+### Running a fixed remote command on demand
+devslot discovery runs `<ds path> ls --json` on the host, over the session the host's tunnels already share. The command is fixed: only the path of `ds` varies, and it comes from the user's own config (`devslot_path`, or `ds`), never from an IPC parameter, which only names the host. It runs only when the user asks, never on a timer, which keeps it consistent with "A periodic health probe" below. The output is untrusted: it is size-capped, stripped of control characters, and never decides where a tunnel goes (targets are always the host's own loopback).
+
+### Temporary devslot tunnels stay untagged
+A temporary tunnel never carries tags, so the tag commands and `tunnels.toml` are unchanged. A devslot origin kept in the daemon's memory marks the temporaries that came from a discovery, and a later discovery uses it to clean them. Nothing is written to disk, and saving the tunnel turns the origin into the `devslot` and `ds-<project>` tags.
+
+### A `.localhost` host name for opening
+`open.host_name` accepts only `<label>.localhost` names. They resolve to the loopback address (RFC 6761), so the browser still reaches the tunnel on this computer, which keeps it consistent with "Opening a remote host name" below. It gives each devslot instance its own origin, and so its own cookies.
+
+### Discovery lives on the Tunneler side
+Tunneler lists instances with `ds ls --json` and works out the tunnels itself. It does not use `ds tunnels`, so the rules for tags, ports and cleanup stay in one place and a change to them does not depend on the `ds` version installed on the host.
+
 ## Closing the app
 
 Tunnels live inside the daemon, so they cannot outlive it.
@@ -85,7 +97,7 @@ See "Tags are the only naming" above. A `name` left in an old `tunnels.toml` is 
 Applications are started from an argument list, with only `{host}`, `{port}` and `{url}` substituted. A shell would turn any value that ends up in a command into an injection risk.
 
 ### Opening a remote host name
-Opening a tunnel uses `localhost`, the loopback address, or the exact IP the tunnel listens on, never a remote host name. A remote name would bypass the tunnel.
+Opening a tunnel uses `localhost`, the loopback address, or the exact IP the tunnel listens on, never a remote host name. A remote name would bypass the tunnel. The only names allowed are `*.localhost` ones, which resolve to the loopback.
 
 ### A built-in SQL client preset
 Arguments differ for every database driver, so there is nothing sensible to preset. Add your own application with the ports it should be suggested for.

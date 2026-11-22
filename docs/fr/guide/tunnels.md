@@ -73,6 +73,8 @@ Dans la fenêtre, il porte le badge « Temporaire ». Pour en garder un, utilise
 
 Si un tunnel enregistré fait déjà la même redirection, `tunneler up` démarre celui-là.
 
+Les tunnels temporaires lancés depuis la [découverte devslot](./devslot) affichent leur projet, et la découverte suivante de cet hôte retire ceux dont le port a disparu.
+
 ## Santé
 
 L'état d'un tunnel dit si le lien avec le serveur fonctionne. Il ne dit pas si le service derrière répond. Tunneler l'apprend de façon passive : quand le serveur refuse une connexion vers la cible, le tunnel est marqué « Cible injoignable » avec la raison.
