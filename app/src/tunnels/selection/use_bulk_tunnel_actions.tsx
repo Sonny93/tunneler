@@ -5,7 +5,7 @@ import { useContext } from 'react';
 
 import type { TunnelDto } from '#/daemon/protocol';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { confirmStandby } from '#/standby/confirm_standby';
 import { listAwakeTunnels } from '#/standby/list_awake_tunnels';
 import { useDaemonStore } from '#/state/daemon_store';
@@ -77,9 +77,7 @@ export function useBulkTunnelActions(
 		verb: BulkVerb
 	) => {
 		const outcome = await runBulkOperation(targets, perform, i18n);
-		useToastStore
-			.getState()
-			.pushToast(describeBulkOutcome(outcome, verb, i18n));
+		pushToast(describeBulkOutcome(outcome, verb, i18n));
 		return outcome;
 	};
 
@@ -159,9 +157,7 @@ export function useBulkTunnelActions(
 		if (change === null) return;
 		const targets = findTunnelsToRetag(tunnels, change);
 		if (targets.length === 0) {
-			useToastStore
-				.getState()
-				.pushToast({ tone: 'info', message: t`No tunnels to update` });
+			pushToast({ tone: 'info', message: t`No tunnels to update` });
 			return;
 		}
 		await runOn(

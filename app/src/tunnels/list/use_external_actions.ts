@@ -10,7 +10,7 @@ import {
 } from '#/externals/kill_consequences';
 import { useIgnoreProcess } from '#/externals/use_ignore_process';
 import { useKillProcess } from '#/externals/use_kill_process';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 type UseExternalActionsReturn = {
@@ -48,7 +48,7 @@ export function useExternalActions(
 		void runDaemonAction(
 			async (gateway) => {
 				const adoptedIds = await gateway.adoptExternal(tunnel.id);
-				useToastStore.getState().pushToast({
+				pushToast({
 					tone: 'success',
 					message: describeAdoption(tunnel, adoptedIds, i18n),
 				});

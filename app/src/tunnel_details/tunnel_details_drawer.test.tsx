@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
 
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import {
@@ -16,6 +15,7 @@ import {
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { findFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 import { TunnelDetailsDrawer } from '#/tunnel_details/tunnel_details_drawer';
 
 const LOG_NAME = 'Log of tunnel 3333 to nova:3333';
@@ -117,9 +117,9 @@ describe('TunnelDetailsDrawer', () => {
 		expect(await navigator.clipboard.readText()).toBe(
 			'ssh -N -L 3333:127.0.0.1:3333 nova'
 		);
-		expect(
-			useToastStore.getState().toasts.map((toast) => toast.message)
-		).toEqual(['Command copied']);
+		expect(getShownToasts().map((toast) => toast.message)).toEqual([
+			'Command copied',
+		]);
 	});
 
 	it('should ask the daemon to open a local forward', async () => {
@@ -153,9 +153,9 @@ describe('TunnelDetailsDrawer', () => {
 			screen.getByRole('button', { name: 'Open in the browser' })
 		);
 
-		expect(
-			useToastStore.getState().toasts.map((toast) => toast.message)
-		).toEqual(["Couldn't open the tunnel: no browser"]);
+		expect(getShownToasts().map((toast) => toast.message)).toEqual([
+			"Couldn't open the tunnel: no browser",
+		]);
 	});
 
 	it('should disable restart with a visible reason when stopped', () => {
@@ -220,9 +220,9 @@ describe('TunnelDetailsDrawer', () => {
 
 		expect(gateway.checkTarget).toHaveBeenCalledWith('tunnel-1');
 		await waitFor(() =>
-			expect(
-				useToastStore.getState().toasts.map((toast) => toast.message)
-			).toEqual(['Target reachable'])
+			expect(getShownToasts()).toEqual([
+				{ tone: 'success', message: 'Target reachable' },
+			])
 		);
 	});
 
@@ -241,9 +241,26 @@ describe('TunnelDetailsDrawer', () => {
 		);
 
 		await waitFor(() =>
-			expect(
-				useToastStore.getState().toasts.map((toast) => toast.message)
-			).toEqual(['Target unreachable: connection refused'])
+			expect(getShownToasts()).toEqual([
+				{ tone: 'warning', message: 'Target unreachable: connection refused' },
+			])
+		);
+	});
+
+	it('should warn when the target check is inconclusive', async () => {
+		setUp({ state: { kind: 'active' } });
+		const gateway = createFakeGateway();
+		gateway.checkTarget.mockResolvedValue({ kind: 'unknown' });
+		renderDrawer(gateway);
+
+		await userEvent.click(
+			screen.getByRole('button', { name: 'Check the target' })
+		);
+
+		await waitFor(() =>
+			expect(getShownToasts()).toEqual([
+				{ tone: 'warning', message: 'Target check inconclusive' },
+			])
 		);
 	});
 
@@ -260,9 +277,12 @@ describe('TunnelDetailsDrawer', () => {
 		);
 
 		await waitFor(() =>
-			expect(
-				useToastStore.getState().toasts.map((toast) => toast.message)
-			).toEqual(["Couldn't check the target: the tunnel is stopped"])
+			expect(getShownToasts()).toEqual([
+				{
+					tone: 'error',
+					message: "Couldn't check the target: the tunnel is stopped",
+				},
+			])
 		);
 	});
 

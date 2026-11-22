@@ -46,6 +46,8 @@ describe('ShortcutsHelp', () => {
 			'K',
 			'F1',
 			'Open the documentation',
+			'F8',
+			'Jump to notifications',
 			'Open the command palette',
 			'Previous / next tunnel',
 			'Start or stop the tunnel, check or uncheck the checkbox',

@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 import { DaemonGatewayProvider } from '#/daemon/daemon_gateway_provider';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { createFakeGateway } from '#/testing/fake_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 function renderDaemonAction() {
 	const gateway = createFakeGateway();
@@ -38,7 +38,7 @@ describe('useDaemonAction', () => {
 			run((daemon) => daemon.startTunnel('a'), 'Could not start')
 		);
 
-		expect(useToastStore.getState().toasts).toEqual([
+		expect(getShownToasts()).toEqual([
 			expect.objectContaining({
 				tone: 'error',
 				message: 'Could not start: unknown tunnel',
@@ -57,7 +57,7 @@ describe('useDaemonAction', () => {
 			run((daemon) => daemon.startTunnel('a'), 'Could not start')
 		);
 
-		expect(useToastStore.getState().toasts).toEqual([
+		expect(getShownToasts()).toEqual([
 			expect.objectContaining({
 				message: 'Could not start: The daemon is not reachable',
 			}),

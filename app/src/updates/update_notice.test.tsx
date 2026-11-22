@@ -6,11 +6,11 @@ import { axe } from 'vitest-axe';
 
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import type { UpdateOfferDto, UpdateProgressDto } from '#/daemon/protocol';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { buildSettings, buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 import { UpdateNotice } from '#/updates/update_notice';
 import { useUpdateStore } from '#/updates/update_store';
 
@@ -98,7 +98,7 @@ describe('UpdateNotice', () => {
 		await userEvent.click(screen.getByRole('link', { name: 'View release' }));
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts[0]?.message).toBe(
+			expect(getShownToasts()[0]?.message).toBe(
 				"Couldn't open the page: no browser"
 			)
 		);
@@ -280,7 +280,7 @@ describe('UpdateNotice', () => {
 		);
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts[0]).toMatchObject({
+			expect(getShownToasts()[0]).toMatchObject({
 				tone: 'error',
 				message: "Couldn't install the update: The update failed",
 			})

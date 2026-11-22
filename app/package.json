@@ -23,7 +23,7 @@
 	"dependencies": {
 		"@lingui/core": "^6.12.0",
 		"@lingui/react": "^6.12.0",
-		"@minimalstuff/ui": "^5.7.1",
+		"@minimalstuff/ui": "^5.7.2",
 		"@tauri-apps/api": "^2.12.5",
 		"clsx": "^2.1.1",
 		"react": "^19.3.1",

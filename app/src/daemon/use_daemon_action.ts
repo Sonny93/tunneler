@@ -6,7 +6,7 @@ import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
 import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 
 type DaemonAction = (gateway: DaemonGateway) => Promise<unknown>;
 
@@ -33,7 +33,7 @@ export function useDaemonAction(): RunDaemonAction {
 					toDaemonCommandError(rejection),
 					i18n
 				);
-				useToastStore.getState().pushToast({
+				pushToast({
 					tone: 'error',
 					message: t`${failureMessage}: ${errorMessage}`,
 				});

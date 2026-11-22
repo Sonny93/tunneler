@@ -5,7 +5,7 @@ import { ConfirmModal } from '@minimalstuff/ui';
 import type { ProcessOwnerDto } from '#/daemon/protocol';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { describeProcess } from '#/externals/describe_process';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 
 /** Asks for confirmation, spelling out `consequence`, then terminates the process. */
 type ConfirmKillProcess = (
@@ -31,7 +31,7 @@ export function useKillProcess(): ConfirmKillProcess {
 			t`Couldn't stop the process`
 		);
 		if (!isKilled) return;
-		useToastStore.getState().pushToast({
+		pushToast({
 			tone: 'success',
 			message: t`Process ${description} stopped`,
 		});

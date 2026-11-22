@@ -8,13 +8,13 @@ import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import type { DevslotLinkDto } from '#/daemon/protocol';
 import { DevslotLinkHost } from '#/devslot_link/devslot_link_host';
 import { useDevslotLinkListener } from '#/devslot_link/use_devslot_link_listener';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildDevslotUpResult } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { findFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 vi.mock('#/devslot_link/use_activation_delay', () => ({
 	useActivationDelay: () => true,
@@ -75,7 +75,7 @@ describe('DevslotLinkHost', () => {
 			)
 		);
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts).toEqual([
+			expect(getShownToasts()).toEqual([
 				expect.objectContaining({ tone: 'success' }),
 			])
 		);
@@ -145,9 +145,7 @@ describe('DevslotLinkHost', () => {
 		);
 		act(() => resolveCall(buildDevslotUpResult()));
 
-		await waitFor(() =>
-			expect(useToastStore.getState().toasts).toHaveLength(1)
-		);
+		await waitFor(() => expect(getShownToasts()).toHaveLength(1));
 	});
 
 	it('should lead the error with a sentence that names the problem', async () => {
@@ -190,8 +188,8 @@ describe('DevslotLinkHost', () => {
 		);
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts).toEqual([
-				expect.objectContaining({ tone: 'warning', persistent: true }),
+			expect(getShownToasts()).toEqual([
+				expect.objectContaining({ tone: 'warning' }),
 			])
 		);
 	});
@@ -214,7 +212,7 @@ describe('DevslotLinkHost', () => {
 			'vega does not list the devslot instance web-shop-098a'
 		);
 		expect(document.activeElement).toHaveTextContent('Close');
-		expect(useToastStore.getState().toasts).toEqual([]);
+		expect(getShownToasts()).toEqual([]);
 		expect(await axe(screen.getByRole('alertdialog'))).toHaveNoViolations();
 	});
 
@@ -234,7 +232,7 @@ describe('DevslotLinkHost', () => {
 		expect(await findFilledLiveRegion('alert')).toHaveTextContent(
 			'Port 20051 could not be started: refused'
 		);
-		expect(useToastStore.getState().toasts).toEqual([]);
+		expect(getShownToasts()).toEqual([]);
 	});
 
 	it('should explain an invalid link with only a Close button', async () => {
@@ -287,7 +285,7 @@ describe('useDevslotLinkListener', () => {
 		renderHost(gateway);
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts).toEqual([
+			expect(getShownToasts()).toEqual([
 				expect.objectContaining({ tone: 'error' }),
 			])
 		);
@@ -340,7 +338,7 @@ describe('useDevslotLinkListener', () => {
 			})
 		);
 
-		expect(useToastStore.getState().toasts).toEqual([
+		expect(getShownToasts()).toEqual([
 			expect.objectContaining({
 				message: 'A Tunneler link is already waiting for your answer',
 			}),

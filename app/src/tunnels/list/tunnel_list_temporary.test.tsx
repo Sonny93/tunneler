@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
 
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 import { TunnelList } from '#/tunnels/list/tunnel_list';
 
 const SAVED = '3001 to nova:3001';
@@ -146,7 +146,7 @@ describe('TunnelList with a temporary tunnel', () => {
 		await waitFor(() =>
 			expect(screen.queryByText('Temporary')).not.toBeInTheDocument()
 		);
-		expect(useToastStore.getState().toasts[0]?.message).toBe(
+		expect(getShownToasts()[0]?.message).toBe(
 			`Tunnel ${TEMPORARY_ARROW} saved`
 		);
 	});

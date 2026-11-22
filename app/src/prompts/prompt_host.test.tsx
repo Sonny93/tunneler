@@ -7,11 +7,11 @@ import { axe } from 'vitest-axe';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import type { CredentialRequestDto, EventMessage } from '#/daemon/protocol';
 import { PromptHost } from '#/prompts/prompt_host';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { buildSettings } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 const passphraseRequest: CredentialRequestDto = {
 	kind: 'passphrase',
@@ -338,7 +338,7 @@ describe('PromptHost credential prompts', () => {
 		await user.click(screen.getByRole('button', { name: 'Submit' }));
 
 		await waitFor(() => expect(useDaemonStore.getState().prompts).toEqual([]));
-		expect(useToastStore.getState().toasts).toEqual([]);
+		expect(getShownToasts()).toEqual([]);
 	});
 
 	it('should toast other errors and still dismiss the prompt', async () => {
@@ -354,7 +354,7 @@ describe('PromptHost credential prompts', () => {
 		await user.click(screen.getByRole('button', { name: 'Submit' }));
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts[0]?.message).toBe(
+			expect(getShownToasts()[0]?.message).toBe(
 				"Couldn't send the answer: channel closed"
 			)
 		);

@@ -7,7 +7,7 @@ import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import type { X11ProbeDto } from '#/daemon/protocol';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { useDaemonStore } from '#/state/daemon_store';
 import {
 	decideX11ServerAction,
@@ -26,8 +26,7 @@ export function useEnsureX11Server(): (host: string) => Promise<void> {
 	const gateway = useDaemonGateway();
 	const runDaemonAction = useDaemonAction();
 
-	const warn = (message: string) =>
-		useToastStore.getState().pushToast({ tone: 'warning', message });
+	const warn = (message: string) => pushToast({ tone: 'warning', message });
 
 	const probe = async (host: string): Promise<X11ProbeDto | null> => {
 		try {

@@ -1,7 +1,7 @@
 import type { I18n } from '@lingui/core';
 import { plural, msg } from '@lingui/core/macro';
 
-import type { ToastTone } from '#/shared/toasts/toast_store';
+import type { ToastTone } from '#/shared/toasts/push_toast';
 import type {
 	BulkFailure,
 	BulkOutcome,

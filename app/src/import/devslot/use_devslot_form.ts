@@ -29,7 +29,7 @@ import {
 	startTemporaryDevslotTunnels,
 	type DevslotStartOutcome,
 } from '#/import/devslot/run_devslot_start';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
@@ -166,7 +166,7 @@ export function useDevslotForm(
 			reportFailures(outcome);
 			return;
 		}
-		useToastStore.getState().pushToast({
+		pushToast({
 			tone: 'success',
 			message: describeStartedCount(outcome.startedCount, i18n),
 		});

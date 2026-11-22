@@ -18,7 +18,7 @@ import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { FormErrorSummary } from '#/shared/form_error_summary';
 import { getSubmissionErrorMessages } from '#/shared/submission_error_messages';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
@@ -70,7 +70,7 @@ export function TagRenameContent({
 
 	const reportSuccess = (renamedCount: number) => {
 		const ui = useUiStore.getState();
-		useToastStore.getState().pushToast({
+		pushToast({
 			tone: 'success',
 			message: describeTagRename(tag, trimmedName, renamedCount, i18n),
 		});
@@ -88,7 +88,7 @@ export function TagRenameContent({
 		}
 		const failureMessage = i18n._(msg`Couldn't rename the tag`);
 		const errorMessage = describeDaemonError(failure, i18n);
-		useToastStore.getState().pushToast({
+		pushToast({
 			tone: 'error',
 			message: i18n._(msg`${failureMessage}: ${errorMessage}`),
 		});

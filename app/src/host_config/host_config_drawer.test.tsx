@@ -6,7 +6,6 @@ import { axe } from 'vitest-axe';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import type { ResolvedHostDto } from '#/daemon/protocol';
 import { HostConfigDrawer } from '#/host_config/host_config_drawer';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useUiStore } from '#/state/ui_store';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import {
@@ -14,6 +13,7 @@ import {
 	getFilledLiveRegion,
 } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 const RESOLVED_HOST: ResolvedHostDto = {
 	host: 'nova',
@@ -122,9 +122,9 @@ describe('HostConfigDrawer', () => {
 		expect(await navigator.clipboard.readText()).toBe(
 			'hostname nova.example.com\nuser jules\nport 22'
 		);
-		expect(
-			useToastStore.getState().toasts.map((toast) => toast.message)
-		).toEqual(['Configuration copied']);
+		expect(getShownToasts().map((toast) => toast.message)).toEqual([
+			'Configuration copied',
+		]);
 	});
 
 	it('should list the warnings in English without axe violations', async () => {

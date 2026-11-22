@@ -3,7 +3,7 @@ import { useLingui } from '@lingui/react/macro';
 import { ConfirmModal } from '@minimalstuff/ui';
 
 import { useDaemonAction } from '#/daemon/use_daemon_action';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import {
@@ -35,7 +35,7 @@ export function useDeleteTag(): (tag: string) => Promise<void> {
 			async (gateway) => {
 				const { removedCount } = await gateway.deleteTag(tag);
 				const ui = useUiStore.getState();
-				useToastStore.getState().pushToast({
+				pushToast({
 					tone: 'success',
 					message: describeTagDeletion(tag, removedCount, i18n),
 				});

@@ -1,9 +1,10 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
 
 import { App } from '#/app';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { buildSnapshot, buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
@@ -49,6 +50,17 @@ describe('App', () => {
 		await renderConnectedApp();
 
 		expect(await screen.findByRole('main')).toBeInTheDocument();
+	});
+
+	it('should show a pushed toast in the notifications region', async () => {
+		await renderConnectedApp();
+
+		act(() => pushToast({ tone: 'success', message: 'Settings saved' }));
+
+		const region = await screen.findByRole('region', { name: 'Notifications' });
+		expect(
+			await within(region).findByText('Settings saved')
+		).toBeInTheDocument();
 	});
 
 	it('should render the app title once connected', async () => {

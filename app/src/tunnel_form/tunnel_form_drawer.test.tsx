@@ -9,13 +9,13 @@ import {
 	COLON_TAG_MESSAGE,
 	DIGITS_TAG_MESSAGE,
 } from '#/shared/reserved_tag_problem';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildOpener, buildSettings, buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { findFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 import { TunnelFormDrawer } from '#/tunnel_form/tunnel_form_drawer';
 
 function openEditor(tunnelId: string | null = null) {
@@ -138,7 +138,7 @@ describe('TunnelFormDrawer', () => {
 			await user.click(screen.getByRole('button', { name: 'Start' }));
 
 			await waitFor(() =>
-				expect(useToastStore.getState().toasts).toEqual([
+				expect(getShownToasts()).toEqual([
 					expect.objectContaining({
 						message: 'Temporary tunnel 3333 → nova:3333 started',
 					}),
@@ -213,7 +213,7 @@ describe('TunnelFormDrawer', () => {
 		await user.click(screen.getByRole('button', { name: 'Create' }));
 
 		await waitFor(() => expect(useUiStore.getState().panel.kind).toBe('none'));
-		expect(useToastStore.getState().toasts).toEqual([
+		expect(getShownToasts()).toEqual([
 			expect.objectContaining({
 				tone: 'success',
 				message: 'Tunnel 3333 → nova:3333 created',
@@ -921,7 +921,7 @@ describe('TunnelFormDrawer when editing', () => {
 		await user.click(screen.getByRole('button', { name: 'Save' }));
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts[0]?.message).toBe(
+			expect(getShownToasts()[0]?.message).toBe(
 				'Tunnel nova:5433 → db.internal:5433 saved'
 			)
 		);

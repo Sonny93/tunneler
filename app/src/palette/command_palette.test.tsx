@@ -6,13 +6,13 @@ import { axe } from 'vitest-axe';
 
 import { Overlays } from '#/overlays';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildSettings, buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { getFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 function renderPalette() {
 	useDaemonStore.setState({
@@ -166,7 +166,7 @@ describe('CommandPalette', () => {
 		await user.keyboard('{Enter}');
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts).toContainEqual(
+			expect(getShownToasts()).toContainEqual(
 				expect.objectContaining({
 					tone: 'error',
 					message: "Couldn't check for updates",

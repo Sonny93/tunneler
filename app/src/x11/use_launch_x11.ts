@@ -2,7 +2,7 @@ import { useLingui } from '@lingui/react/macro';
 
 import type { X11LauncherDto } from '#/daemon/protocol';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { useEnsureX11Server } from '#/x11/use_ensure_x11_server';
 
 export function useLaunchX11(): (
@@ -19,8 +19,6 @@ export function useLaunchX11(): (
 			t`Couldn't launch ${name} on ${host}`
 		);
 		if (!isLaunched) return;
-		useToastStore
-			.getState()
-			.pushToast({ tone: 'success', message: t`${name} launched on ${host}` });
+		pushToast({ tone: 'success', message: t`${name} launched on ${host}` });
 	};
 }

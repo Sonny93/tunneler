@@ -4,13 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
 
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { Sidebar } from '#/sidebar/sidebar';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 const ACTIVE = { kind: 'active' } as const;
 
@@ -183,7 +183,7 @@ describe('Sidebar', () => {
 			screen.getByRole('switch', { name: 'All tunnels of tag dev' })
 		);
 
-		expect(useToastStore.getState().toasts[0]?.message).toContain(
+		expect(getShownToasts()[0]?.message).toContain(
 			"Couldn't start the tunnels"
 		);
 	});

@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
 
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore, type TagRenameOrigin } from '#/state/ui_store';
 import { TagRenameHost } from '#/tag_rename/tag_rename_host';
@@ -16,6 +15,7 @@ import {
 	getFilledLiveRegions,
 } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 function renderHost(
 	gateway = createFakeGateway(),
@@ -71,7 +71,7 @@ describe('TagRenameHost', () => {
 			expect(gateway.renameTag).toHaveBeenCalledWith('dev', 'staging')
 		);
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts).toEqual([
+			expect(getShownToasts()).toEqual([
 				expect.objectContaining({
 					tone: 'success',
 					message: 'Tag dev renamed to staging (2 tunnels)',
@@ -170,7 +170,7 @@ describe('TagRenameHost', () => {
 		expect(await findFilledLiveRegion('alert')).toHaveTextContent(
 			'Tag rejected'
 		);
-		expect(useToastStore.getState().toasts).toEqual([]);
+		expect(getShownToasts()).toEqual([]);
 	});
 
 	it('should toast other errors and keep the dialog open', async () => {
@@ -184,7 +184,7 @@ describe('TagRenameHost', () => {
 		await submitName(user, 'staging');
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts).toEqual([
+			expect(getShownToasts()).toEqual([
 				expect.objectContaining({
 					tone: 'error',
 					message: "Couldn't rename the tag: No tunnel",

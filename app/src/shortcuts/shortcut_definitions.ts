@@ -16,6 +16,7 @@ export function getGlobalShortcuts(i18n: I18n): readonly ShortcutDefinition[] {
 		{ keys: ['b'], description: i18n._(msg`Hide or show the sidebar`) },
 		{ keys: ['?'], description: i18n._(msg`Show keyboard shortcuts`) },
 		{ keys: ['F1'], description: i18n._(msg`Open the documentation`) },
+		{ keys: ['F8'], description: i18n._(msg`Jump to notifications`) },
 		{ keys: ['Ctrl', 'K'], description: i18n._(msg`Open the command palette`) },
 	];
 }

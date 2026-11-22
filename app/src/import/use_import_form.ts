@@ -17,7 +17,7 @@ import {
 } from '#/import/find_import_conflicts';
 import { describeImportedCount } from '#/import/import_texts';
 import { useImportSelection } from '#/import/use_import_selection';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
@@ -144,7 +144,7 @@ export function useImportForm(
 			reportOutcome(outcome);
 			return;
 		}
-		useToastStore.getState().pushToast({
+		pushToast({
 			tone: 'success',
 			message: describeImportedCount(outcome.createdIndexes.length, i18n),
 		});

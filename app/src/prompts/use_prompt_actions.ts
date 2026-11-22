@@ -7,7 +7,7 @@ import type { CredentialAnswer } from '#/daemon/daemon_gateway';
 import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import type { HostKeyDecisionDto, RememberDto } from '#/daemon/protocol';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { useDaemonStore } from '#/state/daemon_store';
 
 const PROMPT_NOT_PENDING_CODE = 'prompt_not_pending';
@@ -37,7 +37,7 @@ async function respondAndDismiss(
 		if (error.code !== PROMPT_NOT_PENDING_CODE) {
 			const failureMessage = t`Couldn't send the answer`;
 			const errorMessage = describeDaemonError(error, i18n);
-			useToastStore.getState().pushToast({
+			pushToast({
 				tone: 'error',
 				message: t`${failureMessage}: ${errorMessage}`,
 			});

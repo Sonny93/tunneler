@@ -5,9 +5,9 @@ import { axe } from 'vitest-axe';
 
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { OpenConfigFolderButton } from '#/settings/open_config_folder_button';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 const BUTTON_NAME = 'Open the configuration folder';
 
@@ -30,7 +30,7 @@ describe('OpenConfigFolderButton', () => {
 		await userEvent.click(screen.getByRole('button', { name: BUTTON_NAME }));
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts).toEqual([
+			expect(getShownToasts()).toEqual([
 				expect.objectContaining({
 					tone: 'error',
 					message: "Couldn't open the folder: no file manager",

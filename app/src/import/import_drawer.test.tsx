@@ -9,7 +9,6 @@ import type { ImportPreviewDto } from '#/daemon/protocol';
 import { ImportDrawer } from '#/import/import_drawer';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 import { DIGITS_TAG_MESSAGE } from '#/shared/reserved_tag_problem';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import {
@@ -21,6 +20,7 @@ import {
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { findFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 const POWERSHELL_PORTS = [3333, 3334, 3335, 3336, 3337, 3338, 3339, 3340];
 const SCRIPT = 'ssh -L 3333:localhost:3333 nova';
@@ -448,9 +448,9 @@ describe('ImportDrawer', () => {
 			await waitFor(() =>
 				expect(useUiStore.getState().panel).toEqual({ kind: 'none' })
 			);
-			expect(
-				useToastStore.getState().toasts.map((toast) => toast.message)
-			).toEqual(['8 tunnels imported']);
+			expect(getShownToasts().map((toast) => toast.message)).toEqual([
+				'8 tunnels imported',
+			]);
 		});
 
 		it('should keep the drawer, list the failures and unselect the created ones', async () => {

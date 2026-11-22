@@ -7,7 +7,7 @@ import type { DevslotUpResultDto } from '#/daemon/protocol';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { describeDevslotUp } from '#/devslot_link/describe_devslot_up';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { useUiStore } from '#/state/ui_store';
 
 export type OpenPhase =
@@ -53,7 +53,7 @@ export function useOpenDevslotInstance({
 	const reportResult = (result: Readonly<DevslotUpResultDto>) => {
 		const { summary, problems } = describeDevslotUp(result, i18n);
 		if (problems.length === 0) {
-			useToastStore.getState().pushToast({ tone: 'success', message: summary });
+			pushToast({ tone: 'success', message: summary });
 			useUiStore.getState().closeDevslotLink(requestId);
 			return;
 		}
@@ -62,9 +62,8 @@ export function useOpenDevslotInstance({
 			setPhase({ kind: 'failed', leadIn, summary, problems });
 			return;
 		}
-		useToastStore.getState().pushToast({
+		pushToast({
 			tone: 'warning',
-			persistent: true,
 			message: [summary, leadIn, ...problems].join(' '),
 		});
 	};
@@ -79,7 +78,7 @@ export function useOpenDevslotInstance({
 			});
 			return;
 		}
-		useToastStore.getState().pushToast({
+		pushToast({
 			tone: 'error',
 			message: t`Couldn't open ${instance} on ${host}: ${description}`,
 		});

@@ -5,9 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { DaemonGatewayProvider } from '#/daemon/daemon_gateway_provider';
 import type { X11ProbeDto } from '#/daemon/protocol';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { createFakeGateway, type FakeGateway } from '#/testing/fake_gateway';
 import { I18nTestProvider } from '#/testing/i18n_test_provider';
+import { getShownToasts } from '#/testing/shown_toasts';
 import {
 	useX11ServerStatus,
 	X11_SERVER_POLL_INTERVAL_MS,
@@ -154,9 +154,9 @@ describe('useX11ServerStatus', () => {
 
 		await act(() => result.current.startServer('VcXsrv'));
 
-		expect(
-			useToastStore.getState().toasts.map((toast) => toast.message)
-		).toEqual(["Couldn't start VcXsrv: not found"]);
+		expect(getShownToasts().map((toast) => toast.message)).toEqual([
+			"Couldn't start VcXsrv: not found",
+		]);
 		expect(gateway.probeX11).toHaveBeenCalledTimes(2);
 	});
 });

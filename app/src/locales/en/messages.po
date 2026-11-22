@@ -19,7 +19,7 @@ msgstr "\"browser\" is reserved for the browser."
 msgid "{adoptedCount, plural, one {# tunnel adopted} other {# tunnels adopted}}"
 msgstr "{adoptedCount, plural, one {# tunnel adopted} other {# tunnels adopted}}"
 
-#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:101
+#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:99
 msgid "{awakeCount, plural, one {Send # tunnel to standby?} other {Send # tunnels to standby?}}"
 msgstr "{awakeCount, plural, one {Send # tunnel to standby?} other {Send # tunnels to standby?}}"
 
@@ -154,7 +154,7 @@ msgstr "{label}: {stateLabel}"
 msgid "{label}: {stateLabel}, {detail}"
 msgstr "{label}: {stateLabel}, {detail}"
 
-#: src/x11/use_launch_x11.ts:24
+#: src/x11/use_launch_x11.ts:22
 msgid "{name} launched on {host}"
 msgstr "{name} launched on {host}"
 
@@ -254,11 +254,11 @@ msgstr "{total, plural, one {# tunnel stopped} other {# tunnels stopped}}"
 msgid "{total, plural, one {# tunnel updated} other {# tunnels updated}}"
 msgstr "{total, plural, one {# tunnel updated} other {# tunnels updated}}"
 
-#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:115
+#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:113
 msgid "{tunnelCount, plural, one {Delete # tunnel?} other {Delete # tunnels?}}"
 msgstr "{tunnelCount, plural, one {Delete # tunnel?} other {Delete # tunnels?}}"
 
-#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:137
+#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:135
 msgid "{tunnelCount, plural, one {Tags for # tunnel} other {Tags for # tunnels}}"
 msgstr "{tunnelCount, plural, one {Tags for # tunnel} other {Tags for # tunnels}}"
 
@@ -398,7 +398,7 @@ msgstr "Already configured"
 msgid "Always the browser"
 msgstr "Always the browser"
 
-#: src/settings/use_settings_form.ts:96
+#: src/settings/use_settings_form.ts:94
 msgid "An application form still has input. Add the application or cancel the form before saving."
 msgstr "An application form still has input. Add the application or cancel the form before saving."
 
@@ -523,7 +523,7 @@ msgstr "Check the target"
 msgid "Check this fingerprint with the server administrator before accepting it."
 msgstr "Check this fingerprint with the server administrator before accepting it."
 
-#: src/shortcuts/shortcut_definitions.ts:32
+#: src/shortcuts/shortcut_definitions.ts:33
 msgid "Checkbox, switch and menu of the row"
 msgstr "Checkbox, switch and menu of the row"
 
@@ -564,11 +564,11 @@ msgstr "Clear"
 msgid "Clear selection"
 msgstr "Clear selection"
 
-#: src/shortcuts/shortcut_definitions.ts:52
+#: src/shortcuts/shortcut_definitions.ts:53
 msgid "Clear the selection"
 msgstr "Clear the selection"
 
-#: src/shortcuts/shortcut_definitions.ts:41
+#: src/shortcuts/shortcut_definitions.ts:42
 msgid "click"
 msgstr "click"
 
@@ -579,11 +579,10 @@ msgid "Close"
 msgstr "Close"
 
 #: src/shared/app_ui_provider.tsx:23
-#: src/shared/toasts/toast_item.tsx:56
 msgid "Close notification"
 msgstr "Close notification"
 
-#: src/shortcuts/shortcut_definitions.ts:55
+#: src/shortcuts/shortcut_definitions.ts:56
 msgid "Close the panel or the dialog"
 msgstr "Close the panel or the dialog"
 
@@ -640,7 +639,7 @@ msgstr "Connection to {alias} refused."
 msgid "Continue"
 msgstr "Continue"
 
-#: src/x11/use_ensure_x11_server.ts:56
+#: src/x11/use_ensure_x11_server.ts:55
 msgid "Continue without"
 msgstr "Continue without"
 
@@ -714,7 +713,7 @@ msgstr "Couldn't check the target: {errorMessage}"
 msgid "Couldn't check the X server: {0}."
 msgstr "Couldn't check the X server: {0}."
 
-#: src/x11/use_ensure_x11_server.ts:37
+#: src/x11/use_ensure_x11_server.ts:36
 msgid "Couldn't check the X server: {reason}"
 msgstr "Couldn't check the X server: {reason}"
 
@@ -722,7 +721,7 @@ msgstr "Couldn't check the X server: {reason}"
 msgid "Couldn't copy the fingerprint"
 msgstr "Couldn't copy the fingerprint"
 
-#: src/shared/copy_text.ts:16
+#: src/shared/copy_text.ts:15
 msgid "Couldn't copy to the clipboard"
 msgstr "Couldn't copy to the clipboard"
 
@@ -730,7 +729,7 @@ msgstr "Couldn't copy to the clipboard"
 msgid "Couldn't delete the tag"
 msgstr "Couldn't delete the tag"
 
-#: src/tunnels/list/use_tunnel_actions.ts:95
+#: src/tunnels/list/use_tunnel_actions.ts:93
 msgid "Couldn't delete the tunnel"
 msgstr "Couldn't delete the tunnel"
 
@@ -750,11 +749,11 @@ msgstr "Couldn't install the update"
 msgid "Couldn't launch {name} on {host}"
 msgstr "Couldn't launch {name} on {host}"
 
-#: src/devslot_link/use_open_devslot_instance.ts:84
+#: src/devslot_link/use_open_devslot_instance.ts:83
 msgid "Couldn't open {instance} on {host}: {description}"
 msgstr "Couldn't open {instance} on {host}: {description}"
 
-#: src/devslot_link/use_open_devslot_instance.ts:76
+#: src/devslot_link/use_open_devslot_instance.ts:75
 msgid "Couldn't open {instance} on {host}."
 msgstr "Couldn't open {instance} on {host}."
 
@@ -801,7 +800,7 @@ msgstr "Couldn't read the link this app was started with: {description}"
 msgid "Couldn't rename the tag"
 msgstr "Couldn't rename the tag"
 
-#: src/tunnels/list/use_tunnel_actions.ts:81
+#: src/tunnels/list/use_tunnel_actions.ts:79
 msgid "Couldn't restart the tunnel"
 msgstr "Couldn't restart the tunnel"
 
@@ -821,13 +820,13 @@ msgstr "Couldn't send the answer"
 msgid "Couldn't send to standby"
 msgstr "Couldn't send to standby"
 
-#: src/x11/use_ensure_x11_server.ts:45
+#: src/x11/use_ensure_x11_server.ts:44
 #: src/x11/use_x11_server_status.ts:82
 msgid "Couldn't start {server}"
 msgstr "Couldn't start {server}"
 
 #: src/palette/use_run_palette_action.ts:85
-#: src/tunnels/list/use_tunnel_actions.ts:74
+#: src/tunnels/list/use_tunnel_actions.ts:72
 msgid "Couldn't start the tunnel"
 msgstr "Couldn't start the tunnel"
 
@@ -846,7 +845,7 @@ msgstr "Couldn't stop the process"
 
 #: src/palette/use_run_palette_action.ts:90
 #: src/tunnels/list/use_tunnel_actions.ts:36
-#: src/tunnels/list/use_tunnel_actions.ts:68
+#: src/tunnels/list/use_tunnel_actions.ts:66
 msgid "Couldn't stop the tunnel"
 msgstr "Couldn't stop the tunnel"
 
@@ -895,9 +894,9 @@ msgstr "Default listen address (remote)"
 #: src/openers/applications_section.tsx:84
 #: src/openers/use_openers_draft.ts:88
 #: src/tunnels/list/tunnel_menu_items.tsx:72
-#: src/tunnels/list/use_tunnel_actions.ts:89
-#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:120
-#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:223
+#: src/tunnels/list/use_tunnel_actions.ts:87
+#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:118
+#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:219
 msgid "Delete"
 msgstr "Delete"
 
@@ -937,7 +936,7 @@ msgstr "Delete the tag"
 msgid "Delete them"
 msgstr "Delete them"
 
-#: src/tunnels/list/use_tunnel_actions.ts:87
+#: src/tunnels/list/use_tunnel_actions.ts:85
 msgid "Delete tunnel {label}?"
 msgstr "Delete tunnel {label}?"
 
@@ -1035,7 +1034,7 @@ msgstr "Don't remember"
 msgid "Don't start it"
 msgstr "Don't start it"
 
-#: src/shortcuts/shortcut_definitions.ts:45
+#: src/shortcuts/shortcut_definitions.ts:46
 msgid "Double-click"
 msgstr "Double-click"
 
@@ -1106,7 +1105,7 @@ msgstr "Enable X11"
 msgid "Enable X11 for {host}?"
 msgstr "Enable X11 for {host}?"
 
-#: src/shortcuts/shortcut_definitions.ts:27
+#: src/shortcuts/shortcut_definitions.ts:28
 msgid "End"
 msgstr "End"
 
@@ -1126,8 +1125,8 @@ msgstr "Enter a tag."
 msgid "Error"
 msgstr "Error"
 
-#: src/shortcuts/shortcut_definitions.ts:52
-#: src/shortcuts/shortcut_definitions.ts:54
+#: src/shortcuts/shortcut_definitions.ts:53
+#: src/shortcuts/shortcut_definitions.ts:55
 msgid "Esc"
 msgstr "Esc"
 
@@ -1152,7 +1151,7 @@ msgstr "Filter options"
 msgid "Fingerprint copied"
 msgstr "Fingerprint copied"
 
-#: src/shortcuts/shortcut_definitions.ts:28
+#: src/shortcuts/shortcut_definitions.ts:29
 msgid "First / last tunnel"
 msgstr "First / last tunnel"
 
@@ -1232,7 +1231,7 @@ msgstr "Hide or show the sidebar"
 msgid "Hide the sidebar"
 msgstr "Hide the sidebar"
 
-#: src/shortcuts/shortcut_definitions.ts:27
+#: src/shortcuts/shortcut_definitions.ts:28
 msgid "Home"
 msgstr "Home"
 
@@ -1373,6 +1372,10 @@ msgstr "IP address"
 #: src/tag_delete/describe_tag_deletion.ts:18
 msgid "It will also be removed from the \"Tags to start on launch\"."
 msgstr "It will also be removed from the \"Tags to start on launch\"."
+
+#: src/shortcuts/shortcut_definitions.ts:19
+msgid "Jump to notifications"
+msgstr "Jump to notifications"
 
 #: src/shared/format_bytes.ts:5
 msgid "KB"
@@ -1653,7 +1656,7 @@ msgstr "No ssh_config alias matches "
 msgid "No tunnel was started."
 msgstr "No tunnel was started."
 
-#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:164
+#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:160
 msgid "No tunnels to update"
 msgstr "No tunnels to update"
 
@@ -1679,15 +1682,15 @@ msgstr "No X server answers on {0}."
 msgid "No X server answers on {0}. Start your X server, or on Windows install one such as VcXsrv (winget install marha.VcXsrv)."
 msgstr "No X server answers on {0}. Start your X server, or on Windows install one such as VcXsrv (winget install marha.VcXsrv)."
 
-#: src/x11/use_ensure_x11_server.ts:53
+#: src/x11/use_ensure_x11_server.ts:52
 msgid "No X server is running on {display}, so windows opened on {host} would not appear."
 msgstr "No X server is running on {display}, so windows opened on {host} would not appear."
 
-#: src/x11/use_ensure_x11_server.ts:78
+#: src/x11/use_ensure_x11_server.ts:77
 msgid "No X server is running on {display}: windows opened on {host} will not appear."
 msgstr "No X server is running on {display}: windows opened on {host} will not appear."
 
-#: src/x11/use_ensure_x11_server.ts:85
+#: src/x11/use_ensure_x11_server.ts:84
 msgid "No X server is running on {display}: windows opened on {host} will not appear. Start your X server, or on Windows install one such as VcXsrv."
 msgstr "No X server is running on {display}: windows opened on {host} will not appear. Start your X server, or on Windows install one such as VcXsrv."
 
@@ -1760,7 +1763,7 @@ msgstr "Open {endpointLabel} with {name}"
 msgid "Open a devslot instance"
 msgstr "Open a devslot instance"
 
-#: src/shortcuts/shortcut_definitions.ts:46
+#: src/shortcuts/shortcut_definitions.ts:47
 msgid "Open a started tunnel with its default action"
 msgstr "Open a started tunnel with its default action"
 
@@ -1773,7 +1776,7 @@ msgstr "Open in the browser"
 msgid "Open settings"
 msgstr "Open settings"
 
-#: src/shortcuts/shortcut_definitions.ts:19
+#: src/shortcuts/shortcut_definitions.ts:20
 msgid "Open the command palette"
 msgstr "Open the command palette"
 
@@ -1815,7 +1818,7 @@ msgid "Opening"
 msgstr "Opening"
 
 #: src/devslot_link/devslot_link_confirm_content.tsx:93
-#: src/devslot_link/use_open_devslot_instance.ts:92
+#: src/devslot_link/use_open_devslot_instance.ts:91
 msgid "Opening {instance} on {host}…"
 msgstr "Opening {instance} on {host}…"
 
@@ -1937,7 +1940,7 @@ msgstr "PowerShell or shell script (ssh -L …), list of ports (3333, 5432), or 
 msgid "Presented fingerprint"
 msgstr "Presented fingerprint"
 
-#: src/shortcuts/shortcut_definitions.ts:25
+#: src/shortcuts/shortcut_definitions.ts:26
 msgid "Previous / next tunnel"
 msgstr "Previous / next tunnel"
 
@@ -2056,7 +2059,7 @@ msgstr "required"
 
 #: src/tunnel_details/tunnel_actions_section.tsx:126
 #: src/tunnels/list/tunnel_menu_items.tsx:59
-#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:194
+#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:190
 msgid "Restart"
 msgstr "Restart"
 
@@ -2141,7 +2144,7 @@ msgstr "Seen from the SSH server"
 msgid "Select {endpoint}"
 msgstr "Select {endpoint}"
 
-#: src/shortcuts/shortcut_definitions.ts:42
+#: src/shortcuts/shortcut_definitions.ts:43
 msgid "Select a range of tunnels"
 msgstr "Select a range of tunnels"
 
@@ -2150,7 +2153,7 @@ msgstr "Select a range of tunnels"
 msgid "Select all"
 msgstr "Select all"
 
-#: src/shortcuts/shortcut_definitions.ts:50
+#: src/shortcuts/shortcut_definitions.ts:51
 msgid "Select all displayed tunnels"
 msgstr "Select all displayed tunnels"
 
@@ -2182,7 +2185,7 @@ msgstr "Send the tag to standby"
 #: src/standby/confirm_standby.ts:23
 #: src/tunnel_details/tunnel_actions_section.tsx:135
 #: src/tunnels/list/tunnel_menu_items.tsx:63
-#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:207
+#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:203
 msgid "Send to standby"
 msgstr "Send to standby"
 
@@ -2232,7 +2235,7 @@ msgstr "Sessions"
 msgid "Settings"
 msgstr "Settings"
 
-#: src/settings/use_settings_form.ts:76
+#: src/settings/use_settings_form.ts:74
 msgid "Settings saved"
 msgstr "Settings saved"
 
@@ -2264,7 +2267,7 @@ msgstr "Settings: Standby"
 msgid "SHA-256 fingerprint"
 msgstr "SHA-256 fingerprint"
 
-#: src/shortcuts/shortcut_definitions.ts:41
+#: src/shortcuts/shortcut_definitions.ts:42
 msgid "Shift"
 msgstr "Shift"
 
@@ -2302,7 +2305,7 @@ msgstr "Some ports are not up:"
 msgid "Sound"
 msgstr "Sound"
 
-#: src/shortcuts/shortcut_definitions.ts:35
+#: src/shortcuts/shortcut_definitions.ts:36
 msgid "Space"
 msgstr "Space"
 
@@ -2317,7 +2320,7 @@ msgid "Standby"
 msgstr "Standby"
 
 #: src/tunnel_form/tunnel_form_panel.tsx:54
-#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:177
+#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:173
 msgid "Start"
 msgstr "Start"
 
@@ -2325,12 +2328,12 @@ msgstr "Start"
 msgid "Start {endpointLabel}"
 msgstr "Start {endpointLabel}"
 
-#: src/x11/use_ensure_x11_server.ts:55
+#: src/x11/use_ensure_x11_server.ts:54
 #: src/x11/x11_server_status.tsx:76
 msgid "Start {server}"
 msgstr "Start {server}"
 
-#: src/x11/use_ensure_x11_server.ts:51
+#: src/x11/use_ensure_x11_server.ts:50
 msgid "Start {server}?"
 msgstr "Start {server}?"
 
@@ -2338,7 +2341,7 @@ msgstr "Start {server}?"
 msgid "Start it"
 msgstr "Start it"
 
-#: src/shortcuts/shortcut_definitions.ts:37
+#: src/shortcuts/shortcut_definitions.ts:38
 msgid "Start or stop the tunnel, check or uncheck the checkbox"
 msgstr "Start or stop the tunnel, check or uncheck the checkbox"
 
@@ -2371,7 +2374,7 @@ msgstr "Startup"
 msgid "State"
 msgstr "State"
 
-#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:186
+#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:182
 msgid "Stop"
 msgstr "Stop"
 
@@ -2492,7 +2495,7 @@ msgstr "Tags to start on launch"
 msgid "Tags, separated by commas"
 msgstr "Tags, separated by commas"
 
-#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:215
+#: src/tunnels/selection/use_bulk_tunnel_actions.tsx:211
 msgid "Tags…"
 msgstr "Tags…"
 
@@ -2685,7 +2688,7 @@ msgstr "The tag cannot contain \":\" (reserved for the host:port form of the com
 msgid "The tag cannot contain spaces."
 msgstr "The tag cannot contain spaces."
 
-#: src/tunnels/list/use_tunnel_actions.ts:88
+#: src/tunnels/list/use_tunnel_actions.ts:86
 msgid "The tunnel is removed from the configuration, and stopped if it is running."
 msgstr "The tunnel is removed from the configuration, and stopped if it is running."
 
@@ -2769,12 +2772,12 @@ msgstr "Tunnel {endpointLabel}"
 msgid "Tunnel {label} created"
 msgstr "Tunnel {label} created"
 
-#: src/tunnels/list/use_tunnel_actions.ts:100
+#: src/tunnels/list/use_tunnel_actions.ts:96
 msgid "Tunnel {label} deleted"
 msgstr "Tunnel {label} deleted"
 
 #: src/tunnel_form/use_tunnel_form.ts:81
-#: src/tunnels/list/use_tunnel_actions.ts:55
+#: src/tunnels/list/use_tunnel_actions.ts:53
 msgid "Tunnel {label} saved"
 msgstr "Tunnel {label} saved"
 

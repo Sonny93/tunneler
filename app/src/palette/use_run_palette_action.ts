@@ -5,7 +5,7 @@ import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { useOpenDocumentation } from '#/documentation/use_open_documentation';
 import type { PaletteAction } from '#/palette/palette_command';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { useSendToStandby } from '#/standby/use_send_to_standby';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
@@ -37,7 +37,7 @@ export function useRunPaletteAction(): RunPaletteAction {
 		if (outcome.kind === 'skipped') return;
 		const message = describeManualUpdateCheck(outcome, i18n);
 		if (outcome.kind === 'failed') {
-			useToastStore.getState().pushToast({ tone: 'error', message });
+			pushToast({ tone: 'error', message });
 			return;
 		}
 		useAnnouncerStore.getState().announce(message, 'polite');

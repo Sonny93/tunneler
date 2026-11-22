@@ -5,7 +5,7 @@ import { useContext } from 'react';
 import type { TunnelDto } from '#/daemon/protocol';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { isTunnelRunning } from '#/tunnels/is_tunnel_running';
 import { RemovalFocusContext } from '#/tunnels/list/removal_focus_context';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
@@ -50,9 +50,7 @@ export function useTunnelActions(
 				t`Couldn't save the tunnel`
 			);
 			if (!isSaved) return;
-			useToastStore
-				.getState()
-				.pushToast({ tone: 'success', message: t`Tunnel ${label} saved` });
+			pushToast({ tone: 'success', message: t`Tunnel ${label} saved` });
 		})();
 	};
 
@@ -95,9 +93,7 @@ export function useTunnelActions(
 			t`Couldn't delete the tunnel`
 		);
 		if (!isDeleted) return;
-		useToastStore
-			.getState()
-			.pushToast({ tone: 'success', message: t`Tunnel ${label} deleted` });
+		pushToast({ tone: 'success', message: t`Tunnel ${label} deleted` });
 		requestFocusAfterRemoval([id]);
 	};
 

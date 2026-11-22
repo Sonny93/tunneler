@@ -3,7 +3,7 @@ import { Button, CopyButton, ModalFooter } from '@minimalstuff/ui';
 import type { RefObject } from 'react';
 
 import type { HostKeyDecisionDto } from '#/daemon/protocol';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import type { PendingPrompt } from '#/state/daemon_state';
 
 type HostKeyPrompt = Extract<PendingPrompt, { kind: 'hostKey' }>;
@@ -38,7 +38,7 @@ export function HostKeyPromptContent({
 	const acceptOnce = () => onDecide('acceptOnce');
 	const acceptAndSave = () => onDecide('acceptAndSave');
 	const reportCopyFailure = () =>
-		useToastStore.getState().pushToast({
+		pushToast({
 			tone: 'error',
 			message: t`Couldn't copy the fingerprint`,
 		});

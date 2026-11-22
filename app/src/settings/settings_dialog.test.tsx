@@ -8,7 +8,6 @@ import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { activateLocale } from '#/i18n/activate_locale';
 import { SettingsDialogHost } from '#/settings/settings_dialog_host';
 import type { SettingsTab } from '#/settings/settings_tab';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import {
@@ -20,6 +19,7 @@ import {
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { findFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -539,7 +539,7 @@ describe('SettingsDialog', () => {
 		await clickSave(user);
 
 		await waitFor(() => expect(useUiStore.getState().panel.kind).toBe('none'));
-		expect(useToastStore.getState().toasts[0]?.message).toBe('Settings saved');
+		expect(getShownToasts()[0]?.message).toBe('Settings saved');
 		await waitFor(() =>
 			expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 		);
@@ -948,9 +948,7 @@ describe('SettingsDialog', () => {
 			await user.click(await screen.findByRole('button', { name: 'Forget' }));
 
 			await waitFor(() =>
-				expect(useToastStore.getState().toasts[0]?.message).toBe(
-					'3 passphrases forgotten'
-				)
+				expect(getShownToasts()[0]?.message).toBe('3 passphrases forgotten')
 			);
 		});
 
@@ -966,7 +964,7 @@ describe('SettingsDialog', () => {
 			await user.click(await screen.findByRole('button', { name: 'Forget' }));
 
 			await waitFor(() =>
-				expect(useToastStore.getState().toasts[0]).toMatchObject({
+				expect(getShownToasts()[0]).toMatchObject({
 					tone: 'error',
 					message: "Couldn't forget the passphrases: Internal error",
 				})

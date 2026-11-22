@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { axe } from 'vitest-axe';
 
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import {
@@ -15,6 +14,7 @@ import {
 } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 import { X11Drawer } from '#/x11/x11_drawer';
 
 const renderDrawer = (gateway = createFakeGateway()) =>
@@ -26,8 +26,7 @@ const renderDrawer = (gateway = createFakeGateway()) =>
 		gateway
 	);
 
-const toastMessages = () =>
-	useToastStore.getState().toasts.map((toast) => toast.message);
+const toastMessages = () => getShownToasts().map((toast) => toast.message);
 
 describe('X11Drawer', () => {
 	beforeEach(() => {
@@ -232,7 +231,7 @@ describe('X11Drawer', () => {
 
 		await user.click(screen.getByRole('button', { name: /^Copy export/ }));
 
-		expect(useToastStore.getState().toasts[0]?.tone).toBe('error');
+		expect(getShownToasts()[0]?.tone).toBe('error');
 	});
 
 	it('should list only the launchers of the host', () => {

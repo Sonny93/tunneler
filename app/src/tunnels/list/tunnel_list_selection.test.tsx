@@ -7,12 +7,12 @@ import { axe } from 'vitest-axe';
 
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 import { DIGITS_TAG_MESSAGE } from '#/shared/reserved_tag_problem';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 import { TunnelList } from '#/tunnels/list/tunnel_list';
 
 const ACTIVE = { kind: 'active' } as const;
@@ -58,7 +58,7 @@ const toolbar = () =>
 	screen.getByRole('toolbar', { name: 'Actions on the selection' });
 const toolbarButton = (name: string) =>
 	within(toolbar()).getByRole('button', { name });
-const lastToastMessage = () => useToastStore.getState().toasts.at(-1)?.message;
+const lastToastMessage = () => getShownToasts().at(-1)?.message;
 
 async function select(...labels: string[]) {
 	for (const label of labels) await userEvent.click(rowCheckbox(label));
@@ -399,7 +399,7 @@ describe('TunnelList bulk actions', () => {
 				'2 of 3 started; failed: 3003 → nova:3003 (port in use)'
 			)
 		);
-		expect(useToastStore.getState().toasts.at(-1)?.tone).toBe('error');
+		expect(getShownToasts().at(-1)?.tone).toBe('error');
 	});
 
 	it('should ask for confirmation, listing the endpoints, before deleting', async () => {

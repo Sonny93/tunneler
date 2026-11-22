@@ -21,7 +21,7 @@ import {
 	validateSettingsForm,
 	type SettingsFormErrors,
 } from '#/settings/validate_settings_form';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
@@ -71,9 +71,7 @@ export function useSettingsForm(
 			summary.reportFailure(rejection);
 			return;
 		}
-		useToastStore
-			.getState()
-			.pushToast({ tone: 'success', message: t`Settings saved` });
+		pushToast({ tone: 'success', message: t`Settings saved` });
 		useUiStore.getState().closePanel();
 	};
 

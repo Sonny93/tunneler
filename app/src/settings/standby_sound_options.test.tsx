@@ -6,9 +6,9 @@ import { axe } from 'vitest-axe';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import type { StandbyNotifyDto, StandbySoundDto } from '#/daemon/protocol';
 import { StandbySoundOptions } from '#/settings/standby_sound_options';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 const HINT = /Not played with the chosen signal/;
 
@@ -185,7 +185,7 @@ describe('StandbySoundOptions', () => {
 		);
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts).toEqual([
+			expect(getShownToasts()).toEqual([
 				expect.objectContaining({
 					tone: 'error',
 					message: "Couldn't play the sound: no audio output",

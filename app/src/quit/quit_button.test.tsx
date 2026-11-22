@@ -7,11 +7,11 @@ import { axe } from 'vitest-axe';
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import { QuitButton } from '#/quit/quit_button';
 import { useQuitRequestListener } from '#/quit/use_quit_request_listener';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 function QuitHarness() {
 	useQuitRequestListener();
@@ -107,9 +107,7 @@ describe('QuitButton', () => {
 		await user.click(screen.getByRole('button', { name: 'Quit Tunneler' }));
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts[0]?.message).toBe(
-				"Couldn't quit: boom"
-			)
+			expect(getShownToasts()[0]?.message).toBe("Couldn't quit: boom")
 		);
 	});
 
@@ -126,9 +124,7 @@ describe('QuitButton', () => {
 			await screen.findByRole('button', { name: 'Stop everything and quit' })
 		);
 
-		await waitFor(() =>
-			expect(useToastStore.getState().toasts).toHaveLength(1)
-		);
+		await waitFor(() => expect(getShownToasts()).toHaveLength(1));
 	});
 });
 

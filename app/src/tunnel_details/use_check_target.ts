@@ -7,7 +7,7 @@ import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import type { TargetHealthDto, TunnelDto } from '#/daemon/protocol';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 
 type UseCheckTargetReturn = {
 	isChecking: boolean;
@@ -18,7 +18,7 @@ function describeHealth(
 	health: TargetHealthDto,
 	i18n: I18n
 ): {
-	tone: 'success' | 'error';
+	tone: 'success' | 'warning';
 	message: string;
 } {
 	switch (health.kind) {
@@ -27,13 +27,13 @@ function describeHealth(
 		case 'unreachable': {
 			const { error } = health;
 			return {
-				tone: 'error',
+				tone: 'warning',
 				message: i18n._(msg`Target unreachable: ${error}`),
 			};
 		}
 		case 'unknown':
 			return {
-				tone: 'error',
+				tone: 'warning',
 				message: i18n._(msg`Target check inconclusive`),
 			};
 	}
@@ -54,13 +54,13 @@ export function useCheckTarget(
 		void (async () => {
 			try {
 				const health = await gateway.checkTarget(id);
-				useToastStore.getState().pushToast(describeHealth(health, i18n));
+				pushToast(describeHealth(health, i18n));
 			} catch (rejection) {
 				const errorMessage = describeDaemonError(
 					toDaemonCommandError(rejection),
 					i18n
 				);
-				useToastStore.getState().pushToast({
+				pushToast({
 					tone: 'error',
 					message: i18n._(msg`Couldn't check the target: ${errorMessage}`),
 				});

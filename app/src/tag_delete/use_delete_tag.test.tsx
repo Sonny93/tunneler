@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
 
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { Sidebar } from '#/sidebar/sidebar';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
@@ -13,6 +12,7 @@ import { useDeleteTag } from '#/tag_delete/use_delete_tag';
 import { buildSettings, buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 
 function Trigger() {
 	const deleteTag = useDeleteTag();
@@ -127,7 +127,7 @@ describe('useDeleteTag', () => {
 		);
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts).toEqual([
+			expect(getShownToasts()).toEqual([
 				expect.objectContaining({
 					tone: 'success',
 					message: 'Tag dev removed from 3 tunnels',
@@ -194,7 +194,7 @@ describe('useDeleteTag', () => {
 		);
 
 		await waitFor(() =>
-			expect(useToastStore.getState().toasts).toEqual([
+			expect(getShownToasts()).toEqual([
 				expect.objectContaining({
 					tone: 'error',
 					message: "Couldn't delete the tag: No tunnel has this tag",

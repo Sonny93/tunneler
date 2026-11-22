@@ -5,7 +5,7 @@ import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import type { DevslotLinkDto, EventMessage } from '#/daemon/protocol';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { useUiStore } from '#/state/ui_store';
 
 /**
@@ -21,7 +21,7 @@ export function useDevslotLinkListener(): void {
 	useEffect(() => {
 		const offer = (link: DevslotLinkDto) => {
 			if (useUiStore.getState().offerDevslotLink(link)) return;
-			useToastStore.getState().pushToast({
+			pushToast({
 				tone: 'info',
 				message: t`A Tunneler link is already waiting for your answer`,
 			});
@@ -44,7 +44,7 @@ export function useDevslotLinkListener(): void {
 					toDaemonCommandError(rejection),
 					i18n
 				);
-				useToastStore.getState().pushToast({
+				pushToast({
 					tone: 'error',
 					message: t`Couldn't read the link this app was started with: ${description}`,
 				});

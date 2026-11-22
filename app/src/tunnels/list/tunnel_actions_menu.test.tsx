@@ -4,12 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
 
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildOpener, buildSettings, buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 import { TunnelActionsMenu } from '#/tunnels/list/tunnel_actions_menu';
 
 function renderMenu(
@@ -189,7 +189,7 @@ describe('TunnelActionsMenu', () => {
 		);
 
 		expect(gateway.deleteTunnel).toHaveBeenCalledWith('tunnel-1');
-		expect(useToastStore.getState().toasts[0]?.message).toBe(
+		expect(getShownToasts()[0]?.message).toBe(
 			'Tunnel 3333 → nova:3333 deleted'
 		);
 	});
@@ -217,7 +217,7 @@ describe('TunnelActionsMenu', () => {
 			await screen.findByRole('button', { name: 'Delete' })
 		);
 
-		expect(useToastStore.getState().toasts[0]?.message).toContain(
+		expect(getShownToasts()[0]?.message).toContain(
 			"Couldn't delete the tunnel"
 		);
 	});
@@ -262,7 +262,7 @@ describe('TunnelActionsMenu', () => {
 
 			expect(gateway.adoptExternal).toHaveBeenCalledWith('tunnel-1');
 			await waitFor(() =>
-				expect(useToastStore.getState().toasts[0]?.message).toBe(
+				expect(getShownToasts()[0]?.message).toBe(
 					'Tunnel 3333 → nova:3333 adopted'
 				)
 			);
@@ -276,9 +276,7 @@ describe('TunnelActionsMenu', () => {
 			await userEvent.click(screen.getByRole('menuitem', { name: 'Adopt' }));
 
 			await waitFor(() =>
-				expect(useToastStore.getState().toasts[0]?.message).toBe(
-					'2 tunnels adopted'
-				)
+				expect(getShownToasts()[0]?.message).toBe('2 tunnels adopted')
 			);
 		});
 
@@ -291,7 +289,7 @@ describe('TunnelActionsMenu', () => {
 			await userEvent.click(screen.getByRole('menuitem', { name: 'Adopt' }));
 
 			await waitFor(() =>
-				expect(useToastStore.getState().toasts[0]?.message).toContain(
+				expect(getShownToasts()[0]?.message).toContain(
 					"Couldn't adopt the tunnel"
 				)
 			);
@@ -355,7 +353,7 @@ describe('TunnelActionsMenu', () => {
 			);
 
 			await waitFor(() =>
-				expect(useToastStore.getState().toasts[0]?.message).toContain(
+				expect(getShownToasts()[0]?.message).toContain(
 					"Couldn't stop the process"
 				)
 			);

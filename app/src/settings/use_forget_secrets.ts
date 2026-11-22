@@ -3,7 +3,7 @@ import { ConfirmModal } from '@minimalstuff/ui';
 
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { getForgottenSecretsMessage } from '#/settings/forgotten_secrets_message';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 
 /** Asks for confirmation, then erases every remembered passphrase and toasts how many. */
 export function useForgetSecrets(): () => Promise<void> {
@@ -21,7 +21,7 @@ export function useForgetSecrets(): () => Promise<void> {
 		await runDaemonAction(
 			async (gateway) => {
 				const { forgottenCount } = await gateway.forgetSecrets();
-				useToastStore.getState().pushToast({
+				pushToast({
 					tone: 'success',
 					message: getForgottenSecretsMessage(forgottenCount, i18n),
 				});

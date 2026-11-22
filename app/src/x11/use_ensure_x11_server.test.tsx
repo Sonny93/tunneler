@@ -6,12 +6,12 @@ import { axe } from 'vitest-axe';
 
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
 import type { X11ProbeDto, X11ServerStartDto } from '#/daemon/protocol';
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildSettings, buildX11Launcher } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 import { X11Drawer } from '#/x11/x11_drawer';
 
 const reachable: X11ProbeDto = {
@@ -43,7 +43,7 @@ function setup(probe: X11ProbeDto, x11ServerStart: X11ServerStartDto = 'ask') {
 	return { ...rendered, gateway };
 }
 
-const toasts = () => useToastStore.getState().toasts;
+const toasts = () => getShownToasts();
 
 const clickStart = () =>
 	userEvent.click(screen.getByRole('button', { name: 'Start X11' }));

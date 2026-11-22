@@ -1,4 +1,4 @@
-import { ModalProvider } from '@minimalstuff/ui';
+import { ModalProvider, Toaster } from '@minimalstuff/ui';
 
 import { AppLayout } from '#/app_layout';
 import { ConnectingScreen } from '#/connecting_screen';
@@ -7,7 +7,6 @@ import { ExternalSection } from '#/externals/external_section';
 import { HeaderActions } from '#/header/header_actions';
 import { Overlays } from '#/overlays';
 import { LiveAnnouncer } from '#/shared/announcer/live_announcer';
-import { ToastRegion } from '#/shared/toasts/toast_region';
 import { Sidebar } from '#/sidebar/sidebar';
 import { SidebarToggle } from '#/sidebar/sidebar_toggle';
 import { useUiStore } from '#/state/ui_store';
@@ -49,7 +48,7 @@ export function App() {
 				</>
 			)}
 			<LiveAnnouncer />
-			<ToastRegion />
+			<Toaster />
 			<ModalProvider />
 		</>
 	);

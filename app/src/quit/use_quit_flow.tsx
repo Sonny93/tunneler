@@ -6,7 +6,7 @@ import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { useDaemonAction } from '#/daemon/use_daemon_action';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { confirmTunnelsStop } from '#/quit/confirm_tunnels_stop';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 
 const TUNNELS_RUNNING_CODE = 'tunnels_running';
 
@@ -50,7 +50,7 @@ export function useQuitFlow(): UseQuitFlowReturn {
 			}
 			const failureMessage = t`Couldn't quit`;
 			const errorMessage = describeDaemonError(error, i18n);
-			useToastStore.getState().pushToast({
+			pushToast({
 				tone: 'error',
 				message: t`${failureMessage}: ${errorMessage}`,
 			});

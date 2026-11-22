@@ -7,7 +7,7 @@ import type {
 	TunnelSpecDto,
 } from '#/daemon/protocol';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
-import { useToastStore } from '#/shared/toasts/toast_store';
+import { pushToast } from '#/shared/toasts/push_toast';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import { useUiStore } from '#/state/ui_store';
 import { clearEditedFieldErrors } from '#/tunnel_form/clear_edited_field_errors';
@@ -94,9 +94,7 @@ export function useTunnelForm(
 			summary.reportFailure(rejection);
 			return;
 		}
-		useToastStore
-			.getState()
-			.pushToast({ tone: 'success', message: describeOutcome(spec) });
+		pushToast({ tone: 'success', message: describeOutcome(spec) });
 		if (tunnel) useUiStore.getState().closePanel();
 		else useUiStore.getState().closePanelFocusingTunnel(savedTunnel.id);
 	};

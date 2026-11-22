@@ -3,10 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
 
-import { useToastStore } from '#/shared/toasts/toast_store';
 import { buildMetrics, buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
 import { renderWithGateway } from '#/testing/render_with_gateway';
+import { getShownToasts } from '#/testing/shown_toasts';
 import { TunnelRow } from '#/tunnels/list/tunnel_row';
 import { TunnelSelectionContext } from '#/tunnels/selection/tunnel_selection_context';
 
@@ -109,9 +109,7 @@ describe('TunnelRow', () => {
 
 		await userEvent.click(screen.getByRole('switch'));
 
-		expect(useToastStore.getState().toasts[0]?.message).toContain(
-			"Couldn't start the tunnel"
-		);
+		expect(getShownToasts()[0]?.message).toContain("Couldn't start the tunnel");
 	});
 
 	it('should push an error toast when stopping fails', async () => {
@@ -121,9 +119,7 @@ describe('TunnelRow', () => {
 
 		await userEvent.click(screen.getByRole('switch'));
 
-		expect(useToastStore.getState().toasts[0]?.message).toContain(
-			"Couldn't stop the tunnel"
-		);
+		expect(getShownToasts()[0]?.message).toContain("Couldn't stop the tunnel");
 	});
 
 	it('should describe the traffic of a running tunnel in words', () => {
