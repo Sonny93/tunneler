@@ -259,7 +259,7 @@ describe('CommandPalette', () => {
 		renderPalette();
 		await openPalette(user);
 
-		await user.click(screen.getByRole('option', { name: /Import tunnels/ }));
+		await user.click(screen.getByRole('option', { name: /Import and export/ }));
 
 		await waitFor(() =>
 			expect(useUiStore.getState().panel).toEqual({ kind: 'import' })

@@ -3,7 +3,7 @@
 use ipc::protocol::ErrorCode;
 use ipc::{ClientError, EndpointError, LaunchError};
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 const CODE_DISCONNECTED: &str = "disconnected";
 const CODE_DAEMON_UNREACHABLE: &str = "daemon_unreachable";
@@ -11,6 +11,7 @@ const CODE_PROTOCOL_MISMATCH: &str = "protocol_mismatch";
 const CODE_INTERNAL: &str = "internal";
 const CODE_UPDATE_FAILED: &str = "update_failed";
 const CODE_UPDATE_UNAVAILABLE: &str = "update_unavailable";
+const CODE_INVALID_IMPORT_FILE: &str = "invalid_import_file";
 
 /// What a command reports to the front end when it fails.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -54,6 +55,35 @@ impl BridgeError {
             CODE_UPDATE_UNAVAILABLE,
             "No installable update is available.".to_owned(),
         )
+    }
+
+    /// The chosen file is larger than `limit` bytes. Shaped like the daemon's
+    /// `invalid_import_file` error so the front end handles both the same way.
+    pub fn import_file_too_large(limit: u64) -> Self {
+        Self {
+            code: CODE_INVALID_IMPORT_FILE.to_owned(),
+            message: format!("The file is larger than {limit} bytes."),
+            data: Some(json!({ "reason": "tooLarge", "limit": limit })),
+        }
+    }
+
+    /// The chosen file is not valid UTF-8 text.
+    pub fn import_file_not_text() -> Self {
+        Self {
+            code: CODE_INVALID_IMPORT_FILE.to_owned(),
+            message: "The file is not valid UTF-8 text.".to_owned(),
+            data: Some(json!({ "reason": "syntax", "message": "not valid UTF-8 text" })),
+        }
+    }
+
+    /// The chosen file holds a control character the daemon would refuse anyway;
+    /// refused here because JSON escaping would swell it past the IPC line cap.
+    pub fn import_file_unsafe_characters() -> Self {
+        Self {
+            code: CODE_INVALID_IMPORT_FILE.to_owned(),
+            message: "The file contains control characters.".to_owned(),
+            data: Some(json!({ "reason": "unsafeCharacters" })),
+        }
     }
 
     /// The daemon could not be started or reached.
@@ -265,6 +295,36 @@ mod tests {
         let error = BridgeError::update_unavailable();
 
         assert_eq!(error.code, "update_unavailable");
+    }
+
+    #[test]
+    fn should_report_the_limit_when_the_import_file_is_too_large() {
+        let error = BridgeError::import_file_too_large(262_144);
+
+        assert_eq!(
+            serde_json::to_value(error).unwrap(),
+            json!({
+                "code": "invalid_import_file",
+                "message": "The file is larger than 262144 bytes.",
+                "data": { "reason": "tooLarge", "limit": 262_144 }
+            })
+        );
+    }
+
+    #[test]
+    fn should_report_the_unsafe_characters_reason_without_entry_or_field() {
+        let error = BridgeError::import_file_unsafe_characters();
+
+        assert_eq!(error.code, "invalid_import_file");
+        assert_eq!(error.data, Some(json!({ "reason": "unsafeCharacters" })));
+    }
+
+    #[test]
+    fn should_report_a_syntax_reason_when_the_import_file_is_not_text() {
+        let error = BridgeError::import_file_not_text();
+
+        assert_eq!(error.code, "invalid_import_file");
+        assert_eq!(error.data.unwrap()["reason"], "syntax");
     }
 
     #[test]

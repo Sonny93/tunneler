@@ -78,7 +78,7 @@ pub(crate) fn definition_to_dto(definition: &TunnelDefinition) -> TunnelDefiniti
     }
 }
 
-fn open_options_to_dto(options: &OpenOptions) -> OpenOptionsDto {
+pub(crate) fn open_options_to_dto(options: &OpenOptions) -> OpenOptionsDto {
     OpenOptionsDto {
         scheme: options.scheme.map(open_scheme_to_dto),
         path: options.path.clone(),
@@ -653,6 +653,10 @@ fn import_warning_to_dto(warning: &ImportWarning) -> ImportWarningDto {
                 message: message.clone(),
             }
         }
+        ImportWarning::InvalidHost { line, host } => ImportWarningDto::InvalidHost {
+            line: *line,
+            host: host.clone(),
+        },
     }
 }
 
@@ -807,6 +811,10 @@ mod tests {
                 host: "broken".to_owned(),
                 message: "bad port".to_owned(),
             },
+            ImportWarning::InvalidHost {
+                line: Some(3),
+                host: "-oProxyCommand=x".to_owned(),
+            },
         ];
         let preview = ImportPreview {
             candidates: Vec::new(),
@@ -831,6 +839,10 @@ mod tests {
                 ImportWarningDto::HostResolutionFailed {
                     host: "broken".to_owned(),
                     message: "bad port".to_owned()
+                },
+                ImportWarningDto::InvalidHost {
+                    line: Some(3),
+                    host: "-oProxyCommand=x".to_owned()
                 },
             ]
         );

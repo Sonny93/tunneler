@@ -3,13 +3,18 @@ import type { I18n } from '@lingui/core';
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
 import type { ImportSpec } from '#/import/build_import_specs';
-import { getSubmissionErrorMessages } from '#/shared/submission_error_messages';
+import {
+	getEnglishTexts,
+	getSubmissionErrorMessages,
+} from '#/shared/submission_error_messages';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 export type ImportFailure = {
 	index: number;
 	label: string;
 	messages: string[];
+	/** The parts of `messages` that are raw English from the daemon. */
+	englishTexts: string[];
 };
 
 export type ImportOutcome = {
@@ -32,11 +37,13 @@ export async function createImportedTunnels(
 			await gateway.createTunnel(spec);
 			createdIndexes.push(index);
 		} catch (rejection) {
-			const messages = getSubmissionErrorMessages(
-				toDaemonCommandError(rejection),
-				i18n
-			);
-			failures.push({ index, label: getTunnelEndpointLabel(spec), messages });
+			const error = toDaemonCommandError(rejection);
+			failures.push({
+				index,
+				label: getTunnelEndpointLabel(spec),
+				messages: getSubmissionErrorMessages(error, i18n),
+				englishTexts: getEnglishTexts(error, i18n),
+			});
 		}
 		onProgress(position + 1);
 	}

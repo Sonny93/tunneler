@@ -11,7 +11,7 @@ export type ShortcutDefinition = {
 export function getGlobalShortcuts(i18n: I18n): readonly ShortcutDefinition[] {
 	return [
 		{ keys: ['n'], description: i18n._(msg`New tunnel`) },
-		{ keys: ['i'], description: i18n._(msg`Import tunnels`) },
+		{ keys: ['i'], description: i18n._(msg`Import and export`) },
 		{ keys: [','], description: i18n._(msg`Open settings`) },
 		{ keys: ['b'], description: i18n._(msg`Hide or show the sidebar`) },
 		{ keys: ['?'], description: i18n._(msg`Show keyboard shortcuts`) },

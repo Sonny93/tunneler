@@ -3,6 +3,7 @@
 //! Requests carry an `id` the response echoes; events carry none. See
 //! [`Request`] for the methods and [`EventMessage`] for the events.
 
+mod config_transfer;
 mod devslot;
 mod devslot_names;
 mod devslot_up;
@@ -16,6 +17,14 @@ mod request;
 mod response;
 mod secret;
 
+pub use config_transfer::{
+    ConfigExportParams, ConfigExportResult, ConfigImportAddedDto, ConfigImportApplyParams,
+    ConfigImportEntryDto, ConfigImportEntryWarningDto, ConfigImportParams, ConfigImportPlanDto,
+    ConfigImportReportDto, ConfigImportRiskDto, ConfigImportSkippedDto, ConfigImportSourceDto,
+    ConfigImportStatusDto, ImportClassifyParams, ImportClassifyResult, ImportConflictDto,
+    ImportRouteDto, InvalidImportFileDto, InvalidImportReasonDto, MAX_CONFIG_IMPORT_BYTES,
+    MAX_CONFIG_IMPORT_TUNNELS, MAX_IMPORT_CLASSIFY_CANDIDATES,
+};
 pub use devslot::{
     DevslotDiscoveryDto, DevslotInstanceDto, DevslotOriginDto, DevslotPortDto,
     DevslotPortStatusDto, DevslotResyncParams, DevslotResyncResultDto, DevslotResyncTunnelDto,

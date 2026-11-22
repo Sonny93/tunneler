@@ -78,6 +78,7 @@ mod runtime;
 mod session;
 mod state_tracker;
 mod store;
+mod transfer;
 mod transport;
 mod x11;
 
@@ -126,10 +127,16 @@ pub use store::{
     AppState, BROWSER_OPENER_ID, DevslotPathProblem, DevslotStale, FileStateStore, HostNameProblem,
     HostOverrides, InvalidTunnelId, Language, LoadOutcome, MAX_STANDBY_VOLUME, MIN_STANDBY_VOLUME,
     OpenDefault, OpenHost, OpenOptions, OpenPathProblem, OpenScheme, Opener, OpenerIdProblem,
-    Settings, SourceLocation, StandbyNotify, StandbySound, StateStore, Store, StoreDocument,
-    StoreError, StoreEvent, StoreWatcher, TagProblem, TunnelDefinition, TunnelId, TunnelKind,
-    TunnelReference, ValidationError, X11Launcher, X11ServerStart, default_state_path,
+    Settings, SourceLocation, SshHostProblem, StandbyNotify, StandbySound, StateStore, Store,
+    StoreDocument, StoreError, StoreEvent, StoreWatcher, TagProblem, TunnelDefinition, TunnelId,
+    TunnelKind, TunnelReference, ValidationError, X11Launcher, X11ServerStart, default_state_path,
     default_store_path,
+};
+pub use transfer::{
+    ConfigExport, ConfigExportFilter, ConfigImportAdded, ConfigImportEntry,
+    ConfigImportEntryWarning, ConfigImportPlan, ConfigImportReport, ConfigImportRisk,
+    ConfigImportSkipped, ConfigImportSource, ConfigImportStatus, ImportFileError, ImportRoute,
+    MAX_IMPORT_FILE_BYTES, MAX_IMPORT_TUNNELS, RouteConflict, classify_routes,
 };
 pub use x11::{
     DisplayPlatform, LocalX11Servers, SystemX11Environment, X11Environment, X11Error, X11Probe,

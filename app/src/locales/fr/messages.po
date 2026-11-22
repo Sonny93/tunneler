@@ -7,9 +7,13 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: fr\n"
 
-#: src/import/describe_import_warning.ts:59
+#: src/import/describe_import_warning.ts:72
 msgid ": choose the host below."
 msgstr " : choisissez l'hôte ci-dessous."
+
+#: src/import/describe_import_warning.ts:41
+msgid ": not a valid host name, forward ignored."
+msgstr " : nom d'hôte invalide, redirection ignorée."
 
 #: src/openers/validate_opener_form.ts:39
 msgid "\"browser\" is reserved for the browser."
@@ -39,6 +43,10 @@ msgstr "{connections}, {received} reçus, {sent} envoyés"
 msgid "{count, plural, =0 {No commands} one {# command} other {# commands}}"
 msgstr "{count, plural, =0 {Aucune commande} one {# commande} other {# commandes}}"
 
+#: src/import/import_texts.ts:42
+msgid "{count, plural, =0 {No conflicts} one {# conflict} other {# conflicts}}"
+msgstr "{count, plural, =0 {Aucun conflit} one {# conflit} other {# conflits}}"
+
 #: src/host_config/describe_option_count.ts:7
 msgid "{count, plural, =0 {No options shown} one {# option shown} other {# options shown}}"
 msgstr "{count, plural, =0 {Aucune option affichée} one {# option affichée} other {# options affichées}}"
@@ -46,6 +54,10 @@ msgstr "{count, plural, =0 {Aucune option affichée} one {# option affichée} ot
 #: src/import/import_texts.ts:6
 msgid "{count, plural, =0 {No tunnel detected} one {# tunnel detected} other {# tunnels detected}}"
 msgstr "{count, plural, =0 {Aucun tunnel détecté} one {# tunnel détecté} other {# tunnels détectés}}"
+
+#: src/import/import_texts.ts:57
+msgid "{count, plural, =0 {No tunnel selected} one {# tunnel selected} other {# tunnels selected}}"
+msgstr "{count, plural, =0 {Aucun tunnel sélectionné} one {# tunnel sélectionné} other {# tunnels sélectionnés}}"
 
 #: src/tunnels/selection/describe_selection_count.ts:12
 msgid "{count, plural, =0 {No tunnels selected} one {# tunnel selected} other {# tunnels selected}}"
@@ -110,7 +122,7 @@ msgstr "{existingCount, plural, one {# tunnel déjà actif} other {# tunnels dé
 #: src/daemon/use_daemon_action.ts:38
 #: src/prompts/use_prompt_actions.ts:42
 #: src/quit/use_quit_flow.tsx:55
-#: src/tag_rename/tag_rename_content.tsx:93
+#: src/tag_rename/tag_rename_content.tsx:102
 msgid "{failureMessage}: {errorMessage}"
 msgstr "{failureMessage} : {errorMessage}"
 
@@ -118,7 +130,7 @@ msgstr "{failureMessage} : {errorMessage}"
 msgid "{forgottenCount, plural, =0 {No passphrase was remembered} one {# passphrase forgotten} other {# passphrases forgotten}}"
 msgstr "{forgottenCount, plural, =0 {Aucune passphrase mémorisée} one {# passphrase oubliée} other {# passphrases oubliées}}"
 
-#: src/daemon/describe_daemon_error.ts:58
+#: src/daemon/describe_daemon_error.ts:59
 msgid "{host} does not list the devslot instance {instance}"
 msgstr "{host} ne liste pas l'instance devslot {instance}"
 
@@ -126,7 +138,7 @@ msgstr "{host} ne liste pas l'instance devslot {instance}"
 msgid "{host}: unsupported forward (Unix socket or remote SOCKS): "
 msgstr "{host} : forward non pris en charge (socket Unix ou SOCKS distant) : "
 
-#: src/import/use_import_form.ts:63
+#: src/import/use_import_form.ts:66
 msgid "{importedText}, {failedCount} failed:"
 msgstr "{importedText}, {failedCount} en échec :"
 
@@ -138,11 +150,11 @@ msgstr "{instance} sur {host} :"
 msgid "{instanceCount, plural, =0 {No devslot instance found} one {# devslot instance found} other {# devslot instances found}}"
 msgstr "{instanceCount, plural, =0 {Aucune instance devslot trouvée} one {# instance devslot trouvée} other {# instances devslot trouvées}}"
 
-#: src/import/devslot/run_devslot_start.ts:140
+#: src/import/devslot/run_devslot_start.ts:147
 msgid "{label} was created but did not start: {messageList}"
 msgstr "{label} a été créé mais n'a pas démarré : {messageList}"
 
-#: src/import/use_import_form.ts:53
+#: src/import/use_import_form.ts:56
 msgid "{label}: {messageList}"
 msgstr "{label} : {messageList}"
 
@@ -178,6 +190,10 @@ msgstr "{removedCount, plural, one {Tag {tag} retiré de # tunnel} other {Tag {t
 msgid "{renamedCount, plural, one {Tag {from} renamed to {to} (# tunnel)} other {Tag {from} renamed to {to} (# tunnels)}}"
 msgstr "{renamedCount, plural, one {Tag {from} renommé en {to} (# tunnel)} other {Tag {from} renommé en {to} (# tunnels)}}"
 
+#: src/import/transfer/describe_config_import.ts:149
+msgid "{route} skipped: "
+msgstr "{route} ignoré : "
+
 #: src/tunnels/describe_active_count.ts:11
 msgid "{running} of {total} active"
 msgstr "{running} sur {total} actifs"
@@ -189,6 +205,18 @@ msgstr "{running}/{total} actifs"
 #: src/tunnel_form/open_options_fields.tsx:47
 msgid "{selected} (unavailable)"
 msgstr "{selected} (indisponible)"
+
+#: src/import/import_texts.ts:64
+msgid "{selected}, including {riskyCount} risky"
+msgstr "{selected}, dont {riskyCount} à risque"
+
+#: src/import/import_texts.ts:82
+msgid "{selectedCount, plural, =0 {Preview updated, no tunnel selected} one {Preview updated, # tunnel selected} other {Preview updated, # tunnels selected}}"
+msgstr "{selectedCount, plural, =0 {Aperçu mis à jour, aucun tunnel sélectionné} one {Aperçu mis à jour, # tunnel sélectionné} other {Aperçu mis à jour, # tunnels sélectionnés}}"
+
+#: src/import/import_texts.ts:74
+msgid "{selectedCount, plural, =0 {Preview updated, selection reset, no tunnel selected} one {Preview updated, selection reset, # tunnel selected} other {Preview updated, selection reset, # tunnels selected}}"
+msgstr "{selectedCount, plural, =0 {Aperçu mis à jour, sélection réinitialisée, aucun tunnel sélectionné} one {Aperçu mis à jour, sélection réinitialisée, # tunnel sélectionné} other {Aperçu mis à jour, sélection réinitialisée, # tunnels sélectionnés}}"
 
 #: src/shared/app_ui_provider.tsx:32
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
@@ -202,7 +230,7 @@ msgstr "{startedCount, plural, one {# tunnel démarré} other {# tunnels démarr
 msgid "{startedCount} started, {failedCount} failed"
 msgstr "{startedCount} démarré(s), {failedCount} en échec"
 
-#: src/import/devslot/use_devslot_form.ts:138
+#: src/import/devslot/use_devslot_form.ts:160
 msgid "{startedCount} started, {failedCount} failed:"
 msgstr "{startedCount} démarré(s), {failedCount} en échec :"
 
@@ -254,6 +282,10 @@ msgstr "{total, plural, one {# tunnel arrêté} other {# tunnels arrêtés}}"
 msgid "{total, plural, one {# tunnel updated} other {# tunnels updated}}"
 msgstr "{total, plural, one {# tunnel mis à jour} other {# tunnels mis à jour}}"
 
+#: src/import/transfer/use_config_export.ts:45
+msgid "{tunnelCount, plural, one {# tunnel exported} other {# tunnels exported}}"
+msgstr "{tunnelCount, plural, =0 {0 tunnel exporté} one {# tunnel exporté} other {# tunnels exportés}}"
+
 #: src/tunnels/selection/use_bulk_tunnel_actions.tsx:113
 msgid "{tunnelCount, plural, one {Delete # tunnel?} other {Delete # tunnels?}}"
 msgstr "{tunnelCount, plural, one {Supprimer # tunnel ?} other {Supprimer # tunnels ?}}"
@@ -274,7 +306,7 @@ msgstr "{usageCount, plural, one {# tunnel utilise cette application et ne pourr
 msgid "{value} %"
 msgstr "{value} %"
 
-#: src/import/devslot/devslot_port_row.tsx:66
+#: src/import/devslot/devslot_port_row.tsx:70
 msgid "{variable} ({remotePort})"
 msgstr "{variable} ({remotePort})"
 
@@ -390,9 +422,14 @@ msgstr "Tous les tunnels"
 msgid "All tunnels of tag {tag}"
 msgstr "Tous les tunnels du tag {tag}"
 
-#: src/import/describe_import_conflict.ts:12
+#: src/import/describe_import_conflict.ts:26
+#: src/import/transfer/describe_config_import.ts:31
 msgid "Already configured"
 msgstr "Déjà configuré"
+
+#: src/import/transfer/describe_config_import.ts:33
+msgid "Already configured (tags not applied: {tagList})"
+msgstr "Déjà configuré (tags non appliqués : {tagList})"
 
 #: src/shared/open_default_options.ts:20
 msgid "Always the browser"
@@ -407,11 +444,11 @@ msgstr "Le formulaire d'une application contient encore une saisie. Ajoutez l'ap
 msgid "An X server answers on {0}."
 msgstr "Un serveur X répond sur {0}."
 
-#: src/import/import_panel.tsx:74
+#: src/import/import_panel.tsx:79
 msgid "Analysis failed:"
 msgstr "Analyse impossible :"
 
-#: src/import/import_preview.tsx:64
+#: src/import/import_preview.tsx:62
 msgid "Analysis result"
 msgstr "Résultat de l'analyse"
 
@@ -422,6 +459,10 @@ msgstr "Analyser"
 #: src/devslot_link/describe_devslot_up.ts:131
 msgid "Another instance lists the same application port: the browser may show that one."
 msgstr "Une autre instance liste le même port d'application : le navigateur peut afficher celle-là."
+
+#: src/import/describe_import_conflict.ts:15
+msgid "another tunnel"
+msgstr "un autre tunnel"
 
 #: src/tunnel_form/open_options_fields.tsx:145
 msgid "App host name:"
@@ -484,12 +525,16 @@ msgstr "Les deux"
 msgid "Browser"
 msgstr "Navigateur"
 
+#: src/import/transfer/describe_config_import.ts:45
+msgid "Can be added, not selected by default"
+msgstr "Peut être ajouté, non sélectionné par défaut"
+
 #: src/devslot_link/devslot_link_confirm_content.tsx:115
 #: src/openers/opener_form.tsx:183
 #: src/prompts/credential_prompt_content.tsx:95
-#: src/settings/settings_dialog_form.tsx:46
+#: src/settings/settings_dialog_form.tsx:47
 #: src/shared/app_ui_provider.tsx:13
-#: src/tag_rename/tag_rename_content.tsx:141
+#: src/tag_rename/tag_rename_content.tsx:151
 #: src/tunnel_form/tunnel_form_panel.tsx:51
 #: src/tunnels/selection/bulk_tags_content.tsx:135
 msgid "Cancel"
@@ -527,6 +572,10 @@ msgstr "Vérifiez cette empreinte auprès de l'administrateur du serveur avant d
 msgid "Checkbox, switch and menu of the row"
 msgstr "Case, interrupteur et menu de la ligne"
 
+#: src/import/import_action_button.tsx:36
+msgid "Checking for conflicts…"
+msgstr "Recherche de conflits…"
+
 #: src/settings/settings_update_check.tsx:13
 msgid "Checking for updates…"
 msgstr "Vérification des mises à jour…"
@@ -543,8 +592,12 @@ msgstr "Carillon"
 msgid "Choose a different name."
 msgstr "Choisissez un nom différent."
 
+#: src/import/transfer/config_import_section.tsx:38
+msgid "Choose a file…"
+msgstr "Choisir un fichier…"
+
 #: src/import/devslot/import_devslot_tab.tsx:51
-#: src/import/import_preview.tsx:87
+#: src/import/import_preview.tsx:86
 msgid "Choose a host"
 msgstr "Choisir un hôte"
 
@@ -552,7 +605,7 @@ msgstr "Choisir un hôte"
 msgid "Choose a host."
 msgstr "Choisissez un hôte."
 
-#: src/import/use_import_form.ts:27
+#: src/import/use_import_form.ts:26
 msgid "Choose the host of the tunnels without a destination."
 msgstr "Choisissez l'hôte des tunnels sans destination."
 
@@ -656,7 +709,7 @@ msgstr "Copié"
 msgid "Copy"
 msgstr "Copier"
 
-#: src/x11/x11_display_section.tsx:29
+#: src/x11/x11_display_section.tsx:34
 msgid "Copy {command}"
 msgstr "Copier {command}"
 
@@ -676,11 +729,15 @@ msgstr "Copier l'empreinte"
 msgid "Copy the ssh command"
 msgstr "Copier la commande ssh"
 
-#: src/daemon/describe_daemon_error.ts:68
+#: src/import/use_conflict_announcements.ts:8
+msgid "Could not check for conflicts; creation will still refuse clashes."
+msgstr "Impossible de rechercher les conflits ; la création refusera quand même les doublons."
+
+#: src/daemon/describe_daemon_error.ts:69
 msgid "Could not connect to {host}: {message}"
 msgstr "Connexion à {host} impossible : {message}"
 
-#: src/import/devslot/run_devslot_start.ts:137
+#: src/import/devslot/run_devslot_start.ts:144
 msgid "Could not create {label}: {messageList}"
 msgstr "Impossible de créer {label} : {messageList}"
 
@@ -692,7 +749,7 @@ msgstr "Impossible de supprimer {route} :"
 msgid "Could not remove the stale tunnels:"
 msgstr "Impossible de supprimer les tunnels périmés :"
 
-#: src/import/devslot/run_devslot_start.ts:143
+#: src/import/devslot/run_devslot_start.ts:150
 msgid "Could not start {label}: {messageList}"
 msgstr "Impossible de démarrer {label} : {messageList}"
 
@@ -784,7 +841,7 @@ msgstr "Écoute impossible"
 msgid "Couldn't quit"
 msgstr "Impossible de quitter"
 
-#: src/import/describe_import_warning.ts:64
+#: src/import/describe_import_warning.ts:77
 msgid "Couldn't read {host}: "
 msgstr "Lecture de {host} impossible : "
 
@@ -796,7 +853,7 @@ msgstr "Lecture impossible : {errorMessage}"
 msgid "Couldn't read the link this app was started with: {description}"
 msgstr "Impossible de lire le lien avec lequel l'application a été lancée : {description}"
 
-#: src/tag_rename/tag_rename_content.tsx:89
+#: src/tag_rename/tag_rename_content.tsx:98
 msgid "Couldn't rename the tag"
 msgstr "Renommage impossible"
 
@@ -808,7 +865,7 @@ msgstr "Redémarrage impossible"
 msgid "Couldn't save the tunnel"
 msgstr "Enregistrement impossible"
 
-#: src/shared/form_error_summary.tsx:25
+#: src/shared/form_error_summary.tsx:30
 msgid "Couldn't save:"
 msgstr "Enregistrement impossible :"
 
@@ -944,7 +1001,8 @@ msgstr "Supprimer le tunnel {label} ?"
 msgid "Deleted {route}"
 msgstr "{route} supprimé"
 
-#: src/import/import_candidate_list.tsx:54
+#: src/import/import_candidate_list.tsx:70
+#: src/import/transfer/config_import_entry_list.tsx:69
 #: src/tunnels/selection/bulk_toolbar.tsx:46
 msgid "Deselect all"
 msgstr "Tout désélectionner"
@@ -961,7 +1019,7 @@ msgstr "Détails de {endpointLabel}"
 msgid "Detected on this computer"
 msgstr "Détectées sur ce poste"
 
-#: src/import/import_candidate_list.tsx:37
+#: src/import/import_candidate_list.tsx:53
 msgid "Detected tunnels ({candidateCount})"
 msgstr "Tunnels détectés ({candidateCount})"
 
@@ -969,11 +1027,11 @@ msgstr "Tunnels détectés ({candidateCount})"
 msgid "devslot"
 msgstr "devslot"
 
-#: src/daemon/describe_daemon_error.ts:24
+#: src/daemon/describe_daemon_error.ts:25
 msgid "devslot failed on {host}{statusText}"
 msgstr "devslot a échoué sur {host}{statusText}"
 
-#: src/daemon/describe_daemon_error.ts:26
+#: src/daemon/describe_daemon_error.ts:27
 msgid "devslot failed on {host}{statusText}: {stderr}"
 msgstr "devslot a échoué sur {host}{statusText} : {stderr}"
 
@@ -981,7 +1039,7 @@ msgstr "devslot a échoué sur {host}{statusText} : {stderr}"
 msgid "devslot no longer lists these saved tunnels as they are. Delete removes one; Keep leaves it as it is."
 msgstr "devslot ne liste plus ces tunnels enregistrés tels quels. Supprimer en retire un ; Garder le laisse en l'état."
 
-#: src/daemon/describe_daemon_error.ts:48
+#: src/daemon/describe_daemon_error.ts:49
 msgid "devslot on {host} answered something unusable: {reason}"
 msgstr "devslot sur {host} a répondu quelque chose d'inutilisable : {reason}"
 
@@ -989,7 +1047,7 @@ msgstr "devslot sur {host} a répondu quelque chose d'inutilisable : {reason}"
 msgid "devslot project: "
 msgstr "Projet devslot : "
 
-#: src/daemon/describe_daemon_error.ts:37
+#: src/daemon/describe_daemon_error.ts:38
 msgid "devslot was not found on {host} (looked for {path}). The snippet to add to the configuration file is shown in the From devslot tab."
 msgstr "devslot est introuvable sur {host} (cherché : {path}). L'extrait à ajouter au fichier de configuration est affiché dans l'onglet Depuis devslot."
 
@@ -1013,7 +1071,7 @@ msgstr "Découverte sur {host}…"
 msgid "Discovery failed:"
 msgstr "La découverte a échoué :"
 
-#: src/import/devslot/devslot_result.tsx:49
+#: src/import/devslot/devslot_result.tsx:47
 msgid "Discovery result"
 msgstr "Résultat de la découverte"
 
@@ -1109,7 +1167,7 @@ msgstr "Activer X11 pour {host} ?"
 msgid "End"
 msgstr "Fin"
 
-#: src/import/devslot/describe_devslot_problem.ts:12
+#: src/import/devslot/describe_devslot_problem.ts:14
 msgid "Enter a port between 1 and 65535."
 msgstr "Saisissez un port entre 1 et 65535."
 
@@ -1134,6 +1192,18 @@ msgstr "Échap"
 msgid "Everywhere"
 msgstr "Partout"
 
+#: src/import/transfer/config_export_section.tsx:60
+msgid "Export failed:"
+msgstr "Export impossible :"
+
+#: src/import/transfer/config_export_section.tsx:36
+msgid "Export to a file"
+msgstr "Exporter vers un fichier"
+
+#: src/import/transfer/config_export_section.tsx:70
+msgid "Export…"
+msgstr "Exporter…"
+
 #: src/tunnels/tunnel_state_label.ts:26
 msgid "External"
 msgstr "Externe"
@@ -1142,6 +1212,10 @@ msgstr "Externe"
 #: src/x11/x11_state_label.ts:22
 msgid "Failed"
 msgstr "Échec"
+
+#: src/import/import_panel.tsx:64
+msgid "File"
+msgstr "Fichier"
 
 #: src/host_config/host_config_view.tsx:36
 msgid "Filter options"
@@ -1179,11 +1253,11 @@ msgstr "Oublier les passphrases mémorisées ?"
 msgid "Forwarding"
 msgstr "Redirection"
 
-#: src/import/import_panel.tsx:47
+#: src/import/import_panel.tsx:45
 msgid "From ~/.ssh/config"
 msgstr "Depuis ~/.ssh/config"
 
-#: src/import/import_panel.tsx:56
+#: src/import/import_panel.tsx:54
 msgid "From devslot"
 msgstr "Depuis devslot"
 
@@ -1235,6 +1309,10 @@ msgstr "Masquer le panneau"
 msgid "Home"
 msgstr "Début"
 
+#: src/daemon/describe_invalid_import_file.ts:20
+msgid "host"
+msgstr "hôte"
+
 #: src/import/devslot/import_devslot_tab.tsx:49
 #: src/palette/build_palette_commands.ts:30
 #: src/tunnel_form/open_options_fields.tsx:138
@@ -1254,7 +1332,7 @@ msgstr "Clé d'hôte modifiée"
 msgid "Host key revoked"
 msgstr "Clé d'hôte révoquée"
 
-#: src/import/import_preview.tsx:85
+#: src/import/import_preview.tsx:84
 msgid "Host of the tunnels without a destination"
 msgstr "Hôte des tunnels sans destination"
 
@@ -1303,6 +1381,12 @@ msgstr "Importer"
 msgid "Import a tunnel"
 msgstr "Importer un tunnel"
 
+#: src/import/import_drawer.tsx:22
+#: src/palette/build_palette_commands.ts:70
+#: src/shortcuts/shortcut_definitions.ts:14
+msgid "Import and export"
+msgstr "Importer et exporter"
+
 #: src/externals/external_forward_item.tsx:44
 msgid "Import as a tunnel"
 msgstr "Importer comme tunnel"
@@ -1311,19 +1395,22 @@ msgstr "Importer comme tunnel"
 msgid "Import as a tunnel: {route}"
 msgstr "Importer comme tunnel : {route}"
 
-#: src/import/use_import_form.ts:61
+#: src/import/transfer/config_import_section.tsx:28
+#: src/import/use_import_form.ts:64
 msgid "Import failed:"
 msgstr "Import impossible :"
+
+#: src/import/transfer/config_import_section.tsx:20
+msgid "Import from a file"
+msgstr "Importer depuis un fichier"
 
 #: src/import/import_texts.ts:28
 msgid "Import in progress: {doneCount} of {totalCount}"
 msgstr "Import en cours : {doneCount} sur {totalCount}"
 
-#: src/import/import_drawer.tsx:22
-#: src/palette/build_palette_commands.ts:70
-#: src/shortcuts/shortcut_definitions.ts:14
-msgid "Import tunnels"
-msgstr "Importer des tunnels"
+#: src/import/transfer/config_import_result.tsx:42
+msgid "Import of {fileName}"
+msgstr "Import de {fileName}"
 
 #: src/import/import_drawer.tsx:26
 msgid "Import unavailable."
@@ -1361,9 +1448,13 @@ msgstr "Installée ailleurs, par exemple une version portable ? Ajoutez-la ci-de
 msgid "Installing, Tunneler will restart."
 msgstr "Installation en cours, Tunneler va redémarrer."
 
-#: src/daemon/describe_daemon_error.ts:94
+#: src/daemon/describe_daemon_error.ts:95
 msgid "Internal error"
 msgstr "Erreur interne"
+
+#: src/import/transfer/describe_config_import.ts:82
+msgid "Invalid: "
+msgstr "Invalide : "
 
 #: src/shared/open_host_options.ts:20
 msgid "IP address"
@@ -1385,6 +1476,10 @@ msgstr "Ko"
 msgid "Keep"
 msgstr "Garder"
 
+#: src/import/transfer/host_alias_select.tsx:25
+msgid "Keep {fileHost}"
+msgstr "Garder {fileHost}"
+
 #: src/import/devslot/devslot_ask_item.tsx:59
 msgid "Keep {route}"
 msgstr "Garder {route}"
@@ -1397,7 +1492,7 @@ msgstr "Garder les tunnels découverts par défaut"
 msgid "Keep editing"
 msgstr "Continuer la modification"
 
-#: src/import/devslot/devslot_start_form.tsx:54
+#: src/import/devslot/devslot_start_form.tsx:56
 msgid "Keep these tunnels"
 msgstr "Garder ces tunnels"
 
@@ -1455,11 +1550,15 @@ msgstr "clair"
 msgid "line {line}"
 msgstr "ligne {line}"
 
+#: src/import/describe_import_warning.ts:43
+msgid "Line {line}: "
+msgstr "Ligne {line} : "
+
 #: src/import/describe_import_warning.ts:20
 msgid "Line {line}: {host}: unsupported forward (Unix socket or remote SOCKS): "
 msgstr "Ligne {line} : {host} : forward non pris en charge (socket Unix ou SOCKS distant) : "
 
-#: src/import/describe_import_warning.ts:44
+#: src/import/describe_import_warning.ts:57
 msgid "Line {line}: option ignored, unreadable: "
 msgstr "Ligne {line} : option ignorée, illisible : "
 
@@ -1474,6 +1573,10 @@ msgstr "Lier au port d'écoute"
 #: src/import/devslot/describe_devslot_port.ts:34
 msgid "Listed by several instances"
 msgstr "Listé par plusieurs instances"
+
+#: src/daemon/describe_invalid_import_file.ts:21
+msgid "listen address"
+msgstr "adresse d'écoute"
 
 #: src/tunnel_form/tunnel_form_fields.tsx:143
 msgid "Listen address"
@@ -1504,7 +1607,7 @@ msgstr "Liste les instances devslot d'un hôte (ds ls --json) et propose de tunn
 msgid "Loading"
 msgstr "Chargement"
 
-#: src/tunnel_details/tunnel_log_section.tsx:30
+#: src/tunnel_details/tunnel_log_section.tsx:31
 msgid "Loading the log…"
 msgstr "Chargement du journal…"
 
@@ -1532,7 +1635,7 @@ msgstr "Écran local : variable DISPLAY (127.0.0.1:0.0 sous Windows) (réglage g
 msgid "Local forward {route}"
 msgstr "Redirection locale {route}"
 
-#: src/import/devslot/devslot_port_row.tsx:75
+#: src/import/devslot/devslot_port_row.tsx:79
 msgid "Local port for {variable} of {instanceName}"
 msgstr "Port local pour {variable} de {instanceName}"
 
@@ -1557,7 +1660,7 @@ msgstr "Journal"
 msgid "Log of tunnel {tunnelLabel}"
 msgstr "Journal du tunnel {tunnelLabel}"
 
-#: src/tunnel_details/tunnel_log_section.tsx:35
+#: src/tunnel_details/tunnel_log_section.tsx:36
 msgid "Log unavailable: {errorMessage}"
 msgstr "Journal indisponible : {errorMessage}"
 
@@ -1585,7 +1688,7 @@ msgstr "Délai maximal de reconnexion (secondes)"
 msgid "MB"
 msgstr "Mo"
 
-#: src/tunnel_details/tunnel_metrics_section.tsx:47
+#: src/tunnel_details/tunnel_metrics_section.tsx:48
 msgid "Metrics"
 msgstr "Métriques"
 
@@ -1597,7 +1700,7 @@ msgstr "Nom"
 msgid "Navigation"
 msgstr "Navigation"
 
-#: src/tag_rename/tag_rename_content.tsx:130
+#: src/tag_rename/tag_rename_content.tsx:140
 msgid "New tag name"
 msgstr "Nouveau nom du tag"
 
@@ -1648,9 +1751,21 @@ msgstr "Aucune zone de notification détectée"
 msgid "No results"
 msgstr "Aucun résultat"
 
-#: src/import/describe_import_warning.ts:57
+#: src/import/transfer/use_config_export.ts:10
+msgid "No saved tunnel matches these filters."
+msgstr "Aucun tunnel enregistré ne correspond à ces filtres."
+
+#: src/import/describe_import_warning.ts:70
 msgid "No ssh_config alias matches "
 msgstr "Aucun alias ssh_config ne correspond à "
+
+#: src/import/transfer/describe_config_import.ts:132
+msgid "No ssh_config Host entry names {host} exactly"
+msgstr "Aucune entrée Host de ssh_config ne nomme exactement {host}"
+
+#: src/import/transfer/host_alias_select.tsx:38
+msgid "No ssh_config Host entry names it exactly."
+msgstr "Aucune entrée Host de ssh_config ne le nomme exactement."
 
 #: src/devslot_link/describe_devslot_up.ts:44
 msgid "No tunnel was started."
@@ -1664,7 +1779,7 @@ msgstr "Aucun tunnel à modifier"
 msgid "No tunnels yet."
 msgstr "Aucun tunnel configuré."
 
-#: src/daemon/describe_daemon_error.ts:98
+#: src/daemon/describe_daemon_error.ts:99
 msgid "No update is available"
 msgstr "Aucune mise à jour disponible"
 
@@ -1703,7 +1818,7 @@ msgstr "Aucun"
 msgid "Not played with the chosen signal."
 msgstr "Pas joué avec le signal choisi."
 
-#: src/tunnel_form/tunnel_form_panel.tsx:72
+#: src/tunnel_form/tunnel_form_panel.tsx:73
 msgid "Not saved: it disappears when it is stopped or when Tunneler quits."
 msgstr "Non enregistré : disparaît quand on l'arrête ou quand Tunneler quitte."
 
@@ -1731,7 +1846,7 @@ msgstr "Notifications"
 msgid "Now belongs to another project"
 msgstr "Appartient maintenant à un autre projet"
 
-#: src/import/devslot/devslot_start_form.tsx:55
+#: src/import/devslot/devslot_start_form.tsx:57
 msgid "On: the tunnels are saved and tagged devslot. Off: they live until stopped."
 msgstr "Activé : les tunnels sont enregistrés et étiquetés devslot. Désactivé : ils durent jusqu'à leur arrêt."
 
@@ -1746,6 +1861,14 @@ msgstr "Ne continuez que si vous faites confiance à la source de ce lien."
 #: src/tag_rename/validate_tag_name.ts:10
 msgid "Only one tag, without a comma."
 msgstr "Un seul tag, sans virgule."
+
+#: src/import/transfer/config_export_section.tsx:43
+msgid "Only these hosts (optional)"
+msgstr "Uniquement ces hôtes (facultatif)"
+
+#: src/import/transfer/config_export_section.tsx:51
+msgid "Only these tags (optional)"
+msgstr "Uniquement ces tags (facultatif)"
 
 #: src/devslot_link/devslot_link_confirm_content.tsx:122
 msgid "Open"
@@ -1767,9 +1890,17 @@ msgstr "Ouvrir une instance devslot"
 msgid "Open a started tunnel with its default action"
 msgstr "Ouvrir un tunnel démarré avec son action par défaut"
 
+#: src/daemon/describe_invalid_import_file.ts:26
+msgid "open host name"
+msgstr "nom d'hôte d'ouverture"
+
 #: src/openers/open_choices.ts:52
 msgid "Open in the browser"
 msgstr "Ouvrir dans le navigateur"
+
+#: src/daemon/describe_invalid_import_file.ts:24
+msgid "open path"
+msgstr "chemin d'ouverture"
 
 #: src/palette/build_palette_commands.ts:76
 #: src/shortcuts/shortcut_definitions.ts:15
@@ -1810,6 +1941,14 @@ msgstr "{instance} ouvert sur {host}"
 msgid "Opened {opened} in the browser."
 msgstr "{opened} ouvert dans le navigateur."
 
+#: src/daemon/describe_invalid_import_file.ts:25
+msgid "opener"
+msgstr "ouverture avec"
+
+#: src/import/transfer/describe_config_import.ts:137
+msgid "Opener {opener} is not available here and was removed"
+msgstr "Ouvrir avec {opener} n'est pas disponible ici, ce réglage a été retiré"
+
 #: src/settings/settings_open_fieldset.tsx:39
 #: src/settings/settings_tabs.tsx:45
 #: src/tunnel_form/open_options_fields.tsx:110
@@ -1830,7 +1969,7 @@ msgstr "Ouvre {url}"
 msgid "Option"
 msgstr "Option"
 
-#: src/import/import_preview.tsx:101
+#: src/import/import_preview.tsx:100
 msgid "Optional. Added to every imported tunnel; separate several tags with commas."
 msgstr "Optionnel. Ajouté à chaque tunnel importé ; séparer plusieurs tags par des virgules."
 
@@ -1856,7 +1995,7 @@ msgstr "Mot de passe"
 msgid "Password for {user}@{host} ({alias})."
 msgstr "Mot de passe de {user}@{host} ({alias})."
 
-#: src/import/import_panel.tsx:36
+#: src/import/import_panel.tsx:34
 msgid "Paste a script"
 msgstr "Coller un script"
 
@@ -1888,7 +2027,7 @@ msgstr "Corde pincée"
 msgid "port {listenPort} of server {host} to {target}"
 msgstr "port {listenPort} du serveur {host} vers {target}"
 
-#: src/import/devslot/describe_devslot_problem.ts:17
+#: src/import/devslot/describe_devslot_problem.ts:19
 msgid "Port {port} is already in use on this computer: choose another local port."
 msgstr "Le port {port} est déjà utilisé sur cet ordinateur : choisissez un autre port local."
 
@@ -1916,7 +2055,11 @@ msgstr "Le port {variable} de {instance} a été ignoré : ce n'est pas un numé
 msgid "Port already in use ({address})"
 msgstr "Port déjà utilisé ({address})"
 
-#: src/import/describe_import_conflict.ts:15
+#: src/import/transfer/describe_config_import.ts:76
+msgid "Port already used by {holder}"
+msgstr "Port déjà utilisé par {holder}"
+
+#: src/import/describe_import_conflict.ts:33
 msgid "Port already used by {tunnelLabel}"
 msgstr "Port déjà utilisé par {tunnelLabel}"
 
@@ -1939,6 +2082,10 @@ msgstr "Script PowerShell ou shell (ssh -L …), liste de ports (3333, 5432), ou
 #: src/prompts/host_key_alert_text.ts:28
 msgid "Presented fingerprint"
 msgstr "Empreinte présentée"
+
+#: src/import/transfer/config_import_preview.tsx:88
+msgid "Preview of {fileName}"
+msgstr "Aperçu de {fileName}"
 
 #: src/shortcuts/shortcut_definitions.ts:26
 msgid "Previous / next tunnel"
@@ -1983,6 +2130,10 @@ msgstr "Lire ~/.ssh/config"
 #: src/host_config/host_config_panel.tsx:41
 msgid "Reading the configuration…"
 msgstr "Lecture de la configuration…"
+
+#: src/import/transfer/config_import_section.tsx:23
+msgid "Reads a file exported by Tunneler, or a tunnels.toml. Tunnels are only added: nothing you already have is changed or removed. Added tunnels start stopped."
+msgstr "Lit un fichier exporté par Tunneler, ou un fichier tunnels.toml. Les tunnels sont seulement ajoutés : rien de ce que vous avez déjà n'est modifié ni supprimé. Les tunnels ajoutés restent arrêtés."
 
 #: src/tunnel_details/tunnel_metrics_section.tsx:29
 msgid "Received"
@@ -2029,7 +2180,7 @@ msgstr "Redirection distante {route}"
 msgid "Remove a tag"
 msgstr "Retirer un tag"
 
-#: src/tag_rename/tag_rename_content.tsx:144
+#: src/tag_rename/tag_rename_content.tsx:154
 msgid "Rename"
 msgstr "Renommer"
 
@@ -2077,7 +2228,7 @@ msgstr "Rétablir les tunnels actifs au lancement"
 
 #: src/disconnected_screen.tsx:23
 #: src/host_config/host_config_panel.tsx:55
-#: src/tunnel_details/tunnel_log_section.tsx:43
+#: src/tunnel_details/tunnel_log_section.tsx:44
 msgid "Retry"
 msgstr "Réessayer"
 
@@ -2085,15 +2236,39 @@ msgstr "Réessayer"
 msgid "Return to standby after (seconds)"
 msgstr "Retour en veille après (secondes)"
 
+#: src/import/transfer/describe_config_import.ts:115
+msgid "Risk: forwards remote connections to {targetHost}, which is not this machine"
+msgstr "Risque : redirige les connexions distantes vers {targetHost}, qui n'est pas cette machine"
+
+#: src/import/transfer/describe_config_import.ts:120
+msgid "Risk: its tags start on launch ({tagList})"
+msgstr "Risque : ses tags démarrent au lancement ({tagList})"
+
+#: src/import/transfer/describe_config_import.ts:96
+msgid "Risk: listens on {address} on the server, reachable from the server's network"
+msgstr "Risque : écoute sur {address} sur le serveur, accessible depuis le réseau du serveur"
+
+#: src/import/transfer/describe_config_import.ts:100
+msgid "Risk: listens on {address}, reachable from other machines"
+msgstr "Risque : écoute sur {address}, accessible depuis d'autres machines"
+
 #: src/tunnel_form/build_open_preview.ts:149
 msgid "Runs {command}"
 msgstr "Lance {command}"
 
-#: src/import/describe_import_conflict.ts:18
+#: src/import/describe_import_conflict.ts:36
 msgid "Same port as a tunnel above"
 msgstr "Même port qu'un tunnel plus haut"
 
-#: src/settings/settings_dialog_form.tsx:49
+#: src/import/transfer/describe_config_import.ts:56
+msgid "Same route as tunnel {position} of the file"
+msgstr "Même route que le tunnel {position} du fichier"
+
+#: src/import/transfer/describe_config_import.ts:59
+msgid "Same route as tunnel {position} of the file ({route})"
+msgstr "Même route que le tunnel {position} du fichier ({route})"
+
+#: src/settings/settings_dialog_form.tsx:50
 #: src/tunnel_form/tunnel_form_panel.tsx:37
 msgid "Save"
 msgstr "Enregistrer"
@@ -2110,6 +2285,10 @@ msgstr "Tunnels enregistrés à examiner"
 #: src/settings/settings_devslot_fieldset.tsx:45
 msgid "Saved tunnels whose port is no longer listed"
 msgstr "Tunnels enregistrés dont le port n'est plus listé"
+
+#: src/import/transfer/config_export_section.tsx:39
+msgid "Saves your tunnels to a file you can import on another machine. Settings, openers and passwords are not included. Without a filter, every saved tunnel is exported."
+msgstr "Enregistre vos tunnels dans un fichier que vous pouvez importer sur une autre machine. Les réglages, les applications d'ouverture et les mots de passe ne sont pas inclus. Sans filtre, tous les tunnels enregistrés sont exportés."
 
 #: src/tunnel_form/open_options_fields.tsx:113
 msgid "Scheme"
@@ -2148,7 +2327,8 @@ msgstr "Sélectionner {endpoint}"
 msgid "Select a range of tunnels"
 msgstr "Sélectionner une plage de tunnels"
 
-#: src/import/import_candidate_list.tsx:46
+#: src/import/import_candidate_list.tsx:62
+#: src/import/transfer/config_import_entry_list.tsx:61
 #: src/tunnels/selection/select_all_checkbox.tsx:32
 msgid "Select all"
 msgstr "Tout sélectionner"
@@ -2156,6 +2336,15 @@ msgstr "Tout sélectionner"
 #: src/shortcuts/shortcut_definitions.ts:51
 msgid "Select all displayed tunnels"
 msgstr "Sélectionner tous les tunnels affichés"
+
+#: src/import/devslot/devslot_start_form.tsx:67
+msgid "Select at least one port"
+msgstr "Sélectionnez au moins un port"
+
+#: src/import/import_preview.tsx:137
+#: src/import/transfer/config_import_preview.tsx:123
+msgid "Select at least one tunnel"
+msgstr "Sélectionnez au moins un tunnel"
 
 #: src/palette/build_palette_commands.ts:145
 msgid "Send {endpointLabel} to standby"
@@ -2473,7 +2662,7 @@ msgstr "Tag"
 msgid "Tag {tag}"
 msgstr "Tag {tag}"
 
-#: src/import/import_preview.tsx:97
+#: src/import/import_preview.tsx:96
 #: src/tunnels/selection/bulk_tags_content.tsx:109
 msgid "Tag to add"
 msgstr "Tag à ajouter"
@@ -2481,6 +2670,10 @@ msgstr "Tag à ajouter"
 #: src/tunnels/selection/bulk_tags_content.tsx:126
 msgid "Tag to remove"
 msgstr "Tag à retirer"
+
+#: src/daemon/describe_invalid_import_file.ts:23
+msgid "tags"
+msgstr "tags"
 
 #: src/sidebar/sidebar.tsx:88
 #: src/tunnels/list/tunnel_tag_chips.tsx:15
@@ -2495,6 +2688,10 @@ msgstr "Tags démarrés au lancement"
 msgid "Tags, separated by commas"
 msgstr "Tags séparés par des virgules"
 
+#: src/import/transfer/describe_config_import.ts:159
+msgid "tags: {tagList}"
+msgstr "tags : {tagList}"
+
 #: src/tunnels/selection/use_bulk_tunnel_actions.tsx:211
 msgid "Tags…"
 msgstr "Tags…"
@@ -2502,6 +2699,10 @@ msgstr "Tags…"
 #: src/tunnel_details/use_check_target.ts:37
 msgid "Target check inconclusive"
 msgstr "Test de la cible non concluant"
+
+#: src/daemon/describe_invalid_import_file.ts:22
+msgid "target host"
+msgstr "hôte cible"
 
 #: src/tunnel_form/tunnel_kind_texts.ts:37
 msgid "Target host"
@@ -2568,11 +2769,11 @@ msgstr "Les modifications apportées aux paramètres ne sont pas encore enregist
 msgid "The command is required."
 msgstr "La commande est obligatoire."
 
-#: src/daemon/describe_daemon_error.ts:78
+#: src/daemon/describe_daemon_error.ts:79
 msgid "The command on {host} did not finish within {seconds} s"
 msgstr "La commande sur {host} ne s'est pas terminée en {seconds} s"
 
-#: src/daemon/describe_daemon_error.ts:92
+#: src/daemon/describe_daemon_error.ts:93
 msgid "The daemon is not reachable"
 msgstr "Le daemon est injoignable"
 
@@ -2583,6 +2784,34 @@ msgstr "Le délai doit être un nombre entier de secondes supérieur à 0."
 #: src/settings/validate_settings_form.ts:18
 msgid "The duration must be zero or a positive number of seconds."
 msgstr "La durée doit être un nombre de secondes positif ou nul."
+
+#: src/daemon/describe_invalid_import_file.ts:52
+msgid "The file cannot be read (line {line}): {detail}"
+msgstr "Le fichier est illisible (ligne {line}) : {detail}"
+
+#: src/daemon/describe_invalid_import_file.ts:54
+msgid "The file cannot be read: {detail}"
+msgstr "Le fichier est illisible : {detail}"
+
+#: src/daemon/describe_invalid_import_file.ts:55
+msgid "The file cannot be read."
+msgstr "Le fichier est illisible."
+
+#: src/daemon/describe_invalid_import_file.ts:74
+msgid "The file contains control or hidden characters, so it was refused."
+msgstr "Le fichier contient des caractères de contrôle ou cachés, il a donc été refusé."
+
+#: src/daemon/describe_invalid_import_file.ts:98
+msgid "The file has more than {limit} tunnels."
+msgstr "Le fichier contient plus de {limit} tunnels."
+
+#: src/daemon/describe_invalid_import_file.ts:97
+msgid "The file has too many tunnels."
+msgstr "Le fichier contient trop de tunnels."
+
+#: src/daemon/describe_invalid_import_file.ts:92
+msgid "The file is larger than {kibibytes} KiB."
+msgstr "Le fichier fait plus de {kibibytes} Kio."
 
 #: src/devslot_link/build_devslot_link_modal_request.tsx:58
 msgid "The host {host} is not in your SSH configuration (ssh_config). Add it there, then open the link again."
@@ -2648,6 +2877,10 @@ msgstr "Le port doit être un entier entre 1 et 65535."
 msgid "The ports must be whole numbers between 1 and 65535, separated by commas."
 msgstr "Les ports doivent être des entiers entre 1 et 65535, séparés par des virgules."
 
+#: src/import/transfer/config_import_preview.tsx:57
+msgid "The preview is out of date: choose the alias again"
+msgstr "L'aperçu n'est plus à jour : choisissez de nouveau l'alias"
+
 #: src/openers/opener_form.tsx:157
 msgid "The program to run, without its arguments: a name found in the PATH, or the full path of the executable."
 msgstr "Le programme à lancer, sans ses arguments : un nom trouvé dans le PATH, ou le chemin complet de l’exécutable."
@@ -2672,7 +2905,7 @@ msgstr "L'agent SSH ne répond pas (aucune réponse en {timeoutSeconds} s) : att
 msgid "The system sound follows the system volume."
 msgstr "Le son du système suit le volume du système."
 
-#: src/tag_rename/tag_rename_content.tsx:37
+#: src/tag_rename/tag_rename_content.tsx:40
 msgid "The tag {name} already exists: the two will be merged."
 msgstr "Le tag {name} existe déjà : les deux seront fusionnés."
 
@@ -2696,7 +2929,7 @@ msgstr "Le tunnel est retiré de la configuration, et arrêté s’il est en cou
 msgid "The tunnel keeps its port without an SSH session until the first connection. Takes effect on the next start."
 msgstr "Le tunnel garde son port sans session SSH jusqu'à la première connexion. Prend effet au prochain démarrage."
 
-#: src/daemon/describe_daemon_error.ts:96
+#: src/daemon/describe_daemon_error.ts:97
 msgid "The update failed"
 msgstr "La mise à jour a échoué"
 
@@ -2720,9 +2953,25 @@ msgstr "Ils ne redémarreront pas après la mise à jour : « Rétablir les tunn
 msgid "They will restart after the update, because active tunnels are restored on launch."
 msgstr "Ils redémarreront après la mise à jour, car les tunnels actifs sont rétablis au lancement."
 
+#: src/daemon/describe_invalid_import_file.ts:65
+msgid "This file was written by a newer version of Tunneler (format {found}, this version reads up to {supported})."
+msgstr "Ce fichier a été écrit par une version plus récente de Tunneler (format {found}, cette version lit jusqu'au format {supported})."
+
+#: src/daemon/describe_invalid_import_file.ts:62
+msgid "This file was written by a newer version of Tunneler."
+msgstr "Ce fichier a été écrit par une version plus récente de Tunneler."
+
+#: src/daemon/describe_invalid_import_file.ts:88
+msgid "This file's plan is too large to show: import a file with fewer tunnels"
+msgstr "L'aperçu de ce fichier est trop volumineux : importez un fichier avec moins de tunnels"
+
 #: src/openers/validate_opener_form.ts:40
 msgid "This identifier is already used by one of your applications."
 msgstr "Cet identifiant est déjà utilisé par une de vos applications."
+
+#: src/daemon/describe_invalid_import_file.ts:114
+msgid "This is not a Tunneler export or tunnels file."
+msgstr "Ce n'est ni un export Tunneler ni un fichier de tunnels."
 
 #: src/devslot_link/build_devslot_link_modal_request.tsx:48
 msgid "This is not a valid Tunneler devslot link. A devslot link looks like tunneler://devslot/host/instance, with an SSH host of your configuration and the name of a devslot instance."
@@ -2781,6 +3030,14 @@ msgstr "Tunnel {label} supprimé"
 msgid "Tunnel {label} saved"
 msgstr "Tunnel {label} enregistré"
 
+#: src/daemon/describe_invalid_import_file.ts:80
+msgid "Tunnel {position} of the file has control or hidden characters in the field {fieldName}, so the whole file was refused."
+msgstr "Le tunnel {position} du fichier contient des caractères de contrôle ou cachés dans le champ {fieldName} : le fichier entier a été refusé."
+
+#: src/import/transfer/config_import_result.tsx:59
+msgid "Tunnel {position} of the file skipped: "
+msgstr "Tunnel {position} du fichier ignoré : "
+
 #: src/sidebar/sidebar.tsx:50
 msgid "Tunnel filters"
 msgstr "Filtres des tunnels"
@@ -2804,6 +3061,10 @@ msgstr "Tunneler continue de tourner quand vous fermez cette fenêtre. Pour la r
 #: src/devslot_link/devslot_link_confirm_content.tsx:51
 msgid "Tunneler will connect to the host over SSH, run <0>ds ls --json</0>, start tunnels for the web ports of the instance (temporary, unless your devslot setting saves them) and open the application in your browser."
 msgstr "Tunneler va se connecter à l'hôte en SSH, exécuter <0>ds ls --json</0>, démarrer des tunnels pour les ports web de l'instance (temporaires, sauf si votre réglage devslot les enregistre) et ouvrir l'application dans votre navigateur."
+
+#: src/import/transfer/config_import_entry_list.tsx:52
+msgid "Tunnels in the file ({entryCount})"
+msgstr "Tunnels du fichier ({entryCount})"
 
 #: src/settings/settings_open_fieldset.tsx:49
 msgid "Tunnels without an application"
@@ -2853,9 +3114,17 @@ msgstr "Progression de la mise à jour"
 msgid "Updates"
 msgstr "Mises à jour"
 
+#: src/import/transfer/config_import_preview.tsx:56
+msgid "Updating the preview…"
+msgstr "Mise à jour de l'aperçu…"
+
 #: src/tunnels/list/tunnel_list.tsx:112
 msgid "Use the up and down arrow keys to move between tunnels."
 msgstr "Utilisez les flèches haut et bas pour passer d’un tunnel à l’autre."
+
+#: src/import/transfer/host_alias_select.tsx:35
+msgid "Use this alias for {fileHost}"
+msgstr "Utiliser cet alias pour {fileHost}"
 
 #: src/host_config/host_config_table.tsx:27
 msgid "Value"
@@ -2885,7 +3154,7 @@ msgstr "Attendre en veille"
 msgid "Warning"
 msgstr "Avertissement"
 
-#: src/import/devslot/devslot_port_row.tsx:47
+#: src/import/devslot/devslot_port_row.tsx:51
 msgid "Warning: the app builds its links with port {remotePort}, which will not match this local port."
 msgstr "Attention : l'application construit ses liens avec le port {remotePort}, qui ne correspondra pas à ce port local."
 
@@ -2909,6 +3178,10 @@ msgstr "Au réveil d'un tunnel, et quand le réveil échoue."
 #: src/settings/settings_x11_server_start.tsx:29
 msgid "When no X server is running"
 msgstr "Quand aucun serveur X ne tourne"
+
+#: src/import/transfer/describe_config_import.ts:44
+msgid "Will be added"
+msgstr "Sera ajouté"
 
 #: src/settings/settings_secrets_section.tsx:26
 msgid "Windows: Credential Manager; Linux: Secret Service (GNOME Keyring, KWallet). When off, passphrases are remembered only until Tunneler is closed."
@@ -2934,7 +3207,7 @@ msgstr "X11 {host} : {label} ({detail})"
 msgid "X11 active: {display}"
 msgstr "X11 actif : {display}"
 
-#: src/x11/x11_anchor_section.tsx:26
+#: src/x11/x11_anchor_section.tsx:25
 msgid "X11 anchor"
 msgstr "Ancre X11"
 

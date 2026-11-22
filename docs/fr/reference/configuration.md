@@ -133,7 +133,7 @@ command = "code --wait"
 | Clé | Type | Défaut | Signification |
 |---|---|---|---|
 | `id` | chaîne ULID | générée | Identifiant stable. Deux tunnels ne peuvent pas en partager un. Quand il manque, Tunneler l'ajoute au fichier. |
-| `host` | chaîne | obligatoire | Alias du `ssh_config`. Non vide. |
+| `host` | chaîne | obligatoire | Alias du `ssh_config`. Non vide, et conforme aux règles des [Noms d'hôte](#noms-d-hote). |
 | `kind` | `"local"`, `"remote"` ou `"dynamic"` | obligatoire | Le sens de la redirection, comme `-L`, `-R` et `-D`. |
 | `listen_port` | entier | obligatoire | Port d'écoute, de 1 à 65535. Local : sur cet ordinateur. Distant : sur le serveur. |
 | `listen_address` | chaîne | `default_bind_address`, ou `default_remote_bind_address` pour un tunnel distant | Adresse d'écoute. Un nom d'hôte ne peut pas être ouvert avec « Ouvrir ». |
@@ -144,6 +144,14 @@ command = "code --wait"
 | `open` | table | `{}` | Comment le tunnel s'ouvre. |
 
 Deux tunnels locaux ou dynamiques ne peuvent pas écouter sur la même adresse et le même port. Deux tunnels distants du même hôte non plus.
+
+### Noms d'hôte
+
+Un alias d'hôte est transmis à l'évaluation du `ssh_config`, où `%h` et d'autres jetons sont développés : Tunneler applique donc la règle d'OpenSSH 9.6 (le correctif de la CVE-2023-51385). Un alias ne peut contenir que des lettres et des chiffres (de toute écriture) et les caractères `.` `_` `-` `:` `@` `[` `]`. Il ne peut pas commencer par `-` et fait au plus 255 octets. Tout le reste, comme une espace, des guillemets, `$`, `;`, `&`, `|`, `<`, `>`, des parenthèses, des accolades ou un caractère de contrôle, est refusé. `%` l'est aussi, parce que `cmd` développe `%VAR%` sous Windows.
+
+- Créer ou modifier un tunnel, démarrer un tunnel temporaire et importer un fichier refusent un tel hôte.
+- L'import depuis `ssh_config` et depuis des scripts `ssh -L` collés ignore un tel candidat et affiche un avertissement.
+- Un `tunnels.toml` modifié à la main avec un tel hôte se charge quand même, mais le tunnel ne peut pas se connecter : l'alias n'est jamais cherché dans `ssh_config`, aucune connexion n'est faite, et l'erreur dit pourquoi.
 
 ### `open`
 
@@ -186,6 +194,35 @@ Les clés `devslot_*` d'un hôte s'éditent à la main : la fenêtre ne les écr
 | `command` | chaîne | La ligne de commande. |
 
 Les trois sont obligatoires et non vides. Voyez [Transfert X11](../guide/x11).
+
+## Fichier d'export
+
+`tunneler export` et l'export de la fenêtre écrivent un fichier TOML que [un autre ordinateur peut importer](../guide/export-import). Il ne contient que des tunnels.
+
+```toml
+# Tunneler export (format version 1)
+format = "tunneler-export"
+version = 1
+
+[[tunnels]]
+host = "nova"
+kind = "local"
+listen_port = 3333
+tags = ["dev"]
+
+[tunnels.open]
+path = "/admin"
+```
+
+| Clé | Signification |
+|---|---|
+| `format` | Toujours `"tunneler-export"`. |
+| `version` | La version du format d'export, `1`. Un fichier de version supérieure est refusé : il vient d'un Tunneler plus récent. |
+| `[[tunnels]]` | Les mêmes clés que [`[[tunnels]]`](#tunnels) ci-dessus, sans `id`. Les clés non définies sont omises. |
+
+Les tunnels suivent l'ordre de `tunnels.toml`. Le fichier n'a ni `[settings]`, ni `[[openers]]`, ni `[hosts.<alias>]`, ni `[[x11_launchers]]`, et rien de `state.toml`. Une clé inconnue est refusée.
+
+L'import lit aussi un `tunnels.toml` (un fichier sans clé `format`) : il en prend les `[[tunnels]]`, ignore toutes les autres tables et remplace les identifiants. Toute autre valeur de `format` est refusée. Un fichier fait au plus 256 Kio, avec au plus 1000 tunnels, et une valeur contenant un caractère de contrôle ou de direction invisible fait refuser tout le fichier à l'import.
 
 ## `state.toml`
 

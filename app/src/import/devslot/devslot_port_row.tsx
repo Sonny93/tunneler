@@ -9,6 +9,7 @@ import {
 	type DevslotPortEntry,
 } from '#/import/devslot/devslot_ports';
 import type { DevslotPortProblem } from '#/import/devslot/find_devslot_problems';
+import { useDaemonStore } from '#/state/daemon_store';
 
 type DevslotPortRowProps = {
 	entry: DevslotPortEntry;
@@ -32,6 +33,7 @@ export function DevslotPortRow({
 	onLocalPortChange,
 }: Readonly<DevslotPortRowProps>) {
 	const { t, i18n } = useLingui();
+	const tunnels = useDaemonStore((state) => state.tunnels);
 	const { key, port, instance } = entry;
 	const variable = port.var;
 	const instanceName = instance.name;
@@ -41,7 +43,9 @@ export function DevslotPortRow({
 	const isFieldShown =
 		isTunnelable && (problem !== null || isLocalPortChanged || isFieldPinned);
 	const problemText =
-		problem === null ? undefined : describeDevslotProblem(problem, i18n);
+		problem === null
+			? undefined
+			: describeDevslotProblem(problem, tunnels, i18n);
 	const hasError = isShowingErrors && isSelected && problemText !== undefined;
 	const mismatchWarning = isLocalPortChanged
 		? t`Warning: the app builds its links with port ${remotePort}, which will not match this local port.`

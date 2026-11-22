@@ -11,9 +11,12 @@ All notable changes to Tunneler are written here for the people who use it. The 
 - The `tunneler://devslot/<host>/<instance>` link does the same from a page or a message. Tunneler always asks for confirmation, naming the host and the instance, before it connects. The Windows installer and the Debian package register the link, and so does `tunneler desktop-entry install` for the archive. The Windows portable zip, the AppImage and macOS do not.
 - Settings `devslot_persist` and `devslot_stale`, and per host `devslot_path` (where `ds` is on the host) and `devslot_persist`, in `tunnels.toml`.
 - `open.host_name` on a tunnel: a `<label>.localhost` name used in the URL opened in the browser.
+- `tunneler export` and `tunneler import` move your tunnels to another computer. The "File" tab of the "Import and export" drawer does the same from the window, with native file dialogs. The file holds tunnels with their tags, open options and standby choice, and nothing else: no settings, applications, X11 launchers, passwords or passphrases. An import only adds tunnels. It shows a preview first, skips tunnels you already have and tunnels whose port is already used, lets you pick another host alias, drops an application this computer does not have, and leaves tunnels that listen beyond this computer, forward remote connections elsewhere or start at launch unchecked. A `tunnels.toml` can be imported as well. A file is limited to 256 KiB and 1000 tunnels.
 
 ### Changed
 
+- The import drawer is now called "Import and export".
+- The import from `ssh_config`, from pasted scripts and from devslot now checks in the daemon for tunnels you already have and ports already used, with the same rules as the import from a file.
 - The X11 drawer shows its sections as cards, like the tunnel details drawer: anchor, X server, remote display and launchers.
 - The card titles of the X11, tunnel details and tunnel form drawers are smaller and take less room.
 - The tray icon is now the Tunneler logo, its arch coloured by the global state (grey when idle, green when healthy, amber when degraded, red on error), instead of a different shape per state.
@@ -26,6 +29,10 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 - When the SSH connection fails while launching an X11 app or discovering devslot instances, the window now says which host could not be reached and why, instead of showing an internal error.
 - The daemon no longer waits for the detection of the applications before it starts, so a slow folder in the `PATH` (for example on an unreachable network share) no longer delays it.
+
+### Security
+
+- A host alias may now only contain letters, digits and `. _ - : @ [ ]`, may not start with `-` and is at most 255 bytes (`%` is refused too, as `cmd` expands it on Windows). Any other alias is refused when you create or import a tunnel, and is never looked up in `ssh_config` or connected to. This goes beyond the OpenSSH 9.6 fix for CVE-2023-51385. A hand-edited `tunnels.toml` with such a host still loads, but its tunnel cannot connect.
 
 ## [0.6.1] - 2026-11-18
 

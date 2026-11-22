@@ -1,5 +1,7 @@
 import type {
 	AvailableOpenerDto,
+	ConfigImportEntryDto,
+	ConfigImportPlanDto,
 	DevslotDiscoveryDto,
 	DevslotInstanceDto,
 	DevslotPortDto,
@@ -198,6 +200,28 @@ export function buildImportPreview(
 	overrides: Readonly<Partial<ImportPreviewDto>> = {}
 ): ImportPreviewDto {
 	return { candidates: [], warnings: [], ...overrides };
+}
+
+export function buildConfigImportEntry(
+	overrides: Readonly<Partial<ConfigImportEntryDto>> = {}
+): ConfigImportEntryDto {
+	return {
+		index: 0,
+		tunnel: { host: 'nova', kind: 'local', listenPort: 3333, tags: [] },
+		fileHost: 'nova',
+		effectiveListenAddress: '127.0.0.1',
+		status: { kind: 'importable' },
+		risks: [],
+		warnings: [],
+		selectedByDefault: true,
+		...overrides,
+	};
+}
+
+export function buildConfigImportPlan(
+	overrides: Readonly<Partial<ConfigImportPlanDto>> = {}
+): ConfigImportPlanDto {
+	return { source: 'export', entries: [], unknownHosts: [], ...overrides };
 }
 
 export function buildDevslotPort(

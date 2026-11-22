@@ -924,3 +924,323 @@ async fn should_run_the_opener_of_the_user_with_the_substituted_arguments_when_o
     .await;
     assert_echoes(port).await;
 }
+
+fn import_file(host: &str, listen_port: u16) -> String {
+    format!(
+        "format = \"tunneler-export\"\nversion = 1\n\n[[tunnels]]\nhost = \"{host}\"\nkind = \"local\"\nlisten_port = {listen_port}\ntags = [\"imported\"]\n"
+    )
+}
+
+fn write_import_file(fixture: &Fixture, name: &str, contents: &str) -> String {
+    let path = fixture.workspace.file(name);
+    std::fs::write(&path, contents).unwrap();
+    path.display().to_string()
+}
+
+async fn start_daemon_with_saved_tunnels(fixture: &Fixture) {
+    let output = fixture.run(&["up", "gamma"]).await;
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+}
+
+fn saved_tunnels_text(fixture: &Fixture) -> String {
+    std::fs::read_to_string(fixture.workspace.file("tunnels.toml")).unwrap()
+}
+
+fn saved_tunnel_count(fixture: &Fixture) -> usize {
+    saved_tunnels_text(fixture).matches("[[tunnels]]").count()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_print_every_saved_tunnel_without_identifiers_when_exporting() {
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+
+    let output = fixture.run(&["export"]).await;
+
+    let text = stdout(&output);
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    assert!(
+        text.starts_with("# Tunneler export (format version 1)")
+            && text.contains("format = \"tunneler-export\"")
+            && text.matches("[[tunnels]]").count() == 3
+            && !text.contains("id ="),
+        "{text}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_export_only_the_tagged_tunnels_and_count_them_when_exporting_with_json() {
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+
+    let output = fixture.run(&["export", "--tag", "gamma", "--json"]).await;
+
+    let json: Value = serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(
+        (code(&output), json["tunnelCount"].clone()),
+        (0, serde_json::json!(1))
+    );
+    assert_eq!(
+        json["contents"]
+            .as_str()
+            .unwrap()
+            .matches("[[tunnels]]")
+            .count(),
+        1
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_write_the_file_and_refuse_to_replace_it_without_force_when_exporting_to_a_file() {
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+    let path = fixture.workspace.file("backup.toml");
+    let path_text = path.display().to_string();
+
+    let first = fixture.run(&["export", "-o", &path_text]).await;
+    let second = fixture.run(&["export", "-o", &path_text]).await;
+    let forced = fixture.run(&["export", "-o", &path_text, "--force"]).await;
+
+    assert_eq!(
+        (code(&first), code(&second), code(&forced)),
+        (0, EXIT_ERROR, 0),
+        "{}",
+        stderr(&second)
+    );
+    assert!(
+        stderr(&second).contains("already exists")
+            && stderr(&second).contains("hint: pick another name, or pass --force"),
+        "{}",
+        stderr(&second)
+    );
+    assert!(
+        std::fs::read_to_string(&path)
+            .unwrap()
+            .contains("tunneler-export")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_list_the_saved_tunnels_as_already_configured_and_change_nothing_when_importing_an_export_with_dry_run()
+ {
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+    let exported = stdout(&fixture.run(&["export"]).await);
+    let path = write_import_file(&fixture, "again.toml", &exported);
+
+    let output = fixture.run(&["import", "--dry-run", &path]).await;
+
+    let text = stdout(&output);
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    assert_eq!(text.matches("already configured").count(), 3, "{text}");
+    assert!(
+        text.contains("3 tunnels in the file: 0 to import, 0 not selected, 3 skipped, 0 invalid"),
+        "{text}"
+    );
+    assert_eq!(saved_tunnel_count(&fixture), 3);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_print_the_plan_and_exit_with_5_when_importing_without_a_terminal_and_without_yes() {
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+    let port = free_port().await;
+    let path = write_import_file(&fixture, "new.toml", &import_file(ALIAS, port));
+
+    let output = fixture.run(&["import", &path]).await;
+
+    let text = stdout(&output);
+    assert_eq!(
+        code(&output),
+        EXIT_CONFIRMATION_REQUIRED,
+        "{}",
+        stderr(&output)
+    );
+    assert!(text.contains("will import"), "{text}");
+    assert!(
+        stderr(&output).contains("hint: run it in a terminal to be asked, pass --yes"),
+        "{}",
+        stderr(&output)
+    );
+    assert_eq!(saved_tunnel_count(&fixture), 3);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_add_the_tunnel_and_keep_the_saved_ones_when_importing_with_yes() {
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+    let port = free_port().await;
+    let before = saved_tunnels_text(&fixture);
+    let path = write_import_file(&fixture, "new.toml", &import_file(ALIAS, port));
+
+    let output = fixture.run(&["import", "--yes", &path]).await;
+
+    let text = stdout(&output);
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    assert!(text.contains("Imported 1 tunnel."), "{text}");
+    let after = saved_tunnels_text(&fixture);
+    assert!(after.contains(&format!("listen_port = {port}")), "{after}");
+    assert_eq!(after.matches("[[tunnels]]").count(), 4);
+    for line in before.lines().filter(|line| !line.is_empty()) {
+        assert!(after.contains(line), "lost: {line}");
+    }
+    let listed = stdout(&fixture.run(&["list"]).await);
+    assert!(listed.contains("[imported]"), "{listed}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_read_the_file_from_the_standard_input_when_the_file_is_a_dash() {
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+    let port = free_port().await;
+    let mut command = fixture.command(&["import", "--yes", "-"]);
+    command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let mut child = command.spawn().unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    stdin
+        .write_all(import_file(ALIAS, port).as_bytes())
+        .await
+        .unwrap();
+    drop(stdin);
+
+    let output = timeout(WAIT * 3, child.wait_with_output())
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    assert_eq!(saved_tunnel_count(&fixture), 4);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_print_the_plan_as_one_line_of_json_when_importing_with_dry_run_and_json() {
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+    let port = free_port().await;
+    let path = write_import_file(&fixture, "new.toml", &import_file(ALIAS, port));
+
+    let output = fixture.run(&["import", "--dry-run", "--json", &path]).await;
+
+    let text = stdout(&output);
+    let json: Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(
+        (
+            code(&output),
+            text.trim_end().lines().count(),
+            json["entries"][0]["status"]["kind"].clone(),
+            json["entries"][0]["selectedByDefault"].clone()
+        ),
+        (
+            0,
+            1,
+            serde_json::json!("importable"),
+            serde_json::json!(true)
+        )
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_print_the_plan_and_the_report_when_importing_with_yes_and_json() {
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+    let path = write_import_file(&fixture, "new.toml", &import_file(ALIAS, free_port().await));
+
+    let output = fixture.run(&["import", "--yes", "--json", &path]).await;
+
+    let json: Value = serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(
+        (
+            code(&output),
+            json["plan"]["entries"].as_array().unwrap().len(),
+            json["report"]["added"].as_array().unwrap().len()
+        ),
+        (0, 1, 1)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_report_the_unknown_host_and_use_the_alias_when_importing_with_a_host_map() {
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+    let path = write_import_file(
+        &fixture,
+        "old.toml",
+        &import_file("oldbox", free_port().await),
+    );
+
+    let unmapped = fixture.run(&["import", "--dry-run", &path]).await;
+    let mapped_argument = format!("oldbox={ALIAS}");
+    let mapped = fixture
+        .run(&["import", "--dry-run", "--host-map", &mapped_argument, &path])
+        .await;
+
+    let unmapped_text = stdout(&unmapped);
+    assert!(
+        unmapped_text.contains("names exactly: oldbox")
+            && unmapped_text.contains("--host-map oldbox=ALIAS"),
+        "{unmapped_text}"
+    );
+    let mapped_text = stdout(&mapped);
+    assert!(
+        !mapped_text.contains("names exactly") && mapped_text.contains(&format!("{ALIAS}:")),
+        "{mapped_text}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_exit_with_2_when_the_host_map_is_not_old_equals_new() {
+    let fixture = Fixture::start().await;
+
+    let output = fixture
+        .run(&["import", "--host-map", "oldbox", "backup.toml"])
+        .await;
+
+    assert_eq!(code(&output), EXIT_USAGE);
+    assert!(stderr(&output).contains("OLD=NEW"), "{}", stderr(&output));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_refuse_a_file_over_the_cap_before_starting_the_daemon() {
+    let fixture = Fixture::start().await;
+    let path = write_import_file(&fixture, "big.toml", &"a".repeat(262_145));
+
+    let output = fixture.run(&["import", "--yes", &path]).await;
+
+    assert_eq!(code(&output), EXIT_ERROR);
+    assert!(
+        stderr(&output).contains("is larger than the limit of 256 KiB"),
+        "{}",
+        stderr(&output)
+    );
+    assert_eq!(
+        code(&fixture.run(&["status"]).await),
+        EXIT_DAEMON_NOT_RUNNING
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_exit_with_1_and_say_the_file_is_not_valid_when_it_is_not_toml() {
+    let fixture = Fixture::start().await;
+    let path = write_import_file(&fixture, "bad.toml", "[[tunnels]\nhost = ");
+
+    let output = fixture.run(&["import", "--dry-run", &path]).await;
+
+    assert_eq!(code(&output), EXIT_ERROR);
+    assert!(stderr(&output).contains("not valid"), "{}", stderr(&output));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_print_no_escape_sequence_when_importing_without_a_terminal() {
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+    let path = write_import_file(&fixture, "new.toml", &import_file(ALIAS, free_port().await));
+
+    let output = fixture
+        .run_with_environment(&["import", "--dry-run", &path], &[("NO_COLOR", "1")])
+        .await;
+
+    assert!(!stdout(&output).contains(ESCAPE), "{}", stdout(&output));
+}

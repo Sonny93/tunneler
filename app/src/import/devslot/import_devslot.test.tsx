@@ -9,6 +9,7 @@ import { ImportDrawer } from '#/import/import_drawer';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
+import { classifyAgainstStore } from '#/testing/classify_against_store';
 import {
 	buildDevslotDiscovery,
 	buildDevslotInstance,
@@ -59,6 +60,7 @@ const buildFullDiscovery = (
 function renderDrawer(discovery: DevslotDiscoveryDto = buildFullDiscovery()) {
 	const gateway = createFakeGateway();
 	gateway.discoverDevslot.mockResolvedValue(discovery);
+	gateway.classifyImports.mockImplementation(classifyAgainstStore);
 	useDaemonStore.setState({
 		settings: buildSettings(),
 		hosts: ['nova', 'vega'],
@@ -627,6 +629,122 @@ describe('Import from devslot', () => {
 		expect(getPort(/^PORT/)).toHaveAccessibleDescription(
 			/Port already used by/
 		);
+	});
+
+	it('should ask the daemon about the chosen ports first, then the others', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer(
+			buildFullDiscovery({
+				instances: [
+					buildDevslotInstance({
+						ports: [
+							buildDevslotPort({ var: 'A', port: 20_050, kind: 'service' }),
+							buildDevslotPort({ var: 'B', port: 20_051 }),
+						],
+					}),
+				],
+			})
+		);
+		await discover(user);
+
+		await waitFor(() =>
+			expect(gateway.classifyImports).toHaveBeenLastCalledWith([
+				expect.objectContaining({ listenPort: 20_051 }),
+				expect.objectContaining({ listenPort: 20_050 }),
+			])
+		);
+		await user.click(getPort(/^A/));
+
+		await waitFor(() =>
+			expect(gateway.classifyImports).toHaveBeenLastCalledWith([
+				expect.objectContaining({ listenPort: 20_050 }),
+				expect.objectContaining({ listenPort: 20_051 }),
+			])
+		);
+	});
+
+	it('should show the conflict of a port that is not chosen', async () => {
+		const user = userEvent.setup();
+		useDaemonStore.setState({
+			tunnels: [
+				buildTunnel({ host: 'vega', listenPort: 20_050, targetPort: 9 }),
+			],
+		});
+		renderDrawer();
+		await discover(user);
+
+		expect(
+			await screen.findByRole('textbox', {
+				name: 'Local port for PORT of web-shop-feat-auth-3f2a',
+			})
+		).toHaveAccessibleDescription(/Port already used by/);
+	});
+
+	it('should keep the start button disabled while the daemon has not answered', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		await discover(user);
+		await screen.findByRole('button', { name: 'Start 1 tunnel' });
+		let answer: (conflicts: null[]) => void = () => undefined;
+		gateway.classifyImports.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					answer = resolve;
+				})
+		);
+
+		await user.click(getPort(/^HTTP/));
+
+		const pendingButton = screen.getByRole('button', {
+			name: 'Start 2 tunnels',
+		});
+		expect(pendingButton).toHaveAttribute('aria-disabled', 'true');
+		expect(pendingButton).toHaveAccessibleDescription(
+			'Checking for conflicts…'
+		);
+		await user.click(pendingButton);
+		expect(gateway.startTemporaryTunnel).not.toHaveBeenCalled();
+		expect(await axe(document.body)).toHaveNoViolations();
+		act(() => answer([null, null, null]));
+		await waitFor(() =>
+			expect(
+				screen.getByRole('button', { name: 'Start 2 tunnels' })
+			).toBeEnabled()
+		);
+	});
+
+	it('should keep the start button focusable and say why when no port is chosen', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		await discover(user);
+		await user.click(getPort(/^PORT/));
+		const button = screen.getByRole('button', { name: 'Start 0 tunnels' });
+
+		button.focus();
+		await user.click(button);
+
+		expect(button).toHaveAttribute('aria-disabled', 'true');
+		expect(button).toHaveAccessibleDescription('Select at least one port');
+		expect(button).toHaveFocus();
+		expect(gateway.startTemporaryTunnel).not.toHaveBeenCalled();
+	});
+
+	it('should say so when the check for conflicts fails and keep the start possible', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		gateway.classifyImports.mockRejectedValue(
+			new DaemonCommandError('disconnected', 'lost')
+		);
+		await discover(user);
+
+		expect(
+			await screen.findByText(
+				'Could not check for conflicts; creation will still refuse clashes.'
+			)
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole('button', { name: 'Start 1 tunnel' })
+		).not.toHaveAttribute('aria-disabled');
 	});
 
 	describe('with a local port busy on this computer', () => {

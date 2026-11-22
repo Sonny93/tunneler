@@ -3,7 +3,11 @@ import { listen } from '@tauri-apps/api/event';
 
 import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import type { DaemonGateway, Unsubscribe } from '#/daemon/daemon_gateway';
-import type { EventMessage, UpdateProgressDto } from '#/daemon/protocol';
+import type {
+	EventMessage,
+	ImportClassifyResultDto,
+	UpdateProgressDto,
+} from '#/daemon/protocol';
 
 const EVENT_CHANNEL = 'daemon-event';
 const DISCONNECTED_CHANNEL = 'daemon-disconnected';
@@ -51,6 +55,20 @@ export function createTauriGateway(): DaemonGateway {
 		resolveHost: (host) => call('resolve_host', { host }),
 		importSshConfig: () => call('import_ssh_config'),
 		importScript: (text) => call('import_script', { text }),
+		classifyImports: async (candidates) => {
+			const result = await call<ImportClassifyResultDto>('classify_imports', {
+				candidates,
+			});
+			return result.conflicts;
+		},
+		exportConfig: (hosts, tags) => call('export_config', { hosts, tags }),
+		exportToFile: (contents, suggestedFileName) =>
+			call('export_to_file', { contents, suggestedFileName }),
+		pickImportFile: () => call('pick_import_file'),
+		previewConfigImport: (contents, hostMap) =>
+			call('preview_config_import', { contents, hostMap }),
+		applyConfigImport: (contents, hostMap, indexes) =>
+			call('apply_config_import', { contents, hostMap, indexes }),
 		discoverDevslot: (host) => call('discover_devslot', { host }),
 		resyncDevslot: (host, tunnels) => call('resync_devslot', { host, tunnels }),
 		devslotUp: (host, instance, open) =>

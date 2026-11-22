@@ -17,7 +17,10 @@ import {
 import { describeDaemonError } from '#/daemon/describe_daemon_error';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { FormErrorSummary } from '#/shared/form_error_summary';
-import { getSubmissionErrorMessages } from '#/shared/submission_error_messages';
+import {
+	getEnglishTexts,
+	getSubmissionErrorMessages,
+} from '#/shared/submission_error_messages';
 import { pushToast } from '#/shared/toasts/push_toast';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
 import { useDaemonStore } from '#/state/daemon_store';
@@ -56,9 +59,12 @@ export function TagRenameContent({
 		trimmedName !== tag &&
 		tunnels.some(({ tags }) => tags.includes(trimmedName));
 
-	const rejectName = (messages: readonly string[]) => {
+	const rejectName = (
+		messages: readonly string[],
+		englishTexts: readonly string[]
+	) => {
 		setError(messages.join(' '));
-		summary.reportMessages(messages);
+		summary.reportMessages(messages, englishTexts);
 		inputRef.current?.focus();
 	};
 
@@ -83,7 +89,10 @@ export function TagRenameContent({
 
 	const reportFailure = (failure: Readonly<DaemonCommandError>) => {
 		if (failure.code === VALIDATION_FAILED_CODE) {
-			rejectName(getSubmissionErrorMessages(failure, i18n));
+			rejectName(
+				getSubmissionErrorMessages(failure, i18n),
+				getEnglishTexts(failure, i18n)
+			);
 			return;
 		}
 		const failureMessage = i18n._(msg`Couldn't rename the tag`);
@@ -112,7 +121,7 @@ export function TagRenameContent({
 		if (isSaving) return;
 		const validationError = validateTagName(name, tag);
 		if (validationError !== null) {
-			rejectName([i18n._(validationError)]);
+			rejectName([i18n._(validationError)], []);
 			return;
 		}
 		void rename();
@@ -123,6 +132,7 @@ export function TagRenameContent({
 			<form id={formId} noValidate onSubmit={handleSubmit}>
 				<FormErrorSummary
 					messages={summary.messages}
+					englishTexts={summary.englishTexts}
 					attach={summary.attachSummary}
 				/>
 				<Input

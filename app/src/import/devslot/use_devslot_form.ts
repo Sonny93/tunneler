@@ -2,7 +2,7 @@ import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 import { useEffect, useMemo, useRef, useState, type SubmitEvent } from 'react';
 
-import type { DevslotDiscoveryDto, SettingsDto } from '#/daemon/protocol';
+import type { DevslotDiscoveryDto, ImportConflictDto } from '#/daemon/protocol';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import {
 	buildSavedDevslotSpecs,
@@ -18,6 +18,7 @@ import {
 	describeStartOutcome,
 } from '#/import/devslot/devslot_texts';
 import {
+	buildDevslotClassifyRequest,
 	findDevslotProblems,
 	type DevslotLocalPorts,
 } from '#/import/devslot/find_devslot_problems';
@@ -29,9 +30,9 @@ import {
 	startTemporaryDevslotTunnels,
 	type DevslotStartOutcome,
 } from '#/import/devslot/run_devslot_start';
+import { useDevslotConflicts } from '#/import/devslot/use_devslot_conflicts';
 import { pushToast } from '#/shared/toasts/push_toast';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
-import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 
 const LOCAL_PORT_FIELD_PREFIX = 'localPort-';
@@ -45,6 +46,10 @@ type UseDevslotFormReturn = {
 	isShowingErrors: boolean;
 	pinnedKeys: ReadonlySet<string>;
 	isStarting: boolean;
+	/** `true` while the daemon has not answered for the current choice of ports. */
+	isCheckingConflicts: boolean;
+	/** `true` while the last check for conflicts failed. */
+	hasConflictCheckFailed: boolean;
 	statusMessage: string;
 	summary: ReturnType<typeof useFormErrorSummary>;
 	summaryTitle: string;
@@ -56,17 +61,11 @@ type UseDevslotFormReturn = {
 
 export function useDevslotForm(
 	discovery: Readonly<DevslotDiscoveryDto>,
-	settings: Readonly<SettingsDto>,
 	removedIds: ReadonlySet<string>
 ): UseDevslotFormReturn {
 	const { i18n } = useLingui();
 	const gateway = useDaemonGateway();
-	const storedTunnels = useDaemonStore((state) => state.tunnels);
 	const { host } = discovery;
-	const tunnels = useMemo(
-		() => storedTunnels.filter(({ id }) => !removedIds.has(id)),
-		[storedTunnels, removedIds]
-	);
 	const entries = useMemo(
 		() =>
 			flattenDevslotPorts(releaseRemovedPorts(discovery.instances, removedIds)),
@@ -74,8 +73,9 @@ export function useDevslotForm(
 	);
 	const previousEntries = useRef(entries);
 	const [selectedKeys, setSelectedKeys] = useState(() =>
-		getInitialDevslotSelection(entries, tunnels, settings, host)
+		getInitialDevslotSelection(entries)
 	);
+	const unvettedKeys = useRef(new Set(selectedKeys));
 	const [localPorts, setLocalPorts] = useState<DevslotLocalPorts>({});
 	const [isPersistent, setIsPersistent] = useState(discovery.persistDefault);
 	const [isShowingErrors, setIsShowingErrors] = useState(false);
@@ -84,14 +84,35 @@ export function useDevslotForm(
 	const [statusMessage, setStatusMessage] = useState('');
 	const [summaryTitle, setSummaryTitle] = useState('');
 	const summary = useFormErrorSummary();
-	const problems = findDevslotProblems({
+	const request = buildDevslotClassifyRequest({
 		entries,
 		localPorts,
 		selectedKeys,
-		tunnels,
-		settings,
 		host,
 	});
+	const vetPreselection = (
+		chosenKeys: readonly string[],
+		conflictsByKey: ReadonlyMap<string, ImportConflictDto | null>
+	) => {
+		const vetted = chosenKeys.filter((key) => unvettedKeys.current.has(key));
+		for (const key of vetted) unvettedKeys.current.delete(key);
+		const conflicting = new Set(
+			vetted.filter((key) => conflictsByKey.get(key) != null)
+		);
+		if (conflicting.size === 0) return;
+		setSelectedKeys(
+			(current) => new Set([...current].filter((key) => !conflicting.has(key)))
+		);
+	};
+	const { conflictsByKey, isPending, hasFailed } = useDevslotConflicts(
+		request,
+		vetPreselection
+	);
+	const problems = findDevslotProblems(
+		{ entries, localPorts },
+		request,
+		conflictsByKey
+	);
 
 	useEffect(() => {
 		const before = previousEntries.current;
@@ -105,9 +126,10 @@ export function useDevslotForm(
 				)
 		);
 		if (freed.length === 0) return;
-		const added = getInitialDevslotSelection(freed, tunnels, settings, host);
+		const added = getInitialDevslotSelection(freed);
+		for (const key of added) unvettedKeys.current.add(key);
 		setSelectedKeys((current) => new Set([...current, ...added]));
-	}, [entries, tunnels, settings, host]);
+	}, [entries]);
 
 	const togglePort = (key: string) =>
 		setSelectedKeys((current) => {
@@ -141,7 +163,8 @@ export function useDevslotForm(
 		summary.reportMessages(
 			outcome.failures.map((failure) =>
 				describeDevslotStartFailure(failure, i18n)
-			)
+			),
+			outcome.failures.flatMap((failure) => failure.englishTexts)
 		);
 	};
 
@@ -180,7 +203,7 @@ export function useDevslotForm(
 
 	const submit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		if (isStarting || selectedKeys.size === 0) return;
+		if (isStarting || isPending || selectedKeys.size === 0) return;
 		const invalidKey = entries.find(
 			({ key }) =>
 				selectedKeys.has(key) &&
@@ -204,6 +227,8 @@ export function useDevslotForm(
 		isShowingErrors,
 		pinnedKeys,
 		isStarting,
+		isCheckingConflicts: isPending,
+		hasConflictCheckFailed: hasFailed,
 		statusMessage,
 		summary,
 		summaryTitle,

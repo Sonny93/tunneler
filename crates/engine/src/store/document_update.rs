@@ -209,6 +209,25 @@ fn claim<Definition>(
     Some(index)
 }
 
+/// The `[[tunnels]]` table of a configuration export: the fields of the
+/// store without the id, the optional ones left out when absent and the open
+/// options as their own table.
+pub(crate) fn export_tunnel_table(tunnel: &TunnelDefinition) -> Table {
+    let mut table = new_section();
+    apply_tunnel(&mut table, tunnel);
+    table.remove("id");
+    if tunnel.tags.is_empty() {
+        table.remove("tags");
+    }
+    if let Some(open) = table
+        .remove(OPEN_KEY)
+        .and_then(|item| item.into_table().ok())
+    {
+        table.insert(OPEN_KEY, Item::Table(open));
+    }
+    table
+}
+
 fn apply_tunnel(table: &mut Table, tunnel: &TunnelDefinition) {
     set_value(table, "id", Value::from(tunnel.id.to_string()));
     table.remove(LEGACY_NAME_KEY);

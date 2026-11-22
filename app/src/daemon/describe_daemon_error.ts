@@ -2,6 +2,7 @@ import type { I18n } from '@lingui/core';
 import { msg } from '@lingui/core/macro';
 
 import type { DaemonCommandError } from '#/daemon/daemon_command_error';
+import { describeInvalidImportFile } from '#/daemon/describe_invalid_import_file';
 
 function readText(data: unknown, key: string): string | null {
 	if (typeof data !== 'object' || data === null) return null;
@@ -104,6 +105,8 @@ export function describeDaemonError(
 			return describeDevslotInvalidOutput(error, i18n);
 		case 'devslot_instance_not_found':
 			return describeDevslotInstanceNotFound(error, i18n);
+		case 'invalid_import_file':
+			return describeInvalidImportFile(error, i18n);
 		case 'connection_failed':
 			return describeConnectionFailed(error, i18n);
 		case 'remote_command_timeout':

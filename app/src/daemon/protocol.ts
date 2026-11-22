@@ -148,12 +148,111 @@ export type ImportWarningDto =
 	| { kind: 'malformedForward'; line: number; text: string }
 	| { kind: 'unsupportedForward'; line?: number; host?: string; text: string }
 	| { kind: 'unknownDestination'; destination: string }
-	| { kind: 'hostResolutionFailed'; host: string; message: string };
+	| { kind: 'hostResolutionFailed'; host: string; message: string }
+	/** `host` is stripped of control and bidirectional characters, for display only. */
+	| { kind: 'invalidHost'; line?: number; host: string };
 
 export type ImportPreviewDto = {
 	candidates: ImportCandidateDto[];
 	warnings: ImportWarningDto[];
 };
+
+/** A route of an import source, host included, to check against the saved tunnels. */
+export type ImportRouteDto = {
+	host: string;
+	kind: TunnelKindDto;
+	listenPort: number;
+	listenAddress?: string;
+	targetHost?: string;
+	targetPort?: number;
+};
+
+export type ImportConflictDto =
+	| { kind: 'alreadyConfigured' }
+	| { kind: 'listenConflict'; holderId: string }
+	| { kind: 'duplicateInImport' };
+
+/** One entry per candidate of the call, in the same order; `null` when the route can be added. */
+export type ImportClassifyResultDto = {
+	conflicts: (ImportConflictDto | null)[];
+};
+
+export type ConfigExportResultDto = {
+	/** The export file, as TOML text. */
+	contents: string;
+	tunnelCount: number;
+};
+
+export type ConfigImportSourceDto = 'export' | 'store';
+
+export type ConfigImportStatusDto =
+	| { kind: 'importable' }
+	| { kind: 'alreadyConfigured'; existingId: string; ignoredTags: string[] }
+	| { kind: 'listenConflict'; holderId: string }
+	| { kind: 'duplicateInFile'; earlierIndex: number }
+	/** English messages from the engine. */
+	| { kind: 'invalid'; messages: string[] };
+
+export type ConfigImportRiskDto =
+	| { kind: 'nonLoopbackListen'; address: string }
+	| { kind: 'remoteNonLoopbackTarget'; targetHost: string }
+	| { kind: 'startsOnLaunch'; tags: string[] };
+
+export type ConfigImportEntryWarningDto =
+	| { kind: 'unknownHost'; host: string }
+	| { kind: 'openerDropped'; opener: string };
+
+export type ConfigImportEntryDto = {
+	/** 0-based position in the tunnel list of the file. */
+	index: number;
+	/** What would be created, after the host map and the dropped opener. */
+	tunnel: TunnelSpecDto;
+	/** The host as written in the file, before the host map. */
+	fileHost: string;
+	effectiveListenAddress: string;
+	status: ConfigImportStatusDto;
+	risks: ConfigImportRiskDto[];
+	warnings: ConfigImportEntryWarningDto[];
+	selectedByDefault: boolean;
+};
+
+export type ConfigImportPlanDto = {
+	source: ConfigImportSourceDto;
+	entries: ConfigImportEntryDto[];
+	/** Distinct file hosts with no exact `Host` entry and no mapping, sorted. */
+	unknownHosts: string[];
+};
+
+export type ConfigImportReportDto = {
+	added: { index: number; id: string }[];
+	skipped: { index: number; status: ConfigImportStatusDto }[];
+};
+
+export type InvalidImportReasonDto =
+	| 'syntax'
+	| 'notTunnelerFile'
+	| 'newerVersion'
+	| 'unsafeCharacters'
+	| 'tooLarge'
+	| 'tooManyEntries';
+
+/** The `data` of an `invalid_import_file` error; only the keys that apply to the reason are present. */
+export type InvalidImportFileDataDto = {
+	reason: InvalidImportReasonDto;
+	line?: number;
+	message?: string;
+	entry?: number;
+	field?: string;
+	found?: number;
+	supported?: number;
+	limit?: number;
+};
+
+/** What the native file dialog picked: the base name and the text of the file. */
+export type PickedImportFileDto = { fileName: string; contents: string };
+
+/** `saved` is `false` when the user cancelled the save dialog. */
+export type ExportToFileResultDto = { saved: boolean };
 
 export type StandbyNotifyDto = 'none' | 'visual' | 'sound' | 'both';
 

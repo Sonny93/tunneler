@@ -41,7 +41,7 @@ describe('ShortcutsHelp', () => {
 			'New tunnel',
 			',',
 			'?',
-			'Import tunnels',
+			'Import and export',
 			'Ctrl',
 			'K',
 			'F1',

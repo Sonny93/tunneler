@@ -19,7 +19,7 @@ export function ImportDrawer() {
 	} = useRetainedPanel(panel.kind === 'import' ? panel : null);
 
 	if (importPanel === null) return null;
-	const title = t`Import tunnels`;
+	const title = t`Import and export`;
 	if (settings === null) {
 		return (
 			<Drawer isOpen={isOpen} title={title} onClose={closePanel}>
@@ -27,12 +27,5 @@ export function ImportDrawer() {
 			</Drawer>
 		);
 	}
-	return (
-		<ImportPanel
-			key={instanceKey}
-			title={title}
-			settings={settings}
-			isOpen={isOpen}
-		/>
-	);
+	return <ImportPanel key={instanceKey} title={title} isOpen={isOpen} />;
 }

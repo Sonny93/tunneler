@@ -3,9 +3,9 @@
 use ssh_config::RemoteForward;
 
 use super::forward::{dynamic_candidate, fixed_candidate};
-use super::{ImportCandidate, ImportPreview, ImportWarning};
+use super::{ImportCandidate, ImportPreview, ImportWarning, invalid_host_warning};
 use crate::host_config::{HostConfigError, HostConfigResolver};
-use crate::store::TunnelKind;
+use crate::store::{TunnelKind, find_ssh_host_problem};
 
 /// Lists the `LocalForward`, `RemoteForward` and `DynamicForward` of every
 /// concrete `Host` alias, in the order of [`HostConfigResolver::list_hosts`].
@@ -20,6 +20,10 @@ pub fn preview_ssh_config(
         warnings: Vec::new(),
     };
     for alias in resolver.list_hosts()? {
+        if find_ssh_host_problem(&alias).is_some() {
+            preview.warnings.push(invalid_host_warning(None, &alias));
+            continue;
+        }
         match resolver.resolve(&alias) {
             Ok(config) => read_forwards(&alias, &config, &mut preview),
             Err(error) => preview.warnings.push(ImportWarning::HostResolutionFailed {

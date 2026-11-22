@@ -36,6 +36,7 @@ export function SettingsDialogForm({
 			>
 				<FormErrorSummary
 					messages={form.summary.messages}
+					englishTexts={form.summary.englishTexts}
 					attach={form.summary.attachSummary}
 				/>
 				<SettingsTabs form={form} />

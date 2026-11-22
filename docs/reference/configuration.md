@@ -133,7 +133,7 @@ command = "code --wait"
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `id` | ULID string | generated | Stable identifier. Two tunnels cannot share one. When missing, Tunneler adds it to the file. |
-| `host` | string | required | Alias from `ssh_config`. Not empty. |
+| `host` | string | required | Alias from `ssh_config`. Not empty, and it must follow the rules of [Host names](#host-names). |
 | `kind` | `"local"`, `"remote"` or `"dynamic"` | required | The direction of the forward, as `-L`, `-R` and `-D`. |
 | `listen_port` | integer | required | Port to listen on, 1 to 65535. Local: on this computer. Remote: on the server. |
 | `listen_address` | string | `default_bind_address`, or `default_remote_bind_address` for remote | Address to listen on. A host name cannot be opened with "Open". |
@@ -144,6 +144,14 @@ command = "code --wait"
 | `open` | table | `{}` | How the tunnel is opened. |
 
 Two local or dynamic tunnels cannot listen on the same address and port. Two remote tunnels of the same host cannot either.
+
+### Host names
+
+A host alias is passed to the `ssh_config` evaluation, where `%h` and other tokens are expanded, so Tunneler applies the rule of OpenSSH 9.6 (the fix for CVE-2023-51385). An alias may only contain letters and digits (any script) and the characters `.` `_` `-` `:` `@` `[` `]`. It may not start with `-` and is at most 255 bytes. Anything else, such as whitespace, quotes, `$`, `;`, `&`, `|`, `<`, `>`, parentheses, braces or a control character, is refused. `%` is refused too, because `cmd` expands `%VAR%` on Windows.
+
+- Creating or editing a tunnel, starting a temporary tunnel and importing a file refuse such a host.
+- The import from `ssh_config` and from pasted `ssh -L` scripts skips such a candidate and shows a warning.
+- A hand-edited `tunnels.toml` with such a host still loads, but the tunnel cannot connect: the alias is never looked up in `ssh_config` and no connection is made, and the error says why.
 
 ### `open`
 
@@ -186,6 +194,35 @@ The `devslot_*` keys of a host are edited by hand: the window does not write the
 | `command` | string | The command line. |
 
 All three are required and not empty. See [X11 forwarding](../guide/x11).
+
+## Export file
+
+`tunneler export` and the window's export write a TOML file that [another computer can import](../guide/export-import). It holds tunnels only.
+
+```toml
+# Tunneler export (format version 1)
+format = "tunneler-export"
+version = 1
+
+[[tunnels]]
+host = "nova"
+kind = "local"
+listen_port = 3333
+tags = ["dev"]
+
+[tunnels.open]
+path = "/admin"
+```
+
+| Key | Meaning |
+|---|---|
+| `format` | Always `"tunneler-export"`. |
+| `version` | The version of the export format, `1`. A file with a greater version is refused as coming from a newer Tunneler. |
+| `[[tunnels]]` | The same keys as [`[[tunnels]]`](#tunnels) above, without `id`. Keys that are not set are left out. |
+
+The tunnels come in the order of `tunnels.toml`. The file has no `[settings]`, `[[openers]]`, `[hosts.<alias>]` or `[[x11_launchers]]`, and nothing from `state.toml`. An unknown key is refused.
+
+The import also reads a `tunnels.toml` (a file with no `format` key): it takes its `[[tunnels]]`, ignores every other table and replaces the ids. Any other `format` value is refused. A file is at most 256 KiB, with at most 1000 tunnels, and a string value with a control or invisible direction character makes the import refuse the whole file.
 
 ## `state.toml`
 

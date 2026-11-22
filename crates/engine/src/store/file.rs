@@ -50,6 +50,7 @@ struct StoreState {
     document: StoreDocument,
     fingerprint: Option<ContentFingerprint>,
     is_normalization_pending: bool,
+    is_known_invalid: bool,
 }
 
 /// The state shared between a [`Store`] and its watcher.
@@ -87,9 +88,13 @@ impl SharedStore {
             Ok(outcome) => {
                 state.document = outcome.document.clone();
                 state.is_normalization_pending = outcome.was_normalized;
+                state.is_known_invalid = false;
                 Some(StoreEvent::Reloaded(Box::new(outcome)))
             }
-            Err(error) => Some(StoreEvent::Invalid(error)),
+            Err(error) => {
+                state.is_known_invalid = true;
+                Some(StoreEvent::Invalid(error))
+            }
         }
     }
 }
@@ -123,6 +128,7 @@ impl Store {
             document: outcome.document.clone(),
             fingerprint: content.as_deref().map(ContentFingerprint::of),
             is_normalization_pending: outcome.was_normalized,
+            is_known_invalid: false,
         };
         let store = Self {
             shared: Arc::new(SharedStore {
@@ -168,7 +174,43 @@ impl Store {
         state.fingerprint = Some(ContentFingerprint::of(text.as_bytes()));
         state.document = document;
         state.is_normalization_pending = false;
+        state.is_known_invalid = false;
         Ok(())
+    }
+
+    /// Reads the file now and, when its content differs from what the store
+    /// last wrote or read, makes it the current document and returns it. A
+    /// missing file or an unchanged one gives `None`. A file that cannot be
+    /// read, or is invalid, is an error, and the current document stays: the
+    /// caller must not write over it, even when the watcher already saw the
+    /// same invalid content.
+    ///
+    /// The file is parsed outside the lock. When the store took in another
+    /// state meanwhile (the watcher reloaded), that state is newer or equal
+    /// to what was parsed here, so nothing is replaced and the result is
+    /// `None`.
+    pub(crate) fn refresh_from_disk(&self) -> Result<Option<LoadOutcome>, StoreError> {
+        let Some(content) = read_if_present(self.path())? else {
+            return Ok(None);
+        };
+        let fingerprint = Some(ContentFingerprint::of(&content));
+        let observed = {
+            let state = self.shared.lock();
+            if state.fingerprint == fingerprint && !state.is_known_invalid {
+                return Ok(None);
+            }
+            state.fingerprint
+        };
+        let outcome = parse_content(self.path(), &content)?;
+        let mut state = self.shared.lock();
+        if state.fingerprint != observed {
+            return Ok(None);
+        }
+        state.fingerprint = fingerprint;
+        state.document = outcome.document.clone();
+        state.is_normalization_pending = outcome.was_normalized;
+        state.is_known_invalid = false;
+        Ok(Some(outcome))
     }
 
     pub(crate) fn shared(&self) -> &Arc<SharedStore> {

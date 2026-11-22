@@ -4,7 +4,7 @@ devslot donne à chaque copie de travail d'un projet ses propres ports et son pr
 
 ## Découvrir les instances
 
-1. Ouvrez le panneau d'import et choisissez l'onglet « Depuis devslot ».
+1. Ouvrez le tiroir « Importer et exporter » et choisissez l'onglet « Depuis devslot ».
 2. Choisissez l'hôte, un alias de votre `ssh_config`, puis « Découvrir ».
 3. Chaque instance apparaît avec ses ports. Les ports web sont cochés, sauf ceux inférieurs à 1024. Les ports de service (une base de données, par exemple) ne le sont pas. Un port qui a déjà un tunnel est désactivé, avec la raison.
 4. Choisissez « Démarrer N tunnels ».
@@ -30,15 +30,15 @@ Quand la configuration devslot du serveur contient `[tunneler] host = "<alias>"`
 ### Ce que ça fait
 
 1. Exécute `ds ls --json` sur l'hôte, comme la découverte ci-dessus.
-2. Retire les tunnels devslot périmés qui ne demandent aucune question : les temporaires, et les enregistrés avec `devslot_stale = "delete"`, sous la même règle de sécurité que plus haut. Les routes retirées sont listées. Un tunnel enregistré qui demanderait votre décision est laissé tel quel : la commande dit combien attendent, et c'est le panneau d'import qui sert à répondre.
-3. Démarre un tunnel pour chaque port web de l'instance qui n'en a pas, comme dans le panneau d'import. Un port qui a déjà un tunnel devslot de cet hôte, qui écoute sur la boucle locale (`127.0.0.1`, `::1` ou `localhost`, ou l'adresse d'écoute par défaut des réglages quand le tunnel n'en indique pas), est réutilisé, et démarré s'il était arrêté. Tout autre tunnel qui transmet le port, un tunnel que vous avez configuré vous-même ou qui écoute sur `0.0.0.0`, est le vôtre : le port est ignoré et vous démarrez ce tunnel vous-même. Un tunnel écoute sur `127.0.0.1`, et prend un port local libre quand le port distant est utilisé sur cet ordinateur.
+2. Retire les tunnels devslot périmés qui ne demandent aucune question : les temporaires, et les enregistrés avec `devslot_stale = "delete"`, sous la même règle de sécurité que plus haut. Les routes retirées sont listées. Un tunnel enregistré qui demanderait votre décision est laissé tel quel : la commande dit combien attendent, et c'est le tiroir « Importer et exporter » qui sert à répondre.
+3. Démarre un tunnel pour chaque port web de l'instance qui n'en a pas, comme dans le tiroir « Importer et exporter ». Un port qui a déjà un tunnel devslot de cet hôte, qui écoute sur la boucle locale (`127.0.0.1`, `::1` ou `localhost`, ou l'adresse d'écoute par défaut des réglages quand le tunnel n'en indique pas), est réutilisé, et démarré s'il était arrêté. Tout autre tunnel qui transmet le port, un tunnel que vous avez configuré vous-même ou qui écoute sur `0.0.0.0`, est le vôtre : le port est ignoré et vous démarrez ce tunnel vous-même. Un tunnel écoute sur `127.0.0.1`, et prend un port local libre quand le port distant est utilisé sur cet ordinateur.
 4. Ouvre l'application dans le navigateur, sur `http://<label>.localhost:<port>`, sauf avec `--no-open`.
 
-Seuls les ports web sont tunnelés. Les services comme une base de données ne le sont pas, ni les ports inférieurs à 1024 (laissés au panneau d'import). Un port inférieur à 1024 est signalé comme ignoré, volontairement. Un port ignoré parce qu'il est utilisé et qu'aucun port libre n'a été trouvé, parce qu'un tunnel périmé le retient et attend votre décision, ou parce qu'un tunnel que vous avez configuré le transmet déjà, est signalé aussi et fait sortir la commande avec le code 4, comme un port dont le tunnel a échoué.
+Seuls les ports web sont tunnelés. Les services comme une base de données ne le sont pas, ni les ports inférieurs à 1024 (laissés au tiroir « Importer et exporter »). Un port inférieur à 1024 est signalé comme ignoré, volontairement. Un port ignoré parce qu'il est utilisé et qu'aucun port libre n'a été trouvé, parce qu'un tunnel périmé le retient et attend votre décision, ou parce qu'un tunnel que vous avez configuré le transmet déjà, est signalé aussi et fait sortir la commande avec le code 4, comme un port dont le tunnel a échoué.
 
 La lancer deux fois ne crée rien de nouveau : la seconde exécution retrouve les tunnels de la première et ne fait que rouvrir le navigateur. Quand une autre instance annonce le même port que l'application, le navigateur peut atteindre cette autre instance, et la sortie le dit.
 
-Les tunnels sont temporaires ou enregistrés selon `devslot_persist`, comme dans le panneau d'import (voir [Temporaires ou enregistrés](#temporaires-ou-enregistres)). Sans réglage, ils sont temporaires.
+Les tunnels sont temporaires ou enregistrés selon `devslot_persist`, comme dans le tiroir « Importer et exporter » (voir [Temporaires ou enregistrés](#temporaires-ou-enregistres)). Sans réglage, ils sont temporaires.
 
 ### Le lien
 

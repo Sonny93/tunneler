@@ -76,6 +76,22 @@ export function createFakeGateway(
 		importSshConfig: vi.fn(() =>
 			Promise.resolve({ candidates: [], warnings: [] })
 		),
+		classifyImports: vi.fn((candidates) =>
+			Promise.resolve(candidates.map(() => null))
+		),
+		exportConfig: vi.fn(() =>
+			Promise.resolve({ contents: '', tunnelCount: 0 })
+		),
+		exportToFile: vi.fn(() => Promise.resolve({ saved: true })),
+		pickImportFile: vi.fn(() => Promise.resolve(null)),
+		previewConfigImport: vi.fn(() =>
+			Promise.resolve({
+				source: 'export' as const,
+				entries: [],
+				unknownHosts: [],
+			})
+		),
+		applyConfigImport: vi.fn(() => Promise.resolve({ added: [], skipped: [] })),
 		importScript: vi.fn(() =>
 			Promise.resolve({ candidates: [], warnings: [] })
 		),

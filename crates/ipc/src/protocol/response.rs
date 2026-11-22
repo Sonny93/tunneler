@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+use crate::protocol::config_transfer::{
+    ConfigExportResult, ConfigImportPlanDto, ConfigImportReportDto, ImportClassifyResult,
+};
 use crate::protocol::devslot::{DevslotDiscoveryDto, DevslotResyncResultDto};
 use crate::protocol::devslot_up::DevslotUpResultDto;
 use crate::protocol::dto::{
@@ -127,6 +130,14 @@ pub enum ResponsePayload {
     ResolvedHost(ResolvedHostDto),
     /// The answer to `import.ssh_config` and `import.script`.
     ImportPreview(ImportPreviewDto),
+    /// The answer to `config.export`.
+    ConfigExport(ConfigExportResult),
+    /// The answer to `config.import_preview`.
+    ConfigImportPlan(ConfigImportPlanDto),
+    /// The answer to `config.import_apply`.
+    ConfigImportReport(ConfigImportReportDto),
+    /// The answer to `import.classify`.
+    ImportClassify(ImportClassifyResult),
     /// The answer to `external.adopt`.
     Adopt(AdoptResult),
     /// The answer to `secrets.forget`.

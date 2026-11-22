@@ -1,12 +1,18 @@
 //! The command line, as `clap` reads it.
 
 use clap::{Args, Parser, Subcommand};
-use ipc::protocol::{DevslotHostName, DevslotInstanceName};
+use std::path::PathBuf;
+
+use ipc::protocol::{
+    DevslotHostName, DevslotInstanceName, MAX_CONFIG_IMPORT_BYTES, MAX_CONFIG_IMPORT_TUNNELS,
+};
 
 use super::exit_code::describe_exit_codes;
 use super::forward_spec::ForwardOption;
 use super::locations::Locations;
 use super::style::ColorChoice;
+
+const BYTES_PER_KIB: usize = 1024;
 
 /// How long `up` waits for the tunnels, in seconds, unless told otherwise.
 pub const DEFAULT_WAIT_TIMEOUT_SECONDS: u64 = 30;
@@ -142,6 +148,64 @@ Logs go to daily files under the user data directory, or data/logs next to the
 executable in portable mode (7 are kept), and to stderr when it is a terminal.
 Normally the daemon is started for you by `tunneler up`.";
 
+const EXPORT_EXAMPLES: &str = "\
+Examples:
+  tunneler export                       Print every saved tunnel as a configuration file
+  tunneler export -o tunnels-nova.toml  Write the file instead (refuses to replace an existing one)
+  tunneler export --host nova           Only the tunnels of the host nova
+  tunneler export --tag dev --tag mail  The tunnels tagged dev or mail
+  tunneler export -o backup.toml --force
+                                        Replace backup.toml if it exists
+  tunneler export --json                { \"contents\": ..., \"tunnelCount\": ... } on one line
+
+With several filters a tunnel is exported when it matches any of them. Without a
+filter every saved tunnel is exported; temporary tunnels never are. The file
+holds the tunnels only (host, forward, tags, open options and standby), with no
+identifiers, settings, applications or passphrases, so it is safe to share. With
+-o and --json, the file is written and `{ \"path\": ..., \"tunnelCount\": ... }` is
+printed. Import the file elsewhere with `tunneler import`.";
+
+fn import_help() -> String {
+    format!(
+        "\
+Examples:
+  tunneler import tunnels-nova.toml     Show the plan, then ask before importing
+  tunneler import --dry-run backup.toml Show the plan and import nothing
+  tunneler import --yes backup.toml     Import what the plan selects, without asking
+  tunneler import - < backup.toml       Read the file from the standard input
+  tunneler import --host-map oldbox=nova backup.toml
+                                        Use the alias nova where the file says oldbox
+  tunneler import --json --dry-run backup.toml
+                                        The plan as one line of JSON, for scripts
+
+FILE is a file written by `tunneler export`, or a tunnels.toml (only its
+[[tunnels]] are read), or - for the standard input. It is read once, at most
+{MAX_KIB} KiB and {MAX_TUNNELS} tunnels, and treated as untrusted: a control character
+in a value refuses the whole file.
+
+An import only adds tunnels: nothing existing is changed or removed. An entry
+that duplicates a saved tunnel, or listens on a port a saved tunnel already
+uses, is skipped and the plan says which. An entry that listens beyond this
+machine, forwards a remote tunnel to another host, or carries a tag that starts
+at launch is marked \"not selected\" and is left out. Imported tunnels are
+stopped. The daemon is started when it is not running.
+
+A host the file names that no Host entry of your ssh_config names exactly is
+reported; --host-map OLD=NEW replaces OLD by one of your aliases NEW. The
+question is asked on the terminal, even when the file comes from the standard
+input. Without a terminal and without --yes the plan is printed and nothing is
+imported.
+
+Exit codes:
+  0  imported, nothing to import, declined, or --dry-run
+  1  error: unreadable or invalid file, file too large, the daemon refused it
+  2  invalid usage, such as a --host-map that is not OLD=NEW
+  5  confirmation required but not possible: not a terminal, pass --yes",
+        MAX_KIB = MAX_CONFIG_IMPORT_BYTES / BYTES_PER_KIB,
+        MAX_TUNNELS = MAX_CONFIG_IMPORT_TUNNELS,
+    )
+}
+
 fn devslot_help() -> String {
     "\
 Examples:
@@ -251,6 +315,12 @@ pub enum Command {
     /// Tunnel the web ports of a devslot instance and open it in the browser
     #[command(after_help = devslot_help())]
     Devslot(DevslotArguments),
+    /// Write the saved tunnels to a file, to import them on another machine
+    #[command(after_help = EXPORT_EXAMPLES)]
+    Export(ExportArguments),
+    /// Add the tunnels of an exported file, without changing the saved ones
+    #[command(after_help = import_help())]
+    Import(ImportArguments),
 }
 
 /// The arguments of `up`.
@@ -390,6 +460,73 @@ fn parse_devslot_host(text: &str) -> Result<DevslotHostName, String> {
 
 fn parse_devslot_instance(text: &str) -> Result<DevslotInstanceName, String> {
     DevslotInstanceName::parse(text).map_err(|error| error.to_string())
+}
+
+/// The arguments of `export`.
+#[derive(Debug, Args)]
+pub struct ExportArguments {
+    /// Export the tunnels of this host (repeat for several)
+    #[arg(long = "host", value_name = "HOST")]
+    pub hosts: Vec<String>,
+    /// Export the tunnels carrying this tag (repeat for several)
+    #[arg(long = "tag", value_name = "TAG")]
+    pub tags: Vec<String>,
+    /// Write the file here instead of printing it; an existing file is refused
+    #[arg(short, long, value_name = "FILE")]
+    pub output: Option<PathBuf>,
+    /// Replace the file given with --output when it exists
+    #[arg(long, requires = "output")]
+    pub force: bool,
+    /// Print one line of JSON instead of the file
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// One `--host-map OLD=NEW` pair: the host as the file writes it, and the
+/// alias to use here instead.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostMapEntry {
+    /// The host in the file.
+    pub file_host: String,
+    /// The alias of the local `ssh_config`.
+    pub local_alias: String,
+}
+
+/// The arguments of `import`.
+#[derive(Debug, Args)]
+pub struct ImportArguments {
+    /// The file to import, or - for the standard input
+    #[arg(value_name = "FILE")]
+    pub file: String,
+    /// Use the alias NEW wherever the file says OLD (repeat for several)
+    #[arg(long = "host-map", value_name = "OLD=NEW", value_parser = parse_host_map_entry)]
+    pub host_maps: Vec<HostMapEntry>,
+    /// Show the plan and import nothing
+    #[arg(long)]
+    pub dry_run: bool,
+    /// Import what the plan selects without asking
+    #[arg(short, long)]
+    pub yes: bool,
+    /// Print one line of JSON instead of text
+    #[arg(long)]
+    pub json: bool,
+}
+
+fn parse_host_map_entry(text: &str) -> Result<HostMapEntry, String> {
+    let mut sides = text.split('=');
+    match (sides.next(), sides.next(), sides.next()) {
+        (Some(file_host), Some(local_alias), None)
+            if !file_host.is_empty() && !local_alias.is_empty() =>
+        {
+            Ok(HostMapEntry {
+                file_host: file_host.to_owned(),
+                local_alias: local_alias.to_owned(),
+            })
+        }
+        _ => Err(format!(
+            "\"{text}\" is not OLD=NEW: write exactly one `=` with a host on each side"
+        )),
+    }
 }
 
 /// The arguments of `desktop-entry`.
@@ -682,6 +819,161 @@ mod tests {
                 && help.contains("  4  some web ports failed or were blocked (busy local port, stale tunnel); ports below 1024 do not count")
                 && help.contains("tunneler devslot vega web-shop-098a")
         );
+    }
+
+    fn export_arguments_of(arguments: &[&str]) -> ExportArguments {
+        let mut command = vec!["export"];
+        command.extend_from_slice(arguments);
+        match parse(&command).unwrap().command {
+            Some(Command::Export(arguments)) => arguments,
+            other => panic!("expected export, got {other:?}"),
+        }
+    }
+
+    fn import_arguments_of(arguments: &[&str]) -> Result<ImportArguments, clap::Error> {
+        let mut command = vec!["import"];
+        command.extend_from_slice(arguments);
+        match parse(&command)?.command {
+            Some(Command::Import(arguments)) => Ok(arguments),
+            other => panic!("expected import, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn should_export_everything_to_the_standard_output_when_export_is_given_no_option() {
+        let arguments = export_arguments_of(&[]);
+
+        assert_eq!(
+            (
+                arguments.hosts,
+                arguments.tags,
+                arguments.output,
+                arguments.force,
+                arguments.json
+            ),
+            (Vec::new(), Vec::new(), None, false, false)
+        );
+    }
+
+    #[test]
+    fn should_read_every_filter_and_option_when_exporting() {
+        let arguments = export_arguments_of(&[
+            "--host", "nova", "--host", "vega", "--tag", "dev", "-o", "out.toml", "--force",
+            "--json",
+        ]);
+
+        assert_eq!(
+            (
+                arguments.hosts,
+                arguments.tags,
+                arguments.output,
+                arguments.force,
+                arguments.json
+            ),
+            (
+                vec!["nova".to_owned(), "vega".to_owned()],
+                vec!["dev".to_owned()],
+                Some(PathBuf::from("out.toml")),
+                true,
+                true
+            )
+        );
+    }
+
+    #[test]
+    fn should_refuse_force_without_an_output_file_when_exporting() {
+        assert!(parse(&["export", "--force"]).is_err());
+    }
+
+    #[test]
+    fn should_read_the_file_and_every_flag_when_importing() {
+        let arguments = import_arguments_of(&[
+            "--host-map",
+            "oldbox=nova",
+            "--host-map",
+            "other=vega",
+            "--dry-run",
+            "-y",
+            "--json",
+            "backup.toml",
+        ])
+        .unwrap();
+
+        assert_eq!(
+            (
+                arguments.file.as_str(),
+                arguments.host_maps,
+                arguments.dry_run,
+                arguments.yes,
+                arguments.json
+            ),
+            (
+                "backup.toml",
+                vec![
+                    HostMapEntry {
+                        file_host: "oldbox".to_owned(),
+                        local_alias: "nova".to_owned()
+                    },
+                    HostMapEntry {
+                        file_host: "other".to_owned(),
+                        local_alias: "vega".to_owned()
+                    }
+                ],
+                true,
+                true,
+                true
+            )
+        );
+    }
+
+    #[test]
+    fn should_accept_a_dash_as_the_standard_input_when_importing() {
+        assert_eq!(import_arguments_of(&["-"]).unwrap().file, "-");
+    }
+
+    #[test]
+    fn should_require_a_file_when_importing() {
+        assert!(import_arguments_of(&[]).is_err());
+    }
+
+    #[test]
+    fn should_reject_a_host_map_that_is_not_old_equals_new_as_a_usage_error() {
+        let malformed = ["oldbox", "a=b=c", "=nova", "oldbox=", "="];
+
+        let outcomes: Vec<bool> = malformed
+            .iter()
+            .map(|text| {
+                import_arguments_of(&["--host-map", text, "backup.toml"]).is_err_and(|error| {
+                    error.exit_code() == i32::from(super::super::exit_code::USAGE)
+                })
+            })
+            .collect();
+
+        assert_eq!(outcomes, vec![true; malformed.len()]);
+    }
+
+    #[test]
+    fn should_describe_the_exit_codes_of_import_in_its_help() {
+        let help = Cli::command()
+            .find_subcommand("import")
+            .unwrap()
+            .clone()
+            .render_long_help()
+            .to_string();
+
+        assert!(
+            help.contains("Exit codes:")
+                && help.contains("  5  confirmation required but not possible")
+                && help.contains("tunneler import --dry-run backup.toml")
+                && help.contains("256 KiB and 1000 tunnels")
+        );
+    }
+
+    #[test]
+    fn should_list_the_import_and_export_commands_in_the_top_level_help() {
+        let help = Cli::command().render_help().to_string();
+
+        assert!(help.contains("export") && help.contains("import"));
     }
 
     #[test]

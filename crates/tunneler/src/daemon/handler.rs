@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use engine::{
-    BROWSER_OPENER_ID, DevslotUp, Engine, EngineError, HostConfigResolver, MAX_STANDBY_VOLUME,
-    MIN_STANDBY_VOLUME, OpenPlan, StoreError, TunnelId, X11Error, preview_script,
-    preview_ssh_config,
+    BROWSER_OPENER_ID, DevslotUp, Engine, EngineError, HostConfigError, HostConfigResolver,
+    MAX_STANDBY_VOLUME, MIN_STANDBY_VOLUME, OpenPlan, StoreError, TunnelId, X11Error,
+    preview_script, preview_ssh_config,
 };
 use ipc::protocol::{
     AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, DevslotLinkDto,
@@ -17,6 +17,7 @@ use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
+use super::config_transfer_mapping::invalid_import_file_to_ipc;
 use super::devslot_mapping::{
     OpenOutcome, devslot_error_to_ipc, discovery_to_payload, resync_to_dto,
     resync_tunnels_from_dto, up_to_payload,
@@ -32,6 +33,8 @@ use super::prompts::PromptBroker;
 use super::standby_signal::SoundPlayer;
 use super::tray::TrayStatus;
 use super::ui::UiCoordinator;
+
+mod config_transfer;
 
 /// What the daemon does on this machine for the user, outside the tunnels.
 pub(crate) struct LocalEffects {
@@ -102,6 +105,10 @@ impl DaemonHandler {
             Request::HostsResolve(params) => self.resolve_host(params.host).await,
             Request::ImportSshConfig {} => self.import_ssh_config().await,
             Request::ImportScript(params) => self.import_script(params.text).await,
+            Request::ImportClassify(params) => Ok(self.classify_imports(params)),
+            Request::ConfigExport(params) => self.export_config(params),
+            Request::ConfigImportPreview(params) => self.preview_config_import(params).await,
+            Request::ConfigImportApply(params) => self.apply_config_import(params).await,
             Request::TagStart(params) => self.start_tag(&params.tag),
             Request::TagStop(params) => self.stop_tag(&params.tag),
             Request::TagStandby(params) => self.standby_tag(&params.tag),
@@ -482,7 +489,7 @@ impl DaemonHandler {
         })
         .await?
         .map(ResponsePayload::ResolvedHost)
-        .map_err(|error| IpcError::internal(error.to_string()))
+        .map_err(host_error_to_ipc)
     }
 
     async fn import_ssh_config(&self) -> Result<ResponsePayload, IpcError> {
@@ -633,6 +640,7 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         }
         EngineError::Devslot(failure) => devslot_error_to_ipc(&failure),
         EngineError::Store(error) => store_error_to_ipc(error),
+        EngineError::InvalidImportFile(failure) => invalid_import_file_to_ipc(&failure),
         EngineError::ShutDown => IpcError::internal("the daemon is shutting down"),
         EngineError::DevslotTaskFailed => IpcError::internal(error.to_string()),
         EngineError::NotExternal(_)
@@ -642,6 +650,7 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         | EngineError::TunnelOnStandby(_)
         | EngineError::TunnelNotAwake(_)
         | EngineError::TunnelHasNoTarget(_)
+        | EngineError::StoreInvalid(_)
         | EngineError::Open(_) => IpcError::invalid_state(error.to_string()),
         EngineError::TunnelStartFailed(_)
         | EngineError::TunnelPortConflict
@@ -663,6 +672,13 @@ fn engine_error_to_ipc(error: EngineError) -> IpcError {
         EngineError::PortScan(_) | EngineError::X11(_) | EngineError::TargetCheckFailed(_) => {
             IpcError::internal(error.to_string())
         }
+    }
+}
+
+fn host_error_to_ipc(error: HostConfigError) -> IpcError {
+    match error {
+        HostConfigError::InvalidAlias { .. } => IpcError::validation_failed(&[error.to_string()]),
+        other => IpcError::internal(other.to_string()),
     }
 }
 
@@ -2881,5 +2897,352 @@ mod tests {
             fixture.engine.snapshot().tunnels[0].definition.tags,
             vec!["devslot".to_owned(), "ds-web-shop".to_owned()]
         );
+    }
+
+    fn import_file(host: &str, port: u16) -> String {
+        format!(
+            "format = \"tunneler-export\"\nversion = 1\n\n[[tunnels]]\nhost = \"{host}\"\nkind = \"local\"\nlisten_port = {port}\ntags = [\"dev\"]\n"
+        )
+    }
+
+    fn preview_request(contents: String) -> Request {
+        Request::ConfigImportPreview(ipc::protocol::ConfigImportParams {
+            contents,
+            host_map: std::collections::BTreeMap::new(),
+        })
+    }
+
+    fn apply_request(contents: String, indexes: Vec<u32>) -> Request {
+        Request::ConfigImportApply(ipc::protocol::ConfigImportApplyParams {
+            contents,
+            host_map: std::collections::BTreeMap::new(),
+            indexes,
+        })
+    }
+
+    async fn previewed_plan(
+        fixture: &Fixture,
+        contents: String,
+    ) -> ipc::protocol::ConfigImportPlanDto {
+        let response = fixture
+            .handler
+            .dispatch(None, preview_request(contents))
+            .await
+            .unwrap();
+        match response {
+            ResponsePayload::ConfigImportPlan(plan) => plan,
+            other => panic!("expected a plan, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn should_export_the_saved_tunnels_with_their_count_when_exporting() {
+        let fixture = fixture();
+        created_tunnel(&fixture, free_port().await).await;
+
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::ConfigExport(ipc::protocol::ConfigExportParams::default()),
+            )
+            .await
+            .unwrap();
+
+        let ResponsePayload::ConfigExport(export) = response else {
+            panic!("expected an export");
+        };
+        assert_eq!(export.tunnel_count, 1);
+        assert!(
+            export
+                .contents
+                .starts_with("# Tunneler export (format version 1)")
+        );
+    }
+
+    #[tokio::test]
+    async fn should_export_nothing_when_the_filter_matches_no_tunnel() {
+        let fixture = fixture();
+        created_tunnel(&fixture, free_port().await).await;
+
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::ConfigExport(ipc::protocol::ConfigExportParams {
+                    hosts: vec!["elsewhere".to_owned()],
+                    tags: Vec::new(),
+                }),
+            )
+            .await
+            .unwrap();
+
+        let ResponsePayload::ConfigExport(export) = response else {
+            panic!("expected an export");
+        };
+        assert_eq!(export.tunnel_count, 0);
+    }
+
+    #[tokio::test]
+    async fn should_plan_the_entries_of_the_file_when_previewing_an_import() {
+        let fixture = fixture();
+        let port = free_port().await;
+
+        let plan = previewed_plan(&fixture, import_file("dead", port)).await;
+
+        assert_eq!(
+            (
+                plan.entries[0].status.clone(),
+                plan.entries[0].selected_by_default,
+                plan.entries[0].tunnel.listen_port,
+                plan.unknown_hosts
+            ),
+            (
+                ipc::protocol::ConfigImportStatusDto::Importable,
+                true,
+                port,
+                Vec::<String>::new()
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn should_list_the_hosts_missing_from_the_ssh_config_when_previewing_an_import() {
+        let fixture = fixture();
+
+        let plan = previewed_plan(&fixture, import_file("ghost", free_port().await)).await;
+
+        assert_eq!(plan.unknown_hosts, vec!["ghost".to_owned()]);
+    }
+
+    #[tokio::test]
+    async fn should_not_write_anything_when_previewing_an_import() {
+        let fixture = fixture();
+
+        previewed_plan(&fixture, import_file("dead", free_port().await)).await;
+
+        assert_eq!(fixture.engine.snapshot().tunnels.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn should_answer_too_large_before_parsing_when_the_contents_exceed_the_cap() {
+        let fixture = fixture();
+        let contents = "x".repeat(ipc::protocol::MAX_CONFIG_IMPORT_BYTES + 1);
+
+        let error = fixture
+            .handler
+            .dispatch(None, preview_request(contents))
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            (error.code, error.data),
+            (
+                ErrorCode::InvalidImportFile,
+                Some(serde_json::json!({ "reason": "tooLarge", "limit": 262_144 }))
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_too_large_when_applying_contents_over_the_cap() {
+        let fixture = fixture();
+        let contents = "x".repeat(ipc::protocol::MAX_CONFIG_IMPORT_BYTES + 1);
+
+        let error = fixture
+            .handler
+            .dispatch(None, apply_request(contents, vec![0]))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::InvalidImportFile);
+    }
+
+    #[tokio::test]
+    async fn should_answer_invalid_import_file_with_the_line_when_the_file_is_not_toml() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(None, preview_request("[[tunnels]\nhost = ".to_owned()))
+            .await
+            .unwrap_err();
+
+        let data = error.data.unwrap();
+        assert_eq!(
+            (error.code, data["reason"].clone(), data["line"].is_number()),
+            (
+                ErrorCode::InvalidImportFile,
+                serde_json::json!("syntax"),
+                true
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_unsafe_characters_with_the_entry_and_the_field_when_a_value_has_a_control_character()
+     {
+        let fixture = fixture();
+        let contents = import_file("dead", 3333).replace("\"dev\"", "\"d\\u0007\"");
+
+        let error = fixture
+            .handler
+            .dispatch(None, preview_request(contents))
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            (error.code, error.data),
+            (
+                ErrorCode::InvalidImportFile,
+                Some(
+                    serde_json::json!({ "reason": "unsafeCharacters", "entry": 0, "field": "tags" })
+                )
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn should_add_the_tunnel_stopped_and_report_its_id_when_applying_an_import() {
+        let fixture = fixture();
+        let port = free_port().await;
+
+        let response = fixture
+            .handler
+            .dispatch(None, apply_request(import_file("dead", port), vec![0]))
+            .await
+            .unwrap();
+
+        let ResponsePayload::ConfigImportReport(report) = response else {
+            panic!("expected a report");
+        };
+        let snapshot = fixture.engine.snapshot();
+        assert_eq!(
+            (
+                report.added.len(),
+                report.skipped.len(),
+                report.added[0].id.clone(),
+                snapshot.tunnels[0].definition.listen_port,
+                snapshot.tunnels[0].state.clone()
+            ),
+            (
+                1,
+                0,
+                snapshot.tunnels[0].definition.id.to_string(),
+                port,
+                engine::TunnelState::Stopped
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn should_skip_the_entry_and_keep_the_saved_tunnel_when_the_route_is_already_configured()
+    {
+        let fixture = fixture();
+        let existing = created_tunnel(&fixture, free_port().await).await;
+        let contents = import_file("dead", existing.definition.spec.listen_port);
+
+        let response = fixture
+            .handler
+            .dispatch(None, apply_request(contents, vec![0]))
+            .await
+            .unwrap();
+
+        let ResponsePayload::ConfigImportReport(report) = response else {
+            panic!("expected a report");
+        };
+        assert_eq!(
+            (
+                report.added.len(),
+                report.skipped[0].status.clone(),
+                fixture.engine.snapshot().tunnels.len()
+            ),
+            (
+                0,
+                ipc::protocol::ConfigImportStatusDto::AlreadyConfigured {
+                    existing_id: existing.definition.id.clone(),
+                    ignored_tags: Vec::new()
+                },
+                1
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_invalid_state_when_applying_while_the_store_on_disk_is_invalid() {
+        let fixture = fixture();
+        std::fs::write(&fixture.store_path, "[[tunnels]\nbroken").unwrap();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                apply_request(import_file("dead", free_port().await), vec![0]),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::InvalidState);
+    }
+
+    #[tokio::test]
+    async fn should_classify_each_candidate_in_order_when_classifying_imports() {
+        let fixture = fixture();
+        let existing = created_tunnel(&fixture, free_port().await).await;
+        let route = |host: &str, port: u16| ipc::protocol::ImportRouteDto {
+            host: host.to_owned(),
+            kind: TunnelKindDto::Local,
+            listen_port: port,
+            listen_address: None,
+            target_host: None,
+            target_port: None,
+        };
+
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::ImportClassify(ipc::protocol::ImportClassifyParams {
+                    candidates: vec![
+                        route("dead", existing.definition.spec.listen_port),
+                        route("other", existing.definition.spec.listen_port),
+                        route("dead", 1),
+                    ],
+                }),
+            )
+            .await
+            .unwrap();
+
+        let ResponsePayload::ImportClassify(result) = response else {
+            panic!("expected a classification");
+        };
+        assert_eq!(
+            result.conflicts,
+            vec![
+                Some(ipc::protocol::ImportConflictDto::AlreadyConfigured),
+                Some(ipc::protocol::ImportConflictDto::ListenConflict {
+                    holder_id: existing.definition.id.clone()
+                }),
+                None,
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_validation_failed_when_resolving_an_alias_that_breaks_the_host_rule() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                Request::HostsResolve(ipc::protocol::HostParams {
+                    host: "-oProxyCommand=touch".to_owned(),
+                }),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::ValidationFailed);
     }
 }

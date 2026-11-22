@@ -10,7 +10,7 @@ tunneler down --all       # stop every tunnel
 tunneler quit             # stop the daemon
 ```
 
-`up` and `open` start the daemon in the background when it is not running. The other commands that talk to the daemon exit with code 3 when it is not running. Every command takes `--help` for its usage and examples.
+`up`, `open` and `import` start the daemon in the background when it is not running. The other commands that talk to the daemon exit with code 3 when it is not running. Every command takes `--help` for its usage and examples.
 
 ## Choosing tunnels
 
@@ -163,6 +163,83 @@ tunneler devslot vega web-shop-098a --no-open
 tunneler devslot vega web-shop-098a --json
 ```
 
+### `tunneler export`
+
+Writes your saved tunnels to a file you can [import on another computer](../guide/export-import). The daemon must be running: otherwise the command exits with code 3.
+
+| Option | Meaning |
+|---|---|
+| `--host <HOST>` | Only the tunnels of this host. Repeat it for several hosts. |
+| `--tag <TAG>` | Only the tunnels with this tag. Repeat it for several tags. |
+| `-o`, `--output <FILE>` | Write to this file instead of the standard output. An existing file or symbolic link is refused. On Unix the new file is readable by you only (mode 0600). |
+| `--force` | Replace the file given with `-o` if it exists. Needs `-o`. |
+| `--json` | Print the result as one line of JSON. |
+
+A tunnel is exported when it matches any of the `--host` and `--tag` filters. Without a filter, every saved tunnel is. Temporary tunnels are never exported. An export larger than 256 KiB (the import limit) is refused with `the export is larger than 256 KiB; filter by host or tag`, and the hint `pass --host or --tag to export a part of the tunnels, then the others in another file`. The format is described in [Configuration](./configuration#export-file).
+
+```sh
+tunneler export > all-tunnels.toml
+tunneler export --tag dev --tag web -o dev-web.toml
+tunneler export --host nova --host vega -o two-hosts.toml --force
+```
+
+With `--json`, the output is `{"contents": "…", "tunnelCount": 3}`, where `contents` is the file as a string. With `-o` and `--json`, the file is written and the output is `{"path": "…", "tunnelCount": 3}` instead.
+
+### `tunneler import <FILE>`
+
+Adds the tunnels of a file made by `tunneler export`, or of a `tunnels.toml`, to your configuration. `FILE` is a path, or `-` for the standard input. The daemon is started when it is not running. The command never changes or removes a tunnel you already have: see [Move tunnels to another computer](../guide/export-import) for what it adds and what it skips.
+
+It prints the plan first: for each tunnel of the file, its route, its tags, its status (will be added, already configured with the tags not applied, port already used, repeated in the file, invalid), its risks and its warnings, and whether it is selected. Then:
+
+| Situation | What happens |
+|---|---|
+| `--dry-run` | The plan is printed and nothing is added. Exit code 0. |
+| `--yes` | The tunnels selected by default are added without asking. |
+| Declined at the prompt | It prints `Nothing was imported.` and exits with code 0. |
+| In a terminal | It asks `Import N tunnels? [y/N]` and adds the tunnels selected by default. The answer is read from the terminal, so `tunneler import -` works. |
+| No terminal and no `--yes` | The plan is printed and nothing is added. Exit code 5. |
+
+Tunnels that are risky (listening beyond this computer, a remote tunnel to a target that is not this computer or listening beyond the server's loopback, a tag that starts at launch) are not selected by default, and no option selects them: edit the file, or use the window. Added tunnels start stopped.
+
+| Option | Meaning |
+|---|---|
+| `--host-map <OLD=NEW>` | Use the alias `NEW` of this computer for the host `OLD` of the file. Repeat it for several hosts. |
+| `--dry-run` | Print the plan and add nothing. |
+| `-y`, `--yes` | Do not ask. |
+| `--json` | Print the result as one line of JSON. It never asks: without `--yes` it prints the plan and exits with code 5. |
+
+The file is read up to 256 KiB and 1000 tunnels. A bigger input is refused without being read in full.
+
+```sh
+tunneler import dev-web.toml --dry-run
+tunneler import dev-web.toml
+tunneler import dev-web.toml --host-map nova=nova-home --yes
+ssh vega cat .config/tunneler/tunnels.toml | tunneler import - --dry-run
+```
+
+With `--json`, the output is the plan with `--dry-run` or without `--yes` (the latter exits with code 5), and `{"plan": …, "report": …}` with `--yes`. The plan is `{"source", "entries", "unknownHosts"}`: `source` is `export` or `store`, `unknownHosts` lists the hosts of the file that no `Host` entry of your `ssh_config` names exactly and that have no mapping, and each entry has:
+
+- `index`: its position in the file, from 0.
+- `tunnel`: what would be created, after the host mapping.
+- `fileHost`: the host as the file writes it.
+- `effectiveListenAddress`: the address it would listen on.
+- `status`: `{"kind": "importable"}`, `{"kind": "alreadyConfigured", "existingId", "ignoredTags"}`, `{"kind": "listenConflict", "holderId"}`, `{"kind": "duplicateInFile", "earlierIndex"}` or `{"kind": "invalid", "messages"}`.
+- `risks`: a list of `{"kind": "nonLoopbackListen", "address"}` (also for a remote tunnel that listens on a non-loopback address of the server), `{"kind": "remoteNonLoopbackTarget", "targetHost"}` or `{"kind": "startsOnLaunch", "tags"}`.
+- `warnings`: a list of `{"kind": "unknownHost", "host"}` or `{"kind": "openerDropped", "opener"}`.
+- `selectedByDefault`: `true` when the status is `importable` and there is no risk.
+
+The report is `{"added": [{"index", "id"}], "skipped": [{"index", "status"}]}`, where `status` is one of the statuses above, as found when the tunnels were added.
+
+Exit codes of `export` and `import`:
+
+| Code | When |
+|---|---|
+| 0 | Exported, imported, nothing to import, declined at the prompt, or `--dry-run`. |
+| 1 | The export is larger than 256 KiB (`export`). The file is unreadable, too big, not valid UTF-8, holds control characters, or is refused as not a Tunneler file or from a newer version. Also: an existing output file without `--force`, a write error, or a daemon error. |
+| 2 | Invalid usage, such as a `--host-map` that is not `OLD=NEW` or that names the same `OLD` twice. |
+| 3 | The daemon is not running (`export`). |
+| 5 | A confirmation is needed but there is no terminal and no `--yes`. |
+
 ### `tunneler desktop-entry <install|uninstall>`
 
 Linux only. Adds Tunneler to the application menu, or removes it again. The archive has no installer, so this is how it gets a menu entry. See [Getting started](../guide/getting-started#linux).
@@ -180,7 +257,7 @@ tunneler desktop-entry uninstall
 
 ## Output
 
-- `--json` is on `status`, `list` and `devslot`. The output is one line, meant for scripts.
+- `--json` is on `status`, `list`, `devslot`, `export` and `import`. The output is one line, meant for scripts.
 - Colour is used when the output is a terminal that supports it and `NO_COLOR` is not set. `NO_COLOR` set to a non-empty value turns it off, and `--color never` does too. `--color always` forces it.
 - Nothing is carried by colour alone: states are text and a symbol.
 - Prompts for a passphrase, a password or a host key appear only when the command runs in a terminal.
@@ -194,7 +271,7 @@ tunneler desktop-entry uninstall
 | 2 | Invalid usage. |
 | 3 | The daemon is not running. |
 | 4 | Some tunnels failed to start or are blocked by another program (`up`), or some web ports of the instance failed, or were skipped because the local port is busy, a stale tunnel needs a decision or a tunnel you configured already forwards the port (`devslot`). A tunnel provided by an external `ssh` counts as started. |
-| 5 | A confirmation is needed but cannot be asked: not a terminal, pass `--yes` (`quit`, `purge`). |
+| 5 | A confirmation is needed but cannot be asked: not a terminal, pass `--yes` (`quit`, `purge`, `import`). |
 | 6 | Timed out waiting, or the command on the host timed out (`devslot`). |
 | 7 | The target of the tunnel does not answer (`check`). |
 | 8 | The tunnel did not become ready, or the browser or application could not be launched (`open`, `devslot`). |

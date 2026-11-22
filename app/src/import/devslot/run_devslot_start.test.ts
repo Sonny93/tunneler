@@ -84,6 +84,7 @@ describe('describeDevslotStartFailure', () => {
 				label: '20050 → vega:20050',
 				stage: 'start',
 				messages: ['no route'],
+				englishTexts: ['no route'],
 			},
 			i18n
 		);

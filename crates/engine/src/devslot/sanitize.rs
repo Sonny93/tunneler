@@ -23,6 +23,11 @@ fn is_forbidden(character: char) -> bool {
         || BIDI_ISOLATE_RANGE.contains(&character)
 }
 
+/// Whether `text` holds a control or bidirectional control character.
+pub(crate) fn contains_forbidden_character(text: &str) -> bool {
+    text.chars().any(is_forbidden)
+}
+
 /// Removes the control and bidirectional control characters of `text`, then
 /// keeps its first `max_bytes` bytes, cut at a character boundary.
 pub(crate) fn sanitize_text(text: &str, max_bytes: usize) -> String {

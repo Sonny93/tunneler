@@ -2,6 +2,7 @@
 
 use crate::external::SshDestination;
 use crate::host_config::HostConfigResolver;
+use crate::store::find_ssh_host_problem;
 
 /// Finds the alias an `ssh` destination stands for, remembering the answers.
 pub(super) struct AliasMatcher<'resolver> {
@@ -42,6 +43,9 @@ impl<'resolver> AliasMatcher<'resolver> {
     }
 
     fn is_alias_of(&self, alias: &str, destination: &SshDestination) -> bool {
+        if find_ssh_host_problem(alias).is_some() {
+            return false;
+        }
         let Ok(config) = self.resolver.resolve(alias) else {
             return false;
         };

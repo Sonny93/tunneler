@@ -45,7 +45,9 @@ use crate::state_tracker::StateTracker;
 use crate::store::{
     OpenOptions, Opener, Settings, StateStore, Store, StoreError, TagProblem, TunnelDefinition,
     TunnelId, TunnelKind, X11Launcher, find_tag_problem, validate_tunnel_definition,
+    validate_tunnel_host,
 };
+use crate::transfer::ImportFileError;
 use crate::x11::{
     LocalX11Resolver, LocalX11Servers, X11Environment, X11Error, X11Probe, X11ServerControl,
 };
@@ -155,6 +157,13 @@ pub enum EngineError {
     /// The devslot instances of a host could not be listed.
     #[error(transparent)]
     Devslot(#[from] DevslotError),
+    /// The configuration file to import cannot be read or is not acceptable.
+    #[error(transparent)]
+    InvalidImportFile(#[from] ImportFileError),
+    /// The tunnels file on disk is invalid right now, so nothing is written
+    /// over it.
+    #[error("the tunnels file on disk is invalid: {0}")]
+    StoreInvalid(String),
     /// The task that applies a devslot opening ended without a result.
     #[error("the devslot opening ended unexpectedly")]
     DevslotTaskFailed,
@@ -228,7 +237,7 @@ pub struct NewTunnel {
 }
 
 impl NewTunnel {
-    fn into_definition(self, id: TunnelId) -> TunnelDefinition {
+    pub(crate) fn into_definition(self, id: TunnelId) -> TunnelDefinition {
         TunnelDefinition {
             id,
             host: self.host,
@@ -298,7 +307,7 @@ impl EngineInner {
         self.catalog.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    fn detected_openers(&self) -> MutexGuard<'_, Vec<Opener>> {
+    pub(crate) fn detected_openers(&self) -> MutexGuard<'_, Vec<Opener>> {
         self.detected_openers
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -540,7 +549,7 @@ impl Engine {
         }
     }
 
-    async fn wait_for_running_detection(&self) {
+    pub(crate) async fn wait_for_running_detection(&self) {
         let mut running = self.inner.is_refreshing.subscribe();
         let Some(started_at) = *running.borrow() else {
             return;
@@ -570,6 +579,7 @@ impl Engine {
         let _serialized = self.inner.mutation.lock().await;
         self.ensure_running()?;
         let definition = new_tunnel.into_definition(TunnelId::generate());
+        ensure_valid_host(&definition)?;
         let id = definition.id;
         let mut tunnels = self.inner.catalog().persistent_definitions();
         tunnels.push(definition.clone());
@@ -588,10 +598,15 @@ impl Engine {
         if self.inner.catalog().is_temporary(definition.id) {
             return Err(EngineError::TunnelIsTemporary(definition.id));
         }
-        let tunnels: Vec<TunnelDefinition> = self
-            .inner
-            .catalog()
-            .persistent_definitions()
+        let current = self.inner.catalog().persistent_definitions();
+        let has_new_host = current
+            .iter()
+            .find(|existing| existing.id == definition.id)
+            .is_some_and(|existing| existing.host != definition.host);
+        if has_new_host {
+            ensure_valid_host(&definition)?;
+        }
+        let tunnels: Vec<TunnelDefinition> = current
             .into_iter()
             .map(|existing| {
                 if existing.id == definition.id {
@@ -747,6 +762,7 @@ impl Engine {
         }
         .into_definition(TunnelId::generate());
         validate_tunnel_definition(&definition).map_err(StoreError::Validation)?;
+        ensure_valid_host(&definition)?;
         let id = definition.id;
         {
             let mut catalog = self.inner.catalog();
@@ -1174,4 +1190,9 @@ impl Engine {
         }
         Ok(ids)
     }
+}
+
+fn ensure_valid_host(definition: &TunnelDefinition) -> Result<(), EngineError> {
+    validate_tunnel_host(definition).map_err(StoreError::Validation)?;
+    Ok(())
 }

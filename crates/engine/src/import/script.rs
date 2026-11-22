@@ -9,10 +9,10 @@ use super::line_scan::{LineScan, RawForward, scan_line};
 use super::port_list::{PortEntry, extract_port_list};
 use super::template::{has_placeholder, substitute};
 use super::tokens::tokenize;
-use super::{ImportCandidate, ImportPreview, ImportWarning};
+use super::{ImportCandidate, ImportPreview, ImportWarning, invalid_host_warning};
 use crate::external::SshDestination;
 use crate::host_config::HostConfigResolver;
-use crate::store::TunnelKind;
+use crate::store::{TunnelKind, find_ssh_host_problem};
 
 /// A candidate waiting for the alias of its destination.
 struct Draft {
@@ -217,6 +217,13 @@ fn attribute_hosts(
             .destination
             .as_ref()
             .and_then(|destination| matcher.alias_for(destination));
+        if let Some(bad_host) = host
+            .as_deref()
+            .filter(|alias| find_ssh_host_problem(alias).is_some())
+        {
+            warnings.push(invalid_host_warning(draft.candidate.line, bad_host));
+            continue;
+        }
         note_unknown(&mut unknown, host.as_ref(), draft.destination);
         candidates.push(ImportCandidate {
             host,

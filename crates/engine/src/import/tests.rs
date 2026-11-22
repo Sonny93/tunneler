@@ -476,3 +476,60 @@ fn should_warn_when_ssh_config_alias_cannot_be_resolved() {
         Some(ImportWarning::HostResolutionFailed { host, .. }) if host == "broken"
     ));
 }
+
+const BAD_ALIAS_CONFIG: &str = "Host nova\n  HostName 198.51.100.157\n  LocalForward 4000 localhost:4000\nHost evil$alias\n  HostName 198.51.100.200\n  LocalForward 5000 localhost:5000\n";
+
+#[test]
+fn should_drop_the_candidate_and_warn_when_ssh_config_alias_breaks_the_host_rule() {
+    let (_directory, resolver) = resolver_for(BAD_ALIAS_CONFIG);
+
+    let preview = preview_ssh_config(&resolver).unwrap();
+
+    assert_eq!(listen_ports(&preview), vec![4000]);
+    assert_eq!(
+        preview.warnings,
+        vec![ImportWarning::InvalidHost {
+            line: None,
+            host: "evil$alias".to_owned()
+        }]
+    );
+}
+
+#[test]
+fn should_drop_the_candidate_and_warn_with_the_line_when_script_alias_breaks_the_host_rule() {
+    let (_directory, resolver) = resolver_for(BAD_ALIAS_CONFIG);
+
+    let preview = preview_script("ssh -L 5000:localhost:5000 evil$alias\n", &resolver);
+
+    assert_eq!(preview.candidates, Vec::new());
+    assert_eq!(
+        preview.warnings,
+        vec![ImportWarning::InvalidHost {
+            line: Some(1),
+            host: "evil$alias".to_owned()
+        }]
+    );
+}
+
+#[test]
+fn should_keep_the_valid_candidates_when_one_script_candidate_has_a_bad_host() {
+    let (_directory, resolver) = resolver_for(BAD_ALIAS_CONFIG);
+    let script = "ssh -L 5000:localhost:5000 evil$alias\nssh -L 4000:localhost:4000 nova\n";
+
+    let preview = preview_script(script, &resolver);
+
+    assert_eq!(listen_ports(&preview), vec![4000]);
+}
+
+#[test]
+fn should_strip_control_characters_from_the_host_of_the_invalid_host_warning() {
+    let warning = invalid_host_warning(Some(2), "a\u{1b}[31m\u{202e}b");
+
+    assert_eq!(
+        warning,
+        ImportWarning::InvalidHost {
+            line: Some(2),
+            host: "a[31mb".to_owned()
+        }
+    );
+}

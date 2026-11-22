@@ -3,7 +3,7 @@ import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react/macro';
 import { useState, type SubmitEvent } from 'react';
 
-import type { ImportPreviewDto, SettingsDto } from '#/daemon/protocol';
+import type { ImportPreviewDto } from '#/daemon/protocol';
 import { useDaemonGateway } from '#/daemon/use_daemon_gateway';
 import { buildImportSpecs } from '#/import/build_import_specs';
 import {
@@ -11,15 +11,14 @@ import {
 	type ImportFailure,
 	type ImportOutcome,
 } from '#/import/create_imported_tunnels';
-import {
-	findImportConflicts,
-	type ImportConflict,
-} from '#/import/find_import_conflicts';
 import { describeImportedCount } from '#/import/import_texts';
+import {
+	useImportConflicts,
+	type ImportConflicts,
+} from '#/import/use_import_conflicts';
 import { useImportSelection } from '#/import/use_import_selection';
 import { pushToast } from '#/shared/toasts/push_toast';
 import { useFormErrorSummary } from '#/shared/use_form_error_summary';
-import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { parseTags } from '#/tunnel_form/parse_tags';
 import { validateTags } from '#/tunnel_form/validate_tags';
@@ -31,7 +30,11 @@ const TAGS_FIELD_NAME = 'tags';
 export type ImportProgress = { doneCount: number; totalCount: number };
 
 type UseImportFormReturn = {
-	conflicts: readonly (ImportConflict | null)[];
+	conflicts: ImportConflicts;
+	/** `false` until the daemon told which candidates conflict: importing waits for it. */
+	isClassified: boolean;
+	/** `true` while the last check for conflicts failed. */
+	hasConflictCheckFailed: boolean;
 	selection: ReturnType<typeof useImportSelection>;
 	defaultHost: string;
 	hostError: string | undefined;
@@ -64,35 +67,33 @@ function describeSummaryTitle(
 }
 
 export function useImportForm(
-	preview: Readonly<ImportPreviewDto>,
-	settings: Readonly<SettingsDto>
+	preview: Readonly<ImportPreviewDto>
 ): UseImportFormReturn {
 	const { i18n } = useLingui();
 	const gateway = useDaemonGateway();
-	const tunnels = useDaemonStore((state) => state.tunnels);
 	const { candidates } = preview;
 	const [initialIndexes] = useState(
-		() =>
-			new Set(
-				findImportConflicts(candidates, tunnels, settings, null).flatMap(
-					(conflict, index) => (conflict === null ? [index] : [])
-				)
-			)
+		() => new Set(candidates.map((_, index) => index))
 	);
 	const selection = useImportSelection(initialIndexes, candidates.length);
 	const [defaultHost, setDefaultHost] = useState('');
+	const deselectConflicting = (firstConflicts: ImportConflicts) =>
+		selection.deselect(
+			firstConflicts.flatMap((conflict, index) =>
+				conflict === null ? [] : [index]
+			)
+		);
+	const { conflicts, isClassified, hasFailed } = useImportConflicts(
+		candidates,
+		defaultHost,
+		deselectConflicting
+	);
 	const [tagsText, setTagsText] = useState('');
 	const [hostError, setHostError] = useState<string>();
 	const [tagsError, setTagsError] = useState<string>();
 	const [progress, setProgress] = useState<ImportProgress | null>(null);
 	const [summaryTitle, setSummaryTitle] = useState('');
 	const summary = useFormErrorSummary();
-	const conflicts = findImportConflicts(
-		candidates,
-		tunnels,
-		settings,
-		defaultHost || null
-	);
 
 	const changeDefaultHost = (host: string) => {
 		setDefaultHost(host);
@@ -119,7 +120,8 @@ export function useImportForm(
 			)
 		);
 		summary.reportMessages(
-			outcome.failures.map((failure) => describeFailure(failure, i18n))
+			outcome.failures.map((failure) => describeFailure(failure, i18n)),
+			outcome.failures.flatMap((failure) => failure.englishTexts)
 		);
 	};
 
@@ -153,7 +155,8 @@ export function useImportForm(
 
 	const submit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		if (progress !== null || selection.selectedIndexes.size === 0) return;
+		if (!isClassified || progress !== null) return;
+		if (selection.selectedIndexes.size === 0) return;
 		const isHostMissing =
 			defaultHost === '' &&
 			[...selection.selectedIndexes].some(
@@ -177,6 +180,8 @@ export function useImportForm(
 
 	return {
 		conflicts,
+		isClassified,
+		hasConflictCheckFailed: hasFailed,
 		selection,
 		defaultHost,
 		hostError,

@@ -16,17 +16,20 @@ use tokio::task::JoinHandle;
 use crate::endpoint::Endpoint;
 use crate::error::ClientError;
 use crate::protocol::{
-    AdoptResult, AvailableOpenerDto, CheckTargetResult, CredentialAnswer, CredentialResponseParams,
-    DaemonPathsResult, DeleteTagResult, DevslotDiscoveryDto, DevslotHostName, DevslotInstanceName,
-    DevslotLinkDto, DevslotResyncParams, DevslotResyncResultDto, DevslotResyncTunnelDto,
-    DevslotUpParams, DevslotUpResultDto, EventMessage, ForgetSecretsResult, Hello,
-    HostKeyDecisionDto, HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto,
-    ImportScriptParams, LogEntryDto, LogsResult, OpenTunnelParams, OpenTunnelResult, OpenerSpecDto,
-    OpenersResult, PreviewSoundParams, ProcessParams, QuitParams, RememberDto, RenameTagResult,
-    Request, RequestEnvelope, ResolvedHostDto, SettingsDto, SettingsUpdateParams, SnapshotDto,
-    SoundEventDto, StandbySoundDto, TagParams, TagRenameParams, TargetHealthDto,
-    TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelSpecDto,
-    UiClaimParams, UiClaimResult, X11HostParams, X11LaunchParams, X11ProbeDto, encode_line,
+    AdoptResult, AvailableOpenerDto, CheckTargetResult, ConfigExportParams, ConfigExportResult,
+    ConfigImportApplyParams, ConfigImportParams, ConfigImportPlanDto, ConfigImportReportDto,
+    CredentialAnswer, CredentialResponseParams, DaemonPathsResult, DeleteTagResult,
+    DevslotDiscoveryDto, DevslotHostName, DevslotInstanceName, DevslotLinkDto, DevslotResyncParams,
+    DevslotResyncResultDto, DevslotResyncTunnelDto, DevslotUpParams, DevslotUpResultDto,
+    EventMessage, ForgetSecretsResult, Hello, HostKeyDecisionDto, HostKeyResponseParams,
+    HostParams, HostsResult, ImportClassifyParams, ImportClassifyResult, ImportPreviewDto,
+    ImportRouteDto, ImportScriptParams, LogEntryDto, LogsResult, OpenTunnelParams,
+    OpenTunnelResult, OpenerSpecDto, OpenersResult, PreviewSoundParams, ProcessParams, QuitParams,
+    RememberDto, RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, SettingsDto,
+    SettingsUpdateParams, SnapshotDto, SoundEventDto, StandbySoundDto, TagParams, TagRenameParams,
+    TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto, TunnelIdParams,
+    TunnelSpecDto, UiClaimParams, UiClaimResult, X11HostParams, X11LaunchParams, X11ProbeDto,
+    encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -352,6 +355,61 @@ impl IpcClient {
             text: text.to_owned(),
         }))
         .await
+    }
+
+    /// Checks routes of an import source against the saved tunnels.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. The daemon answers
+    /// `invalid_request` above
+    /// [`MAX_IMPORT_CLASSIFY_CANDIDATES`](crate::protocol::MAX_IMPORT_CLASSIFY_CANDIDATES)
+    /// candidates.
+    pub async fn classify_imports(
+        &self,
+        candidates: Vec<ImportRouteDto>,
+    ) -> Result<ImportClassifyResult, ClientError> {
+        self.call(Request::ImportClassify(ImportClassifyParams { candidates }))
+            .await
+    }
+
+    /// Exports the saved tunnels, optionally filtered by host and tag.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`].
+    pub async fn export_config(
+        &self,
+        params: ConfigExportParams,
+    ) -> Result<ConfigExportResult, ClientError> {
+        self.call(Request::ConfigExport(params)).await
+    }
+
+    /// Plans what importing a file would do, without writing anything.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. The daemon answers
+    /// `invalid_import_file` when the file is refused as a whole.
+    pub async fn preview_config_import(
+        &self,
+        params: ConfigImportParams,
+    ) -> Result<ConfigImportPlanDto, ClientError> {
+        self.call(Request::ConfigImportPreview(params)).await
+    }
+
+    /// Adds the requested entries of a file that are still importable.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. The daemon answers
+    /// `invalid_import_file` when the file is refused as a whole and
+    /// `invalid_state` when the store on disk is invalid.
+    pub async fn apply_config_import(
+        &self,
+        params: ConfigImportApplyParams,
+    ) -> Result<ConfigImportReportDto, ClientError> {
+        self.call(Request::ConfigImportApply(params)).await
     }
 
     /// Sends a tunnel woken from standby back to standby.

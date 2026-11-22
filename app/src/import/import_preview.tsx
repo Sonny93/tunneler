@@ -1,8 +1,10 @@
 import { useLingui } from '@lingui/react/macro';
-import { Button, Input, Select } from '@minimalstuff/ui';
+import { Input, Select } from '@minimalstuff/ui';
 import { useEffect, useId, useMemo, useRef, type ChangeEvent } from 'react';
 
-import type { ImportPreviewDto, SettingsDto } from '#/daemon/protocol';
+import type { ImportPreviewDto } from '#/daemon/protocol';
+import { ConflictCheckFailure } from '#/import/conflict_check_failure';
+import { ImportActionButton } from '#/import/import_action_button';
 import { ImportCandidateList } from '#/import/import_candidate_list';
 import {
 	describeDetectedCount,
@@ -18,14 +20,10 @@ import { useDaemonStore } from '#/state/daemon_store';
 
 type ImportPreviewProps = {
 	preview: ImportPreviewDto;
-	settings: SettingsDto;
 };
 
 /** Mount it with a new `key` per analysis: it announces its count and takes the focus when mounted. */
-export function ImportPreview({
-	preview,
-	settings,
-}: Readonly<ImportPreviewProps>) {
+export function ImportPreview({ preview }: Readonly<ImportPreviewProps>) {
 	const { t, i18n } = useLingui();
 	const headingId = useId();
 	const tagsListId = useId();
@@ -33,7 +31,7 @@ export function ImportPreview({
 	const hosts = useDaemonStore((state) => state.hosts);
 	const tunnels = useDaemonStore((state) => state.tunnels);
 	const existingTags = useMemo(() => summarizeTags(tunnels), [tunnels]);
-	const form = useImportForm(preview, settings);
+	const form = useImportForm(preview);
 	const { candidates, warnings } = preview;
 	const selectedCount = form.selection.selectedIndexes.size;
 	const hasHostlessCandidate = candidates.some(
@@ -76,6 +74,7 @@ export function ImportPreview({
 				>
 					<FormErrorSummary
 						messages={form.summary.messages}
+						englishTexts={form.summary.englishTexts}
 						title={form.summaryTitle}
 						attach={form.summary.attachSummary}
 					/>
@@ -110,6 +109,7 @@ export function ImportPreview({
 							))}
 						</datalist>
 					</div>
+					<ConflictCheckFailure hasFailed={form.hasConflictCheckFailed} />
 					<ImportCandidateList
 						candidates={candidates}
 						conflicts={form.conflicts}
@@ -129,16 +129,15 @@ export function ImportPreview({
 								)}
 							</output>
 						)}
-						<div>
-							<Button
-								type="submit"
-								startIcon="i-mdi-import"
-								loading={form.progress !== null}
-								disabled={selectedCount === 0}
-							>
-								{describeImportAction(selectedCount, i18n)}
-							</Button>
-						</div>
+						<ImportActionButton
+							startIcon="i-mdi-import"
+							isRunning={form.progress !== null}
+							isChecking={!form.isClassified}
+							isSelectionEmpty={selectedCount === 0}
+							emptyHint={t`Select at least one tunnel`}
+						>
+							{describeImportAction(selectedCount, i18n)}
+						</ImportActionButton>
 					</div>
 				</form>
 			)}

@@ -31,7 +31,7 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 - Tray icon: the Tunneler logo, coloured by the global state, with a tooltip that sums it up and a menu to toggle tags.
 - On-demand window: the process exits when the window closes, the tunnels keep running in the daemon.
 - Tunnel list grouped by host, with tags, multi-selection, context menus and a command palette (Ctrl+K).
-- Detail drawer with live logs and metrics, an import from `ssh_config` and from pasted `ssh -L` scripts. The drawers slide in and out.
+- Detail drawer with live logs and metrics, an "Import and export" drawer (`ssh_config`, pasted `ssh -L` scripts, devslot and files). The drawers slide in and out.
 - A settings window with vertical tabs (General, Connection, Standby, Opening, Secrets), one "Save" for everything including your applications, a count of errors on each tab, a confirmation before discarding changes however you close the window (Cancel, Escape, a click outside or the close button), and one command per tab in the palette.
 - Open a tunnel in the browser or in an application picked from the target port (VNC, RDP, any command you add). A detected application can be customized, for example to point at a portable copy. A setting makes tunnels without a saved application always open in the browser, and a double-click on a row opens the tunnel.
 - This documentation, in English and French, opened from the app with F1.
@@ -39,12 +39,18 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 - English and French, for the window, the tray and the notifications. The language follows the system or is picked in the settings.
 
 ### Command line
-- `tunneler up`, `down`, `status`, `list`, `open`, `check`, `devslot`, `quit` and `purge`, with `--json` output and documented exit codes.
+- `tunneler up`, `down`, `status`, `list`, `open`, `check`, `export`, `import`, `devslot`, `quit` and `purge`, with `--json` output and documented exit codes.
 - `tunneler desktop-entry install` gives the Linux archive an application menu entry and icons; the daemon keeps the entry pointing at the current `tunneler-ui`, and `tunneler purge` removes it.
 - Tunnels are selected by port, by `host:port` or by tag.
 
+### Export and import
+- Move tunnels to another computer: `tunneler export` and the "File" tab of the "Import and export" drawer write tunnels, with their tags, open options and standby, to a file, and `tunneler import` or the same tab reads it back with a preview. See [Move tunnels to another computer](/guide/export-import).
+- The import only adds: a tunnel you already have is never changed or removed. Identical tunnels and port conflicts are skipped and named, hosts can be remapped, an application missing here is dropped, and risky tunnels start unchecked. A raw `tunnels.toml` is accepted too.
+- The conflict detection (already configured, port already used, repeated in the import) lives in the daemon and is shared by every import source: the file, `ssh_config`, pasted scripts and devslot.
+- Host name rule: an alias that is not made of letters, digits and `. _ - : @ [ ]`, or that starts with `-`, is refused when creating or importing a tunnel, and never resolved or connected (stricter than the OpenSSH 9.6 rule, CVE-2023-51385).
+
 ### devslot
-- Discovery from the import panel: list the instances of a host with `ds ls --json`, start tunnels to their ports (temporary or saved, tagged `devslot` and `ds-<project>`), open web ports at `http://<label>.localhost:<port>`, and clean up the tunnels whose port is gone. See [Tunnels from devslot](/guide/devslot).
+- Discovery from the "Import and export" drawer: list the instances of a host with `ds ls --json`, start tunnels to their ports (temporary or saved, tagged `devslot` and `ds-<project>`), open web ports at `http://<label>.localhost:<port>`, and clean up the tunnels whose port is gone. See [Tunnels from devslot](/guide/devslot).
 - One-step open: `tunneler devslot <host> <instance>`, or a `tunneler://devslot/<host>/<instance>` link that opens Tunneler and asks for confirmation first, tunnels the web ports of the instance and opens the browser.
 
 ### Distribution
@@ -82,6 +88,7 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 ### Both
 - **devslot discovery.** Checked against a real host: discover, start temporary tunnels (including on a port already used locally), open a web port in the browser. Still to check: saved tunnels, stop an instance and discover again (the stale tunnels should go or be asked about), a host where `ds` is missing from the non-interactive `PATH` (with and without `devslot_path`), and an instance with a forced port.
 - **devslot link.** Checked on Linux with `tunneler desktop-entry install`: `tunneler devslot` against a real host (a main checkout and a worktree, run twice), and a link opened with `xdg-open`. Still to check: click a `tunneler://devslot/...` link after installing the Windows installer and the `.deb`: the confirmation should name the host and the instance. The prompts Chrome and Firefox show before opening an external application. When the window is already open on Windows, it should come to the front. With NVDA and Orca: the confirmation, the busy state and a failure (read once, starting with what went wrong). And `tunneler devslot --no-open`.
+- **Export and import.** The native file dialogs of the "File" tab on Windows and on Linux: cancelling, a long path, a file that cannot be written. A real move from a Windows computer to a Linux laptop: export, copy, import, host remapping, the risky tunnels, then start the tunnels. A screen reader pass on the "File" tab: the filters, the preview with its statuses and risks read as text, the alias choice, and the announced result.
 - **X11.** VcXsrv on Windows and Xorg or Xwayland on Linux, against a real `sshd`: a remote `xeyes` should show up without `xauth`.
 - **Applications installed while Tunneler runs.** Install TigerVNC, Remmina or FreeRDP while Tunneler runs, then open the window: the application should show in Settings › Opening without a restart, and a tunnel on its port should open in it.
 - **SOCKS.** `curl --socks5` through a dynamic tunnel to a real `sshd`.
@@ -114,12 +121,19 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 ### devslot discovery
 - The `tunneler://` link is not registered by the Windows portable zip, the AppImage or macOS: use the command there. Browsers usually ask before opening an external application, and a terminal may not make the link clickable.
 - The alias in a link comes from the server's devslot configuration. A computer that knows the server under another alias gets links that fail as an unknown alias: type `tunneler devslot` with its own alias.
-- `tunneler devslot` tunnels web ports only, and not those below 1024. Services such as a database, and stale saved tunnels that need a decision, are left to the import panel.
+- `tunneler devslot` tunnels web ports only, and not those below 1024. Services such as a database, and stale saved tunnels that need a decision, are left to the "Import and export" drawer.
 - `devslot_path` and `devslot_persist` of a host are edited by hand in `tunnels.toml`; the window does not write them.
 - When the local port differs from the remote one, links the app builds (absolute URLs in a page) still point at the remote port and do not work.
 
+### Export and import
+- There is no replace mode: an import never changes or removes a tunnel. To change one, edit it in the window.
+- A tunnel whose port is already used is skipped, not moved to another port. Change the port in the file, or add the tunnel by hand.
+- Settings, applications, X11 launchers and per-host settings are not carried. Copy them by hand from `tunnels.toml`.
+- Two tunnels that listen on `127.0.0.1:P` and on `0.0.0.0:P` clash at the system level, but the import does not detect it: the second one fails when it starts.
+- The command line imports the default selection only: a risky tunnel is added from the window.
+
 ### Interface and command line
-- The import does not take `$env:DISPLAY` from a script into `x11_display`, and there is no import on the command line.
+- The import from a pasted script does not take `$env:DISPLAY` into `x11_display`, and the command line has no import from `ssh_config` or from scripts (`tunneler import` reads a file).
 - Health times on the command line are in UTC.
 - A `tunnels.toml` with CRLF line endings is not guaranteed to be rewritten identically outside the lines Tunneler changes.
 - The borders of some controls from the component library are below 3:1 contrast (WCAG 1.4.11). This is accepted for now.

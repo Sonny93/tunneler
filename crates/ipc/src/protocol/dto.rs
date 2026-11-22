@@ -903,6 +903,16 @@ pub enum ImportWarningDto {
         /// Why the resolution failed.
         message: String,
     },
+    /// A forward whose host cannot be used as an alias: it could be read as
+    /// an option or expanded by `ssh_config`. The candidate was dropped.
+    InvalidHost {
+        /// The 1-based line of the specification.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        line: Option<u32>,
+        /// The host, stripped of control and bidirectional characters for
+        /// display only.
+        host: String,
+    },
 }
 
 /// The forwards found in an import source, and what was skipped.

@@ -4,7 +4,7 @@ devslot gives each checkout of a project its own ports and compose project on a 
 
 ## Discover the instances
 
-1. Open the import panel and choose the "From devslot" tab.
+1. Open the "Import and export" drawer and choose the "From devslot" tab.
 2. Pick the host, an alias of your `ssh_config`, and select "Discover".
 3. Each instance is listed with its ports. Web ports are checked, except those below 1024. Service ports (a database, for example) are not. A port that already has a tunnel is disabled and says so.
 4. Select "Start N tunnels".
@@ -30,15 +30,15 @@ When the server's devslot configuration has a `[tunneler] host = "<alias>"` entr
 ### What it does
 
 1. Runs `ds ls --json` on the host, like the discovery above.
-2. Removes the stale devslot tunnels that need no question: the temporary ones, and the saved ones when `devslot_stale = "delete"`, under the same safety rule as above. The routes it removed are listed. A saved tunnel that would need your decision is left alone: the command says how many wait, and the import panel is where you answer.
-3. Starts a tunnel for each web port of the instance that has none, as in the import panel. A port that already has a devslot tunnel of this host, listening on the loopback (`127.0.0.1`, `::1` or `localhost`, or the default bind address of the settings when the tunnel sets none), is reused, and started if it was stopped. Any other tunnel that forwards the port, one you configured yourself or one that listens on `0.0.0.0`, is yours: the port is skipped and you start that tunnel yourself. A tunnel listens on `127.0.0.1`, and takes a free local port when the remote one is in use on this computer.
+2. Removes the stale devslot tunnels that need no question: the temporary ones, and the saved ones when `devslot_stale = "delete"`, under the same safety rule as above. The routes it removed are listed. A saved tunnel that would need your decision is left alone: the command says how many wait, and the "Import and export" drawer is where you answer.
+3. Starts a tunnel for each web port of the instance that has none, as in the "Import and export" drawer. A port that already has a devslot tunnel of this host, listening on the loopback (`127.0.0.1`, `::1` or `localhost`, or the default bind address of the settings when the tunnel sets none), is reused, and started if it was stopped. Any other tunnel that forwards the port, one you configured yourself or one that listens on `0.0.0.0`, is yours: the port is skipped and you start that tunnel yourself. A tunnel listens on `127.0.0.1`, and takes a free local port when the remote one is in use on this computer.
 4. Opens the application in the browser, at `http://<label>.localhost:<port>`, unless you pass `--no-open`.
 
-Only web ports are tunneled. Services such as a database are not, and neither are ports below 1024 (left to the import panel). A port below 1024 is reported as skipped, by design. A port that is skipped because it is in use and no free port was found, because a stale tunnel holds it and waits for your decision, or because a tunnel you configured already forwards it, is reported too and makes the command exit with 4, like a port whose tunnel failed.
+Only web ports are tunneled. Services such as a database are not, and neither are ports below 1024 (left to the "Import and export" drawer). A port below 1024 is reported as skipped, by design. A port that is skipped because it is in use and no free port was found, because a stale tunnel holds it and waits for your decision, or because a tunnel you configured already forwards it, is reported too and makes the command exit with 4, like a port whose tunnel failed.
 
 Running it twice creates nothing new: the second run finds the tunnels of the first, and only opens the browser again. When another instance lists the same port as the application, the browser may reach that other one, and the output says so.
 
-The tunnels are temporary or saved following `devslot_persist`, like in the import panel (see [Temporary or saved](#temporary-or-saved)). Without a setting they are temporary.
+The tunnels are temporary or saved following `devslot_persist`, like in the "Import and export" drawer (see [Temporary or saved](#temporary-or-saved)). Without a setting they are temporary.
 
 ### The link
 

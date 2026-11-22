@@ -28,7 +28,17 @@ mod tokens;
 pub use script::preview_script;
 pub use ssh_config_import::preview_ssh_config;
 
+use crate::devslot::{MAX_TEXT_BYTES, sanitize_text};
 use crate::store::TunnelKind;
+
+/// The warning for a host that breaks the host alias rule, its text cleaned
+/// so that it can be displayed.
+fn invalid_host_warning(line: Option<u32>, host: &str) -> ImportWarning {
+    ImportWarning::InvalidHost {
+        line,
+        host: sanitize_text(host, MAX_TEXT_BYTES),
+    }
+}
 
 /// The tunnels found in an import source, and what could not be imported.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -83,6 +93,13 @@ pub enum ImportWarning {
     UnknownDestination {
         /// The destination as written, for example `jules@198.51.100.157`.
         destination: String,
+    },
+    /// A candidate dropped because its host breaks the host alias rule.
+    InvalidHost {
+        /// The 1-based line of the pasted text; `None` for an `ssh_config` import.
+        line: Option<u32>,
+        /// The host, stripped of control characters for display.
+        host: String,
     },
     /// An alias whose configuration could not be resolved.
     HostResolutionFailed {

@@ -31,7 +31,7 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 - Icône dans la zone de notification : le logo de Tunneler, coloré selon l'état global, avec une infobulle qui le résume et un menu pour activer les tags.
 - Fenêtre à la demande : le processus s'arrête à la fermeture de la fenêtre, les tunnels continuent dans le daemon.
 - Liste de tunnels groupée par hôte, avec tags, sélection multiple, menus contextuels et palette de commandes (Ctrl+K).
-- Panneau de détails avec journaux et métriques en direct, import depuis `ssh_config` et depuis des scripts `ssh -L` collés. Les tiroirs glissent à l'ouverture et à la fermeture.
+- Panneau de détails avec journaux et métriques en direct, tiroir « Importer et exporter » (`ssh_config`, scripts `ssh -L` collés, devslot et fichiers). Les tiroirs glissent à l'ouverture et à la fermeture.
 - Une fenêtre de réglages à onglets verticaux (Général, Connexion, Veille, Ouverture, Secrets), un seul « Enregistrer » pour tout, y compris vos applications, le nombre d'erreurs sur chaque onglet, une confirmation avant d'abandonner les changements quelle que soit la façon de fermer la fenêtre (Annuler, Échap, un clic à l'extérieur ou le bouton de fermeture), et une commande par onglet dans la palette.
 - Ouverture d'un tunnel dans le navigateur ou dans une application choisie d'après le port cible (VNC, RDP, toute commande que vous ajoutez). Une application détectée peut être personnalisée, par exemple pour pointer vers une copie portable. Un réglage fait ouvrir dans le navigateur les tunnels sans application enregistrée, et un double-clic sur une ligne ouvre le tunnel.
 - Cette documentation, en anglais et en français, ouverte depuis l'application avec F1.
@@ -39,12 +39,18 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 - Anglais et français, pour la fenêtre, l'icône de la zone de notification et les notifications. La langue suit le système ou se choisit dans les réglages.
 
 ### Ligne de commande
-- `tunneler up`, `down`, `status`, `list`, `open`, `check`, `devslot`, `quit` et `purge`, avec sortie `--json` et codes de sortie documentés.
+- `tunneler up`, `down`, `status`, `list`, `open`, `check`, `export`, `import`, `devslot`, `quit` et `purge`, avec sortie `--json` et codes de sortie documentés.
 - `tunneler desktop-entry install` donne à l'archive Linux une entrée de menu des applications et des icônes ; le daemon la garde pointée sur le `tunneler-ui` courant, et `tunneler purge` la supprime.
 - Les tunnels se désignent par port, par `hôte:port` ou par tag.
 
+### Export et import
+- Déplacer ses tunnels vers un autre ordinateur : `tunneler export` et l'onglet « Fichier » du tiroir « Importer et exporter » écrivent les tunnels, avec leurs tags, leurs options d'ouverture et leur veille, dans un fichier, et `tunneler import` ou le même onglet le relit avec un aperçu. Voir [Déplacer ses tunnels vers un autre ordinateur](/fr/guide/export-import).
+- L'import ne fait qu'ajouter : un tunnel que vous avez déjà n'est jamais modifié ni supprimé. Les tunnels identiques et les conflits de port sont ignorés et nommés, les hôtes peuvent être remplacés, une application absente ici est abandonnée, et les tunnels risqués démarrent décochés. Un `tunnels.toml` brut est accepté aussi.
+- La détection des conflits (déjà configuré, port déjà utilisé, répété dans l'import) vit dans le daemon et sert toutes les sources d'import : le fichier, `ssh_config`, les scripts collés et devslot.
+- Règle sur les noms d'hôte : un alias qui n'est pas fait de lettres, de chiffres et de `. _ - : @ [ ]`, ou qui commence par `-`, est refusé à la création ou à l'import d'un tunnel, et jamais résolu ni connecté (plus strict que la règle d'OpenSSH 9.6, CVE-2023-51385).
+
 ### devslot
-- Découverte depuis le panneau d'import : lister les instances d'un hôte avec `ds ls --json`, démarrer des tunnels vers leurs ports (temporaires ou enregistrés, avec les tags `devslot` et `ds-<projet>`), ouvrir les ports web sur `http://<label>.localhost:<port>`, et nettoyer les tunnels dont le port a disparu. Voir [Tunnels depuis devslot](/fr/guide/devslot).
+- Découverte depuis le tiroir « Importer et exporter » : lister les instances d'un hôte avec `ds ls --json`, démarrer des tunnels vers leurs ports (temporaires ou enregistrés, avec les tags `devslot` et `ds-<projet>`), ouvrir les ports web sur `http://<label>.localhost:<port>`, et nettoyer les tunnels dont le port a disparu. Voir [Tunnels depuis devslot](/fr/guide/devslot).
 - Ouverture en une étape : `tunneler devslot <hôte> <instance>`, ou un lien `tunneler://devslot/<hôte>/<instance>` qui ouvre Tunneler et demande d'abord une confirmation, ouvre les tunnels vers les ports web de l'instance et ouvre le navigateur.
 
 ### Distribution
@@ -82,6 +88,7 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 ### Les deux systèmes
 - **Découverte devslot.** Vérifié contre un vrai hôte : découvrir, démarrer des tunnels temporaires (y compris sur un port déjà utilisé localement), ouvrir un port web dans le navigateur. Reste à vérifier : les tunnels enregistrés, arrêter une instance puis redécouvrir (les tunnels périmés doivent partir ou faire l'objet d'une question), un hôte où `ds` n'est pas dans le `PATH` non interactif (avec et sans `devslot_path`), et une instance avec un port imposé.
 - **Lien devslot.** Vérifié sous Linux avec `tunneler desktop-entry install` : `tunneler devslot` contre un vrai hôte (un checkout principal et un worktree, lancés deux fois), et un lien ouvert avec `xdg-open`. Reste à vérifier : cliquer sur un lien `tunneler://devslot/...` après l'installeur Windows et le `.deb` : la confirmation doit nommer l'hôte et l'instance. Les invites que Chrome et Firefox affichent avant d'ouvrir une application externe. Quand la fenêtre est déjà ouverte sous Windows, elle doit passer au premier plan. Avec NVDA et Orca : la confirmation, l'état en cours et un échec (lu une seule fois, en commençant par ce qui n'a pas marché). Et `tunneler devslot --no-open`.
+- **Export et import.** Les boîtes de dialogue natives de l'onglet « Fichier » sous Windows et sous Linux : annuler, un chemin très long, un fichier impossible à écrire. Un vrai déménagement d'un ordinateur Windows vers un portable Linux : exporter, copier, importer, remplacement des hôtes, tunnels risqués, puis démarrage des tunnels. Une passe au lecteur d'écran sur l'onglet « Fichier » : les filtres, l'aperçu avec ses états et ses risques lus comme du texte, le choix d'alias et le résultat annoncé.
 - **X11.** VcXsrv sous Windows et Xorg ou Xwayland sous Linux, contre un vrai `sshd` : un `xeyes` distant doit s'afficher sans `xauth`.
 - **Applications installées pendant que Tunneler tourne.** Installer TigerVNC, Remmina ou FreeRDP pendant que Tunneler tourne, puis ouvrir la fenêtre : l'application doit apparaître dans Paramètres › Ouverture sans redémarrage, et un tunnel sur son port doit s'ouvrir avec elle.
 - **SOCKS.** `curl --socks5` à travers un tunnel dynamique vers un vrai `sshd`.
@@ -114,12 +121,19 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 ### Découverte devslot
 - Le lien `tunneler://` n'est pas déclaré par le zip portable Windows, l'AppImage ni macOS : utilisez la commande. Les navigateurs demandent en général une confirmation avant d'ouvrir une application externe, et un terminal ne rend pas toujours le lien cliquable.
 - L'alias d'un lien vient de la configuration devslot du serveur. Un ordinateur qui connaît le serveur sous un autre alias obtient des liens qui échouent avec un alias inconnu : tapez `tunneler devslot` avec son propre alias.
-- `tunneler devslot` ne tunnele que les ports web, et pas ceux inférieurs à 1024. Les services comme une base de données, et les tunnels enregistrés périmés qui demandent une décision, sont laissés au panneau d'import.
+- `tunneler devslot` ne tunnele que les ports web, et pas ceux inférieurs à 1024. Les services comme une base de données, et les tunnels enregistrés périmés qui demandent une décision, sont laissés au tiroir « Importer et exporter ».
 - `devslot_path` et `devslot_persist` d'un hôte s'éditent à la main dans `tunnels.toml` : la fenêtre ne les écrit pas.
 - Quand le port local diffère du port distant, les liens que l'application construit (URL absolues dans une page) pointent toujours vers le port distant et ne fonctionnent pas.
 
+### Export et import
+- Il n'y a pas de mode remplacement : un import ne modifie ni ne supprime jamais un tunnel. Pour en changer un, modifiez-le dans la fenêtre.
+- Un tunnel dont le port est déjà utilisé est ignoré, pas déplacé sur un autre port. Changez le port dans le fichier, ou ajoutez le tunnel à la main.
+- Les réglages, les applications, les lanceurs X11 et les réglages par hôte ne sont pas transportés. Recopiez-les à la main depuis `tunnels.toml`.
+- Deux tunnels qui écoutent sur `127.0.0.1:P` et sur `0.0.0.0:P` se heurtent au niveau du système, mais l'import ne le détecte pas : le second échoue à son démarrage.
+- La ligne de commande n'importe que la sélection par défaut : un tunnel risqué s'ajoute depuis la fenêtre.
+
 ### Interface et ligne de commande
-- L'import ne reprend pas le `$env:DISPLAY` d'un script dans `x11_display`, et il n'y a pas d'import en ligne de commande.
+- L'import depuis un script collé ne reprend pas le `$env:DISPLAY` dans `x11_display`, et la ligne de commande n'a pas d'import depuis `ssh_config` ou depuis des scripts (`tunneler import` lit un fichier).
 - Les heures de santé en ligne de commande sont en UTC.
 - Un `tunnels.toml` en fins de ligne CRLF n'est pas garanti identique après réécriture en dehors des lignes que Tunneler modifie.
 - Les bordures de certains contrôles de la bibliothèque de composants sont sous 3:1 de contraste (WCAG 1.4.11). C'est accepté pour l'instant.

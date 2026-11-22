@@ -4,6 +4,8 @@ use std::time::Duration;
 
 use thiserror::Error;
 
+use crate::devslot::{MAX_TEXT_BYTES, sanitize_text};
+
 use super::model::{
     BROWSER_OPENER_ID, HostOverrides, MAX_STANDBY_VOLUME, MIN_STANDBY_VOLUME, Opener, Settings,
     StoreDocument, TunnelDefinition, TunnelId, TunnelKind, X11Launcher,
@@ -14,6 +16,8 @@ const MAX_HOST_NAME_BYTES: usize = 253;
 const MAX_HOST_NAME_LABEL_BYTES: usize = 63;
 const MAX_DEVSLOT_PATH_BYTES: usize = 4096;
 const HOST_NAME_SUFFIX_LABEL: &str = "localhost";
+const MAX_SSH_HOST_BYTES: usize = 255;
+const SSH_HOST_EXTRA_CHARACTERS: [char; 7] = ['.', '_', '-', ':', '@', '[', ']'];
 
 /// Names a tunnel in an error message.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,6 +61,26 @@ pub enum TagProblem {
     /// The tag is only digits, which the CLI reads as a port.
     #[error("it is only digits (the CLI reads a number as a port selector)")]
     OnlyDigits,
+}
+
+/// What is wrong with a host alias. An alias reaches `ssh_config` token
+/// expansion (`%h`, `Match exec`, `ProxyCommand`), which a shell runs, on
+/// Windows through `cmd` that expands `%VAR:~n,m%` before parsing. So the rule
+/// is an allowlist: letters and digits of any script, and `. _ - : @ [ ]`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum SshHostProblem {
+    /// The alias is empty.
+    #[error("it is empty")]
+    Empty,
+    /// The alias is longer than 255 bytes.
+    #[error("it is longer than {MAX_SSH_HOST_BYTES} bytes")]
+    TooLong,
+    /// The alias starts with a dash, which `ssh` reads as an option.
+    #[error("it starts with a dash")]
+    LeadingDash,
+    /// The alias contains a character outside the allowlist.
+    #[error("it contains a character other than letters, digits and . _ - : @ [ ]")]
+    ForbiddenCharacter,
 }
 
 /// What is wrong with the path of an open URL.
@@ -237,6 +261,16 @@ pub enum ValidationError {
         /// What is wrong with it.
         problem: HostNameProblem,
     },
+    /// The host alias of a tunnel breaks the host alias rule.
+    #[error("{tunnel}: the host \"{host}\" is invalid: {problem}")]
+    InvalidSshHost {
+        /// The offending tunnel.
+        tunnel: TunnelReference,
+        /// The host alias, stripped of control characters.
+        host: String,
+        /// What is wrong with it.
+        problem: SshHostProblem,
+    },
     /// The `devslot_path` of a host is not acceptable.
     #[error("hosts.{host}: devslot_path is invalid: {problem}")]
     InvalidDevslotPath {
@@ -372,6 +406,44 @@ pub(crate) fn validate_tunnel_definition(
         return Ok(());
     }
     Err(errors)
+}
+
+/// Checks the host alias rule on a tunnel. It is not part of
+/// [`validate_tunnel_definition`] nor of [`validate`]: a hand-edited store
+/// must still load, so the rule is enforced where a host enters the engine.
+pub(crate) fn validate_tunnel_host(tunnel: &TunnelDefinition) -> Result<(), Vec<ValidationError>> {
+    match find_ssh_host_problem(&tunnel.host) {
+        None => Ok(()),
+        Some(problem) => Err(vec![ValidationError::InvalidSshHost {
+            tunnel: TunnelReference {
+                id: tunnel.id,
+                label: sanitize_text(&tunnel.label(), MAX_TEXT_BYTES),
+            },
+            host: sanitize_text(&tunnel.host, MAX_TEXT_BYTES),
+            problem,
+        }]),
+    }
+}
+
+/// Checks the host alias rule: empty, longer than 255 bytes, a leading dash,
+/// or a character outside the allowlist.
+pub(crate) fn find_ssh_host_problem(host: &str) -> Option<SshHostProblem> {
+    if host.is_empty() {
+        return Some(SshHostProblem::Empty);
+    }
+    if host.len() > MAX_SSH_HOST_BYTES {
+        return Some(SshHostProblem::TooLong);
+    }
+    if host.starts_with('-') {
+        return Some(SshHostProblem::LeadingDash);
+    }
+    let is_allowed = |character: char| {
+        character.is_alphanumeric() || SSH_HOST_EXTRA_CHARACTERS.contains(&character)
+    };
+    if !host.chars().all(is_allowed) {
+        return Some(SshHostProblem::ForbiddenCharacter);
+    }
+    None
 }
 
 fn validate_settings(settings: &Settings) -> Vec<ValidationError> {
@@ -651,15 +723,17 @@ fn find_duplicate_ids(tunnels: &[TunnelDefinition]) -> Vec<ValidationError> {
     errors
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
-struct ListenEndpoint {
+/// Where a tunnel listens, normalized the way store validation compares it:
+/// the address trimmed and lowercased, the host only for a remote tunnel.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct ListenEndpoint {
     remote_host: Option<String>,
     address: String,
     port: u16,
 }
 
 impl ListenEndpoint {
-    fn of(tunnel: &TunnelDefinition, settings: &Settings) -> Self {
+    pub(crate) fn of(tunnel: &TunnelDefinition, settings: &Settings) -> Self {
         let remote_host = match tunnel.kind {
             TunnelKind::Remote => Some(tunnel.host.clone()),
             TunnelKind::Local | TunnelKind::Dynamic => None,
@@ -673,6 +747,18 @@ impl ListenEndpoint {
             port: tunnel.listen_port,
         }
     }
+}
+
+/// What a tunnel reaches, normalized like [`ListenEndpoint`]; `None` for a
+/// dynamic tunnel, whose clients choose the target.
+pub(crate) fn effective_target(tunnel: &TunnelDefinition) -> Option<(String, u16)> {
+    if tunnel.kind == TunnelKind::Dynamic {
+        return None;
+    }
+    Some((
+        tunnel.effective_target_host().trim().to_lowercase(),
+        tunnel.effective_target_port(),
+    ))
 }
 
 fn find_listen_conflicts(
@@ -1303,6 +1389,104 @@ mod tests {
                 ..
             }]
         ));
+    }
+
+    #[test]
+    fn should_accept_an_ordinary_host_alias() {
+        for host in [
+            "nova",
+            "web-1.example.com",
+            "192.0.2.10",
+            "::1",
+            "bücher",
+            "a_b",
+        ] {
+            assert_eq!(find_ssh_host_problem(host), None, "{host}");
+        }
+    }
+
+    #[test]
+    fn should_reject_an_empty_host_alias() {
+        assert_eq!(find_ssh_host_problem(""), Some(SshHostProblem::Empty));
+    }
+
+    #[test]
+    fn should_reject_a_host_alias_longer_than_255_bytes() {
+        assert_eq!(
+            find_ssh_host_problem(&"a".repeat(256)),
+            Some(SshHostProblem::TooLong)
+        );
+        assert_eq!(find_ssh_host_problem(&"a".repeat(255)), None);
+    }
+
+    #[test]
+    fn should_reject_a_host_alias_starting_with_a_dash() {
+        assert_eq!(
+            find_ssh_host_problem("-oProxyCommand=touch"),
+            Some(SshHostProblem::LeadingDash)
+        );
+        assert_eq!(find_ssh_host_problem("a-b"), None);
+    }
+
+    #[test]
+    fn should_reject_a_host_alias_with_a_character_outside_the_allowlist() {
+        let characters = [
+            ' ', '\t', '\n', '\r', '\u{a0}', '\u{2003}', '\u{0}', '\u{1b}', '\u{7f}', '\u{202e}',
+            '\u{2066}', '\u{200f}', '\u{61c}', '\'', '"', '`', '$', '\\', ';', '&', '|', '<', '>',
+            '(', ')', '{', '}', '%', '^', '!', ',', '=', '~', '*', '?', '#', '/', '+',
+        ];
+        for character in characters {
+            let host = format!("a{character}b");
+            assert_eq!(
+                find_ssh_host_problem(&host),
+                Some(SshHostProblem::ForbiddenCharacter),
+                "{host:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn should_reject_the_cmd_variable_expansion_exploit() {
+        let host = "x%programfiles:~10,1%-oproxycommand=calc.exe%programfiles:~10,1%y";
+
+        assert_eq!(
+            find_ssh_host_problem(host),
+            Some(SshHostProblem::ForbiddenCharacter)
+        );
+    }
+
+    #[test]
+    fn should_accept_the_allowed_punctuation_and_unicode_letters() {
+        for host in ["[::1]", "user@host", "db-01.corp_x", "日本語", "Ünï-1"] {
+            assert_eq!(find_ssh_host_problem(host), None, "{host}");
+        }
+    }
+
+    #[test]
+    fn should_still_load_a_store_when_a_host_breaks_the_host_rule() {
+        let tunnel = TunnelDefinition {
+            host: "a;b".to_owned(),
+            ..tunnel(TunnelKind::Local)
+        };
+
+        assert_eq!(errors_of(&document_with(vec![tunnel])), Vec::new());
+    }
+
+    #[test]
+    fn should_report_the_tunnel_and_a_clean_host_when_the_host_rule_is_checked() {
+        let definition = TunnelDefinition {
+            host: "a\u{1b}[0m;b".to_owned(),
+            ..tunnel(TunnelKind::Local)
+        };
+
+        let errors = validate_tunnel_host(&definition).unwrap_err();
+
+        assert!(matches!(
+            errors.as_slice(),
+            [ValidationError::InvalidSshHost { host, problem: SshHostProblem::ForbiddenCharacter, .. }]
+                if host == "a[0m;b"
+        ));
+        assert!(!errors[0].to_string().contains('\u{1b}'));
     }
 
     #[test]

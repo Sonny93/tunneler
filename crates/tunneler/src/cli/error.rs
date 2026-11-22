@@ -1,4 +1,5 @@
 use std::io;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use ipc::protocol::ErrorCode;
@@ -12,6 +13,7 @@ use crate::daemon::DaemonError;
 use crate::layout::LayoutError;
 use crate::menu_entry::MenuEntryError;
 
+const BYTES_PER_KIB: usize = 1024;
 const UI_UNAVAILABLE_HINT: &str = "the UI program `tunneler-ui` must sit next to `tunneler`, be on your PATH, or be set with TUNNELER_UI_BINARY";
 
 /// Why a command failed. Each variant has an exit code and, usually, a hint on
@@ -177,6 +179,74 @@ pub enum CliError {
         /// How many web ports the instance has.
         total: usize,
     },
+    /// The file to import cannot be read.
+    #[error("cannot read {source_name}: {source}")]
+    ImportUnreadable {
+        /// The file, or `the standard input`.
+        source_name: String,
+        /// Why.
+        #[source]
+        source: io::Error,
+    },
+    /// The file to import is larger than the daemon accepts.
+    #[error("{source_name} is larger than the limit of {} KiB", .limit_bytes / BYTES_PER_KIB)]
+    ImportTooLarge {
+        /// The file, or `the standard input`.
+        source_name: String,
+        /// The most bytes an import file may hold.
+        limit_bytes: usize,
+    },
+    /// The file to import is not text.
+    #[error("{source_name} is not valid UTF-8 text")]
+    ImportNotText {
+        /// The file, or `the standard input`.
+        source_name: String,
+    },
+    /// The file to import holds control characters.
+    #[error("{source_name} holds control characters")]
+    ImportHasControlCharacters {
+        /// The file, or `the standard input`.
+        source_name: String,
+    },
+    /// The daemon refused to export: the file would exceed the import limit.
+    #[error("{message}")]
+    ExportTooLarge {
+        /// What the daemon said.
+        message: String,
+    },
+    /// The same host is mapped twice by `--host-map`.
+    #[error("--host-map names \"{file_host}\" twice")]
+    DuplicateHostMap {
+        /// The host of the file.
+        file_host: String,
+    },
+    /// The daemon refused the file as a whole.
+    #[error("{message}")]
+    ImportRefused {
+        /// What the daemon said, with the reason.
+        message: String,
+    },
+    /// An import needs a confirmation that cannot be asked.
+    #[error("{count} to import: the import needs a confirmation")]
+    ImportConfirmationRequired {
+        /// How many tunnels the plan selects, as text.
+        count: String,
+    },
+    /// The file to write exists and `--force` was not given.
+    #[error("{} already exists", .path.display())]
+    OutputExists {
+        /// The file.
+        path: PathBuf,
+    },
+    /// The file to write cannot be written.
+    #[error("cannot write {}: {source}", .path.display())]
+    OutputWrite {
+        /// The file.
+        path: PathBuf,
+        /// Why.
+        #[source]
+        source: io::Error,
+    },
     /// Reading the answer of the user failed.
     #[error("cannot read the answer: {0}")]
     Terminal(#[source] io::Error),
@@ -197,6 +267,7 @@ impl CliError {
             }
             Self::ForwardSpec(_)
             | Self::ForwardNeedsOneHost { .. }
+            | Self::DuplicateHostMap { .. }
             | Self::MenuEntry(
                 MenuEntryError::Unsupported | MenuEntryError::PackageManaged { .. },
             ) => exit_code::USAGE,
@@ -204,9 +275,9 @@ impl CliError {
             Self::TargetUnreachable { .. } => exit_code::TARGET_UNREACHABLE,
             Self::OpenFailed { .. } => exit_code::OPEN_FAILED,
             Self::UnknownOpener { .. } => exit_code::UNKNOWN_OPENER,
-            Self::ConfirmationRequired { .. } | Self::PurgeConfirmationRequired => {
-                exit_code::CONFIRMATION_REQUIRED
-            }
+            Self::ConfirmationRequired { .. }
+            | Self::PurgeConfirmationRequired
+            | Self::ImportConfirmationRequired { .. } => exit_code::CONFIRMATION_REQUIRED,
             Self::TimedOutWaiting { .. }
             | Self::DaemonStopTimedOut { .. }
             | Self::RemoteCommandTimedOut { .. } => exit_code::TIMED_OUT,
@@ -226,6 +297,14 @@ impl CliError {
             | Self::UiUnavailable { .. }
             | Self::DevslotInstanceNotFound { .. }
             | Self::UnknownHost { .. }
+            | Self::ImportUnreadable { .. }
+            | Self::ImportTooLarge { .. }
+            | Self::ImportNotText { .. }
+            | Self::ImportHasControlCharacters { .. }
+            | Self::ImportRefused { .. }
+            | Self::ExportTooLarge { .. }
+            | Self::OutputExists { .. }
+            | Self::OutputWrite { .. }
             | Self::Terminal(_)
             | Self::Encoding(_)
             | Self::Runtime(_) => exit_code::ERROR,
@@ -272,6 +351,14 @@ impl CliError {
                 "run it in a terminal to be asked, pass --yes to remove without asking, or --dry-run to only list"
                     .to_owned(),
             ),
+            Self::ImportConfirmationRequired { .. }
+            | Self::ImportTooLarge { .. }
+            | Self::ImportNotText { .. }
+            | Self::ImportHasControlCharacters { .. }
+            | Self::ExportTooLarge { .. }
+            | Self::DuplicateHostMap { .. }
+            | Self::ImportRefused { .. }
+            | Self::OutputExists { .. } => import_hint(self),
             Self::PurgeIncomplete { .. } => Some(
                 "the errors above say which item failed and why: fix the cause and run `tunneler purge` again"
                     .to_owned(),
@@ -310,11 +397,39 @@ impl CliError {
             | Self::Endpoint(_)
             | Self::Layout(_)
             | Self::Client(_)
+            | Self::ImportUnreadable { .. }
+            | Self::OutputWrite { .. }
             | Self::Terminal(_)
             | Self::Encoding(_)
             | Self::Runtime(_) => None,
         }
     }
+}
+
+fn import_hint(error: &CliError) -> Option<String> {
+    let hint = match error {
+        CliError::ImportConfirmationRequired { .. } => {
+            "run it in a terminal to be asked, pass --yes to import what the plan selects, or --dry-run to only see the plan"
+        }
+        CliError::ImportTooLarge { .. } => {
+            "an export file is a few KiB: check that this is the right file"
+        }
+        CliError::ImportNotText { .. } | CliError::ImportHasControlCharacters { .. } => {
+            "pass a file written by `tunneler export`, or a tunnels.toml"
+        }
+        CliError::DuplicateHostMap { .. } => {
+            "give each host of the file once, as --host-map OLD=NEW"
+        }
+        CliError::ImportRefused { .. } => {
+            "pass a file written by `tunneler export`, or a tunnels.toml: see `tunneler import --help`"
+        }
+        CliError::ExportTooLarge { .. } => {
+            "pass --host or --tag to export a part of the tunnels, then the others in another file"
+        }
+        CliError::OutputExists { .. } => "pick another name, or pass --force to replace it",
+        _ => return None,
+    };
+    Some(hint.to_owned())
 }
 
 fn menu_entry_hint(error: &MenuEntryError) -> Option<String> {
@@ -495,6 +610,57 @@ mod tests {
         };
 
         assert_eq!(error.exit_code(), exit_code::TIMED_OUT);
+    }
+
+    #[test]
+    fn should_exit_with_5_and_suggest_the_yes_flag_when_an_import_cannot_ask_for_a_confirmation() {
+        let error = CliError::ImportConfirmationRequired {
+            count: "2 tunnels".to_owned(),
+        };
+
+        assert_eq!(error.exit_code(), exit_code::CONFIRMATION_REQUIRED);
+        assert!(error.hint().unwrap().contains("--yes"));
+    }
+
+    #[test]
+    fn should_exit_with_1_and_name_the_limit_when_the_file_to_import_is_too_large() {
+        let error = CliError::ImportTooLarge {
+            source_name: "backup.toml".to_owned(),
+            limit_bytes: 262_144,
+        };
+
+        assert_eq!(error.exit_code(), exit_code::ERROR);
+        assert_eq!(
+            error.to_string(),
+            "backup.toml is larger than the limit of 256 KiB"
+        );
+    }
+
+    #[test]
+    fn should_exit_with_2_when_a_host_is_mapped_twice() {
+        assert_eq!(
+            CliError::DuplicateHostMap {
+                file_host: "oldbox".to_owned()
+            }
+            .exit_code(),
+            exit_code::USAGE
+        );
+    }
+
+    #[test]
+    fn should_suggest_the_force_flag_when_the_output_file_exists() {
+        let error = CliError::OutputExists {
+            path: PathBuf::from("backup.toml"),
+        };
+
+        assert_eq!(
+            (error.exit_code(), error.to_string(), error.hint().unwrap()),
+            (
+                exit_code::ERROR,
+                "backup.toml already exists".to_owned(),
+                "pick another name, or pass --force to replace it".to_owned()
+            )
+        );
     }
 
     #[test]

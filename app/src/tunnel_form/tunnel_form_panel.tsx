@@ -66,6 +66,7 @@ export function TunnelFormPanel({
 			<form id={formId} noValidate onSubmit={submit}>
 				<FormErrorSummary
 					messages={summary.messages}
+					englishTexts={summary.englishTexts}
 					attach={summary.attachSummary}
 				/>
 				{isTemporary && (

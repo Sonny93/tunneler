@@ -15,6 +15,8 @@ mod main_window;
 mod pending_update;
 mod reveal_target;
 mod startup_claim;
+mod transfer_commands;
+mod transfer_file;
 mod update_action;
 mod update_commands;
 mod update_offer;
@@ -34,6 +36,7 @@ const EXIT_SUCCESS: i32 = 0;
 fn main() -> tauri::Result<()> {
     tauri::Builder::default()
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BridgeState::default())
@@ -54,6 +57,10 @@ fn main() -> tauri::Result<()> {
             commands::resolve_host,
             commands::import_ssh_config,
             commands::import_script,
+            commands::classify_imports,
+            commands::export_config,
+            commands::preview_config_import,
+            commands::apply_config_import,
             commands::discover_devslot,
             commands::resync_devslot,
             commands::devslot_up,
@@ -95,6 +102,8 @@ fn main() -> tauri::Result<()> {
             update_commands::install_update,
             update_commands::open_release_page,
             documentation_commands::open_documentation,
+            transfer_commands::export_to_file,
+            transfer_commands::pick_import_file,
         ])
         .run(tauri::generate_context!())
 }

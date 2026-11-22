@@ -6,6 +6,8 @@ type UseImportSelectionReturn = {
 	selectAll: () => void;
 	selectNone: () => void;
 	deselect: (indexes: readonly number[]) => void;
+	/** Checks exactly these candidates. */
+	replace: (indexes: Iterable<number>) => void;
 };
 
 /** The checked candidates, by index. */
@@ -32,5 +34,8 @@ export function useImportSelection(
 				new Set([...current].filter((index) => !indexes.includes(index)))
 		);
 
-	return { selectedIndexes, toggle, selectAll, selectNone, deselect };
+	const replace = (indexes: Iterable<number>) =>
+		setSelectedIndexes(new Set(indexes));
+
+	return { selectedIndexes, toggle, selectAll, selectNone, deselect, replace };
 }

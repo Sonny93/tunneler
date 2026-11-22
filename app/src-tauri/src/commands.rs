@@ -1,13 +1,16 @@
 //! The commands the front end invokes; each one forwards to the daemon.
 
 use ipc::protocol::{
-    AvailableOpenerDto, DeleteTagResult, DevslotDiscoveryDto, DevslotHostName, DevslotInstanceName,
-    DevslotLinkDto, DevslotResyncResultDto, DevslotResyncTunnelDto, DevslotUpResultDto,
-    ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto, LogEntryDto, OpenTunnelResult,
-    OpenerSpecDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, SoundEventDto,
-    StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto,
-    TunnelSpecDto, X11ProbeDto,
+    AvailableOpenerDto, ConfigExportParams, ConfigExportResult, ConfigImportApplyParams,
+    ConfigImportParams, ConfigImportPlanDto, ConfigImportReportDto, DeleteTagResult,
+    DevslotDiscoveryDto, DevslotHostName, DevslotInstanceName, DevslotLinkDto,
+    DevslotResyncResultDto, DevslotResyncTunnelDto, DevslotUpResultDto, ForgetSecretsResult,
+    HostKeyDecisionDto, ImportClassifyResult, ImportPreviewDto, ImportRouteDto, LogEntryDto,
+    OpenTunnelResult, OpenerSpecDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto,
+    SoundEventDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto,
+    TunnelDto, TunnelSpecDto, X11ProbeDto,
 };
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use tauri::{AppHandle, State};
@@ -346,4 +349,57 @@ pub async fn quit_daemon(
     state.client()?.quit(force).await?;
     app.exit(EXIT_SUCCESS);
     Ok(())
+}
+
+/// Checks routes of an import source against the saved tunnels.
+#[tauri::command]
+pub async fn classify_imports(
+    state: State<'_, BridgeState>,
+    candidates: Vec<ImportRouteDto>,
+) -> CommandResult<ImportClassifyResult> {
+    Ok(state.client()?.classify_imports(candidates).await?)
+}
+
+/// Writes the saved tunnels, filtered by host and tag, as an export file.
+#[tauri::command]
+pub async fn export_config(
+    state: State<'_, BridgeState>,
+    hosts: Vec<String>,
+    tags: Vec<String>,
+) -> CommandResult<ConfigExportResult> {
+    Ok(state
+        .client()?
+        .export_config(ConfigExportParams { hosts, tags })
+        .await?)
+}
+
+/// Plans what importing a file would do, without writing anything.
+#[tauri::command]
+pub async fn preview_config_import(
+    state: State<'_, BridgeState>,
+    contents: String,
+    host_map: BTreeMap<String, String>,
+) -> CommandResult<ConfigImportPlanDto> {
+    Ok(state
+        .client()?
+        .preview_config_import(ConfigImportParams { contents, host_map })
+        .await?)
+}
+
+/// Adds the requested entries of a previously previewed file.
+#[tauri::command]
+pub async fn apply_config_import(
+    state: State<'_, BridgeState>,
+    contents: String,
+    host_map: BTreeMap<String, String>,
+    indexes: Vec<u32>,
+) -> CommandResult<ConfigImportReportDto> {
+    Ok(state
+        .client()?
+        .apply_config_import(ConfigImportApplyParams {
+            contents,
+            host_map,
+            indexes,
+        })
+        .await?)
 }

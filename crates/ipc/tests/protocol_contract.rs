@@ -3,18 +3,19 @@
 use std::collections::BTreeMap;
 
 use ipc::protocol::{
-    AdoptResult, AvailableOpenerDto, CheckTargetResult, ClientKind, ConfigInvalidEvent,
-    CredentialAnswer, CredentialRequestDto, CredentialRequestEvent, CredentialResponseParams,
-    DaemonPathsResult, DefaultOpenerDto, DeleteTagResult, DevslotDiscoveryDto,
-    DevslotFailedPortDto, DevslotHostName, DevslotInstanceDto, DevslotInstanceName, DevslotLinkDto,
-    DevslotOriginDto, DevslotPortDto, DevslotPortStatusDto, DevslotRemovedRouteDto,
-    DevslotResyncParams, DevslotResyncResultDto, DevslotResyncTunnelDto, DevslotSkipReasonDto,
-    DevslotSkippedPortDto, DevslotStaleActionDto, DevslotStaleDto, DevslotStalePolicyDto,
-    DevslotStaleReasonDto, DevslotUpParams, DevslotUpPortDto, DevslotUpResultDto,
-    DevslotWarningDto, ErrorCode, EventMessage, ExternalForwardDto, ExternalProcessDto,
-    ExternalsChangedEvent, FailureReasonDto, ForgetSecretsResult, Hello, HostKeyAlertReasonDto,
-    HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, HostOptionDto, HostParams,
-    HostsResult, ImportCandidateDto, ImportPreviewDto, ImportScriptParams, ImportWarningDto,
+    AdoptResult, AvailableOpenerDto, CheckTargetResult, ClientKind, ConfigExportParams,
+    ConfigImportApplyParams, ConfigImportParams, ConfigInvalidEvent, CredentialAnswer,
+    CredentialRequestDto, CredentialRequestEvent, CredentialResponseParams, DaemonPathsResult,
+    DefaultOpenerDto, DeleteTagResult, DevslotDiscoveryDto, DevslotFailedPortDto, DevslotHostName,
+    DevslotInstanceDto, DevslotInstanceName, DevslotLinkDto, DevslotOriginDto, DevslotPortDto,
+    DevslotPortStatusDto, DevslotRemovedRouteDto, DevslotResyncParams, DevslotResyncResultDto,
+    DevslotResyncTunnelDto, DevslotSkipReasonDto, DevslotSkippedPortDto, DevslotStaleActionDto,
+    DevslotStaleDto, DevslotStalePolicyDto, DevslotStaleReasonDto, DevslotUpParams,
+    DevslotUpPortDto, DevslotUpResultDto, DevslotWarningDto, ErrorCode, EventMessage,
+    ExternalForwardDto, ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto,
+    ForgetSecretsResult, Hello, HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent,
+    HostKeyResponseParams, HostOptionDto, HostParams, HostsResult, ImportCandidateDto,
+    ImportClassifyParams, ImportPreviewDto, ImportRouteDto, ImportScriptParams, ImportWarningDto,
     IpcError, LogEntryDto, LogLevelDto, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES,
     MetricsDto, OpenDefaultDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenTunnelParams,
     OpenTunnelResult, OpenerSourceDto, OpenerSpecDto, OpenersResult, PROTOCOL_VERSION,
@@ -343,6 +344,34 @@ fn x11_launcher() -> X11LauncherDto {
     }
 }
 
+fn config_transfer_requests() -> Vec<Request> {
+    vec![
+        Request::ImportClassify(ImportClassifyParams {
+            candidates: vec![ImportRouteDto {
+                host: "nova".to_owned(),
+                kind: TunnelKindDto::Local,
+                listen_port: 3333,
+                listen_address: None,
+                target_host: Some("db.internal".to_owned()),
+                target_port: Some(5432),
+            }],
+        }),
+        Request::ConfigExport(ConfigExportParams {
+            hosts: vec!["nova".to_owned()],
+            tags: vec!["dev".to_owned()],
+        }),
+        Request::ConfigImportPreview(ConfigImportParams {
+            contents: "format = \"tunneler-export\"".to_owned(),
+            host_map: BTreeMap::from([("oldbox".to_owned(), "nova".to_owned())]),
+        }),
+        Request::ConfigImportApply(ConfigImportApplyParams {
+            contents: "format = \"tunneler-export\"".to_owned(),
+            host_map: BTreeMap::new(),
+            indexes: vec![0, 2],
+        }),
+    ]
+}
+
 fn every_request() -> Vec<Request> {
     let tunnel_id = TunnelIdParams {
         id: TUNNEL_ID.to_owned(),
@@ -428,6 +457,9 @@ fn every_request() -> Vec<Request> {
         Request::DevslotResync(devslot_resync()),
         Request::DevslotUp(devslot_up_params()),
     ]
+    .into_iter()
+    .chain(config_transfer_requests())
+    .collect()
 }
 
 fn every_event() -> Vec<EventMessage> {
@@ -566,7 +598,7 @@ fn should_serialize_hello_as_documented() {
 
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
-        r#"{"id":1,"method":"hello","params":{"protocolVersion":6,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
+        r#"{"id":1,"method":"hello","params":{"protocolVersion":7,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
     );
 }
 
@@ -1039,6 +1071,14 @@ fn import_preview() -> ImportPreviewDto {
                 host: "broken".to_owned(),
                 message: "bad port".to_owned(),
             },
+            ImportWarningDto::InvalidHost {
+                line: Some(3),
+                host: "-oProxyCommand=x".to_owned(),
+            },
+            ImportWarningDto::InvalidHost {
+                line: None,
+                host: "a b".to_owned(),
+            },
         ],
     }
 }
@@ -1152,7 +1192,9 @@ fn should_serialize_an_import_preview_response_as_documented() {
                 { "kind": "unsupportedForward", "host": "sock", "text": "8080 /run/app.sock" },
                 { "kind": "unsupportedForward", "line": 2, "text": "9000" },
                 { "kind": "unknownDestination", "destination": "jules@198.51.100.157" },
-                { "kind": "hostResolutionFailed", "host": "broken", "message": "bad port" }
+                { "kind": "hostResolutionFailed", "host": "broken", "message": "bad port" },
+                { "kind": "invalidHost", "line": 3, "host": "-oProxyCommand=x" },
+                { "kind": "invalidHost", "host": "a b" }
             ]
         }
     });
@@ -1642,7 +1684,7 @@ fn should_serialize_a_protocol_mismatch_with_both_versions() {
     assert_eq!(
         line,
         concat!(
-            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 6, the client protocol 9","data":{"client":9,"daemon":6}}}"#,
+            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 7, the client protocol 9","data":{"client":9,"daemon":7}}}"#,
             "\n"
         )
     );
@@ -2125,13 +2167,13 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_forty_four_methods() {
-    assert_eq!(METHOD_NAMES.len(), 44);
+fn should_list_forty_eight_methods() {
+    assert_eq!(METHOD_NAMES.len(), 48);
 }
 
 #[test]
-fn should_speak_protocol_version_six() {
-    assert_eq!(PROTOCOL_VERSION, 6);
+fn should_speak_protocol_version_seven() {
+    assert_eq!(PROTOCOL_VERSION, 7);
 }
 
 #[test]

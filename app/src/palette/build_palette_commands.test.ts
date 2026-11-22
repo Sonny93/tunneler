@@ -18,7 +18,7 @@ describe('buildPaletteCommands', () => {
 		expect(labelsOf(build())).toEqual([
 			'New tunnel',
 			'New temporary tunnel…',
-			'Import tunnels',
+			'Import and export',
 			'Open settings',
 			'Settings: General',
 			'Settings: Connection',

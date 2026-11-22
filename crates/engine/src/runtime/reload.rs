@@ -20,7 +20,7 @@ pub(crate) async fn run_reload_loop(engine: Weak<EngineInner>, mut watcher: Stor
 }
 
 impl EngineInner {
-    async fn handle_store_event(&self, event: StoreEvent) {
+    pub(crate) async fn handle_store_event(&self, event: StoreEvent) {
         match event {
             StoreEvent::Invalid(error) => {
                 warn!(%error, "the tunnels file changed into something unusable");
@@ -32,8 +32,21 @@ impl EngineInner {
         }
     }
 
+    /// Applies what the store holds when the lock is taken, which is the
+    /// outcome that was queued or a newer state: a change that an apply of
+    /// the engine already took in must not be undone by a reload queued
+    /// before it.
     async fn apply_reload(&self, outcome: LoadOutcome) {
         let _serialized = self.mutation.lock().await;
+        let outcome = LoadOutcome {
+            document: self.store.document(),
+            ..outcome
+        };
+        self.apply_reload_locked(outcome).await;
+    }
+
+    /// Applies an outcome read from the file; the caller holds `mutation`.
+    pub(crate) async fn apply_reload_locked(&self, outcome: LoadOutcome) {
         if self.is_shut_down.load(Ordering::SeqCst) {
             return;
         }

@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use crate::protocol::config_transfer::{
+    ConfigExportParams, ConfigImportApplyParams, ConfigImportParams, ImportClassifyParams,
+    MAX_IMPORT_CLASSIFY_CANDIDATES,
+};
 use crate::protocol::devslot::DevslotResyncParams;
 use crate::protocol::devslot_up::{DevslotLinkDto, DevslotUpParams};
 use crate::protocol::dto::{
@@ -19,7 +23,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 44] = [
+pub const METHOD_NAMES: [&str; 48] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -38,6 +42,10 @@ pub const METHOD_NAMES: [&str; 44] = [
     "hosts.resolve",
     "import.ssh_config",
     "import.script",
+    "import.classify",
+    "config.export",
+    "config.import_preview",
+    "config.import_apply",
     "tag.start",
     "tag.stop",
     "tag.standby",
@@ -297,6 +305,29 @@ pub enum Request {
     /// `invalid_request` when the text exceeds [`MAX_IMPORT_SCRIPT_BYTES`].
     #[serde(rename = "import.script")]
     ImportScript(ImportScriptParams),
+    /// Checks routes of an import source against the saved tunnels and
+    /// against each other, and answers one conflict or none per candidate,
+    /// in order; answers `invalid_request` when there are more than
+    /// [`MAX_IMPORT_CLASSIFY_CANDIDATES`] candidates.
+    #[serde(rename = "import.classify")]
+    ImportClassify(ImportClassifyParams),
+    /// Writes the saved tunnels, filtered by host and tag, as an export file;
+    /// temporary tunnels are never exported.
+    #[serde(rename = "config.export")]
+    ConfigExport(ConfigExportParams),
+    /// Reads an import file and plans what an import would do with each
+    /// entry, without writing anything or reading the `ssh_config` beyond its
+    /// host list; answers `invalid_import_file` when the file as a whole is
+    /// refused, including `tooLarge` before any parsing.
+    #[serde(rename = "config.import_preview")]
+    ConfigImportPreview(ConfigImportParams),
+    /// Plans the file again against the current store and adds the requested
+    /// entries that are still importable, in one write; imported tunnels
+    /// start stopped and nothing existing is changed. Answers
+    /// `invalid_import_file` like `config.import_preview` and `invalid_state`
+    /// when the store on disk is invalid.
+    #[serde(rename = "config.import_apply")]
+    ConfigImportApply(ConfigImportApplyParams),
     /// Starts every tunnel carrying a tag.
     #[serde(rename = "tag.start")]
     TagStart(TagParams),
@@ -478,6 +509,13 @@ fn validate(request: &Request) -> Result<(), IpcError> {
         Request::ImportScript(params) if params.text.len() > MAX_IMPORT_SCRIPT_BYTES => {
             Err(IpcError::invalid_request(format!(
                 "invalid parameters for `import.script`: text exceeds {MAX_IMPORT_SCRIPT_BYTES} bytes"
+            )))
+        }
+        Request::ImportClassify(params)
+            if params.candidates.len() > MAX_IMPORT_CLASSIFY_CANDIDATES =>
+        {
+            Err(IpcError::invalid_request(format!(
+                "invalid parameters for `import.classify`: more than {MAX_IMPORT_CLASSIFY_CANDIDATES} candidates"
             )))
         }
         _ => Ok(()),

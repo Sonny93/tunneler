@@ -1,26 +1,26 @@
 import { useLingui } from '@lingui/react/macro';
-import { Button, Switch } from '@minimalstuff/ui';
+import { Switch } from '@minimalstuff/ui';
 import type { ChangeEvent } from 'react';
 
-import type { DevslotDiscoveryDto, SettingsDto } from '#/daemon/protocol';
+import type { DevslotDiscoveryDto } from '#/daemon/protocol';
+import { ConflictCheckFailure } from '#/import/conflict_check_failure';
 import { DevslotInstanceFieldset } from '#/import/devslot/devslot_instance_fieldset';
 import { describeStartAction } from '#/import/devslot/devslot_texts';
 import { useDevslotForm } from '#/import/devslot/use_devslot_form';
+import { ImportActionButton } from '#/import/import_action_button';
 import { FormErrorSummary } from '#/shared/form_error_summary';
 
 type DevslotStartFormProps = {
 	discovery: DevslotDiscoveryDto;
-	settings: SettingsDto;
 	removedIds: ReadonlySet<string>;
 };
 
 export function DevslotStartForm({
 	discovery,
-	settings,
 	removedIds,
 }: Readonly<DevslotStartFormProps>) {
 	const { t, i18n } = useLingui();
-	const form = useDevslotForm(discovery, settings, removedIds);
+	const form = useDevslotForm(discovery, removedIds);
 	const selectedCount = form.selectedKeys.size;
 
 	const handlePersistenceChange = (event: ChangeEvent<HTMLInputElement>) =>
@@ -28,8 +28,10 @@ export function DevslotStartForm({
 
 	return (
 		<form noValidate onSubmit={form.submit} className="flex flex-col gap-4">
+			<ConflictCheckFailure hasFailed={form.hasConflictCheckFailed} />
 			<FormErrorSummary
 				messages={form.summary.messages}
+				englishTexts={form.summary.englishTexts}
 				title={form.summaryTitle}
 				attach={form.summary.attachSummary}
 			/>
@@ -57,16 +59,15 @@ export function DevslotStartForm({
 					onChange={handlePersistenceChange}
 				/>
 				<output className="block text-sm">{form.statusMessage}</output>
-				<div>
-					<Button
-						type="submit"
-						startIcon="i-mdi-play"
-						loading={form.isStarting}
-						disabled={selectedCount === 0}
-					>
-						{describeStartAction(selectedCount, form.isPersistent, i18n)}
-					</Button>
-				</div>
+				<ImportActionButton
+					startIcon="i-mdi-play"
+					isRunning={form.isStarting}
+					isChecking={form.isCheckingConflicts}
+					isSelectionEmpty={selectedCount === 0}
+					emptyHint={t`Select at least one port`}
+				>
+					{describeStartAction(selectedCount, form.isPersistent, i18n)}
+				</ImportActionButton>
 			</div>
 		</form>
 	);

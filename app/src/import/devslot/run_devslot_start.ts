@@ -5,7 +5,10 @@ import { toDaemonCommandError } from '#/daemon/daemon_command_error';
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
 import type { TemporaryTunnelSpecDto, TunnelSpecDto } from '#/daemon/protocol';
 import type { DevslotStartItem } from '#/import/devslot/build_devslot_specs';
-import { getSubmissionErrorMessages } from '#/shared/submission_error_messages';
+import {
+	getEnglishTexts,
+	getSubmissionErrorMessages,
+} from '#/shared/submission_error_messages';
 import { getTunnelEndpointLabel } from '#/tunnels/tunnel_endpoint_label';
 
 type DevslotFailureStage = 'startTemporary' | 'create' | 'start';
@@ -15,6 +18,8 @@ export type DevslotStartFailure = {
 	label: string;
 	stage: DevslotFailureStage;
 	messages: string[];
+	/** The parts of `messages` that are raw English from the daemon. */
+	englishTexts: string[];
 };
 
 export type DevslotStartOutcome = {
@@ -30,11 +35,13 @@ function buildFailure(
 	rejection: unknown,
 	i18n: I18n
 ): DevslotStartFailure {
+	const error = toDaemonCommandError(rejection);
 	return {
 		key: item.key,
 		label: getTunnelEndpointLabel(item.spec),
 		stage,
-		messages: getSubmissionErrorMessages(toDaemonCommandError(rejection), i18n),
+		messages: getSubmissionErrorMessages(error, i18n),
+		englishTexts: getEnglishTexts(error, i18n),
 	};
 }
 

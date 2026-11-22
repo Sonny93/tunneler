@@ -1,7 +1,7 @@
 import { useLingui } from '@lingui/react/macro';
 import { useEffect, useId, useRef } from 'react';
 
-import type { DevslotDiscoveryDto, SettingsDto } from '#/daemon/protocol';
+import type { DevslotDiscoveryDto } from '#/daemon/protocol';
 import { DevslotAskList } from '#/import/devslot/devslot_ask_list';
 import { DevslotStartForm } from '#/import/devslot/devslot_start_form';
 import {
@@ -11,7 +11,6 @@ import {
 
 type DevslotResultProps = {
 	discovery: DevslotDiscoveryDto;
-	settings: SettingsDto;
 	removedIds: ReadonlySet<string>;
 	onStatus: (message: string) => void;
 	onRemoved: (ids: readonly string[]) => void;
@@ -21,7 +20,6 @@ type DevslotResultProps = {
 /** Mount it with a new `key` per discovery: it takes the focus when mounted. */
 export function DevslotResult({
 	discovery,
-	settings,
 	removedIds,
 	onStatus,
 	onRemoved,
@@ -69,11 +67,7 @@ export function DevslotResult({
 				/>
 			)}
 			{discovery.instances.length > 0 && (
-				<DevslotStartForm
-					discovery={discovery}
-					settings={settings}
-					removedIds={removedIds}
-				/>
+				<DevslotStartForm discovery={discovery} removedIds={removedIds} />
 			)}
 		</section>
 	);

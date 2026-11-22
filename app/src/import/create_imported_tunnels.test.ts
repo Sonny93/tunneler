@@ -61,7 +61,12 @@ describe('createImportedTunnels', () => {
 		expect(outcome).toEqual({
 			createdIndexes: [1],
 			failures: [
-				{ index: 0, label: '3000 → nova:3000', messages: ['Port in use'] },
+				{
+					index: 0,
+					label: '3000 → nova:3000',
+					messages: ['Port in use'],
+					englishTexts: ['Port in use'],
+				},
 			],
 		});
 	});

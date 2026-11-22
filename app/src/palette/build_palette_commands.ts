@@ -67,7 +67,7 @@ function buildGeneralCommands(i18n: I18n): PaletteCommand[] {
 		},
 		{
 			id: 'general:import',
-			label: i18n._(msg`Import tunnels`),
+			label: i18n._(msg`Import and export`),
 			category,
 			action: { kind: 'importTunnels' },
 		},

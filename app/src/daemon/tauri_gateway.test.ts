@@ -88,6 +88,31 @@ describe('createTauriGateway', () => {
 		['resolveHost', ['nova'], 'resolve_host', { host: 'nova' }],
 		['importSshConfig', [], 'import_ssh_config', undefined],
 		['importScript', ['3333'], 'import_script', { text: '3333' }],
+		[
+			'exportConfig',
+			[['nova'], ['dev']],
+			'export_config',
+			{ hosts: ['nova'], tags: ['dev'] },
+		],
+		[
+			'exportToFile',
+			['text', 'tunnels.toml'],
+			'export_to_file',
+			{ contents: 'text', suggestedFileName: 'tunnels.toml' },
+		],
+		['pickImportFile', [], 'pick_import_file', undefined],
+		[
+			'previewConfigImport',
+			['text', { old: 'nova' }],
+			'preview_config_import',
+			{ contents: 'text', hostMap: { old: 'nova' } },
+		],
+		[
+			'applyConfigImport',
+			['text', { old: 'nova' }, [0, 2]],
+			'apply_config_import',
+			{ contents: 'text', hostMap: { old: 'nova' }, indexes: [0, 2] },
+		],
 		['discoverDevslot', ['vega'], 'discover_devslot', { host: 'vega' }],
 		[
 			'resyncDevslot',
@@ -145,6 +170,20 @@ describe('createTauriGateway', () => {
 			expect(invokeMock).toHaveBeenCalledWith(command, expectedArguments);
 		}
 	);
+
+	it('should send the routes to classify_imports and resolve to the conflicts alone', async () => {
+		const route = { host: 'nova', kind: 'local', listenPort: 3333 } as const;
+		invokeMock.mockResolvedValue({
+			conflicts: [null, { kind: 'duplicateInImport' }],
+		});
+
+		const conflicts = await createTauriGateway().classifyImports([route]);
+
+		expect(invokeMock).toHaveBeenCalledWith('classify_imports', {
+			candidates: [route],
+		});
+		expect(conflicts).toEqual([null, { kind: 'duplicateInImport' }]);
+	});
 
 	it('should pass a channel relaying the progress to the install_update command', async () => {
 		const onProgress = vi.fn();

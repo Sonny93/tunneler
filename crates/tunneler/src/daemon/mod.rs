@@ -5,6 +5,7 @@
 //! [`run`] makes the process the single daemon of its endpoint, then serves
 //! until a termination signal or an accepted `daemon.quit` stops it.
 
+mod config_transfer_mapping;
 mod console;
 mod devslot_mapping;
 mod display_language;

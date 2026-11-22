@@ -5,6 +5,7 @@
 
 mod backoff;
 mod catalog;
+mod configuration_transfer;
 mod counting_stream;
 mod definition_diff;
 mod devslot_listing;

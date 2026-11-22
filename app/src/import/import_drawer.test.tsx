@@ -5,13 +5,17 @@ import { describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
 
 import { DaemonCommandError } from '#/daemon/daemon_command_error';
-import type { ImportPreviewDto } from '#/daemon/protocol';
+import type { ImportConflictDto, ImportPreviewDto } from '#/daemon/protocol';
+import { activateLocale } from '#/i18n/activate_locale';
 import { ImportDrawer } from '#/import/import_drawer';
 import { useAnnouncerStore } from '#/shared/announcer/announcer_store';
 import { DIGITS_TAG_MESSAGE } from '#/shared/reserved_tag_problem';
 import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
+import { classifyAgainstStore } from '#/testing/classify_against_store';
 import {
+	buildConfigImportEntry,
+	buildConfigImportPlan,
 	buildImportCandidate,
 	buildImportPreview,
 	buildSettings,
@@ -34,6 +38,7 @@ const buildPowerShellPreview = (): ImportPreviewDto =>
 
 function renderDrawer(preview: ImportPreviewDto = buildPowerShellPreview()) {
 	const gateway = createFakeGateway();
+	gateway.classifyImports.mockImplementation(classifyAgainstStore);
 	gateway.importScript.mockResolvedValue(preview);
 	gateway.importSshConfig.mockResolvedValue(preview);
 	useDaemonStore.setState({
@@ -67,7 +72,7 @@ describe('ImportDrawer', () => {
 		renderDrawer();
 
 		expect(
-			screen.getByRole('dialog', { name: 'Import tunnels' })
+			screen.getByRole('dialog', { name: 'Import and export' })
 		).toBeInTheDocument();
 		expect(
 			screen.getByRole('tab', { name: 'Paste a script' })
@@ -75,6 +80,7 @@ describe('ImportDrawer', () => {
 		expect(
 			screen.getByRole('tab', { name: 'From ~/.ssh/config' })
 		).toBeInTheDocument();
+		expect(screen.getByRole('tab', { name: 'File' })).toBeInTheDocument();
 	});
 
 	it('should describe the accepted input', () => {
@@ -218,11 +224,11 @@ describe('ImportDrawer', () => {
 		const conflicting = screen.getByRole('checkbox', {
 			name: '3333 to nova:3333',
 		});
+		expect(
+			await screen.findByRole('button', { name: 'Import 7 tunnels' })
+		).toBeInTheDocument();
 		expect(conflicting).not.toBeChecked();
 		expect(conflicting).toHaveAccessibleDescription(/Already configured/);
-		expect(
-			screen.getByRole('button', { name: 'Import 7 tunnels' })
-		).toBeInTheDocument();
 	});
 
 	it('should let the user check a candidate in conflict', async () => {
@@ -230,6 +236,7 @@ describe('ImportDrawer', () => {
 		useDaemonStore.setState({ tunnels: [buildTunnel()] });
 		renderDrawer();
 		await analyzeScript(user);
+		await screen.findByRole('button', { name: 'Import 7 tunnels' });
 
 		await user.click(
 			screen.getByRole('checkbox', { name: '3333 to nova:3333' })
@@ -240,20 +247,166 @@ describe('ImportDrawer', () => {
 		).toBeInTheDocument();
 	});
 
+	it('should ask the daemon about the candidates with their host and route when the preview arrives', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer(
+			buildImportPreview({
+				candidates: [
+					buildImportCandidate({
+						kind: 'remote',
+						listenPort: 8080,
+						listenAddress: '0.0.0.0',
+						targetHost: '10.0.0.5',
+						targetPort: 80,
+						comment: 'not sent',
+						line: 4,
+					}),
+				],
+			})
+		);
+
+		await analyzeScript(user);
+
+		await waitFor(() =>
+			expect(gateway.classifyImports).toHaveBeenCalledWith([
+				{
+					host: 'nova',
+					kind: 'remote',
+					listenPort: 8080,
+					listenAddress: '0.0.0.0',
+					targetHost: '10.0.0.5',
+					targetPort: 80,
+				},
+			])
+		);
+	});
+
+	it('should keep the import button disabled until the daemon answered', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		let answer: (conflicts: (ImportConflictDto | null)[]) => void = () =>
+			undefined;
+		gateway.classifyImports.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					answer = resolve;
+				})
+		);
+		await analyzeScript(user);
+
+		const pendingButton = screen.getByRole('button', {
+			name: 'Import 8 tunnels',
+		});
+		expect(pendingButton).toHaveAttribute('aria-disabled', 'true');
+		expect(pendingButton).toHaveAccessibleDescription(
+			'Checking for conflicts…'
+		);
+		await user.click(pendingButton);
+		expect(gateway.createTunnel).not.toHaveBeenCalled();
+
+		act(() => answer(POWERSHELL_PORTS.map(() => null)));
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole('button', { name: 'Import 8 tunnels' })
+			).toBeEnabled()
+		);
+	});
+
 	it('should select and unselect everything', async () => {
 		const user = userEvent.setup();
 		renderDrawer();
 		await analyzeScript(user);
 
 		await user.click(screen.getByRole('button', { name: 'Deselect all' }));
-		expect(
-			screen.getByRole('button', { name: 'Import 0 tunnels' })
-		).toBeDisabled();
+		expect(useAnnouncerStore.getState().polite.message).toBe(
+			'No tunnel selected'
+		);
+		const emptyButton = screen.getByRole('button', {
+			name: 'Import 0 tunnels',
+		});
+		expect(emptyButton).toHaveAttribute('aria-disabled', 'true');
+		expect(emptyButton).toHaveAccessibleDescription(
+			'Select at least one tunnel'
+		);
 
 		await user.click(screen.getByRole('button', { name: 'Select all' }));
+		expect(useAnnouncerStore.getState().polite.message).toBe(
+			'8 tunnels selected'
+		);
 		expect(
 			screen.getByRole('button', { name: 'Import 8 tunnels' })
-		).toBeEnabled();
+		).not.toHaveAttribute('aria-disabled');
+	});
+
+	it('should keep the empty import button focusable and inert', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		await analyzeScript(user);
+		await user.click(screen.getByRole('button', { name: 'Deselect all' }));
+		const button = screen.getByRole('button', { name: 'Import 0 tunnels' });
+
+		button.focus();
+		await user.click(button);
+
+		expect(button).toHaveFocus();
+		expect(gateway.createTunnel).not.toHaveBeenCalled();
+	});
+
+	it('should say so and keep importing possible when the check for conflicts fails', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		gateway.classifyImports.mockRejectedValue(
+			new DaemonCommandError('disconnected', 'lost')
+		);
+
+		await analyzeScript(user);
+
+		expect(
+			await screen.findByText(
+				'Could not check for conflicts; creation will still refuse clashes.'
+			)
+		).toBeInTheDocument();
+		expect(useAnnouncerStore.getState().polite.message).toBe(
+			'Could not check for conflicts; creation will still refuse clashes.'
+		);
+		expect(
+			screen.getByRole('button', { name: 'Import 8 tunnels' })
+		).not.toHaveAttribute('aria-disabled');
+	});
+
+	it('should announce the new number of conflicts after a re-classification', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer(
+			buildImportPreview({
+				candidates: [
+					buildImportCandidate({ host: undefined, listenPort: 5000 }),
+				],
+			})
+		);
+		gateway.classifyImports.mockResolvedValue([{ kind: 'alreadyConfigured' }]);
+		await analyzeScript(user);
+		await user.selectOptions(
+			screen.getByRole('combobox', {
+				name: /Host of the tunnels without a destination/,
+			}),
+			'other'
+		);
+
+		await waitFor(() =>
+			expect(useAnnouncerStore.getState().polite.message).toBe('1 conflict')
+		);
+	});
+
+	it('should have no axe violations while the daemon has not answered', async () => {
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		gateway.classifyImports.mockImplementation(
+			() => new Promise(() => undefined)
+		);
+		await analyzeScript(user);
+
+		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
 	it('should name the tunnel already listening on the port of a candidate', async () => {
@@ -265,9 +418,11 @@ describe('ImportDrawer', () => {
 
 		await analyzeScript(user);
 
-		expect(
-			screen.getByRole('checkbox', { name: '3334 to nova:3334' })
-		).toHaveAccessibleDescription(/Port already used by 3334 → nova:80/);
+		await waitFor(() =>
+			expect(
+				screen.getByRole('checkbox', { name: '3334 to nova:3334' })
+			).toHaveAccessibleDescription(/Port already used by 3334 → nova:80/)
+		);
 	});
 
 	describe('candidates without a host', () => {
@@ -277,6 +432,25 @@ describe('ImportDrawer', () => {
 					buildImportCandidate({ host: undefined, listenPort: 5000 }),
 				],
 			});
+
+		it('should classify the candidate again with the chosen default host', async () => {
+			const user = userEvent.setup();
+			const { gateway } = renderDrawer(hostlessPreview());
+			await analyzeScript(user);
+
+			await user.selectOptions(
+				screen.getByRole('combobox', {
+					name: /Host of the tunnels without a destination/,
+				}),
+				'other'
+			);
+
+			await waitFor(() =>
+				expect(gateway.classifyImports).toHaveBeenLastCalledWith([
+					{ host: 'other', kind: 'local', listenPort: 5000 },
+				])
+			);
+		});
 
 		it('should require a host choice before importing', async () => {
 			const user = userEvent.setup();
@@ -514,6 +688,49 @@ describe('ImportDrawer', () => {
 				expect(useUiStore.getState().panel).toEqual({ kind: 'none' })
 			);
 		});
+	});
+
+	it('should have no axe violations with the File tab selected', async () => {
+		const user = userEvent.setup();
+		renderDrawer();
+
+		await user.click(screen.getByRole('tab', { name: 'File' }));
+
+		expect(await axe(document.body)).toHaveNoViolations();
+	});
+
+	it('should have no axe violations in French with a file preview', async () => {
+		await activateLocale('fr');
+		const user = userEvent.setup();
+		const { gateway } = renderDrawer();
+		gateway.pickImportFile.mockResolvedValue({
+			fileName: 'tunnels.toml',
+			contents: 'CONTENTS',
+		});
+		gateway.previewConfigImport.mockResolvedValue(
+			buildConfigImportPlan({
+				unknownHosts: ['oldbox'],
+				entries: [
+					buildConfigImportEntry({
+						fileHost: 'oldbox',
+						warnings: [{ kind: 'unknownHost', host: 'oldbox' }],
+					}),
+					buildConfigImportEntry({
+						index: 1,
+						status: { kind: 'invalid', messages: ['port 0 is not valid'] },
+						selectedByDefault: false,
+					}),
+				],
+			})
+		);
+
+		await user.click(screen.getByRole('tab', { name: 'Fichier' }));
+		await user.click(
+			screen.getByRole('button', { name: 'Choisir un fichier…' })
+		);
+		await screen.findByRole('heading', { name: 'Aperçu de tunnels.toml' });
+
+		expect(await axe(document.body)).toHaveNoViolations();
 	});
 
 	it('should have no axe violations', async () => {

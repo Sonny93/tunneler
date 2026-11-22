@@ -1,12 +1,8 @@
-import type { SettingsDto, TunnelDto } from '#/daemon/protocol';
+import type { ImportConflictDto, ImportRouteDto } from '#/daemon/protocol';
 import {
 	isPortTunnelable,
 	type DevslotPortEntry,
 } from '#/import/devslot/devslot_ports';
-import {
-	findImportConflicts,
-	type ImportConflict,
-} from '#/import/find_import_conflicts';
 import { parsePort } from '#/tunnel_form/parse_port';
 
 export const DEVSLOT_LISTEN_ADDRESS = '127.0.0.1';
@@ -14,17 +10,25 @@ export const DEVSLOT_LISTEN_ADDRESS = '127.0.0.1';
 export type DevslotPortProblem =
 	| { kind: 'invalidLocalPort' }
 	| { kind: 'localPortBusy'; port: number }
-	| ImportConflict;
+	| ImportConflictDto;
 
 export type DevslotLocalPorts = Readonly<Record<string, string>>;
 
-type FindDevslotProblemsInput = {
+type ProblemsInput = {
 	entries: readonly DevslotPortEntry[];
 	localPorts: DevslotLocalPorts;
+};
+
+type ClassifyRequestInput = ProblemsInput & {
 	selectedKeys: ReadonlySet<string>;
-	tunnels: readonly Readonly<TunnelDto>[];
-	settings: Readonly<SettingsDto>;
 	host: string;
+};
+
+/** What to ask the daemon: the routes in order, the port each one stands for, and which ports are chosen. */
+export type DevslotClassifyRequest = {
+	routes: ImportRouteDto[];
+	keys: string[];
+	chosenKeys: string[];
 };
 
 /** The local port as typed, or the remote port while it was not edited. */
@@ -38,18 +42,18 @@ export function getLocalPortText(
 	);
 }
 
-function buildCandidate(
+function buildRoute(
 	entry: Readonly<DevslotPortEntry>,
 	listenPort: number,
 	host: string
-) {
+): ImportRouteDto {
 	return {
 		host,
 		kind: 'local',
 		listenPort,
 		listenAddress: DEVSLOT_LISTEN_ADDRESS,
 		targetPort: entry.port.port,
-	} as const;
+	};
 }
 
 function isBusyWithoutAlternative(
@@ -64,58 +68,68 @@ function isBusyWithoutAlternative(
 	);
 }
 
-/**
- * For each port, what stops it from being started as is: an invalid local port,
- * or a clash with an existing tunnel or with a port chosen before it. Only the
- * chosen ports clash with each other.
- */
-export function findDevslotProblems({
-	entries,
-	localPorts,
-	selectedKeys,
-	tunnels,
-	settings,
-	host,
-}: Readonly<FindDevslotProblemsInput>): Map<string, DevslotPortProblem | null> {
-	const problems = new Map<string, DevslotPortProblem | null>();
-	const parsed = entries.filter(isPortTunnelable).map((entry) => ({
+function parseLocalPorts({ entries, localPorts }: Readonly<ProblemsInput>) {
+	return entries.filter(isPortTunnelable).map((entry) => ({
 		entry,
 		listenPort: parsePort(getLocalPortText(entry, localPorts)),
 	}));
-	for (const { entry, listenPort } of parsed) {
-		if (listenPort === null)
+}
+
+/** The problems a port has on its own, before any tunnel is considered: an unreadable or busy local port. */
+export function findLocalPortProblems(
+	input: Readonly<ProblemsInput>
+): Map<string, DevslotPortProblem> {
+	const problems = new Map<string, DevslotPortProblem>();
+	for (const { entry, listenPort } of parseLocalPorts(input)) {
+		if (listenPort === null) {
 			problems.set(entry.key, { kind: 'invalidLocalPort' });
-	}
-	const valid = parsed.flatMap(({ entry, listenPort }) =>
-		listenPort === null ? [] : [{ entry, listenPort }]
-	);
-	const chosen = valid.filter(({ entry }) => selectedKeys.has(entry.key));
-	for (const { entry, listenPort } of valid) {
-		if (isBusyWithoutAlternative(entry, listenPort)) {
+		} else if (isBusyWithoutAlternative(entry, listenPort)) {
 			problems.set(entry.key, { kind: 'localPortBusy', port: listenPort });
 		}
 	}
-	const chosenConflicts = findImportConflicts(
-		chosen.map(({ entry, listenPort }) =>
-			buildCandidate(entry, listenPort, host)
-		),
-		tunnels,
-		settings,
-		host
+	return problems;
+}
+
+/**
+ * Every port with a readable local port becomes a route, the chosen ports
+ * first (so the daemon counts a port as duplicate only against another chosen
+ * port, or against an earlier unchosen one), then the others.
+ */
+export function buildDevslotClassifyRequest({
+	selectedKeys,
+	host,
+	...input
+}: Readonly<ClassifyRequestInput>): DevslotClassifyRequest {
+	const readable = parseLocalPorts(input).flatMap(({ entry, listenPort }) =>
+		listenPort === null ? [] : [{ entry, listenPort }]
 	);
-	for (const [position, { entry }] of chosen.entries()) {
-		if (problems.has(entry.key)) continue;
-		problems.set(entry.key, chosenConflicts[position] ?? null);
-	}
-	for (const { entry, listenPort } of valid) {
-		if (selectedKeys.has(entry.key) || problems.has(entry.key)) continue;
-		const [conflict] = findImportConflicts(
-			[buildCandidate(entry, listenPort, host)],
-			tunnels,
-			settings,
-			host
-		);
-		problems.set(entry.key, conflict ?? null);
+	const chosen = readable.filter(({ entry }) => selectedKeys.has(entry.key));
+	const others = readable.filter(({ entry }) => !selectedKeys.has(entry.key));
+	const ordered = [...chosen, ...others];
+	return {
+		routes: ordered.map(({ entry, listenPort }) =>
+			buildRoute(entry, listenPort, host)
+		),
+		keys: ordered.map(({ entry }) => entry.key),
+		chosenKeys: chosen.map(({ entry }) => entry.key),
+	};
+}
+
+/**
+ * For each port, what stops it from being started as is: an unreadable or
+ * busy local port, or the conflict the daemon last reported for its route.
+ */
+export function findDevslotProblems(
+	input: Readonly<ProblemsInput>,
+	request: Readonly<DevslotClassifyRequest>,
+	conflictsByKey: ReadonlyMap<string, ImportConflictDto | null>
+): Map<string, DevslotPortProblem | null> {
+	const problems = new Map<string, DevslotPortProblem | null>(
+		findLocalPortProblems(input)
+	);
+	for (const key of request.keys) {
+		if (problems.has(key)) continue;
+		problems.set(key, conflictsByKey.get(key) ?? null);
 	}
 	return problems;
 }

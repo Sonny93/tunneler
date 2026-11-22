@@ -7,7 +7,7 @@
 use ipc::protocol::{
     ExternalForwardDto, ExternalProcessDto, FailureReasonDto, MetricsDto, PortOwnerDto,
     SettingsDto, SnapshotDto, TargetHealthDto, TunnelDefinitionDto, TunnelDto, TunnelKindDto,
-    TunnelStateDto, X11StateDto,
+    TunnelSpecDto, TunnelStateDto, X11StateDto,
 };
 use serde::Serialize;
 
@@ -170,8 +170,7 @@ fn default_bind_address(kind: TunnelKindDto, settings: &SettingsDto) -> &str {
     }
 }
 
-fn describe_listening_side(definition: &TunnelDefinitionDto, settings: &SettingsDto) -> String {
-    let spec = &definition.spec;
+fn describe_listening_side(spec: &TunnelSpecDto, settings: &SettingsDto) -> String {
     match &spec.listen_address {
         Some(address) if address != default_bind_address(spec.kind, settings) => {
             format!("{address}:{}", spec.listen_port)
@@ -180,11 +179,7 @@ fn describe_listening_side(definition: &TunnelDefinitionDto, settings: &Settings
     }
 }
 
-fn describe_remote_listening_side(
-    definition: &TunnelDefinitionDto,
-    settings: &SettingsDto,
-) -> String {
-    let spec = &definition.spec;
+fn describe_remote_listening_side(spec: &TunnelSpecDto, settings: &SettingsDto) -> String {
     match &spec.listen_address {
         Some(address) if address != default_bind_address(spec.kind, settings) => {
             format!("{address}:{} on {}", spec.listen_port, spec.host)
@@ -202,28 +197,33 @@ pub fn describe_route(
     settings: &SettingsDto,
     style: Style,
 ) -> String {
-    let spec = &definition.spec;
+    describe_spec_route(&definition.spec, settings, style)
+}
+
+/// The route of a tunnel that has no identifier yet, written as
+/// [`describe_route`] does.
+pub fn describe_spec_route(spec: &TunnelSpecDto, settings: &SettingsDto, style: Style) -> String {
     let arrow = style.arrow();
     let target_host = spec.target_host.as_deref().unwrap_or(DEFAULT_TARGET_HOST);
     let target_port = spec.target_port.unwrap_or(spec.listen_port);
     match spec.kind {
         TunnelKindDto::Local if target_host == DEFAULT_TARGET_HOST => {
-            let listening = describe_listening_side(definition, settings);
+            let listening = describe_listening_side(spec, settings);
             format!("{listening} {arrow} {}:{target_port}", spec.host)
         }
         TunnelKindDto::Local => {
-            let listening = describe_listening_side(definition, settings);
+            let listening = describe_listening_side(spec, settings);
             format!(
                 "{listening} {arrow} {target_host}:{target_port} via {}",
                 spec.host
             )
         }
         TunnelKindDto::Remote => {
-            let listening = describe_remote_listening_side(definition, settings);
+            let listening = describe_remote_listening_side(spec, settings);
             format!("{listening} {arrow} {target_host}:{target_port}")
         }
         TunnelKindDto::Dynamic => {
-            let listening = describe_listening_side(definition, settings);
+            let listening = describe_listening_side(spec, settings);
             format!("{listening} {arrow} SOCKS via {}", spec.host)
         }
     }
@@ -238,7 +238,7 @@ pub fn describe_tunnel_route(tunnel: &TunnelDto, settings: &SettingsDto, style: 
     route
 }
 
-fn describe_tags(tags: &[String]) -> Option<String> {
+pub fn describe_tags(tags: &[String]) -> Option<String> {
     if tags.is_empty() {
         return None;
     }

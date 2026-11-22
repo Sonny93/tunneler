@@ -74,4 +74,22 @@ describe('describeImportWarning', () => {
 			after: '',
 		});
 	});
+
+	it('should describe an invalid host with its line', () => {
+		expect(
+			describeWarning({ kind: 'invalidHost', line: 2, host: '-oProxyCommand' })
+		).toEqual({
+			before: 'Line 2: ',
+			raw: '-oProxyCommand',
+			after: ': not a valid host name, forward ignored.',
+		});
+	});
+
+	it('should describe an invalid host without a line', () => {
+		expect(describeWarning({ kind: 'invalidHost', host: 'a b' })).toEqual({
+			before: '',
+			raw: 'a b',
+			after: ': not a valid host name, forward ignored.',
+		});
+	});
 });

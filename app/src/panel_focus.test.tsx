@@ -97,7 +97,7 @@ describe('panel focus', () => {
 		const user = userEvent.setup();
 		renderScreen();
 		await user.click(screen.getByRole('button', { name: 'Import' }));
-		await screen.findByRole('dialog', { name: 'Import tunnels' });
+		await screen.findByRole('dialog', { name: 'Import and export' });
 
 		await user.keyboard('{Escape}');
 

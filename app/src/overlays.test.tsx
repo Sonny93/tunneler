@@ -94,7 +94,7 @@ describe('Overlays', () => {
 		await userEvent.keyboard('i');
 
 		expect(
-			await screen.findByRole('dialog', { name: 'Import tunnels' })
+			await screen.findByRole('dialog', { name: 'Import and export' })
 		).toBeInTheDocument();
 	});
 

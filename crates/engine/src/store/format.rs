@@ -181,9 +181,11 @@ enum StoredKind {
     Dynamic,
 }
 
+/// A `[[tunnels]]` table as written in a file: the store, or a configuration
+/// export, which share the layout.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct StoredTunnel {
+pub(crate) struct StoredTunnel {
     id: Option<Ulid>,
     #[serde(default, rename = "name")]
     _legacy_name: Option<IgnoredAny>,
@@ -267,7 +269,7 @@ fn parse_error(path: &Path, text: &str, error: &toml_edit::de::Error) -> StoreEr
     }
 }
 
-fn locate(text: &str, span: &Range<usize>) -> SourceLocation {
+pub(crate) fn locate(text: &str, span: &Range<usize>) -> SourceLocation {
     let before = &text[..span.start.min(text.len())];
     let line = before.matches('\n').count() + 1;
     let line_start = before.rfind('\n').map_or(0, |index| index + 1);
@@ -463,7 +465,29 @@ impl StoredOpen {
 }
 
 impl StoredTunnel {
-    fn into_definition(self) -> TunnelDefinition {
+    /// The text fields of the table with their names as written in the file,
+    /// each tag under `tags`.
+    pub(crate) fn text_fields(&self) -> Vec<(&'static str, &str)> {
+        let mut fields = vec![("host", self.host.as_str())];
+        let optional = [
+            ("listen_address", self.listen_address.as_deref()),
+            ("target_host", self.target_host.as_deref()),
+            ("open.path", self.open.path.as_deref()),
+            ("open.with", self.open.with.as_deref()),
+            ("open.host_name", self.open.host_name.as_deref()),
+        ];
+        fields.extend(
+            optional
+                .into_iter()
+                .filter_map(|(name, text)| Some((name, text?))),
+        );
+        fields.extend(self.tags.iter().map(|tag| ("tags", tag.as_str())));
+        fields
+    }
+
+    /// The definition the table describes: the id written, else a generated
+    /// one.
+    pub(crate) fn into_definition(self) -> TunnelDefinition {
         TunnelDefinition {
             id: self.id.map_or_else(TunnelId::generate, TunnelId::from_ulid),
             host: self.host,

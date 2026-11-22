@@ -34,7 +34,7 @@ pub fn describe_exit_codes() -> String {
         (TARGETS_FAILED, "some tunnels failed to start or are blocked by another program (up), or some web ports of the instance failed or are blocked (devslot); a tunnel provided by an external ssh counts as started"),
         (
             CONFIRMATION_REQUIRED,
-            "confirmation required but not possible: not a terminal, pass --yes (quit, purge)",
+            "confirmation required but not possible: not a terminal, pass --yes (quit, purge, import)",
         ),
         (TIMED_OUT, "timed out waiting, or the command on the host timed out (devslot)"),
         (TARGET_UNREACHABLE, "the target of the tunnel does not answer (check)"),

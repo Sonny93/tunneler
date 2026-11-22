@@ -7,6 +7,8 @@ mod devslot_render;
 mod error;
 pub mod exit_code;
 mod forward_spec;
+mod import_render;
+mod import_source;
 mod launcher;
 mod locations;
 mod progress;
@@ -57,5 +59,7 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
         Some(Command::Purge(arguments)) => commands::purge(&context, &arguments).await,
         Some(Command::DesktopEntry(arguments)) => commands::desktop_entry(&arguments),
         Some(Command::Devslot(arguments)) => commands::devslot(&context, arguments).await,
+        Some(Command::Export(arguments)) => commands::export(&context, &arguments).await,
+        Some(Command::Import(arguments)) => commands::import(&context, arguments).await,
     }
 }

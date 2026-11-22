@@ -33,6 +33,19 @@ function describeUnsupportedForward(
 	return i18n._(msg`Unsupported forward (Unix socket or remote SOCKS): `);
 }
 
+function describeInvalidHost(
+	warning: Readonly<Extract<ImportWarningDto, { kind: 'invalidHost' }>>,
+	i18n: I18n
+): ImportWarningText {
+	const { line } = warning;
+	const after = i18n._(msg`: not a valid host name, forward ignored.`);
+	return {
+		before: line === undefined ? '' : i18n._(msg`Line ${line}: `),
+		raw: warning.host,
+		after,
+	};
+}
+
 export function describeImportWarning(
 	warning: Readonly<ImportWarningDto>,
 	i18n: I18n
@@ -66,5 +79,7 @@ export function describeImportWarning(
 				after: '',
 			};
 		}
+		case 'invalidHost':
+			return describeInvalidHost(warning, i18n);
 	}
 }

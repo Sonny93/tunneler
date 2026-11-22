@@ -1,5 +1,12 @@
 import type {
+	ConfigExportResultDto,
+	ConfigImportPlanDto,
+	ConfigImportReportDto,
 	EventMessage,
+	ExportToFileResultDto,
+	ImportConflictDto,
+	ImportRouteDto,
+	PickedImportFileDto,
 	HostKeyDecisionDto,
 	ImportPreviewDto,
 	DeleteTagResultDto,
@@ -82,6 +89,33 @@ export type DaemonGateway = {
 	resolveHost(host: string): Promise<ResolvedHostDto>;
 	importSshConfig(): Promise<ImportPreviewDto>;
 	importScript(text: string): Promise<ImportPreviewDto>;
+	/** Checks routes (host included) against the saved tunnels and against each other; one conflict or `null` per route, in order. */
+	classifyImports(
+		candidates: readonly ImportRouteDto[]
+	): Promise<readonly (ImportConflictDto | null)[]>;
+	/** Writes the saved tunnels matching any host or tag filter (all of them without filters) as an export file. */
+	exportConfig(
+		hosts: readonly string[],
+		tags: readonly string[]
+	): Promise<ConfigExportResultDto>;
+	/** Asks where to save the export with the native dialog and writes it; the webview never names a path. */
+	exportToFile(
+		contents: string,
+		suggestedFileName: string
+	): Promise<ExportToFileResultDto>;
+	/** Asks for a file with the native dialog and reads it; `null` when cancelled, `invalid_import_file` (`tooLarge`) above the cap. */
+	pickImportFile(): Promise<PickedImportFileDto | null>;
+	/** Plans what importing the file would do, without writing anything. */
+	previewConfigImport(
+		contents: string,
+		hostMap: Readonly<Record<string, string>>
+	): Promise<ConfigImportPlanDto>;
+	/** Plans the file again and adds the requested entries that are still importable. */
+	applyConfigImport(
+		contents: string,
+		hostMap: Readonly<Record<string, string>>,
+		indexes: readonly number[]
+	): Promise<ConfigImportReportDto>;
 	/** Runs `ds ls --json` on the host and analyses the instances against the tunnels of that host. */
 	discoverDevslot(host: string): Promise<DevslotDiscoveryDto>;
 	/** Removes the stale devslot tunnels the last discovery returned; a tunnel that changed since is skipped. */

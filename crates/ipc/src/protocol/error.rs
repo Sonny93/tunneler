@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use thiserror::Error;
 
+use crate::protocol::config_transfer::InvalidImportFileDto;
+
 /// The closed set of error codes a response can carry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -53,6 +55,9 @@ pub enum ErrorCode {
     /// The SSH session to the host could not be opened (network, host key or
     /// authentication); `data` holds `host`, the message says why.
     ConnectionFailed,
+    /// An import file is refused as a whole; `data` holds `reason` and the
+    /// keys that go with it.
+    InvalidImportFile,
     /// The daemon failed unexpectedly.
     Internal,
 }
@@ -80,6 +85,7 @@ impl ErrorCode {
             Self::DevslotInstanceNotFound => "devslot_instance_not_found",
             Self::RemoteCommandTimeout => "remote_command_timeout",
             Self::ConnectionFailed => "connection_failed",
+            Self::InvalidImportFile => "invalid_import_file",
             Self::Internal => "internal",
         }
     }
@@ -259,6 +265,11 @@ impl IpcError {
         Self::new(ErrorCode::ConnectionFailed, message).with_data(json!({ "host": host }))
     }
 
+    /// An import file is refused as a whole.
+    pub fn invalid_import_file(message: impl Into<String>, details: &InvalidImportFileDto) -> Self {
+        Self::new(ErrorCode::InvalidImportFile, message).with_data(json!(details))
+    }
+
     /// The daemon failed unexpectedly.
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::Internal, message)
@@ -269,7 +280,7 @@ impl IpcError {
 mod tests {
     use super::*;
 
-    const ALL_CODES: [ErrorCode; 20] = [
+    const ALL_CODES: [ErrorCode; 21] = [
         ErrorCode::InvalidRequest,
         ErrorCode::UnknownMethod,
         ErrorCode::HandshakeRequired,
@@ -289,6 +300,7 @@ mod tests {
         ErrorCode::DevslotInstanceNotFound,
         ErrorCode::RemoteCommandTimeout,
         ErrorCode::ConnectionFailed,
+        ErrorCode::InvalidImportFile,
         ErrorCode::Internal,
     ];
 
