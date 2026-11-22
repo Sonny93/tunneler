@@ -21,6 +21,7 @@ use tokio::sync::Semaphore;
 const REMOTE_PORT: u16 = 20050;
 const GONE_PORT: u16 = 20999;
 const OTHER_HOST: &str = "elsewhere";
+const SECOND_ALIAS: &str = "secondhost";
 const SHORT_TIMEOUT: Duration = Duration::from_millis(400);
 const ONE_MEBIBYTE: usize = 1024 * 1024;
 
@@ -31,6 +32,7 @@ struct Harness {
     _store_directory: tempfile::TempDir,
     store_path: std::path::PathBuf,
     server: TestServer,
+    second_server: Option<TestServer>,
     state_store: Arc<MemoryStateStore>,
     engine: Engine,
 }
@@ -47,12 +49,24 @@ async fn start(script: Option<ScriptedCommand>, host_overrides: &str) -> Harness
     start_with(TestServer::builder(), script, host_overrides).await
 }
 
+struct SecondHost {
+    builder: support::TestServerBuilder,
+    script: ScriptedCommand,
+}
+
 async fn start_with(
     builder: support::TestServerBuilder,
     script: Option<ScriptedCommand>,
     host_overrides: &str,
 ) -> Harness {
-    let client_key = generate_key(Algorithm::Ed25519);
+    start_hosts(builder, script, None, host_overrides).await
+}
+
+async fn start_server(
+    builder: support::TestServerBuilder,
+    script: Option<ScriptedCommand>,
+    client_key: &russh::keys::PrivateKey,
+) -> TestServer {
     let user = TestUser {
         authorized_keys: vec![client_key.public_key().clone()],
         ..TestUser::default()
@@ -63,18 +77,42 @@ async fn start_with(
     if let Some(script) = script {
         builder = builder.answering_commands(script);
     }
-    let server = builder.start().await;
+    builder.start().await
+}
+
+async fn start_hosts(
+    builder: support::TestServerBuilder,
+    script: Option<ScriptedCommand>,
+    second_host: Option<SecondHost>,
+    host_overrides: &str,
+) -> Harness {
+    let client_key = generate_key(Algorithm::Ed25519);
+    let server = start_server(builder, script, &client_key).await;
+    let second_server = match second_host {
+        Some(second) => Some(start_server(second.builder, Some(second.script), &client_key).await),
+        None => None,
+    };
     let workspace = Workspace::new();
     let key_path = write_private_key(workspace.path(), "id_test", &client_key, None);
     let identity_line = format!("IdentityFile {}", key_path.display());
-    let config_path = workspace.write_config(
-        server.port,
-        &[
-            identity_line.as_str(),
-            "IdentitiesOnly yes",
-            "PreferredAuthentications publickey",
-        ],
-    );
+    let extra_lines = vec![
+        identity_line.as_str(),
+        "IdentitiesOnly yes",
+        "PreferredAuthentications publickey",
+    ];
+    let mut hosts = vec![support::HostSpec {
+        alias: support::ALIAS,
+        port: server.port,
+        extra_lines: extra_lines.clone(),
+    }];
+    if let Some(second) = &second_server {
+        hosts.push(support::HostSpec {
+            alias: SECOND_ALIAS,
+            port: second.port,
+            extra_lines,
+        });
+    }
+    let config_path = workspace.write_hosts_config(&hosts);
     let store_directory = tempfile::tempdir().unwrap();
     let store_path = store_directory.path().join("tunnels.toml");
     std::fs::write(
@@ -116,6 +154,7 @@ async fn start_with(
         _store_directory: store_directory,
         store_path,
         server,
+        second_server,
         state_store,
         engine,
     }
@@ -1481,5 +1520,51 @@ async fn should_finish_the_listing_for_the_others_when_the_first_caller_goes_awa
             harness.server.executed_commands().len()
         ),
         (1, 1)
+    );
+}
+
+#[tokio::test]
+async fn should_list_two_hosts_in_parallel() {
+    let first_gate = Arc::new(Semaphore::new(0));
+    let second_gate = Arc::new(Semaphore::new(0));
+    let second_listing = LISTING.replace("links-a", "links-b");
+    let second_host = SecondHost {
+        builder: TestServer::builder().holding_command_answers(Arc::clone(&second_gate)),
+        script: ok_script(&second_listing),
+    };
+    let harness = start_hosts(
+        TestServer::builder().holding_command_answers(Arc::clone(&first_gate)),
+        Some(ok_script(LISTING)),
+        Some(second_host),
+        "",
+    )
+    .await;
+    let second_server = harness.second_server.as_ref().unwrap();
+
+    let release_after_both_received = async {
+        support::wait_until(
+            WAIT_LIMIT,
+            "both listing commands to reach their servers while held",
+            || {
+                harness.server.executed_commands().len() == 1
+                    && second_server.executed_commands().len() == 1
+            },
+        )
+        .await;
+        first_gate.add_permits(1);
+        second_gate.add_permits(1);
+    };
+    let (first, second, ()) = tokio::join!(
+        harness.engine.discover_devslot(support::ALIAS),
+        harness.engine.discover_devslot(SECOND_ALIAS),
+        release_after_both_received
+    );
+
+    assert_eq!(
+        (
+            first.unwrap().instances[0].name.clone(),
+            second.unwrap().instances[0].name.clone()
+        ),
+        ("links-a".to_owned(), "links-b".to_owned())
     );
 }
