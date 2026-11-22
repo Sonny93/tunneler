@@ -30,10 +30,11 @@ struct Applied {
 
 impl Engine {
     /// Opens one devslot instance of a host: lists the instances there (one
-    /// `ds ls --json`, over the shared SSH session), removes the stale routes
-    /// that need no question, starts a tunnel for each web port of the
-    /// instance that has none, starts the stopped tunnels it already has, and
-    /// waits until they are ready.
+    /// `ds ls --json`, over the shared SSH session, shared with the calls
+    /// that overlap it), removes the stale routes that need no question,
+    /// starts a tunnel for each web port of the instance that has none,
+    /// starts the stopped tunnels it already has, and waits until they are
+    /// ready.
     ///
     /// Only the automatic part of the resync runs: temporary tunnels whose
     /// port is gone, and saved ones when `devslot_stale` says to delete them,
@@ -41,10 +42,11 @@ impl Engine {
     /// tunnel that waits for the user's decision is left alone and reported.
     /// A port that fails is reported in the result, not as an error.
     ///
-    /// The listing runs before any lock is taken. The steps that read and
-    /// change the tunnels of this machine are serialised, so that two calls
-    /// for the same instance create each tunnel once; the lock is released
-    /// before the wait.
+    /// The listing runs before any lock is taken, and concurrent calls for
+    /// the same host share one listing (each still analyses it on its own,
+    /// under the lock). The steps that read and change the tunnels of this
+    /// machine are serialised, so that two calls for the same instance create
+    /// each tunnel once; the lock is released before the wait.
     pub async fn devslot_up(&self, host: &str, instance: &str) -> Result<DevslotUp, EngineError> {
         self.ensure_running()?;
         let listing = self.inner.list_devslot(host).await?;

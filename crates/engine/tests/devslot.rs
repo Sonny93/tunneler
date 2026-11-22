@@ -16,6 +16,7 @@ use support::{
     MemoryStateStore, ScriptedCommand, TestServer, TestUser, Workspace, free_port, generate_key,
     write_private_key,
 };
+use tokio::sync::Semaphore;
 
 const REMOTE_PORT: u16 = 20050;
 const GONE_PORT: u16 = 20999;
@@ -1352,4 +1353,134 @@ async fn should_report_the_listing_failure_without_creating_anything_when_the_ho
         "{error:?}"
     );
     assert_eq!(tunnel_ids(&harness), Vec::new());
+}
+
+const CALLERS: usize = 3;
+const WAIT_LIMIT: Duration = Duration::from_secs(5);
+
+type UpOutcome = Result<engine::DevslotUp, engine::EngineError>;
+
+async fn start_gated(script: ScriptedCommand, permits: usize) -> (Harness, Arc<Semaphore>) {
+    let gate = Arc::new(Semaphore::new(permits));
+    let builder = TestServer::builder().holding_command_answers(Arc::clone(&gate));
+    (start_with(builder, Some(script), "").await, gate)
+}
+
+async fn wait_for_commands(harness: &Harness, count: usize) {
+    support::wait_until(
+        WAIT_LIMIT,
+        "the listing command to reach the server",
+        || harness.server.executed_commands().len() >= count,
+    )
+    .await;
+}
+
+async fn release_once_received(harness: &Harness, gate: &Semaphore) {
+    wait_for_commands(harness, 1).await;
+    gate.add_permits(1);
+}
+
+async fn open_concurrently(harness: &Harness, gate: &Semaphore) -> [UpOutcome; CALLERS] {
+    let (first, second, third, ()) = tokio::join!(
+        harness.engine.devslot_up(support::ALIAS, INSTANCE),
+        harness.engine.devslot_up(support::ALIAS, INSTANCE),
+        harness.engine.devslot_up(support::ALIAS, INSTANCE),
+        release_once_received(harness, gate)
+    );
+    [first, second, third]
+}
+
+#[tokio::test]
+async fn should_run_one_listing_when_the_same_host_is_opened_concurrently() {
+    let ports = up_ports().await;
+    let listing = listing_of(&[instance_entry(INSTANCE, &ports)]);
+    let (harness, gate) = start_gated(ok_script(&listing), 0).await;
+
+    let outcomes = open_concurrently(&harness, &gate).await;
+    let started: usize = outcomes
+        .into_iter()
+        .map(|outcome| outcome.unwrap().started.len())
+        .sum();
+
+    assert_eq!(
+        (
+            harness.server.executed_commands().len(),
+            started,
+            tunnel_ids(&harness).len()
+        ),
+        (1, 1, 1)
+    );
+}
+
+#[tokio::test]
+async fn should_share_the_listing_error_with_every_concurrent_caller() {
+    let script = ScriptedCommand {
+        stdout: Vec::new(),
+        stderr: b"registry locked".to_vec(),
+        ending: CommandEnding::ExitStatus(2),
+    };
+    let (harness, gate) = start_gated(script, 0).await;
+
+    let outcomes = open_concurrently(&harness, &gate).await;
+    let shared_errors = outcomes
+        .iter()
+        .filter(|outcome| {
+            matches!(
+                outcome,
+                Err(engine::EngineError::Devslot(DevslotError::Failed { status: Some(2), stderr, .. })) if stderr == "registry locked"
+            )
+        })
+        .count();
+
+    assert_eq!(
+        (harness.server.executed_commands().len(), shared_errors),
+        (1, CALLERS)
+    );
+}
+
+#[tokio::test]
+async fn should_run_a_new_listing_when_the_previous_one_has_ended() {
+    let ports = up_ports().await;
+    let listing = listing_of(&[instance_entry(INSTANCE, &ports)]);
+    let (harness, _gate) = start_gated(ok_script(&listing), 2).await;
+
+    harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+    harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    assert_eq!(harness.server.executed_commands().len(), 2);
+}
+
+#[tokio::test]
+async fn should_finish_the_listing_for_the_others_when_the_first_caller_goes_away() {
+    let ports = up_ports().await;
+    let listing = listing_of(&[instance_entry(INSTANCE, &ports)]);
+    let (harness, gate) = start_gated(ok_script(&listing), 0).await;
+    let first = tokio::spawn({
+        let engine = harness.engine.clone();
+        async move { engine.devslot_up(support::ALIAS, INSTANCE).await }
+    });
+    wait_for_commands(&harness, 1).await;
+    first.abort();
+    let _ = first.await;
+
+    let (second, ()) = tokio::join!(
+        harness.engine.devslot_up(support::ALIAS, INSTANCE),
+        release_once_received(&harness, &gate)
+    );
+
+    assert_eq!(
+        (
+            second.unwrap().started.len(),
+            harness.server.executed_commands().len()
+        ),
+        (1, 1)
+    );
 }

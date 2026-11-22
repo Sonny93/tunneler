@@ -45,7 +45,7 @@ pub struct DevslotResync {
 }
 
 /// Why the instances of a host could not be listed.
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum DevslotError {
     /// The SSH session could not be opened.
     #[error("{source}")]

@@ -26,6 +26,7 @@ use crate::openers::{
 use crate::opening::{OpenUrlError, build_open_address};
 use crate::passphrase_vault::PassphraseVault;
 use crate::runtime::catalog::{Catalog, TunnelFactory, TunnelSnapshot};
+use crate::runtime::devslot_listing::DevslotListings;
 use crate::runtime::events::{EngineEvent, EventBus};
 use crate::runtime::log_buffer::TunnelLogEntry;
 use crate::runtime::options::EngineOptions;
@@ -280,6 +281,7 @@ pub(crate) struct EngineInner {
     /// Serialises the local steps of `devslot_up`. It is taken before
     /// `mutation`, never while holding it, and never across an SSH command.
     pub(crate) devslot_up_lock: tokio::sync::Mutex<()>,
+    pub(crate) devslot_listings: DevslotListings,
     tunnel_ready_timeout: Duration,
     pub(crate) remote_command_timeout: Duration,
     program_locator: Arc<dyn ProgramLocator>,
@@ -442,6 +444,7 @@ impl Engine {
             catalog: Mutex::new(Catalog::new(factory, document.tunnels)),
             mutation: tokio::sync::Mutex::new(()),
             devslot_up_lock: tokio::sync::Mutex::new(()),
+            devslot_listings: DevslotListings::default(),
             tunnel_ready_timeout: options.tunnel_ready_timeout,
             remote_command_timeout: options.remote_command_timeout,
             detected_openers: Mutex::new(Vec::new()),

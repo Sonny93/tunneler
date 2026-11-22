@@ -10,7 +10,7 @@ use russh::server::{self, Auth, Config, Msg, PublicKeyOffer, Server, Session, Ve
 use russh::{Channel, ChannelId, ChannelOpenFailure, ChannelStream, MethodKind, MethodSet};
 use tokio::io::{copy_bidirectional, duplex};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::watch;
+use tokio::sync::{Semaphore, watch};
 use tokio::task::{AbortHandle, JoinHandle};
 use tokio::time::sleep;
 
@@ -112,6 +112,7 @@ struct Behavior {
     executed_commands: Arc<Mutex<Vec<String>>>,
     latest_session: Arc<Mutex<Option<server::Handle>>>,
     command_script: Option<ScriptedCommand>,
+    command_gate: Option<Arc<Semaphore>>,
     channel_open_policy: ChannelOpenPolicy,
 }
 
@@ -175,6 +176,7 @@ pub struct TestServerBuilder {
     x11_policy: X11Policy,
     authentication_policy: AuthenticationPolicy,
     command_script: Option<ScriptedCommand>,
+    command_gate: Option<Arc<Semaphore>>,
     channel_open_policy: ChannelOpenPolicy,
 }
 
@@ -248,6 +250,14 @@ impl TestServerBuilder {
         self
     }
 
+    /// Holds back the answer of every scripted command until `gate` has a
+    /// permit: each permit lets one command answer. The command is still
+    /// recorded by `executed_commands` as soon as it arrives.
+    pub fn holding_command_answers(mut self, gate: Arc<Semaphore>) -> Self {
+        self.command_gate = Some(gate);
+        self
+    }
+
     /// Never answers the request to open a session channel, like a half-dead
     /// connection.
     pub fn stalling_session_channels(mut self) -> Self {
@@ -286,6 +296,7 @@ impl TestServerBuilder {
             executed_commands: Arc::clone(&executed_commands),
             latest_session: Arc::clone(&latest_session),
             command_script: self.command_script,
+            command_gate: self.command_gate,
             channel_open_policy: self.channel_open_policy,
         });
         let config = Arc::new(config);
@@ -368,6 +379,7 @@ impl TestServer {
             x11_policy: X11Policy::Anchoring,
             authentication_policy: AuthenticationPolicy::Answering,
             command_script: None,
+            command_gate: None,
             channel_open_policy: ChannelOpenPolicy::Answering,
         }
     }
@@ -757,9 +769,18 @@ impl server::Handler for ConnectionHandler {
             session.data(channel, self.display_line().into_bytes())?;
             return Ok(());
         }
-        if let Some(script) = &self.behavior.command_script {
-            play_script(script, channel, session)?;
-        }
+        let Some(script) = &self.behavior.command_script else {
+            return Ok(());
+        };
+        let Some(gate) = &self.behavior.command_gate else {
+            return play_script(script, channel, session);
+        };
+        tokio::spawn(play_script_when_released(
+            script.clone(),
+            Arc::clone(gate),
+            session.handle(),
+            channel,
+        ));
         Ok(())
     }
 
@@ -877,6 +898,45 @@ fn play_script(
     }
     session.eof(channel)?;
     session.close(channel)
+}
+
+async fn play_script_when_released(
+    script: ScriptedCommand,
+    gate: Arc<Semaphore>,
+    handle: server::Handle,
+    channel: ChannelId,
+) {
+    let Ok(permit) = gate.acquire().await else {
+        return;
+    };
+    permit.forget();
+    let _ = play_script_through_handle(&script, &handle, channel).await;
+}
+
+async fn play_script_through_handle(
+    script: &ScriptedCommand,
+    handle: &server::Handle,
+    channel: ChannelId,
+) -> Result<(), ()> {
+    if !script.stdout.is_empty() {
+        handle
+            .data(channel, script.stdout.clone())
+            .await
+            .map_err(|_| ())?;
+    }
+    if !script.stderr.is_empty() {
+        handle
+            .extended_data(channel, STDERR_EXTENDED_DATA, script.stderr.clone())
+            .await
+            .map_err(|_| ())?;
+    }
+    match script.ending {
+        CommandEnding::Hang => return Ok(()),
+        CommandEnding::ExitStatus(status) => handle.exit_status_request(channel, status).await?,
+        CommandEnding::NoStatus => {}
+    }
+    handle.eof(channel).await?;
+    handle.close(channel).await
 }
 
 async fn bind_forward_listener(port: u16) -> Option<TcpListener> {

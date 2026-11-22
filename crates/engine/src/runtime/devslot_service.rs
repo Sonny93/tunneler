@@ -1,6 +1,7 @@
 //! The engine side of the devslot discovery: running `ds ls --json` on a
 //! host and removing the stale tunnels it reveals.
 
+use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
@@ -24,6 +25,7 @@ const REFUSED_MESSAGE: &str = "the server refused to run the command";
 
 /// What a host listed, read and cleaned, before it is compared with the
 /// tunnels and the ports of this machine.
+#[derive(Clone)]
 pub(crate) struct RemoteDevslotListing {
     instances: Vec<DevslotInstance>,
     warnings: Vec<DevslotWarning>,
@@ -39,7 +41,7 @@ pub(crate) struct DevslotAnalysis {
 
 impl EngineInner {
     pub(crate) async fn discover_devslot(
-        &self,
+        self: &Arc<Self>,
         host: &str,
     ) -> Result<DevslotDiscovery, DevslotError> {
         let listing = self.list_devslot(host).await?;
@@ -47,8 +49,10 @@ impl EngineInner {
     }
 
     /// Runs `ds ls --json` on the host and reads its output. Nothing here
-    /// depends on the tunnels of this machine, so it never needs a lock.
-    pub(crate) async fn list_devslot(
+    /// depends on the tunnels of this machine, so it never needs a lock. It
+    /// is reached through `list_devslot`, which shares one run between the
+    /// concurrent callers of a host.
+    pub(crate) async fn run_devslot_listing(
         &self,
         host: &str,
     ) -> Result<RemoteDevslotListing, DevslotError> {
