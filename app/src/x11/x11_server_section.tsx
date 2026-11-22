@@ -1,4 +1,5 @@
 import { useLingui } from '@lingui/react/macro';
+import { Card } from '@minimalstuff/ui';
 
 import { useX11ServerStatus } from '#/x11/use_x11_server_status';
 import { X11ServerStatus } from '#/x11/x11_server_status';
@@ -16,13 +17,12 @@ export function X11ServerSection({
 	const { status, isStarting, startServer } = useX11ServerStatus(host, isOpen);
 
 	return (
-		<section className="flex flex-col gap-2">
-			<h3 className="m-0 text-sm font-semibold">{t`X server`}</h3>
+		<Card title={t`X server`} headingLevel={3} padding="sm">
 			<X11ServerStatus
 				status={status}
 				isStarting={isStarting}
 				onStart={(server) => void startServer(server)}
 			/>
-		</section>
+		</Card>
 	);
 }

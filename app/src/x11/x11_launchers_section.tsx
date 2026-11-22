@@ -1,4 +1,5 @@
 import { useLingui } from '@lingui/react/macro';
+import { Card } from '@minimalstuff/ui';
 
 import { useDaemonStore } from '#/state/daemon_store';
 import { X11LauncherItem } from '#/x11/x11_launcher_item';
@@ -16,8 +17,7 @@ export function X11LaunchersSection({
 	const launchers = allLaunchers.filter((launcher) => launcher.host === host);
 
 	return (
-		<section className="flex flex-col gap-2">
-			<h3 className="m-0 text-sm font-semibold">{t`Launchers`}</h3>
+		<Card title={t`Launchers`} headingLevel={3} padding="sm">
 			{launchers.length === 0 ? (
 				<X11LaunchersEmpty />
 			) : (
@@ -27,6 +27,6 @@ export function X11LaunchersSection({
 					))}
 				</ul>
 			)}
-		</section>
+		</Card>
 	);
 }

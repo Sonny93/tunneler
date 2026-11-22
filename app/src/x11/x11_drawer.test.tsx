@@ -288,6 +288,20 @@ describe('X11Drawer', () => {
 		expect(screen.getByText(/\[\[x11_launchers\]\]/)).toBeInTheDocument();
 	});
 
+	it('should show each section as a named region', () => {
+		useDaemonStore.setState({ x11Anchors: [buildX11Anchor()] });
+		renderDrawer();
+
+		for (const name of [
+			'X11 anchor',
+			'X server',
+			'Remote display',
+			'Launchers',
+		]) {
+			expect(screen.getByRole('region', { name })).toBeInTheDocument();
+		}
+	});
+
 	it('should have no axe violations', async () => {
 		useDaemonStore.setState({
 			x11Anchors: [buildX11Anchor()],

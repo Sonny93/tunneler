@@ -21,7 +21,7 @@ export function X11Panel({ host, isOpen }: Readonly<X11PanelProps>) {
 
 	return (
 		<Drawer isOpen={isOpen} title={t`X11: ${host}`} onClose={closePanel}>
-			<div className="flex flex-col gap-6">
+			<div className="flex flex-col gap-4">
 				<X11SecurityNote />
 				<X11AnchorSection host={host} />
 				<X11ServerSection host={host} isOpen={isOpen} />

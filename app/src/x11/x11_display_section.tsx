@@ -1,5 +1,5 @@
 import { useLingui } from '@lingui/react/macro';
-import { Button } from '@minimalstuff/ui';
+import { Button, Card } from '@minimalstuff/ui';
 
 import { useCopyDisplayCommand } from '#/x11/use_copy_display_command';
 
@@ -16,19 +16,20 @@ export function X11DisplaySection({
 	const handleCopy = () => void copy();
 
 	return (
-		<section className="flex flex-col gap-2">
-			<h3 className="m-0 text-sm font-semibold">{t`Remote display`}</h3>
-			<p className="m-0 font-mono select-all">{display}</p>
-			<div>
-				<Button
-					startIcon="i-mdi-content-copy"
-					variant="outline"
-					color="neutral"
-					onClick={handleCopy}
-				>
-					{t`Copy ${command}`}
-				</Button>
+		<Card title={t`Remote display`} headingLevel={3} padding="sm">
+			<div className="flex flex-col gap-2">
+				<p className="m-0 font-mono select-all">{display}</p>
+				<div>
+					<Button
+						startIcon="i-mdi-content-copy"
+						variant="outline"
+						color="neutral"
+						onClick={handleCopy}
+					>
+						{t`Copy ${command}`}
+					</Button>
+				</div>
 			</div>
-		</section>
+		</Card>
 	);
 }
