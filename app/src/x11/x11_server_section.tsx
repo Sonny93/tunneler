@@ -17,7 +17,7 @@ export function X11ServerSection({
 	const { status, isStarting, startServer } = useX11ServerStatus(host, isOpen);
 
 	return (
-		<Card title={t`X server`} headingLevel={3} padding="sm">
+		<Card title={t`X server`} headingLevel={3} titleSize="sm" padding="sm">
 			<X11ServerStatus
 				status={status}
 				isStarting={isStarting}

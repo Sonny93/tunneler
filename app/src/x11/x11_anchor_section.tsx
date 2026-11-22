@@ -22,7 +22,7 @@ export function X11AnchorSection({ host }: Readonly<X11AnchorSectionProps>) {
 	const handleStop = () => void stop();
 
 	return (
-		<Card title={t`X11 anchor`} headingLevel={3} padding="sm">
+		<Card title={t`X11 anchor`} headingLevel={3} titleSize="sm" padding="sm">
 			<div className="flex flex-col gap-2">
 				<div className="flex flex-wrap items-center gap-2">
 					<X11StateBadge state={state} />

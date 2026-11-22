@@ -44,7 +44,12 @@ export function TunnelMetricsSection({
 	const { i18n } = useLingui();
 
 	return (
-		<Card title={i18n._(msg`Metrics`)} headingLevel={3} padding="sm">
+		<Card
+			title={i18n._(msg`Metrics`)}
+			headingLevel={3}
+			titleSize="sm"
+			padding="sm"
+		>
 			<dl className="m-0 grid grid-cols-2 gap-2 sm:grid-cols-3">
 				{buildMetricRows(metrics, i18n).map(({ label, value }) => (
 					<div

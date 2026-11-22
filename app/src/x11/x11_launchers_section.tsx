@@ -17,7 +17,7 @@ export function X11LaunchersSection({
 	const launchers = allLaunchers.filter((launcher) => launcher.host === host);
 
 	return (
-		<Card title={t`Launchers`} headingLevel={3} padding="sm">
+		<Card title={t`Launchers`} headingLevel={3} titleSize="sm" padding="sm">
 			{launchers.length === 0 ? (
 				<X11LaunchersEmpty />
 			) : (

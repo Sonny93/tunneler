@@ -38,7 +38,7 @@ export function TunnelActionsSection({
 	const handleStandby = () => void sendTunnel(tunnel);
 
 	return (
-		<Card title={t`Actions`} headingLevel={3} padding="sm">
+		<Card title={t`Actions`} headingLevel={3} titleSize="sm" padding="sm">
 			<div className="flex flex-col gap-3">
 				{hasTarget && (
 					<div className="flex flex-col gap-1">

@@ -18,7 +18,7 @@ export function TunnelStateSection({
 	const { t } = useLingui();
 
 	return (
-		<Card title={t`State`} headingLevel={3} padding="sm">
+		<Card title={t`State`} headingLevel={3} titleSize="sm" padding="sm">
 			<div className="flex flex-col gap-2">
 				<div className="flex flex-wrap gap-1">
 					{tunnel.isTemporary && <TemporaryBadge />}

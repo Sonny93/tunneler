@@ -23,6 +23,7 @@ export function TunnelLogSection({
 		<Card
 			title={t`Log`}
 			headingLevel={3}
+			titleSize="sm"
 			padding="sm"
 			className="flex flex-1 flex-col"
 		>

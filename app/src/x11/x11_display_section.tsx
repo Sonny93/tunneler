@@ -16,7 +16,12 @@ export function X11DisplaySection({
 	const handleCopy = () => void copy();
 
 	return (
-		<Card title={t`Remote display`} headingLevel={3} padding="sm">
+		<Card
+			title={t`Remote display`}
+			headingLevel={3}
+			titleSize="sm"
+			padding="sm"
+		>
 			<div className="flex flex-col gap-2">
 				<p className="m-0 font-mono select-all">{display}</p>
 				<div>
