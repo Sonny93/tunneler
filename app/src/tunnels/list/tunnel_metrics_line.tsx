@@ -24,7 +24,7 @@ export function TunnelMetricsLine({
 	return (
 		<p className="m-0 text-xs text-tn-muted">
 			<span aria-hidden="true">
-				{connections} · ↓ {received} ↑ {sent}
+				{`${connections} · ↓ ${received} ↑ ${sent}`}
 			</span>
 			<span className="sr-only">{spokenMetrics}</span>
 		</p>
