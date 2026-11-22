@@ -7,8 +7,8 @@ use ipc::{ClientError, IpcClient};
 
 use super::super::args::{HostMapEntry, ImportArguments};
 use super::super::import_render::{
-    NOTHING_IMPORTED_MESSAGE, count_tunnels, render_import_plan, render_import_plan_json,
-    render_import_report, render_import_report_json, selected_indexes,
+    NOTHING_IMPORTED_MESSAGE, RiskPolicy, count_selected_risky, count_tunnels, render_import_plan,
+    render_import_plan_json, render_import_report, render_import_report_json, selected_indexes,
 };
 use super::super::import_source::read_import_source;
 use super::super::launcher::ensure_daemon_running;
@@ -60,7 +60,16 @@ struct ImportRun<'a> {
     plan: ConfigImportPlanDto,
     snapshot: SnapshotDto,
     style: Style,
+    risk_policy: RiskPolicy,
     is_json: bool,
+}
+
+fn risk_policy_of(arguments: &ImportArguments) -> RiskPolicy {
+    if arguments.include_risky {
+        RiskPolicy::Include
+    } else {
+        RiskPolicy::LeaveOut
+    }
 }
 
 /// `tunneler import`: plans the import of a file, then adds the tunnels the
@@ -86,9 +95,10 @@ pub async fn import(context: &Context, arguments: ImportArguments) -> Result<(),
         plan,
         snapshot,
         style: context.style,
+        risk_policy: risk_policy_of(&arguments),
         is_json: arguments.json,
     };
-    let selected_count = selected_indexes(&run.plan).len();
+    let selected_count = run.selected_indexes().len();
     let can_ask = can_ask_on_controlling_terminal();
     match decide(&arguments, selected_count, can_ask) {
         Decision::DryRun => run.show_plan(),
@@ -100,14 +110,18 @@ pub async fn import(context: &Context, arguments: ImportArguments) -> Result<(),
 }
 
 impl ImportRun<'_> {
+    fn selected_indexes(&self) -> Vec<u32> {
+        selected_indexes(&self.plan, self.risk_policy)
+    }
+
     fn show_plan(&self) -> Result<(), CliError> {
         if self.is_json {
-            println!("{}", render_import_plan_json(&self.plan)?);
+            println!("{}", render_import_plan_json(&self.plan, self.risk_policy)?);
             return Ok(());
         }
         println!(
             "{}",
-            render_import_plan(&self.plan, &self.snapshot, self.style)
+            render_import_plan(&self.plan, &self.snapshot, self.style, self.risk_policy)
         );
         Ok(())
     }
@@ -123,14 +137,15 @@ impl ImportRun<'_> {
     fn refuse(&self) -> Result<(), CliError> {
         self.show_plan()?;
         Err(CliError::ImportConfirmationRequired {
-            count: count_tunnels(selected_indexes(&self.plan).len()),
+            count: count_tunnels(self.selected_indexes().len()),
         })
     }
 
     async fn ask_then_apply(&self, terminal: &dyn Terminal) -> Result<(), CliError> {
         self.show_plan()?;
-        let selected_count = selected_indexes(&self.plan).len();
-        if confirm_import(selected_count, terminal)? {
+        let selected_count = self.selected_indexes().len();
+        let risky_count = count_selected_risky(&self.plan, self.risk_policy);
+        if confirm_import(selected_count, risky_count, terminal)? {
             return self.apply().await;
         }
         println!("{NOTHING_IMPORTED_MESSAGE}");
@@ -150,12 +165,15 @@ impl ImportRun<'_> {
             .apply_config_import(ConfigImportApplyParams {
                 contents: self.contents.clone(),
                 host_map: self.host_map.clone(),
-                indexes: selected_indexes(&self.plan),
+                indexes: self.selected_indexes(),
             })
             .await
             .map_err(describe_import_failure)?;
         if self.is_json {
-            println!("{}", render_import_report_json(&self.plan, &report)?);
+            println!(
+                "{}",
+                render_import_report_json(&self.plan, self.risk_policy, &report)?
+            );
             return Ok(());
         }
         println!(
@@ -166,8 +184,21 @@ impl ImportRun<'_> {
     }
 }
 
-fn confirm_import(selected_count: usize, terminal: &dyn Terminal) -> Result<bool, CliError> {
-    let question = format!("Import {}? [y/N] ", count_tunnels(selected_count));
+fn describe_import_question(selected_count: usize, risky_count: usize) -> String {
+    let tunnels = count_tunnels(selected_count);
+    match risky_count {
+        0 => format!("Import {tunnels}? [y/N] "),
+        1 if selected_count == 1 => format!("Import {tunnels}, which is risky? [y/N] "),
+        _ => format!("Import {tunnels}, {risky_count} of them risky? [y/N] "),
+    }
+}
+
+fn confirm_import(
+    selected_count: usize,
+    risky_count: usize,
+    terminal: &dyn Terminal,
+) -> Result<bool, CliError> {
+    let question = describe_import_question(selected_count, risky_count);
     let answer = terminal.read_line(&question).map_err(CliError::Terminal)?;
     Ok(matches!(answer.trim().to_lowercase().as_str(), "y" | "yes"))
 }
@@ -238,6 +269,7 @@ mod tests {
             host_maps: Vec::new(),
             dry_run,
             yes,
+            include_risky: false,
             json,
         }
     }
@@ -294,7 +326,7 @@ mod tests {
     fn should_ask_how_many_tunnels_to_import() {
         let terminal = ScriptedTerminal::answering("y");
 
-        confirm_import(3, &terminal).unwrap();
+        confirm_import(3, 0, &terminal).unwrap();
 
         assert_eq!(
             terminal.asked.lock().unwrap().clone(),
@@ -306,7 +338,7 @@ mod tests {
     fn should_use_the_singular_when_asking_to_import_one_tunnel() {
         let terminal = ScriptedTerminal::answering("y");
 
-        confirm_import(1, &terminal).unwrap();
+        confirm_import(1, 0, &terminal).unwrap();
 
         assert_eq!(
             terminal.asked.lock().unwrap().clone(),
@@ -315,24 +347,66 @@ mod tests {
     }
 
     #[test]
+    fn should_name_how_many_tunnels_are_risky_when_some_are() {
+        let terminal = ScriptedTerminal::answering("y");
+
+        confirm_import(3, 1, &terminal).unwrap();
+
+        assert_eq!(
+            terminal.asked.lock().unwrap().clone(),
+            vec!["Import 3 tunnels, 1 of them risky? [y/N] ".to_owned()]
+        );
+    }
+
+    #[test]
+    fn should_say_the_only_tunnel_is_risky_when_one_risky_tunnel_is_imported() {
+        let terminal = ScriptedTerminal::answering("y");
+
+        confirm_import(1, 1, &terminal).unwrap();
+
+        assert_eq!(
+            terminal.asked.lock().unwrap().clone(),
+            vec!["Import 1 tunnel, which is risky? [y/N] ".to_owned()]
+        );
+    }
+
+    #[test]
+    fn should_leave_the_risky_entries_out_when_include_risky_is_not_given() {
+        assert_eq!(
+            risk_policy_of(&arguments(false, false, false)),
+            RiskPolicy::LeaveOut
+        );
+    }
+
+    #[test]
+    fn should_include_the_risky_entries_when_include_risky_is_given() {
+        let included = ImportArguments {
+            include_risky: true,
+            ..arguments(false, false, false)
+        };
+
+        assert_eq!(risk_policy_of(&included), RiskPolicy::Include);
+    }
+
+    #[test]
     fn should_confirm_when_the_user_answers_yes_in_any_case() {
         let terminal = ScriptedTerminal::answering(" Yes ");
 
-        assert!(confirm_import(2, &terminal).unwrap());
+        assert!(confirm_import(2, 0, &terminal).unwrap());
     }
 
     #[test]
     fn should_not_confirm_when_the_user_answers_nothing() {
         let terminal = ScriptedTerminal::answering("");
 
-        assert!(!confirm_import(2, &terminal).unwrap());
+        assert!(!confirm_import(2, 0, &terminal).unwrap());
     }
 
     #[test]
     fn should_not_confirm_when_the_user_answers_no() {
         let terminal = ScriptedTerminal::answering("n");
 
-        assert!(!confirm_import(2, &terminal).unwrap());
+        assert!(!confirm_import(2, 0, &terminal).unwrap());
     }
 
     fn entry(file_host: &str, local_alias: &str) -> HostMapEntry {

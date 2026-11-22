@@ -172,6 +172,8 @@ Examples:
   tunneler import tunnels-nova.toml     Show the plan, then ask before importing
   tunneler import --dry-run backup.toml Show the plan and import nothing
   tunneler import --yes backup.toml     Import what the plan selects, without asking
+  tunneler import --include-risky backup.toml
+                                        Also import the entries marked risky
   tunneler import - < backup.toml       Read the file from the standard input
   tunneler import --host-map oldbox=nova backup.toml
                                         Use the alias nova where the file says oldbox
@@ -187,8 +189,10 @@ An import only adds tunnels: nothing existing is changed or removed. An entry
 that duplicates a saved tunnel, or listens on a port a saved tunnel already
 uses, is skipped and the plan says which. An entry that listens beyond this
 machine, forwards a remote tunnel to another host, or carries a tag that starts
-at launch is marked \"not selected\" and is left out. Imported tunnels are
-stopped. The daemon is started when it is not running.
+at launch is risky: it is marked \"not selected\" and left out, unless you pass
+--include-risky, which imports it too (the plan and the question then say how
+many are risky). Imported tunnels are stopped. The daemon is started when it is
+not running.
 
 A host the file names that no Host entry of your ssh_config names exactly is
 reported; --host-map OLD=NEW replaces OLD by one of your aliases NEW. The
@@ -494,6 +498,7 @@ pub struct HostMapEntry {
 
 /// The arguments of `import`.
 #[derive(Debug, Args)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ImportArguments {
     /// The file to import, or - for the standard input
     #[arg(value_name = "FILE")]
@@ -507,6 +512,9 @@ pub struct ImportArguments {
     /// Import what the plan selects without asking
     #[arg(short, long)]
     pub yes: bool,
+    /// Also import the risky entries (they are marked in the plan)
+    #[arg(long)]
+    pub include_risky: bool,
     /// Print one line of JSON instead of text
     #[arg(long)]
     pub json: bool,
@@ -894,6 +902,7 @@ mod tests {
             "other=vega",
             "--dry-run",
             "-y",
+            "--include-risky",
             "--json",
             "backup.toml",
         ])
@@ -905,6 +914,7 @@ mod tests {
                 arguments.host_maps,
                 arguments.dry_run,
                 arguments.yes,
+                arguments.include_risky,
                 arguments.json
             ),
             (
@@ -921,9 +931,17 @@ mod tests {
                 ],
                 true,
                 true,
+                true,
                 true
             )
         );
+    }
+
+    #[test]
+    fn should_leave_the_risky_entries_out_when_include_risky_is_not_given() {
+        let arguments = import_arguments_of(&["backup.toml"]).unwrap();
+
+        assert!(!arguments.include_risky);
     }
 
     #[test]

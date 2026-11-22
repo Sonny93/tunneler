@@ -931,6 +931,13 @@ fn import_file(host: &str, listen_port: u16) -> String {
     )
 }
 
+fn risky_import_file(safe_port: u16, risky_port: u16) -> String {
+    format!(
+        "{}\n[[tunnels]]\nhost = \"{ALIAS}\"\nkind = \"local\"\nlisten_port = {risky_port}\nlisten_address = \"0.0.0.0\"\ntags = [\"exposed\"]\n",
+        import_file(ALIAS, safe_port)
+    )
+}
+
 fn write_import_file(fixture: &Fixture, name: &str, contents: &str) -> String {
     let path = fixture.workspace.file(name);
     std::fs::write(&path, contents).unwrap();
@@ -1130,14 +1137,16 @@ async fn should_print_the_plan_as_one_line_of_json_when_importing_with_dry_run_a
         (
             code(&output),
             text.trim_end().lines().count(),
-            json["entries"][0]["status"]["kind"].clone(),
-            json["entries"][0]["selectedByDefault"].clone()
+            json["plan"]["entries"][0]["status"]["kind"].clone(),
+            json["plan"]["entries"][0]["selectedByDefault"].clone(),
+            json["selected"].clone()
         ),
         (
             0,
             1,
             serde_json::json!("importable"),
-            serde_json::json!(true)
+            serde_json::json!(true),
+            serde_json::json!([0])
         )
     );
 }
@@ -1155,10 +1164,89 @@ async fn should_print_the_plan_and_the_report_when_importing_with_yes_and_json()
         (
             code(&output),
             json["plan"]["entries"].as_array().unwrap().len(),
+            json["selected"].clone(),
             json["report"]["added"].as_array().unwrap().len()
         ),
-        (0, 1, 1)
+        (0, 1, serde_json::json!([0]), 1)
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_add_the_safe_entry_only_and_keep_the_saved_ones_when_importing_without_include_risky()
+ {
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+    let [safe_port, risky_port] = free_ports(2).await[..] else {
+        panic!("expected two ports");
+    };
+    let before = saved_tunnels_text(&fixture);
+    let path = write_import_file(
+        &fixture,
+        "mixed.toml",
+        &risky_import_file(safe_port, risky_port),
+    );
+
+    let output = fixture.run(&["import", "--yes", &path]).await;
+
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    let after = saved_tunnels_text(&fixture);
+    assert!(
+        after.contains(&format!("listen_port = {safe_port}")),
+        "{after}"
+    );
+    assert!(
+        !after.contains(&format!("listen_port = {risky_port}")),
+        "{after}"
+    );
+    assert_eq!(after.matches("[[tunnels]]").count(), 4);
+    for line in before.lines().filter(|line| !line.is_empty()) {
+        assert!(after.contains(line), "lost: {line}");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn should_add_the_risky_entry_too_and_keep_the_saved_ones_when_importing_with_include_risky()
+{
+    let fixture = Fixture::start().await;
+    start_daemon_with_saved_tunnels(&fixture).await;
+    let [safe_port, risky_port] = free_ports(2).await[..] else {
+        panic!("expected two ports");
+    };
+    let before = saved_tunnels_text(&fixture);
+    let path = write_import_file(
+        &fixture,
+        "mixed.toml",
+        &risky_import_file(safe_port, risky_port),
+    );
+
+    let output = fixture
+        .run(&["import", "--include-risky", "--yes", &path])
+        .await;
+
+    assert_eq!(code(&output), 0, "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("will import (risky)"),
+        "{}",
+        stdout(&output)
+    );
+    assert!(
+        stdout(&output).contains("2 to import (1 risky)"),
+        "{}",
+        stdout(&output)
+    );
+    let after = saved_tunnels_text(&fixture);
+    assert!(
+        after.contains(&format!("listen_port = {safe_port}")),
+        "{after}"
+    );
+    assert!(
+        after.contains(&format!("listen_port = {risky_port}")),
+        "{after}"
+    );
+    assert_eq!(after.matches("[[tunnels]]").count(), 5);
+    for line in before.lines().filter(|line| !line.is_empty()) {
+        assert!(after.contains(line), "lost: {line}");
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

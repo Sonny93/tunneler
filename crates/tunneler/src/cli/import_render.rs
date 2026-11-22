@@ -16,39 +16,89 @@ const EMPTY_FILE_MESSAGE: &str = "The file holds no tunnels.";
 /// What is said when nothing was added.
 pub const NOTHING_IMPORTED_MESSAGE: &str = "Nothing was imported.";
 const UNKNOWN_TUNNEL_LABEL: &str = "a saved tunnel";
-const NOT_SELECTED_HINT: &str = "Entries marked \"not selected\" are left out: edit the file to remove what makes them risky, or import them from the Tunneler window.";
+const NOT_SELECTED_HINT: &str = "Entries marked \"not selected\" are left out: pass --include-risky to import them too, edit the file to remove what makes them risky, or import them from the Tunneler window.";
 const START_HINT: &str =
     "The imported tunnels are stopped: start one with `tunneler up <port>` or `tunneler up <tag>`.";
 const HOST_MAP_PLACEHOLDER: &str = "ALIAS";
 
-/// The plan, or the plan and what applying it did, as one line of JSON.
+/// What a run does with the entries the plan marks as risky.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RiskPolicy {
+    /// Only the entries the plan selects by default: risky ones are left out.
+    LeaveOut,
+    /// Every importable entry, risky or not (`--include-risky`).
+    Include,
+}
+
+/// The plan and the indexes this run selects, as one line of JSON.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PlanJson<'a> {
+    plan: &'a ConfigImportPlanDto,
+    selected: &'a [u32],
+}
+
+/// The plan, the indexes this run selects and what applying it did.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ImportJson<'a> {
     plan: &'a ConfigImportPlanDto,
+    selected: &'a [u32],
     report: &'a ConfigImportReportDto,
 }
 
-/// The plan as one line of JSON.
-pub fn render_import_plan_json(plan: &ConfigImportPlanDto) -> Result<String, serde_json::Error> {
-    serde_json::to_string(plan)
+/// The plan and the indexes this run selects, as one line of JSON.
+pub fn render_import_plan_json(
+    plan: &ConfigImportPlanDto,
+    policy: RiskPolicy,
+) -> Result<String, serde_json::Error> {
+    let selected = selected_indexes(plan, policy);
+    serde_json::to_string(&PlanJson {
+        plan,
+        selected: &selected,
+    })
 }
 
-/// The plan and the report as one line of JSON.
+/// The plan, the indexes this run selects and the report as one line of JSON.
 pub fn render_import_report_json(
     plan: &ConfigImportPlanDto,
+    policy: RiskPolicy,
     report: &ConfigImportReportDto,
 ) -> Result<String, serde_json::Error> {
-    serde_json::to_string(&ImportJson { plan, report })
+    let selected = selected_indexes(plan, policy);
+    serde_json::to_string(&ImportJson {
+        plan,
+        selected: &selected,
+        report,
+    })
 }
 
-/// The entries the plan selects by default, as the daemon numbers them.
-pub fn selected_indexes(plan: &ConfigImportPlanDto) -> Vec<u32> {
+fn is_selected(entry: &ConfigImportEntryDto, policy: RiskPolicy) -> bool {
+    match policy {
+        RiskPolicy::LeaveOut => entry.selected_by_default,
+        RiskPolicy::Include => entry.status == ConfigImportStatusDto::Importable,
+    }
+}
+
+fn is_risky(entry: &ConfigImportEntryDto) -> bool {
+    !entry.risks.is_empty()
+}
+
+/// The entries this run selects, as the daemon numbers them.
+pub fn selected_indexes(plan: &ConfigImportPlanDto, policy: RiskPolicy) -> Vec<u32> {
     plan.entries
         .iter()
-        .filter(|entry| entry.selected_by_default)
+        .filter(|entry| is_selected(entry, policy))
         .map(|entry| entry.index)
         .collect()
+}
+
+/// How many of the entries this run selects carry a risk.
+pub fn count_selected_risky(plan: &ConfigImportPlanDto, policy: RiskPolicy) -> usize {
+    plan.entries
+        .iter()
+        .filter(|entry| is_selected(entry, policy) && is_risky(entry))
+        .count()
 }
 
 /// `1 tunnel` or `3 tunnels`.
@@ -65,6 +115,7 @@ pub fn render_import_plan(
     plan: &ConfigImportPlanDto,
     snapshot: &SnapshotDto,
     style: Style,
+    policy: RiskPolicy,
 ) -> String {
     if plan.entries.is_empty() {
         return EMPTY_FILE_MESSAGE.to_owned();
@@ -72,11 +123,11 @@ pub fn render_import_plan(
     let mut lines: Vec<String> = plan
         .entries
         .iter()
-        .map(|entry| render_entry(entry, plan, snapshot, style))
+        .map(|entry| render_entry(entry, plan, snapshot, style, policy))
         .collect();
-    lines.push(render_summary(plan));
+    lines.push(render_summary(plan, policy));
     lines.extend(render_unknown_hosts(plan));
-    lines.extend(render_not_selected_hint(plan));
+    lines.extend(render_not_selected_hint(plan, policy));
     lines.join("\n")
 }
 
@@ -115,10 +166,11 @@ fn render_entry(
     plan: &ConfigImportPlanDto,
     snapshot: &SnapshotDto,
     style: Style,
+    policy: RiskPolicy,
 ) -> String {
     let position = entry.index.saturating_add(1);
     let mut parts = vec![
-        format!("{position}. {}", describe_decision(entry, style)),
+        format!("{position}. {}", describe_decision(entry, policy, style)),
         describe_spec_route(&entry.tunnel, &snapshot.settings, style),
     ];
     parts.extend(describe_tags(&entry.tunnel.tags));
@@ -138,16 +190,18 @@ fn render_entry(
     parts.join("  ")
 }
 
-fn describe_decision(entry: &ConfigImportEntryDto, style: Style) -> String {
-    let (unicode_symbol, ascii_symbol, words, tone) =
-        match (&entry.status, entry.selected_by_default) {
-            (ConfigImportStatusDto::Importable, true) => ("✔", "[ok]", "will import", Tone::Good),
-            (ConfigImportStatusDto::Importable, false) => {
-                ("!", "[!]", "not selected", Tone::Warning)
-            }
-            (ConfigImportStatusDto::Invalid { .. }, _) => ("✖", "[x]", "invalid", Tone::Bad),
-            _ => ("○", "[ ]", "skipped", Tone::Muted),
-        };
+fn describe_decision(entry: &ConfigImportEntryDto, policy: RiskPolicy, style: Style) -> String {
+    let (unicode_symbol, ascii_symbol, words, tone) = match &entry.status {
+        ConfigImportStatusDto::Importable if is_selected(entry, policy) && is_risky(entry) => {
+            ("!", "[!]", "will import (risky)", Tone::Warning)
+        }
+        ConfigImportStatusDto::Importable if is_selected(entry, policy) => {
+            ("✔", "[ok]", "will import", Tone::Good)
+        }
+        ConfigImportStatusDto::Importable => ("!", "[!]", "not selected", Tone::Warning),
+        ConfigImportStatusDto::Invalid { .. } => ("✖", "[x]", "invalid", Tone::Bad),
+        _ => ("○", "[ ]", "skipped", Tone::Muted),
+    };
     let symbol = if style.unicode {
         unicode_symbol
     } else {
@@ -265,19 +319,25 @@ fn describe_entry_route(
     }
 }
 
-fn render_summary(plan: &ConfigImportPlanDto) -> String {
-    let count_where = |predicate: fn(&ConfigImportEntryDto) -> bool| {
-        plan.entries.iter().filter(|e| predicate(e)).count()
+fn render_summary(plan: &ConfigImportPlanDto, policy: RiskPolicy) -> String {
+    let count_where = |predicate: &dyn Fn(&ConfigImportEntryDto) -> bool| {
+        plan.entries.iter().filter(|entry| predicate(entry)).count()
     };
-    let to_import = count_where(|entry| entry.selected_by_default);
-    let not_selected = count_where(|entry| {
-        entry.status == ConfigImportStatusDto::Importable && !entry.selected_by_default
+    let to_import = count_where(&|entry| is_selected(entry, policy));
+    let risky = count_selected_risky(plan, policy);
+    let not_selected = count_where(&|entry| {
+        entry.status == ConfigImportStatusDto::Importable && !is_selected(entry, policy)
     });
     let invalid =
-        count_where(|entry| matches!(entry.status, ConfigImportStatusDto::Invalid { .. }));
+        count_where(&|entry| matches!(entry.status, ConfigImportStatusDto::Invalid { .. }));
     let skipped = plan.entries.len() - to_import - not_selected - invalid;
+    let to_import_label = if risky == 0 {
+        format!("{to_import} to import")
+    } else {
+        format!("{to_import} to import ({risky} risky)")
+    };
     format!(
-        "{} in the file: {to_import} to import, {not_selected} not selected, {skipped} skipped, {invalid} invalid",
+        "{} in the file: {to_import_label}, {not_selected} not selected, {skipped} skipped, {invalid} invalid",
         count_tunnels(plan.entries.len())
     )
 }
@@ -297,9 +357,14 @@ fn render_unknown_hosts(plan: &ConfigImportPlanDto) -> Vec<String> {
     ]
 }
 
-fn render_not_selected_hint(plan: &ConfigImportPlanDto) -> Option<String> {
-    let has_risky_entry = plan.entries.iter().any(|entry| !entry.risks.is_empty());
-    has_risky_entry.then(|| NOT_SELECTED_HINT.to_owned())
+fn render_not_selected_hint(plan: &ConfigImportPlanDto, policy: RiskPolicy) -> Option<String> {
+    if policy == RiskPolicy::Include {
+        return None;
+    }
+    plan.entries
+        .iter()
+        .any(is_risky)
+        .then(|| NOT_SELECTED_HINT.to_owned())
 }
 
 #[cfg(test)]
@@ -421,7 +486,11 @@ mod tests {
     }
 
     fn render(plan: &ConfigImportPlanDto, style: Style) -> String {
-        render_import_plan(plan, &snapshot_with_holder(), style)
+        render_with_policy(plan, style, RiskPolicy::LeaveOut)
+    }
+
+    fn render_with_policy(plan: &ConfigImportPlanDto, style: Style, policy: RiskPolicy) -> String {
+        render_import_plan(plan, &snapshot_with_holder(), style, policy)
     }
 
     #[test]
@@ -580,7 +649,63 @@ mod tests {
             tags: vec!["dev".to_owned()],
         })]);
 
-        assert!(render(&plan, PLAIN).contains("edit the file to remove what makes them risky"));
+        assert!(render(&plan, PLAIN).contains(
+            "pass --include-risky to import them too, edit the file to remove what makes them risky"
+        ));
+    }
+
+    #[test]
+    fn should_not_show_the_not_selected_hint_when_risky_entries_are_included() {
+        let plan = plan_of(vec![risky_entry(ConfigImportRiskDto::StartsOnLaunch {
+            tags: vec!["dev".to_owned()],
+        })]);
+
+        let text = render_with_policy(&plan, PLAIN, RiskPolicy::Include);
+
+        assert!(!text.contains("not selected\" are left out"));
+    }
+
+    #[test]
+    fn should_mark_a_risky_entry_as_will_import_risky_with_its_risk_when_risky_entries_are_included()
+     {
+        let plan = plan_of(vec![risky_entry(ConfigImportRiskDto::NonLoopbackListen {
+            address: "0.0.0.0".to_owned(),
+        })]);
+
+        assert!(render_with_policy(&plan, PLAIN, RiskPolicy::Include).starts_with(
+            "1. ! will import (risky)  3333 → nova:3333  [dev]  risk: listens on 0.0.0.0, which is not loopback: other machines can reach it"
+        ));
+    }
+
+    #[test]
+    fn should_use_ascii_symbols_for_a_risky_selected_entry_when_unicode_is_off() {
+        let plan = plan_of(vec![risky_entry(ConfigImportRiskDto::StartsOnLaunch {
+            tags: vec!["dev".to_owned()],
+        })]);
+
+        assert!(
+            render_with_policy(&plan, ASCII, RiskPolicy::Include)
+                .starts_with("1. [!] will import (risky)  3333 -> nova:3333")
+        );
+    }
+
+    #[test]
+    fn should_count_the_risky_entries_in_the_summary_when_they_are_included() {
+        let plan = plan_of(vec![
+            entry(0, 1, ConfigImportStatusDto::Importable),
+            risky_entry(ConfigImportRiskDto::StartsOnLaunch { tags: vec![] }),
+            entry(
+                2,
+                3,
+                ConfigImportStatusDto::DuplicateInFile { earlier_index: 0 },
+            ),
+        ]);
+
+        assert!(
+            render_with_policy(&plan, PLAIN, RiskPolicy::Include).contains(
+                "3 tunnels in the file: 2 to import (1 risky), 0 not selected, 1 skipped, 0 invalid"
+            )
+        );
     }
 
     #[test]
@@ -665,15 +790,56 @@ mod tests {
         assert!(render(&plan, colored).contains("\x1b[32m✔ will import\x1b[0m"));
     }
 
-    #[test]
-    fn should_select_the_indexes_the_plan_selects_by_default() {
-        let plan = plan_of(vec![
+    fn plan_with_a_risky_entry_and_unselectable_ones() -> ConfigImportPlanDto {
+        let risky = ConfigImportEntryDto {
+            index: 1,
+            ..risky_entry(ConfigImportRiskDto::StartsOnLaunch { tags: vec![] })
+        };
+        plan_of(vec![
             entry(0, 1, ConfigImportStatusDto::Importable),
-            risky_entry(ConfigImportRiskDto::StartsOnLaunch { tags: vec![] }),
-            entry(4, 3, ConfigImportStatusDto::Importable),
-        ]);
+            risky,
+            entry(
+                2,
+                3,
+                ConfigImportStatusDto::DuplicateInFile { earlier_index: 0 },
+            ),
+            entry(
+                3,
+                4,
+                ConfigImportStatusDto::Invalid {
+                    messages: vec!["x".to_owned()],
+                },
+            ),
+            entry(4, 5, ConfigImportStatusDto::Importable),
+        ])
+    }
 
-        assert_eq!(selected_indexes(&plan), vec![0, 4]);
+    #[test]
+    fn should_leave_the_risky_entries_out_when_the_policy_is_leave_out() {
+        let plan = plan_with_a_risky_entry_and_unselectable_ones();
+
+        assert_eq!(selected_indexes(&plan, RiskPolicy::LeaveOut), vec![0, 4]);
+    }
+
+    #[test]
+    fn should_select_the_risky_importable_entries_but_never_skipped_or_invalid_ones_when_the_policy_is_include()
+     {
+        let plan = plan_with_a_risky_entry_and_unselectable_ones();
+
+        assert_eq!(selected_indexes(&plan, RiskPolicy::Include), vec![0, 1, 4]);
+    }
+
+    #[test]
+    fn should_count_no_risky_entry_when_the_policy_is_leave_out() {
+        let plan = plan_with_a_risky_entry_and_unselectable_ones();
+
+        assert_eq!(
+            (
+                count_selected_risky(&plan, RiskPolicy::LeaveOut),
+                count_selected_risky(&plan, RiskPolicy::Include)
+            ),
+            (0, 1)
+        );
     }
 
     #[test]
@@ -720,14 +886,14 @@ mod tests {
     fn should_print_the_plan_as_one_line_of_json() {
         let plan = plan_of(vec![entry(0, 3333, ConfigImportStatusDto::Importable)]);
 
-        let json = render_import_plan_json(&plan).unwrap();
+        let json = render_import_plan_json(&plan, RiskPolicy::LeaveOut).unwrap();
 
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(
             (
                 json.contains('\n'),
-                value["source"].clone(),
-                value["entries"][0]["status"]["kind"].clone()
+                value["plan"]["source"].clone(),
+                value["plan"]["entries"][0]["status"]["kind"].clone()
             ),
             (
                 false,
@@ -738,22 +904,39 @@ mod tests {
     }
 
     #[test]
-    fn should_print_the_plan_and_the_report_under_their_names() {
-        let plan = plan_of(Vec::new());
+    fn should_print_the_selected_indexes_next_to_the_plan_in_the_plan_json() {
+        let plan = plan_with_a_risky_entry_and_unselectable_ones();
+
+        let left_out = render_import_plan_json(&plan, RiskPolicy::LeaveOut).unwrap();
+        let included = render_import_plan_json(&plan, RiskPolicy::Include).unwrap();
+
+        let selected_of = |json: &str| {
+            serde_json::from_str::<serde_json::Value>(json).unwrap()["selected"].clone()
+        };
+        assert_eq!(
+            (selected_of(&left_out), selected_of(&included)),
+            (serde_json::json!([0, 4]), serde_json::json!([0, 1, 4]))
+        );
+    }
+
+    #[test]
+    fn should_print_the_plan_the_selected_indexes_and_the_report_under_their_names() {
+        let plan = plan_with_a_risky_entry_and_unselectable_ones();
         let report = ConfigImportReportDto {
             added: Vec::new(),
             skipped: Vec::new(),
         };
 
-        let json = render_import_report_json(&plan, &report).unwrap();
+        let json = render_import_report_json(&plan, RiskPolicy::Include, &report).unwrap();
 
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(
             (
-                value["plan"]["entries"].clone(),
+                value["plan"]["entries"].as_array().unwrap().len(),
+                value["selected"].clone(),
                 value["report"]["added"].clone()
             ),
-            (serde_json::json!([]), serde_json::json!([]))
+            (5, serde_json::json!([0, 1, 4]), serde_json::json!([]))
         );
     }
 }

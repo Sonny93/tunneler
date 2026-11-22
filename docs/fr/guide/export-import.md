@@ -75,7 +75,7 @@ Certains tunnels sont risqués à ajouter sans les regarder. Ils peuvent être i
 - **Il écoute au-delà du bouclage du serveur.** Un tunnel distant qui écoute sur une adresse du serveur autre que le bouclage, comme `0.0.0.0`, peut être atteint par d'autres machines là-bas quand le `GatewayPorts` du serveur le permet.
 - **Ses tags démarrent au lancement.** Un tag du tunnel figure dans « Tags démarrés au lancement » ici : le tunnel démarrerait donc seul au prochain lancement de Tunneler.
 
-Cochez-les vous-même dans la fenêtre. La ligne de commande n'importe que la sélection par défaut : modifiez le fichier, ou passez par la fenêtre, pour importer un tunnel décoché au départ.
+Cochez-les vous-même dans la fenêtre. En ligne de commande, ils sont marqués `not selected` et laissés de côté : passez `--include-risky` pour les importer aussi (le plan les marque `will import (risky)` et la question dit combien sont risqués), ou modifiez le fichier pour retirer ce qui les rend risqués.
 
 ## Un fichier venu de quelqu'un d'autre
 

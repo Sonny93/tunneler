@@ -194,18 +194,19 @@ Elle affiche d'abord le plan : pour chaque tunnel du fichier, sa route, ses tags
 | Situation | Ce qui se passe |
 |---|---|
 | `--dry-run` | Le plan est affiché et rien n'est ajouté. Code de sortie 0. |
-| `--yes` | Les tunnels sélectionnés par défaut sont ajoutés sans demander. |
+| `--yes` | Les tunnels que le plan sélectionne sont ajoutés sans demander. |
 | Refus à la question | Elle affiche `Nothing was imported.` et se termine avec le code 0. |
-| Dans un terminal | Elle demande `Import N tunnels? [y/N]` et ajoute les tunnels sélectionnés par défaut. La réponse est lue sur le terminal, donc `tunneler import -` fonctionne. |
+| Dans un terminal | Elle demande `Import N tunnels? [y/N]` et ajoute les tunnels que le plan sélectionne. Avec `--include-risky` et des tunnels risqués, elle demande `Import 3 tunnels, 1 of them risky? [y/N]` à la place. La réponse est lue sur le terminal, donc `tunneler import -` fonctionne. |
 | Pas de terminal et pas de `--yes` | Le plan est affiché et rien n'est ajouté. Code de sortie 5. |
 
-Les tunnels risqués (écoute au-delà de cet ordinateur, tunnel distant vers une cible qui n'est pas cet ordinateur ou qui écoute au-delà du bouclage du serveur, tag qui démarre au lancement) ne sont pas sélectionnés par défaut, et aucune option ne les sélectionne : modifiez le fichier, ou passez par la fenêtre. Les tunnels ajoutés démarrent à l'arrêt.
+Les tunnels risqués (écoute au-delà de cet ordinateur, tunnel distant vers une cible qui n'est pas cet ordinateur ou qui écoute au-delà du bouclage du serveur, tag qui démarre au lancement) sont marqués `not selected` dans le plan et laissés de côté. `--include-risky` les sélectionne aussi : le plan les marque alors `will import (risky)`, garde leurs risques et les compte dans le résumé (`2 to import (1 risky)`). Sans cette option, modifiez le fichier, ou passez par la fenêtre. Les tunnels ajoutés démarrent à l'arrêt.
 
 | Option | Signification |
 |---|---|
 | `--host-map <ANCIEN=NOUVEAU>` | Utilise l'alias `NOUVEAU` de cet ordinateur pour l'hôte `ANCIEN` du fichier. À répéter pour plusieurs hôtes. |
 | `--dry-run` | Affiche le plan et n'ajoute rien. |
 | `-y`, `--yes` | Ne demande pas. |
+| `--include-risky` | Importe aussi les tunnels risqués (ils sont marqués dans le plan). |
 | `--json` | Affiche le résultat en une ligne de JSON. Elle ne demande jamais : sans `--yes`, elle affiche le plan et se termine avec le code 5. |
 
 Le fichier est lu jusqu'à 256 Kio et 1000 tunnels. Une entrée plus grosse est refusée sans être lue en entier.
@@ -214,10 +215,11 @@ Le fichier est lu jusqu'à 256 Kio et 1000 tunnels. Une entrée plus grosse est 
 tunneler import dev-web.toml --dry-run
 tunneler import dev-web.toml
 tunneler import dev-web.toml --host-map nova=nova-maison --yes
+tunneler import dev-web.toml --include-risky
 ssh vega cat .config/tunneler/tunnels.toml | tunneler import - --dry-run
 ```
 
-Avec `--json`, la sortie est le plan avec `--dry-run` ou sans `--yes` (dans ce second cas, avec le code 5), et `{"plan": …, "report": …}` avec `--yes`. Le plan est `{"source", "entries", "unknownHosts"}` : `source` vaut `export` ou `store`, `unknownHosts` liste les hôtes du fichier qu'aucune entrée `Host` de votre `ssh_config` ne nomme exactement et qui n'ont pas de correspondance, et chaque entrée a :
+Avec `--json`, la sortie est `{"plan": …, "selected": […]}` avec `--dry-run` ou sans `--yes` (dans ce second cas, avec le code 5), et `{"plan": …, "selected": […], "report": …}` avec `--yes`. `selected` liste l'`index` des entrées que cette exécution ajoute (les entrées importables, risquées comprises avec `--include-risky`), pour qu'un script voie ce que `--yes` ferait. Le plan est `{"source", "entries", "unknownHosts"}` : `source` vaut `export` ou `store`, `unknownHosts` liste les hôtes du fichier qu'aucune entrée `Host` de votre `ssh_config` ne nomme exactement et qui n'ont pas de correspondance, et chaque entrée a :
 
 - `index` : sa position dans le fichier, à partir de 0.
 - `tunnel` : ce qui serait créé, après la correspondance des hôtes.
@@ -226,7 +228,7 @@ Avec `--json`, la sortie est le plan avec `--dry-run` ou sans `--yes` (dans ce s
 - `status` : `{"kind": "importable"}`, `{"kind": "alreadyConfigured", "existingId", "ignoredTags"}`, `{"kind": "listenConflict", "holderId"}`, `{"kind": "duplicateInFile", "earlierIndex"}` ou `{"kind": "invalid", "messages"}`.
 - `risks` : une liste de `{"kind": "nonLoopbackListen", "address"}` (aussi pour un tunnel distant qui écoute sur une adresse du serveur autre que le bouclage), `{"kind": "remoteNonLoopbackTarget", "targetHost"}` ou `{"kind": "startsOnLaunch", "tags"}`.
 - `warnings` : une liste de `{"kind": "unknownHost", "host"}` ou `{"kind": "openerDropped", "opener"}`.
-- `selectedByDefault` : `true` quand l'état est `importable` et qu'il n'y a aucun risque.
+- `selectedByDefault` : `true` quand l'état est `importable` et qu'il n'y a aucun risque. `--include-risky` ne le change pas : lisez `selected` pour ce que l'exécution retient.
 
 Le rapport est `{"added": [{"index", "id"}], "skipped": [{"index", "status"}]}`, où `status` est l'un des états ci-dessus, tel qu'il était au moment de l'ajout.
 

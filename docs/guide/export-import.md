@@ -75,7 +75,7 @@ Some tunnels are risky to add without looking. They can be imported, but they ar
 - **It listens beyond the server's loopback.** A remote tunnel that listens on a non-loopback address of the server, such as `0.0.0.0`, may be reachable by other machines there when the server's `GatewayPorts` allows it.
 - **Its tags start at launch.** A tag of the tunnel is in "Tags to start on launch" here, so the tunnel would start by itself the next time Tunneler launches.
 
-Check them yourself in the window. The command line imports the default selection only, so edit the file, or use the window, to import a tunnel that starts unchecked.
+Check them yourself in the window. On the command line they are marked `not selected` and left out: pass `--include-risky` to import them too (the plan marks them `will import (risky)` and the question says how many are risky), or edit the file to remove what makes them risky.
 
 ## A file from someone else
 

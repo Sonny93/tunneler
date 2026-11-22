@@ -130,7 +130,6 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 - A tunnel whose port is already used is skipped, not moved to another port. Change the port in the file, or add the tunnel by hand.
 - Settings, applications, X11 launchers and per-host settings are not carried. Copy them by hand from `tunnels.toml`.
 - Two tunnels that listen on `127.0.0.1:P` and on `0.0.0.0:P` clash at the system level, but the import does not detect it: the second one fails when it starts.
-- The command line imports the default selection only: a risky tunnel is added from the window.
 
 ### Interface and command line
 - The import from a pasted script does not take `$env:DISPLAY` into `x11_display`, and the command line has no import from `ssh_config` or from scripts (`tunneler import` reads a file).
