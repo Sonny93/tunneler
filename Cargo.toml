@@ -8,6 +8,7 @@ version = "0.7.0"
 edition = "2024"
 rust-version = "1.99"
 publish = false
+license = "MIT"
 
 [workspace.dependencies]
 async-trait = "0.1"

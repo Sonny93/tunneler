@@ -34,3 +34,7 @@ cd docs && pnpm build        # documentation site
 ```
 
 See [Development](https://sonny93.github.io/tunneler/contributing/development) for the rest.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

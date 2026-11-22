@@ -35,6 +35,7 @@
 		"shortDescription": "SSH tunnel manager",
 		"longDescription": "Tunneler manages your SSH tunnels from a lightweight daemon with a notification-area icon and an on-demand interface.",
 		"copyright": "© 2026 Sonny",
+		"license": "MIT",
 		"icon": [
 			"icons/32x32.png",
 			"icons/128x128.png",

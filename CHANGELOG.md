@@ -4,6 +4,10 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+### Added
+
+- Tunneler is now released under the MIT license.
+
 ## [0.7.0] - 2026-11-22
 
 ### Added
