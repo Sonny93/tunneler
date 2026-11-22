@@ -2301,7 +2301,7 @@ async fn should_keep_the_tunnel_wanted_and_log_nothing_secret_when_authenticatio
     assert_eq!(harness.prompter.request_count(), 0);
     let logs = harness.engine.logs(harness.id("alpha")).unwrap();
     assert!(logs.iter().all(|entry| !entry.message.contains("BEGIN")));
-    assert!(wanted_ids(&harness).contains(&harness.id("alpha")));
+    wait_until_wanted(&harness, "alpha", true).await;
 }
 
 #[tokio::test]
@@ -3023,7 +3023,7 @@ async fn should_keep_the_tunnel_wanted_when_it_is_restarted() {
         .wait_for("alpha", |state| matches!(state, TunnelState::Active))
         .await;
 
-    assert!(wanted_ids(&harness).contains(&harness.id("alpha")));
+    wait_until_wanted(&harness, "alpha", true).await;
 }
 
 #[tokio::test]

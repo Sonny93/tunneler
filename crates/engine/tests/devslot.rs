@@ -1203,7 +1203,12 @@ async fn should_save_the_tunnel_with_the_devslot_and_project_tags_when_the_host_
         .await
         .unwrap();
 
-    let snapshot = snapshot_of(&harness, outcome.started[0].tunnel_id);
+    let tunnel_id = outcome.started[0].tunnel_id;
+    support::wait_until(WAIT_LIMIT, "the tunnel to be remembered as wanted", || {
+        harness.state_store.state().running.contains(&tunnel_id)
+    })
+    .await;
+    let snapshot = snapshot_of(&harness, tunnel_id);
     let text = std::fs::read_to_string(&harness.store_path).unwrap();
     assert_eq!(
         (
@@ -1211,18 +1216,12 @@ async fn should_save_the_tunnel_with_the_devslot_and_project_tags_when_the_host_
             snapshot.devslot,
             snapshot.definition.tags,
             text.contains("tags = [\"devslot\", \"ds-web-shop\"]"),
-            harness
-                .state_store
-                .state()
-                .running
-                .contains(&outcome.started[0].tunnel_id)
         ),
         (
             false,
             None,
             vec!["devslot".to_owned(), "ds-web-shop".to_owned()],
             true,
-            true
         )
     );
 }
