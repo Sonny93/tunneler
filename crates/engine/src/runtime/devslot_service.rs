@@ -7,9 +7,9 @@ use std::time::Duration;
 use crate::blocking::run_blocking;
 use crate::devslot::{
     BindProbe, DEFAULT_PROGRAM, DevslotDiscovery, DevslotError, DevslotInstance, DevslotResync,
-    DevslotResyncTunnel, KnownTunnel, MAX_PATH_BYTES, assign_local_ports, assign_port_statuses,
-    build_listing_command, find_stale_tunnels, parse_listing, plan_resync, sanitize_stderr,
-    sanitize_text,
+    DevslotResyncTunnel, DevslotWarning, KnownTunnel, MAX_PATH_BYTES, assign_local_ports,
+    assign_port_statuses, build_listing_command, find_stale_tunnels, parse_listing, plan_resync,
+    sanitize_stderr, sanitize_text,
 };
 use crate::remote_command::{CommandOutput, RemoteCommandError, run_remote_command};
 use crate::runtime::catalog::TunnelSnapshot;
@@ -22,11 +22,36 @@ const MILLIS_PER_SECOND: u128 = 1000;
 const STDOUT_TOO_LARGE_REASON: &str = "the output is larger than 1 MiB";
 const REFUSED_MESSAGE: &str = "the server refused to run the command";
 
+/// What a host listed, read and cleaned, before it is compared with the
+/// tunnels and the ports of this machine.
+pub(crate) struct RemoteDevslotListing {
+    instances: Vec<DevslotInstance>,
+    warnings: Vec<DevslotWarning>,
+    persist_override: Option<bool>,
+}
+
+/// A listing compared with the tunnels and the ports of this machine, and the
+/// tunnels it was compared with.
+pub(crate) struct DevslotAnalysis {
+    pub(crate) discovery: DevslotDiscovery,
+    pub(crate) known: Vec<KnownTunnel>,
+}
+
 impl EngineInner {
     pub(crate) async fn discover_devslot(
         &self,
         host: &str,
     ) -> Result<DevslotDiscovery, DevslotError> {
+        let listing = self.list_devslot(host).await?;
+        Ok(self.analyse_devslot(host, &listing).await.discovery)
+    }
+
+    /// Runs `ds ls --json` on the host and reads its output. Nothing here
+    /// depends on the tunnels of this machine, so it never needs a lock.
+    pub(crate) async fn list_devslot(
+        &self,
+        host: &str,
+    ) -> Result<RemoteDevslotListing, DevslotError> {
         let overrides = self
             .store
             .document()
@@ -41,17 +66,32 @@ impl EngineInner {
             host: host.to_owned(),
             reason: error.to_string(),
         })?;
+        Ok(RemoteDevslotListing {
+            instances: parsed.instances,
+            warnings: parsed.warnings,
+            persist_override: overrides.devslot_persist,
+        })
+    }
+
+    /// Compares a listing with the tunnels and the free ports of this machine
+    /// as they are now.
+    pub(crate) async fn analyse_devslot(
+        &self,
+        host: &str,
+        listing: &RemoteDevslotListing,
+    ) -> DevslotAnalysis {
         let settings = self.settings.borrow().clone();
         let known = known_tunnels(self.catalog().snapshots());
-        Ok(DevslotDiscovery {
+        let discovery = DevslotDiscovery {
             host: host.to_owned(),
-            persist_default: overrides
-                .devslot_persist
-                .unwrap_or(settings.devslot_persist),
-            stale: find_stale_tunnels(host, &parsed.instances, &known, settings.devslot_stale),
-            instances: self.assign_local_ports(host, parsed.instances, known).await,
-            warnings: parsed.warnings,
-        })
+            persist_default: listing.persist_override.unwrap_or(settings.devslot_persist),
+            stale: find_stale_tunnels(host, &listing.instances, &known, settings.devslot_stale),
+            instances: self
+                .assign_local_ports(host, listing.instances.clone(), known.clone())
+                .await,
+            warnings: listing.warnings.clone(),
+        };
+        DevslotAnalysis { discovery, known }
     }
 
     async fn assign_local_ports(
@@ -134,7 +174,7 @@ impl EngineInner {
     }
 }
 
-fn known_tunnels(snapshots: Vec<TunnelSnapshot>) -> Vec<KnownTunnel> {
+pub(crate) fn known_tunnels(snapshots: Vec<TunnelSnapshot>) -> Vec<KnownTunnel> {
     snapshots
         .into_iter()
         .map(|snapshot| KnownTunnel {

@@ -105,7 +105,7 @@ impl<'context> SuggestionFinder<'context> {
         if let Some(known) = self.checked.get(&port) {
             return *known;
         }
-        let outcome = if self.probe.is_free(port) {
+        let outcome = if self.is_free(port) {
             LocalPort::Free
         } else {
             LocalPort::Busy {
@@ -114,6 +114,12 @@ impl<'context> SuggestionFinder<'context> {
         };
         self.checked.insert(port, outcome);
         outcome
+    }
+
+    /// A port is free when no known tunnel, stopped or not, listens on it
+    /// and a bind succeeds: the bind alone misses the stopped tunnels.
+    fn is_free(&self, port: u16) -> bool {
+        !self.tunnel_listen_ports.contains(&port) && self.probe.is_free(port)
     }
 
     fn suggest(&mut self, port: u16) -> Option<u16> {
@@ -281,6 +287,27 @@ mod tests {
             ),
             [(20050, true, Some(30051))]
         );
+    }
+
+    #[test]
+    fn should_flag_a_free_port_as_busy_when_a_known_tunnel_listens_on_it() {
+        assert_eq!(
+            outcome(
+                vec![new_port(20050)],
+                &[tunnel_listening_on(20050)],
+                &FakeProbe::with_busy(&[])
+            ),
+            [(20050, true, Some(30050))]
+        );
+    }
+
+    #[test]
+    fn should_not_probe_a_port_a_known_tunnel_listens_on_when_looking_at_the_port_itself() {
+        let probe = FakeProbe::with_busy(&[]);
+
+        outcome(vec![new_port(20050)], &[tunnel_listening_on(20050)], &probe);
+
+        assert!(!probe.probed.borrow().contains(&20050));
     }
 
     #[test]

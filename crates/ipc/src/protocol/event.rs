@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::protocol::devslot_up::DevslotLinkDto;
 use crate::protocol::dto::{
     CredentialRequestDto, ExternalProcessDto, HostKeyAlertReasonDto, LogEntryDto, MetricsDto,
     TargetHealthDto, TrayStatusDto, TunnelStateDto, X11StateDto,
@@ -115,6 +116,15 @@ pub struct ExternalsChangedEvent {
     pub processes: Vec<ExternalProcessDto>,
 }
 
+/// Somebody asked to see the UI.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShowRequestedEvent {
+    /// The link a newer UI was started with, which it left to this one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link: Option<DevslotLinkDto>,
+}
+
 /// The state of the X11 anchor of a host changed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -161,9 +171,9 @@ pub enum EventMessage {
     #[serde(rename = "tray.changed")]
     TrayChanged(TrayChangedEvent),
     /// Somebody asked to see the UI; a connected UI should bring its window to
-    /// the front.
+    /// the front, and ask about the link when there is one.
     #[serde(rename = "show.requested")]
-    ShowRequested {},
+    ShowRequested(ShowRequestedEvent),
     /// A prompt was answered elsewhere; close its dialog.
     #[serde(rename = "prompt.resolved")]
     PromptResolved(PromptResolvedEvent),

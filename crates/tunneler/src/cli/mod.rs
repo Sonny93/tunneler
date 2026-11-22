@@ -3,6 +3,7 @@
 
 mod args;
 mod commands;
+mod devslot_render;
 mod error;
 pub mod exit_code;
 mod forward_spec;
@@ -55,5 +56,6 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
         Some(Command::Quit(arguments)) => commands::quit(&context, &arguments).await,
         Some(Command::Purge(arguments)) => commands::purge(&context, &arguments).await,
         Some(Command::DesktopEntry(arguments)) => commands::desktop_entry(&arguments),
+        Some(Command::Devslot(arguments)) => commands::devslot(&context, arguments).await,
     }
 }

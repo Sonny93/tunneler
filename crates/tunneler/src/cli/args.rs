@@ -1,6 +1,7 @@
 //! The command line, as `clap` reads it.
 
 use clap::{Args, Parser, Subcommand};
+use ipc::protocol::{DevslotHostName, DevslotInstanceName};
 
 use super::exit_code::describe_exit_codes;
 use super::forward_spec::ForwardOption;
@@ -141,6 +142,35 @@ Logs go to daily files under the user data directory, or data/logs next to the
 executable in portable mode (7 are kept), and to stderr when it is a terminal.
 Normally the daemon is started for you by `tunneler up`.";
 
+fn devslot_help() -> String {
+    "\
+Examples:
+  tunneler devslot vega web-shop-098a                Open the instance: tunnel its web ports, open the browser
+  tunneler devslot vega web-shop-feat-b-8238         The same for a worktree of the project
+  tunneler devslot vega web-shop-098a --no-open      Start the tunnels and leave the browser alone
+  tunneler devslot vega web-shop-098a --json         The result as one line of JSON, for scripts
+
+HOST is a Host alias of your ssh_config. INSTANCE is the name of a devslot
+instance of that host, as `ds ls` prints it. Both are 1 to 64 (host) or 255
+(instance) characters of letters, digits, `.`, `_` and `-`, the first one a letter or a digit.
+
+It runs `ds ls --json` on the host over the shared SSH session, removes the
+stale devslot tunnels that need no question (see the devslot_stale setting),
+starts a tunnel for each web port of the instance that has none, and opens the
+application in the browser. Services such as databases and ports below 1024
+are left to the import panel. Running it again creates nothing new and opens
+the browser again. When a password, a passphrase or an unknown host key has to
+be confirmed, you are asked here if this is a terminal.
+
+Exit codes:
+  0  the instance is open
+  1  error: unknown host, instance not listed, connection or `ds` failure
+  4  some web ports failed or were skipped
+  6  the command on the host timed out
+  8  the browser could not be opened"
+        .to_owned()
+}
+
 fn top_level_help() -> String {
     format!(
         "\
@@ -218,6 +248,9 @@ pub enum Command {
     /// Add Tunneler to, or remove it from, the application menu (Linux)
     #[command(after_help = DESKTOP_ENTRY_EXAMPLES)]
     DesktopEntry(DesktopEntryArguments),
+    /// Tunnel the web ports of a devslot instance and open it in the browser
+    #[command(after_help = devslot_help())]
+    Devslot(DevslotArguments),
 }
 
 /// The arguments of `up`.
@@ -332,6 +365,31 @@ pub struct PurgeArguments {
     /// Remove without asking for a confirmation
     #[arg(short, long)]
     pub yes: bool,
+}
+
+/// The arguments of `devslot`.
+#[derive(Debug, Args)]
+pub struct DevslotArguments {
+    /// The `ssh_config` alias of the host that runs devslot
+    #[arg(value_name = "HOST", value_parser = parse_devslot_host)]
+    pub host: DevslotHostName,
+    /// The name of the instance, as `ds ls` prints it
+    #[arg(value_name = "INSTANCE", value_parser = parse_devslot_instance)]
+    pub instance: DevslotInstanceName,
+    /// Start the tunnels without opening the browser
+    #[arg(long)]
+    pub no_open: bool,
+    /// Print one line of JSON instead of text
+    #[arg(long)]
+    pub json: bool,
+}
+
+fn parse_devslot_host(text: &str) -> Result<DevslotHostName, String> {
+    DevslotHostName::parse(text).map_err(|error| error.to_string())
+}
+
+fn parse_devslot_instance(text: &str) -> Result<DevslotInstanceName, String> {
+    DevslotInstanceName::parse(text).map_err(|error| error.to_string())
 }
 
 /// The arguments of `desktop-entry`.
@@ -507,6 +565,123 @@ mod tests {
     #[test]
     fn should_reject_an_unknown_color_choice() {
         assert!(parse(&["--color", "sometimes", "status"]).is_err());
+    }
+
+    fn parse_devslot(host: &str, instance: &str) -> Result<DevslotArguments, clap::Error> {
+        match parse(&["devslot", "--", host, instance])?.command {
+            Some(Command::Devslot(arguments)) => Ok(arguments),
+            other => panic!("expected devslot, got {other:?}"),
+        }
+    }
+
+    fn is_usage_error(outcome: &Result<DevslotArguments, clap::Error>) -> bool {
+        outcome
+            .as_ref()
+            .is_err_and(|error| error.exit_code() == i32::from(super::super::exit_code::USAGE))
+    }
+
+    #[test]
+    fn should_read_the_host_the_instance_and_the_flags_when_devslot_is_given_them() {
+        let Some(Command::Devslot(arguments)) =
+            parse(&["devslot", "vega", "web-shop-098a", "--no-open", "--json"])
+                .unwrap()
+                .command
+        else {
+            panic!("expected devslot");
+        };
+
+        assert_eq!(
+            (
+                arguments.host.as_str(),
+                arguments.instance.as_str(),
+                arguments.no_open,
+                arguments.json
+            ),
+            ("vega", "web-shop-098a", true, true)
+        );
+    }
+
+    #[test]
+    fn should_open_the_browser_and_print_text_when_devslot_is_given_no_flag() {
+        let Some(Command::Devslot(arguments)) = parse(&["devslot", "vega", "web-shop-098a"])
+            .unwrap()
+            .command
+        else {
+            panic!("expected devslot");
+        };
+
+        assert_eq!((arguments.no_open, arguments.json), (false, false));
+    }
+
+    #[test]
+    fn should_require_the_host_and_the_instance_when_devslot_is_given() {
+        assert!(parse(&["devslot", "vega"]).is_err());
+    }
+
+    #[test]
+    fn should_accept_a_host_of_64_characters() {
+        assert!(parse_devslot(&"h".repeat(64), "web-shop-098a").is_ok());
+    }
+
+    #[test]
+    fn should_reject_a_host_of_65_characters_as_a_usage_error() {
+        assert!(is_usage_error(&parse_devslot(
+            &"h".repeat(65),
+            "web-shop-098a"
+        )));
+    }
+
+    #[test]
+    fn should_accept_an_instance_of_255_characters() {
+        assert!(parse_devslot("vega", &"i".repeat(255)).is_ok());
+    }
+
+    #[test]
+    fn should_reject_an_instance_of_256_characters_as_a_usage_error() {
+        assert!(is_usage_error(&parse_devslot("vega", &"i".repeat(256))));
+    }
+
+    #[test]
+    fn should_reject_a_host_or_an_instance_that_starts_with_a_dash_or_a_dot() {
+        let outcomes = [
+            parse_devslot("-vega", "web-shop-098a"),
+            parse_devslot(".vega", "web-shop-098a"),
+            parse_devslot("vega", "-web-shop"),
+            parse_devslot("vega", ".web-shop"),
+        ];
+
+        assert!(outcomes.iter().all(is_usage_error));
+    }
+
+    #[test]
+    fn should_reject_a_leading_dash_as_a_usage_error_without_the_separator() {
+        let outcome = parse(&["devslot", "-vega", "web-shop-098a"]);
+
+        assert_eq!(
+            outcome.unwrap_err().exit_code(),
+            i32::from(super::super::exit_code::USAGE)
+        );
+    }
+
+    #[test]
+    fn should_reject_a_name_with_a_character_outside_the_allowed_ones() {
+        assert!(is_usage_error(&parse_devslot("ve/ga", "web-shop-098a")));
+    }
+
+    #[test]
+    fn should_describe_the_exit_codes_of_devslot_in_its_help() {
+        let help = Cli::command()
+            .find_subcommand("devslot")
+            .unwrap()
+            .clone()
+            .render_long_help()
+            .to_string();
+
+        assert!(
+            help.contains("Exit codes:")
+                && help.contains("  4  some web ports failed or were skipped")
+                && help.contains("tunneler devslot vega web-shop-098a")
+        );
     }
 
     #[test]

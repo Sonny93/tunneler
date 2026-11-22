@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::protocol::devslot::{DevslotDiscoveryDto, DevslotResyncResultDto};
+use crate::protocol::devslot_up::DevslotUpResultDto;
 use crate::protocol::dto::{
     AvailableOpenerDto, ImportPreviewDto, LogEntryDto, ResolvedHostDto, SnapshotDto,
     TargetHealthDto, TunnelDto, X11ProbeDto,
@@ -144,6 +145,8 @@ pub enum ResponsePayload {
     DevslotDiscovery(DevslotDiscoveryDto),
     /// The answer to `devslot.resync`.
     DevslotResync(DevslotResyncResultDto),
+    /// The answer to `devslot.up`.
+    DevslotUp(DevslotUpResultDto),
 }
 
 impl ResponsePayload {

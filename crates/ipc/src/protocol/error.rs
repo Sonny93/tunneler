@@ -45,6 +45,9 @@ pub enum ErrorCode {
     /// The output of `ds ls --json` cannot be used; `data` holds `host` and
     /// `reason`.
     DevslotInvalidOutput,
+    /// The host does not list the instance; `data` holds `host` and
+    /// `instance`, as the caller gave them.
+    DevslotInstanceNotFound,
     /// The command did not end in time; `data` holds `host` and `seconds`.
     RemoteCommandTimeout,
     /// The SSH session to the host could not be opened (network, host key or
@@ -74,6 +77,7 @@ impl ErrorCode {
             Self::DevslotNotFound => "devslot_not_found",
             Self::DevslotFailed => "devslot_failed",
             Self::DevslotInvalidOutput => "devslot_invalid_output",
+            Self::DevslotInstanceNotFound => "devslot_instance_not_found",
             Self::RemoteCommandTimeout => "remote_command_timeout",
             Self::ConnectionFailed => "connection_failed",
             Self::Internal => "internal",
@@ -231,6 +235,16 @@ impl IpcError {
         .with_data(json!({ "host": host, "reason": reason }))
     }
 
+    /// The host does not list the instance. Both names are the caller's own
+    /// input, never something the host sent.
+    pub fn devslot_instance_not_found(host: &str, instance: &str) -> Self {
+        Self::new(
+            ErrorCode::DevslotInstanceNotFound,
+            format!("host {host} does not list the instance \"{instance}\""),
+        )
+        .with_data(json!({ "host": host, "instance": instance }))
+    }
+
     /// The command did not end in time.
     pub fn remote_command_timeout(host: &str, seconds: u64) -> Self {
         Self::new(
@@ -255,7 +269,7 @@ impl IpcError {
 mod tests {
     use super::*;
 
-    const ALL_CODES: [ErrorCode; 19] = [
+    const ALL_CODES: [ErrorCode; 20] = [
         ErrorCode::InvalidRequest,
         ErrorCode::UnknownMethod,
         ErrorCode::HandshakeRequired,
@@ -272,6 +286,7 @@ mod tests {
         ErrorCode::DevslotNotFound,
         ErrorCode::DevslotFailed,
         ErrorCode::DevslotInvalidOutput,
+        ErrorCode::DevslotInstanceNotFound,
         ErrorCode::RemoteCommandTimeout,
         ErrorCode::ConnectionFailed,
         ErrorCode::Internal,
@@ -313,6 +328,16 @@ mod tests {
         let error = IpcError::validation_failed(&["port is taken".to_owned()]);
 
         assert_eq!(error.data, Some(json!(["port is taken"])));
+    }
+
+    #[test]
+    fn should_carry_both_names_when_the_instance_is_not_found() {
+        let error = IpcError::devslot_instance_not_found("vega", "web-shop-098a");
+
+        assert_eq!(
+            error.data,
+            Some(json!({ "host": "vega", "instance": "web-shop-098a" }))
+        );
     }
 
     #[test]

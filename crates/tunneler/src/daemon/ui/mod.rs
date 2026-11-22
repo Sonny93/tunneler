@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
-use ipc::protocol::{ClientKind, EventMessage};
+use ipc::protocol::{ClientKind, DevslotLinkDto, EventMessage, ShowRequestedEvent};
 use ipc::{ConnectionId, ConnectionNotification, ServerHandle};
 use tokio::sync::broadcast::{self, error::RecvError};
 use tokio::task::JoinHandle;
@@ -96,15 +96,23 @@ impl UiCoordinator {
         if uis.is_empty() {
             return self.launch_once();
         }
-        self.notify(&uis, &EventMessage::ShowRequested {});
+        self.notify(
+            &uis,
+            &EventMessage::ShowRequested(ShowRequestedEvent::default()),
+        );
         Ok(())
     }
 
     /// Decides whether the UI behind `requester` may stay open. When a UI that
     /// connected before it exists, that one is asked to show itself and the
     /// answer is `false`; the oldest UI always wins, so two UIs starting
-    /// together never both give up.
-    pub(crate) fn claim(&self, requester: Option<ConnectionId>) -> bool {
+    /// together never both give up. The older UI receives `link`, the link the
+    /// refused UI was started with, so that it asks the user instead.
+    pub(crate) fn claim(
+        &self,
+        requester: Option<ConnectionId>,
+        link: Option<DevslotLinkDto>,
+    ) -> bool {
         let older_uis: Vec<ConnectionId> = self
             .ui_connections()
             .into_iter()
@@ -113,7 +121,10 @@ impl UiCoordinator {
         if older_uis.is_empty() {
             return true;
         }
-        self.notify(&older_uis, &EventMessage::ShowRequested {});
+        self.notify(
+            &older_uis,
+            &EventMessage::ShowRequested(ShowRequestedEvent { link }),
+        );
         false
     }
 
@@ -254,7 +265,7 @@ impl PromptResponderSource for UiCoordinator {
 #[cfg(test)]
 #[cfg(unix)]
 mod tests {
-    use ipc::protocol::{ClientKind, Hello};
+    use ipc::protocol::{ClientKind, DevslotHostName, DevslotInstanceName, Hello};
     use ipc::{EventReceiver, IpcClient};
     use pretty_assertions::assert_eq;
     use tokio::time::timeout;
@@ -385,7 +396,10 @@ mod tests {
 
         fixture.coordinator.show().unwrap();
 
-        assert_eq!(next_event(&mut ui).await, EventMessage::ShowRequested {});
+        assert_eq!(
+            next_event(&mut ui).await,
+            EventMessage::ShowRequested(ShowRequestedEvent::default())
+        );
         assert_eq!(fixture.launcher.launch_count(), 0);
     }
 
@@ -405,7 +419,7 @@ mod tests {
         let _ui = connect(&fixture.server, ClientKind::Ui).await;
         let requester = ui_ids(&fixture.server)[0];
 
-        assert!(fixture.coordinator.claim(Some(requester)));
+        assert!(fixture.coordinator.claim(Some(requester), None));
     }
 
     #[tokio::test]
@@ -415,7 +429,7 @@ mod tests {
         let _second = connect_second_ui(&fixture.server).await;
         let requester = ui_ids(&fixture.server)[1];
 
-        assert!(!fixture.coordinator.claim(Some(requester)));
+        assert!(!fixture.coordinator.claim(Some(requester), None));
     }
 
     #[tokio::test]
@@ -425,9 +439,62 @@ mod tests {
         let _second = connect_second_ui(&fixture.server).await;
         let requester = ui_ids(&fixture.server)[1];
 
-        fixture.coordinator.claim(Some(requester));
+        fixture.coordinator.claim(Some(requester), None);
 
-        assert_eq!(next_event(&mut first).await, EventMessage::ShowRequested {});
+        assert_eq!(
+            next_event(&mut first).await,
+            EventMessage::ShowRequested(ShowRequestedEvent::default())
+        );
+    }
+
+    #[tokio::test]
+    async fn should_relay_the_link_to_the_older_ui_when_a_refused_claim_carries_one() {
+        let fixture = Fixture::start();
+        let mut first = connect(&fixture.server, ClientKind::Ui).await;
+        let _second = connect_second_ui(&fixture.server).await;
+        let requester = ui_ids(&fixture.server)[1];
+        let link = DevslotLinkDto::DevslotUp {
+            host: DevslotHostName::parse("vega").unwrap(),
+            instance: DevslotInstanceName::parse("web-shop-098a").unwrap(),
+        };
+
+        fixture
+            .coordinator
+            .claim(Some(requester), Some(link.clone()));
+
+        assert_eq!(
+            next_event(&mut first).await,
+            EventMessage::ShowRequested(ShowRequestedEvent { link: Some(link) })
+        );
+    }
+
+    #[tokio::test]
+    async fn should_show_the_older_ui_without_a_link_when_a_refused_claim_carries_none() {
+        let fixture = Fixture::start();
+        let mut first = connect(&fixture.server, ClientKind::Ui).await;
+        let _second = connect_second_ui(&fixture.server).await;
+        let requester = ui_ids(&fixture.server)[1];
+
+        fixture.coordinator.claim(Some(requester), None);
+
+        assert_eq!(
+            next_event(&mut first).await,
+            EventMessage::ShowRequested(ShowRequestedEvent { link: None })
+        );
+    }
+
+    #[tokio::test]
+    async fn should_not_relay_the_link_when_the_claim_is_granted() {
+        let fixture = Fixture::start();
+        let mut first = connect(&fixture.server, ClientKind::Ui).await;
+        let requester = ui_ids(&fixture.server)[0];
+
+        let is_granted = fixture
+            .coordinator
+            .claim(Some(requester), Some(DevslotLinkDto::Invalid));
+
+        assert!(is_granted);
+        assert_silent(&mut first).await;
     }
 
     #[tokio::test]
@@ -437,7 +504,7 @@ mod tests {
         let _second = connect_second_ui(&fixture.server).await;
         let requester = ui_ids(&fixture.server)[0];
 
-        assert!(fixture.coordinator.claim(Some(requester)));
+        assert!(fixture.coordinator.claim(Some(requester), None));
     }
 
     #[tokio::test]
@@ -447,7 +514,7 @@ mod tests {
         let _ui = connect(&fixture.server, ClientKind::Ui).await;
         let requester = ui_ids(&fixture.server)[0];
 
-        assert!(fixture.coordinator.claim(Some(requester)));
+        assert!(fixture.coordinator.claim(Some(requester), None));
     }
 
     #[tokio::test]

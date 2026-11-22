@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::protocol::devslot::DevslotResyncParams;
+use crate::protocol::devslot_up::{DevslotLinkDto, DevslotUpParams};
 use crate::protocol::dto::{
     HostKeyDecisionDto, OpenerSpecDto, RememberDto, SettingsDto, SoundEventDto, StandbySoundDto,
     TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelSpecDto,
@@ -18,7 +19,7 @@ const PARAMS_KEY: &str = "params";
 pub const MAX_IMPORT_SCRIPT_BYTES: usize = 256 * 1024;
 
 /// Every method name the protocol defines, as it appears on the wire.
-pub const METHOD_NAMES: [&str; 43] = [
+pub const METHOD_NAMES: [&str; 44] = [
     "hello",
     "state.snapshot",
     "tunnel.create",
@@ -62,6 +63,7 @@ pub const METHOD_NAMES: [&str; 43] = [
     "daemon.paths",
     "devslot.discover",
     "devslot.resync",
+    "devslot.up",
 ];
 
 /// The parameters of the methods that address one tunnel.
@@ -199,6 +201,16 @@ pub struct HostKeyResponseParams {
     pub prompt_id: String,
     /// What to do with the key.
     pub decision: HostKeyDecisionDto,
+}
+
+/// The parameters of `ui.claim`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UiClaimParams {
+    /// The link the UI was started with, when it was started by one. When the
+    /// claim is refused, the older UI receives it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link: Option<DevslotLinkDto>,
 }
 
 /// The parameters of `daemon.quit`.
@@ -354,9 +366,10 @@ pub enum Request {
     SecretsForget {},
     /// Asks whether this UI may stay open. When an older UI is already
     /// connected, it is told to show itself and the answer is
-    /// `claimed: false`.
+    /// `claimed: false`; the claim then carries the link the UI was started
+    /// with, if any, for the older UI to show.
     #[serde(rename = "ui.claim")]
-    UiClaim {},
+    UiClaim(UiClaimParams),
     /// Renames a tag in every tunnel and in the launch tags; answers
     /// `not_found` when no tunnel carries `from` and `validation_failed` when
     /// `to` is not a valid tag.
@@ -380,6 +393,17 @@ pub enum Request {
     /// skipping those that changed since.
     #[serde(rename = "devslot.resync")]
     DevslotResync(DevslotResyncParams),
+    /// Starts the tunnels of the web ports of one devslot instance of a
+    /// host, and opens the application in the browser when asked. Runs
+    /// `ds ls --json` on the host, removes only the stale tunnels that need
+    /// no question, and leaves the ports that already have a tunnel alone.
+    /// Answers `not_found` when the alias is unknown,
+    /// `devslot_instance_not_found` when the host does not list the instance,
+    /// `invalid_request` when a name is out of bounds, and the errors of
+    /// `devslot.discover` when the host cannot give a listing. A port that
+    /// cannot be tunneled or opened is reported in the result, not as an error.
+    #[serde(rename = "devslot.up")]
+    DevslotUp(DevslotUpParams),
 }
 
 /// A [`Request`] and the identifier its response will carry.

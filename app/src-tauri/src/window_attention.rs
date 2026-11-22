@@ -15,7 +15,7 @@ enum WindowRequest {
 
 fn window_request_for(event: &EventMessage) -> WindowRequest {
     match event {
-        EventMessage::ShowRequested {}
+        EventMessage::ShowRequested(_)
         | EventMessage::QuitRequested {}
         | EventMessage::StandbyRequested {} => WindowRequest::BringToFront,
         EventMessage::CredentialRequest(_)

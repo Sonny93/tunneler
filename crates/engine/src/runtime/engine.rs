@@ -274,6 +274,9 @@ pub(crate) struct EngineInner {
     passphrases: Arc<PassphraseVault>,
     catalog: Mutex<Catalog>,
     pub(crate) mutation: tokio::sync::Mutex<()>,
+    /// Serialises the local steps of `devslot_up`. It is taken before
+    /// `mutation`, never while holding it, and never across an SSH command.
+    pub(crate) devslot_up_lock: tokio::sync::Mutex<()>,
     tunnel_ready_timeout: Duration,
     pub(crate) remote_command_timeout: Duration,
     program_locator: Arc<dyn ProgramLocator>,
@@ -336,7 +339,7 @@ impl EngineInner {
 /// Cloning is cheap; every clone drives the same engine.
 #[derive(Clone)]
 pub struct Engine {
-    inner: Arc<EngineInner>,
+    pub(crate) inner: Arc<EngineInner>,
 }
 
 impl Engine {
@@ -435,6 +438,7 @@ impl Engine {
             passphrases,
             catalog: Mutex::new(Catalog::new(factory, document.tunnels)),
             mutation: tokio::sync::Mutex::new(()),
+            devslot_up_lock: tokio::sync::Mutex::new(()),
             tunnel_ready_timeout: options.tunnel_ready_timeout,
             remote_command_timeout: options.remote_command_timeout,
             detected_openers: Mutex::new(detect_presets(program_locator.as_ref(), preset_platform)),
@@ -1109,7 +1113,7 @@ impl Engine {
             .find(|snapshot| snapshot.definition.id == id)
     }
 
-    fn ensure_running(&self) -> Result<(), EngineError> {
+    pub(crate) fn ensure_running(&self) -> Result<(), EngineError> {
         if self.inner.is_shut_down.load(Ordering::SeqCst) {
             return Err(EngineError::ShutDown);
         }

@@ -4,6 +4,8 @@
 //! [`Request`] for the methods and [`EventMessage`] for the events.
 
 mod devslot;
+mod devslot_names;
+mod devslot_up;
 mod dto;
 mod error;
 mod event;
@@ -19,6 +21,15 @@ pub use devslot::{
     DevslotPortStatusDto, DevslotResyncParams, DevslotResyncResultDto, DevslotResyncTunnelDto,
     DevslotStaleActionDto, DevslotStaleDto, DevslotStaleReasonDto, DevslotWarningDto,
 };
+pub use devslot_names::{
+    DevslotHostName, DevslotInstanceName, DevslotNameError, DevslotNameProblem,
+    MAX_DEVSLOT_HOST_LENGTH, MAX_DEVSLOT_INSTANCE_LENGTH, find_devslot_host_name_problem,
+    find_devslot_instance_name_problem,
+};
+pub use devslot_up::{
+    DevslotFailedPortDto, DevslotLinkDto, DevslotRemovedRouteDto, DevslotSkipReasonDto,
+    DevslotSkippedPortDto, DevslotUpParams, DevslotUpPortDto, DevslotUpResultDto,
+};
 pub use dto::DevslotStalePolicyDto;
 pub use dto::{
     AvailableOpenerDto, CredentialRequestDto, DefaultOpenerDto, EpochMillis, ExternalForwardDto,
@@ -33,8 +44,8 @@ pub use dto::{
 pub use error::{ErrorCode, IpcError};
 pub use event::{
     ConfigInvalidEvent, CredentialRequestEvent, EventMessage, ExternalsChangedEvent,
-    HostKeyRequestEvent, PromptResolvedEvent, TrayChangedEvent, TunnelChangedEvent, TunnelLogEvent,
-    TunnelMetricsEvent, X11ChangedEvent,
+    HostKeyRequestEvent, PromptResolvedEvent, ShowRequestedEvent, TrayChangedEvent,
+    TunnelChangedEvent, TunnelLogEvent, TunnelMetricsEvent, X11ChangedEvent,
 };
 pub use frame::{MalformedFrame, Outcome, ServerFrame, encode_event, encode_response};
 pub use hello::{ClientKind, Hello, HelloResult, PROTOCOL_VERSION};
@@ -43,7 +54,7 @@ pub use request::{
     CredentialAnswer, CredentialResponseParams, HostKeyResponseParams, HostParams,
     ImportScriptParams, MAX_IMPORT_SCRIPT_BYTES, METHOD_NAMES, OpenTunnelParams,
     PreviewSoundParams, ProcessParams, QuitParams, Request, RequestEnvelope, RequestRejection,
-    SettingsUpdateParams, TagParams, TagRenameParams, TunnelIdParams, X11HostParams,
+    SettingsUpdateParams, TagParams, TagRenameParams, TunnelIdParams, UiClaimParams, X11HostParams,
     X11LaunchParams,
 };
 pub use response::{

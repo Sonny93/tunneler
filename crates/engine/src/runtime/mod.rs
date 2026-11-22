@@ -8,6 +8,7 @@ mod catalog;
 mod counting_stream;
 mod definition_diff;
 mod devslot_service;
+mod devslot_up;
 mod dynamic_forward;
 mod engine;
 mod events;

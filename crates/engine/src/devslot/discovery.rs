@@ -93,6 +93,14 @@ pub enum DevslotError {
         /// The time limit, in seconds.
         seconds: u64,
     },
+    /// The host lists no instance with this name.
+    #[error("host {host} does not list the instance \"{instance}\"")]
+    InstanceNotFound {
+        /// The host alias.
+        host: String,
+        /// The instance name that was asked for.
+        instance: String,
+    },
 }
 
 fn describe_status(status: Option<u32>) -> String {

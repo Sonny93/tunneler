@@ -8,15 +8,18 @@ pub const ERROR: u8 = 1;
 pub const USAGE: u8 = 2;
 /// The command needs the daemon and it is not running.
 pub const DAEMON_NOT_RUNNING: u8 = 3;
-/// `up`: at least one tunnel failed to start.
+/// `up`: at least one tunnel failed to start. `devslot`: a web port failed
+/// or was skipped.
 pub const TARGETS_FAILED: u8 = 4;
 /// A confirmation is needed but cannot be asked: not a terminal and no `--yes`.
 pub const CONFIRMATION_REQUIRED: u8 = 5;
-/// The command timed out waiting for the daemon or the tunnels.
+/// The command timed out waiting for the daemon, the tunnels or a command on
+/// the host (`devslot`).
 pub const TIMED_OUT: u8 = 6;
 /// `check`: the target of the tunnel does not answer.
 pub const TARGET_UNREACHABLE: u8 = 7;
-/// `open`: the tunnel did not become ready or the browser could not be launched.
+/// `open`, `devslot`: the tunnel did not become ready or the browser could not
+/// be launched.
 pub const OPEN_FAILED: u8 = 8;
 /// `open --with`: no such application is available.
 pub const UNKNOWN_OPENER: u8 = 9;
@@ -28,15 +31,15 @@ pub fn describe_exit_codes() -> String {
         (ERROR, "error"),
         (USAGE, "invalid usage"),
         (DAEMON_NOT_RUNNING, "the daemon is not running"),
-        (TARGETS_FAILED, "some tunnels failed to start or are blocked by another program (up); a tunnel provided by an external ssh counts as started"),
+        (TARGETS_FAILED, "some tunnels failed to start or are blocked by another program (up), or some web ports of the instance failed or were skipped (devslot); a tunnel provided by an external ssh counts as started"),
         (
             CONFIRMATION_REQUIRED,
             "confirmation required but not possible: not a terminal, pass --yes (quit, purge)",
         ),
-        (TIMED_OUT, "timed out waiting"),
+        (TIMED_OUT, "timed out waiting, or the command on the host timed out (devslot)"),
         (TARGET_UNREACHABLE, "the target of the tunnel does not answer (check)"),
         (UNKNOWN_OPENER, "the application asked for with --with is not available (open)"),
-        (OPEN_FAILED, "the tunnel did not become ready or the browser could not be launched (open)"),
+        (OPEN_FAILED, "the tunnel did not become ready or the browser could not be launched (open, devslot)"),
     ]
     .map(|(code, meaning)| format!("  {code}  {meaning}"))
     .join("\n")

@@ -147,6 +147,36 @@ pub enum CliError {
         /// What the daemon reported: the available ids included.
         message: String,
     },
+    /// The host lists no instance with this name.
+    #[error("host {host} does not list the instance \"{instance}\"")]
+    DevslotInstanceNotFound {
+        /// The host alias.
+        host: String,
+        /// The instance that was asked for.
+        instance: String,
+    },
+    /// The alias is not a `Host` of the `ssh_config`.
+    #[error("{message}")]
+    UnknownHost {
+        /// What the daemon reported.
+        message: String,
+    },
+    /// A command run on the host did not end in time.
+    #[error("{message}")]
+    RemoteCommandTimedOut {
+        /// What the daemon reported.
+        message: String,
+    },
+    /// Some web ports of a devslot instance were left out or failed.
+    #[error("{count} of {total} web ports of {instance} are not tunneled")]
+    PortsNotTunneled {
+        /// The instance that was opened.
+        instance: String,
+        /// How many ports failed or were skipped.
+        count: usize,
+        /// How many web ports the instance has.
+        total: usize,
+    },
     /// Reading the answer of the user failed.
     #[error("cannot read the answer: {0}")]
     Terminal(#[source] io::Error),
@@ -170,14 +200,16 @@ impl CliError {
             | Self::MenuEntry(
                 MenuEntryError::Unsupported | MenuEntryError::PackageManaged { .. },
             ) => exit_code::USAGE,
-            Self::TargetsFailed { .. } => exit_code::TARGETS_FAILED,
+            Self::TargetsFailed { .. } | Self::PortsNotTunneled { .. } => exit_code::TARGETS_FAILED,
             Self::TargetUnreachable { .. } => exit_code::TARGET_UNREACHABLE,
             Self::OpenFailed { .. } => exit_code::OPEN_FAILED,
             Self::UnknownOpener { .. } => exit_code::UNKNOWN_OPENER,
             Self::ConfirmationRequired { .. } | Self::PurgeConfirmationRequired => {
                 exit_code::CONFIRMATION_REQUIRED
             }
-            Self::TimedOutWaiting { .. } | Self::DaemonStopTimedOut { .. } => exit_code::TIMED_OUT,
+            Self::TimedOutWaiting { .. }
+            | Self::DaemonStopTimedOut { .. }
+            | Self::RemoteCommandTimedOut { .. } => exit_code::TIMED_OUT,
             Self::DaemonSpawn(_)
             | Self::DaemonExited { .. }
             | Self::DaemonStartTimedOut { .. }
@@ -192,6 +224,8 @@ impl CliError {
             | Self::PurgeIncomplete { .. }
             | Self::MenuEntry(_)
             | Self::UiUnavailable { .. }
+            | Self::DevslotInstanceNotFound { .. }
+            | Self::UnknownHost { .. }
             | Self::Terminal(_)
             | Self::Encoding(_)
             | Self::Runtime(_) => exit_code::ERROR,
@@ -252,6 +286,20 @@ impl CliError {
                     .to_owned(),
             ),
             Self::UiUnavailable { .. } => Some(UI_UNAVAILABLE_HINT.to_owned()),
+            Self::DevslotInstanceNotFound { .. } => Some(
+                "the instance is the name that `ds ls` prints on the host, such as web-shop-098a"
+                    .to_owned(),
+            ),
+            Self::UnknownHost { .. } => {
+                Some("use a Host alias of your ssh_config, as `ssh <alias>` does".to_owned())
+            }
+            Self::RemoteCommandTimedOut { .. } => Some(
+                "run `ds ls --json` on the host to see why it is slow, then try again".to_owned(),
+            ),
+            Self::PortsNotTunneled { .. } => Some(
+                "the lines above say why; `tunneler status` shows the tunnels that are up"
+                    .to_owned(),
+            ),
             Self::MenuEntry(error) => menu_entry_hint(error),
             Self::TargetUnreachable { .. } => {
                 Some("see `tunneler status` for the tunnel state".to_owned())
@@ -331,6 +379,42 @@ mod tests {
             }
             .exit_code(),
             exit_code::TARGETS_FAILED
+        );
+    }
+
+    #[test]
+    fn should_exit_with_4_when_ports_of_an_instance_are_not_tunneled() {
+        assert_eq!(
+            CliError::PortsNotTunneled {
+                instance: "web-shop-098a".to_owned(),
+                count: 1,
+                total: 2
+            }
+            .exit_code(),
+            exit_code::TARGETS_FAILED
+        );
+    }
+
+    #[test]
+    fn should_exit_with_6_when_a_command_on_the_host_timed_out() {
+        assert_eq!(
+            CliError::RemoteCommandTimedOut {
+                message: "too slow".to_owned()
+            }
+            .exit_code(),
+            exit_code::TIMED_OUT
+        );
+    }
+
+    #[test]
+    fn should_exit_with_1_when_the_host_does_not_list_the_instance() {
+        assert_eq!(
+            CliError::DevslotInstanceNotFound {
+                host: "vega".to_owned(),
+                instance: "web-shop-098a".to_owned()
+            }
+            .exit_code(),
+            exit_code::ERROR
         );
     }
 

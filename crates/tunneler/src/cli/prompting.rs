@@ -214,7 +214,7 @@ impl LocalPrompts {
             | EventMessage::TrayChanged(_)
             | EventMessage::ExternalsChanged(_)
             | EventMessage::X11Changed(_)
-            | EventMessage::ShowRequested {}
+            | EventMessage::ShowRequested(_)
             | EventMessage::QuitRequested {}
             | EventMessage::StandbyRequested {} => {}
         }

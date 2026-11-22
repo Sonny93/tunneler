@@ -87,10 +87,11 @@ pub use clock::{Clock, SystemClock};
 pub use connect_timeouts::ConnectTimeouts;
 pub use connector::{Connector, ConnectorDependencies};
 pub use devslot::{
-    DevslotDiscovery, DevslotError, DevslotInstance, DevslotOrigin, DevslotPort, DevslotPortStatus,
-    DevslotResync, DevslotResyncTunnel, DevslotStaleAction, DevslotStaleReason, DevslotStaleTunnel,
-    DevslotWarning, MAX_DEVSLOT_INSTANCES, MAX_DEVSLOT_PORTS, MAX_DEVSLOT_PORTS_PER_INSTANCE,
-    devslot_project_tag,
+    DevslotDiscovery, DevslotError, DevslotFailedPort, DevslotInstance, DevslotOrigin, DevslotPort,
+    DevslotPortStatus, DevslotRemovedRoute, DevslotResync, DevslotResyncTunnel, DevslotSkipReason,
+    DevslotSkippedPort, DevslotStaleAction, DevslotStaleReason, DevslotStaleTunnel, DevslotUp,
+    DevslotUpPort, DevslotWarning, MAX_DEVSLOT_INSTANCES, MAX_DEVSLOT_PORTS,
+    MAX_DEVSLOT_PORTS_PER_INSTANCE, devslot_project_tag,
 };
 pub use error::{ConnectError, HostKeyFailure, JumpChainError, SessionError, TransportError};
 pub use external::{

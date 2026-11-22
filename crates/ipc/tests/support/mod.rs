@@ -128,7 +128,7 @@ impl RequestHandler for FakeHandler {
             Request::SecretsForget {} => Ok(ResponsePayload::ForgetSecrets(ForgetSecretsResult {
                 forgotten_count: FORGOTTEN_COUNT,
             })),
-            Request::UiClaim {} => Ok(ResponsePayload::UiClaim(UiClaimResult { claimed: true })),
+            Request::UiClaim(_) => Ok(ResponsePayload::UiClaim(UiClaimResult { claimed: true })),
             Request::TagsRename(params) if params.from == MISSING_TAG => {
                 Err(IpcError::not_found("no such tag"))
             }

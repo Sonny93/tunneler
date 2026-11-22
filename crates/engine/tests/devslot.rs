@@ -757,3 +757,599 @@ async fn should_refuse_a_listing_when_it_holds_more_instances_than_the_cap() {
         "{error:?}"
     );
 }
+
+const INSTANCE: &str = "links-a";
+const OTHER_INSTANCE: &str = "links-b";
+const DELETE_STALE: &str = "devslot_stale = \"delete\"\n";
+
+struct UpPorts {
+    web: u16,
+    service: u16,
+}
+
+async fn up_ports() -> UpPorts {
+    let ports = support::free_ports(2).await;
+    UpPorts {
+        web: ports[0],
+        service: ports[1],
+    }
+}
+
+fn instance_entry(name: &str, ports: &UpPorts) -> String {
+    format!(
+        r#"{{"name":"{name}","project":"web-shop","path":"/w/{name}","worktree":false,"slot":1,"app_url":"http://{name}.localhost:{web}","services_running":true,"ports":[{{"var":"PORT","port":{web},"kind":"web","url":"http://{name}.localhost:{web}"}},{{"var":"DB_PORT","port":{service},"kind":"service","service":"postgres","target":5432}}]}}"#,
+        web = ports.web,
+        service = ports.service
+    )
+}
+
+fn listing_of(entries: &[String]) -> String {
+    format!(r#"{{"version":1,"instances":[{}]}}"#, entries.join(","))
+}
+
+async fn start_with_instance(ports: &UpPorts, settings: &str) -> Harness {
+    let listing = listing_of(&[instance_entry(INSTANCE, ports)]);
+    start(Some(ok_script(&listing)), settings).await
+}
+
+fn snapshot_of(harness: &Harness, id: TunnelId) -> engine::TunnelSnapshot {
+    harness
+        .engine
+        .snapshot()
+        .tunnels
+        .into_iter()
+        .find(|tunnel| tunnel.definition.id == id)
+        .unwrap()
+}
+
+fn tunnel_to(host: &str, listen_port: u16, remote_port: u16, tags: &[&str]) -> NewTunnel {
+    NewTunnel {
+        host: host.to_owned(),
+        kind: TunnelKind::Local,
+        listen_port,
+        listen_address: Some("127.0.0.1".to_owned()),
+        target_host: None,
+        target_port: Some(remote_port),
+        tags: tags.iter().map(|tag| (*tag).to_owned()).collect(),
+        open: OpenOptions::default(),
+        standby: None,
+    }
+}
+
+#[tokio::test]
+async fn should_start_the_web_port_as_a_temporary_tunnel_with_the_origin_when_the_instance_is_listed()
+ {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, "").await;
+
+    let outcome = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    let [started] = outcome.started.as_slice() else {
+        panic!("expected one started port: {outcome:?}");
+    };
+    let snapshot = snapshot_of(&harness, started.tunnel_id);
+    assert_eq!(
+        (
+            started.remote_port,
+            started.listen_port,
+            snapshot.is_temporary,
+            snapshot.definition.tags,
+            snapshot.devslot,
+            snapshot.definition.open.host_name,
+            snapshot.definition.listen_address,
+            snapshot.definition.target_port
+        ),
+        (
+            ports.web,
+            ports.web,
+            true,
+            Vec::<String>::new(),
+            Some(origin_of("ds-web-shop")),
+            Some("links-a.localhost".to_owned()),
+            Some("127.0.0.1".to_owned()),
+            None
+        )
+    );
+}
+
+#[tokio::test]
+async fn should_not_tunnel_the_service_port_when_the_instance_is_opened() {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, "").await;
+
+    harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    let remote_ports: Vec<u16> = harness
+        .engine
+        .snapshot()
+        .tunnels
+        .iter()
+        .map(|tunnel| tunnel.definition.effective_target_port())
+        .collect();
+    assert_eq!(remote_ports, vec![ports.web]);
+}
+
+#[tokio::test]
+async fn should_wait_until_the_tunnel_is_active_and_name_it_as_the_app_tunnel() {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, "").await;
+
+    let outcome = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    let app_tunnel = outcome.app_tunnel.unwrap();
+    assert_eq!(
+        (
+            snapshot_of(&harness, app_tunnel).state,
+            outcome.app_url,
+            outcome.is_app_port_shared
+        ),
+        (
+            engine::TunnelState::Active,
+            Some(format!("http://links-a.localhost:{}", ports.web)),
+            false
+        )
+    );
+}
+
+#[tokio::test]
+async fn should_report_the_instance_as_not_found_when_the_host_does_not_list_it() {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, "").await;
+
+    let error = harness
+        .engine
+        .devslot_up(support::ALIAS, "links-zzz")
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(&error, engine::EngineError::Devslot(DevslotError::InstanceNotFound { host, instance }) if host == support::ALIAS && instance == "links-zzz"),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn should_remove_nothing_when_the_instance_is_not_found_even_with_the_delete_policy() {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, DELETE_STALE).await;
+    let listed = create_saved(&harness, support::ALIAS, &["devslot", "ds-web-shop"]).await;
+    let mut gone = new_tunnel(support::ALIAS, &["devslot", "ds-web-shop"]).await;
+    gone.target_port = Some(GONE_PORT);
+    let gone_id = harness.engine.create_tunnel(gone).await.unwrap();
+    let temporary = start_temporary(&harness, support::ALIAS, Some(origin_of("ds-web-shop"))).await;
+    let before = tunnel_ids(&harness);
+
+    harness
+        .engine
+        .devslot_up(support::ALIAS, "links-zzz")
+        .await
+        .unwrap_err();
+
+    assert_eq!(
+        (tunnel_ids(&harness), before.contains(&gone_id)),
+        (before, true)
+    );
+    assert!(tunnel_ids(&harness).contains(&listed) && tunnel_ids(&harness).contains(&temporary));
+}
+
+#[tokio::test]
+async fn should_create_nothing_and_report_the_port_as_existing_when_the_instance_is_opened_twice() {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, "").await;
+    let first = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    let second = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        (
+            second.started.len(),
+            second.existing.clone(),
+            tunnel_ids(&harness).len(),
+            second.app_tunnel
+        ),
+        (0, first.started.clone(), 1, first.app_tunnel)
+    );
+}
+
+#[tokio::test]
+async fn should_start_a_stopped_tunnel_again_when_the_instance_is_opened_again() {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, "").await;
+    let first = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+    let saved = first.app_tunnel.unwrap();
+    harness.engine.persist_tunnel(saved).await.unwrap();
+    harness.engine.stop_tunnel(saved).unwrap();
+
+    let second = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        (
+            second.existing.len(),
+            snapshot_of(&harness, saved).state,
+            second.failed
+        ),
+        (1, engine::TunnelState::Active, Vec::new())
+    );
+}
+
+#[tokio::test]
+async fn should_create_each_tunnel_once_when_two_calls_run_at_the_same_time() {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, "").await;
+
+    let (first, second) = tokio::join!(
+        harness.engine.devslot_up(support::ALIAS, INSTANCE),
+        harness.engine.devslot_up(support::ALIAS, INSTANCE)
+    );
+    let (first, second) = (first.unwrap(), second.unwrap());
+
+    assert_eq!(
+        (
+            first.started.len() + second.started.len(),
+            first.existing.len() + second.existing.len(),
+            tunnel_ids(&harness).len()
+        ),
+        (1, 1, 1)
+    );
+}
+
+#[tokio::test]
+async fn should_remove_a_stale_temporary_route_and_report_it_when_the_instance_is_opened() {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, "").await;
+    let stale = harness
+        .engine
+        .start_temporary_tunnel(
+            tunnel_to(support::ALIAS, free_port().await, GONE_PORT, &[]),
+            Some(origin_of("ds-web-shop")),
+        )
+        .await
+        .unwrap();
+
+    let outcome = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        (
+            outcome.removed.len(),
+            outcome.removed[0].remote_port,
+            outcome.removed[0].is_temporary,
+            tunnel_ids(&harness).contains(&stale)
+        ),
+        (1, GONE_PORT, true, false)
+    );
+}
+
+#[tokio::test]
+async fn should_remove_a_saved_route_whose_port_is_gone_when_the_policy_is_delete() {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, DELETE_STALE).await;
+    let kept = harness
+        .engine
+        .create_tunnel(tunnel_to(
+            support::ALIAS,
+            free_port().await,
+            ports.service,
+            &["devslot", "ds-web-shop"],
+        ))
+        .await
+        .unwrap();
+    let gone = harness
+        .engine
+        .create_tunnel(tunnel_to(
+            support::ALIAS,
+            free_port().await,
+            GONE_PORT,
+            &["devslot", "ds-web-shop"],
+        ))
+        .await
+        .unwrap();
+
+    let outcome = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    let ids = tunnel_ids(&harness);
+    assert_eq!(
+        (
+            outcome.removed.len(),
+            ids.contains(&gone),
+            ids.contains(&kept)
+        ),
+        (1, false, true)
+    );
+}
+
+#[tokio::test]
+async fn should_keep_a_saved_route_that_needs_a_question_and_skip_its_port_when_the_instance_is_opened()
+ {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, DELETE_STALE).await;
+    let reassigned = harness
+        .engine
+        .create_tunnel(tunnel_to(
+            support::ALIAS,
+            free_port().await,
+            ports.web,
+            &["devslot", "ds-other-project"],
+        ))
+        .await
+        .unwrap();
+
+    let outcome = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        (
+            tunnel_ids(&harness),
+            outcome.needs_review,
+            outcome.skipped,
+            outcome.started.len() + outcome.existing.len(),
+            outcome.app_tunnel
+        ),
+        (
+            vec![reassigned],
+            1,
+            vec![engine::DevslotSkippedPort {
+                remote_port: ports.web,
+                reason: engine::DevslotSkipReason::NeedsReview
+            }],
+            0,
+            None
+        )
+    );
+}
+
+#[tokio::test]
+async fn should_keep_the_routes_of_other_hosts_and_plain_tunnels_when_it_removes_stale_routes() {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, DELETE_STALE).await;
+    let other_host_temporary = harness
+        .engine
+        .start_temporary_tunnel(
+            tunnel_to(OTHER_HOST, free_port().await, GONE_PORT, &[]),
+            Some(origin_of("ds-web-shop")),
+        )
+        .await
+        .unwrap();
+    let other_host_saved = harness
+        .engine
+        .create_tunnel(tunnel_to(
+            OTHER_HOST,
+            free_port().await,
+            GONE_PORT,
+            &["devslot", "ds-web-shop"],
+        ))
+        .await
+        .unwrap();
+    let plain = harness
+        .engine
+        .create_tunnel(tunnel_to(support::ALIAS, free_port().await, GONE_PORT, &[]))
+        .await
+        .unwrap();
+    harness
+        .engine
+        .start_temporary_tunnel(
+            tunnel_to(support::ALIAS, free_port().await, GONE_PORT, &[]),
+            Some(origin_of("ds-web-shop")),
+        )
+        .await
+        .unwrap();
+
+    let outcome = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    let ids = tunnel_ids(&harness);
+    assert_eq!(
+        (
+            outcome.removed.len(),
+            ids.contains(&other_host_temporary),
+            ids.contains(&other_host_saved),
+            ids.contains(&plain)
+        ),
+        (1, true, true, true)
+    );
+}
+
+#[tokio::test]
+async fn should_save_the_tunnel_with_the_devslot_and_project_tags_when_the_host_persists() {
+    let ports = up_ports().await;
+    let overrides = format!("\n[hosts.{}]\ndevslot_persist = true\n", support::ALIAS);
+    let harness = start_with_instance(&ports, &overrides).await;
+
+    let outcome = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    let snapshot = snapshot_of(&harness, outcome.started[0].tunnel_id);
+    let text = std::fs::read_to_string(&harness.store_path).unwrap();
+    assert_eq!(
+        (
+            snapshot.is_temporary,
+            snapshot.devslot,
+            snapshot.definition.tags,
+            text.contains("tags = [\"devslot\", \"ds-web-shop\"]"),
+            harness
+                .state_store
+                .state()
+                .running
+                .contains(&outcome.started[0].tunnel_id)
+        ),
+        (
+            false,
+            None,
+            vec!["devslot".to_owned(), "ds-web-shop".to_owned()],
+            true,
+            true
+        )
+    );
+}
+
+#[tokio::test]
+async fn should_listen_on_another_port_when_a_stopped_tunnel_of_another_host_listens_on_the_web_port()
+ {
+    let ports = up_ports().await;
+    let harness = start_with_instance(&ports, "").await;
+    harness
+        .engine
+        .create_tunnel(tunnel_to(OTHER_HOST, ports.web, GONE_PORT, &[]))
+        .await
+        .unwrap();
+
+    let outcome = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    let [started] = outcome.started.as_slice() else {
+        panic!("expected one started port: {outcome:?}");
+    };
+    assert_eq!(
+        (
+            started.remote_port,
+            started.listen_port,
+            snapshot_of(&harness, started.tunnel_id)
+                .definition
+                .target_port
+        ),
+        (ports.web, ports.web + 10_000, Some(ports.web))
+    );
+}
+
+#[tokio::test]
+async fn should_skip_a_port_below_1024_and_start_nothing_when_the_web_port_is_privileged() {
+    let listing = r#"{"version":1,"instances":[{"name":"links-a","project":"web-shop","path":"/w/a","worktree":false,"slot":1,"app_url":"http://links-a.localhost:80","ports":[{"var":"PORT","port":80,"kind":"web","url":"http://links-a.localhost:80"}]}]}"#;
+    let harness = start(Some(ok_script(listing)), "").await;
+
+    let outcome = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        (outcome.skipped, tunnel_ids(&harness), outcome.app_tunnel),
+        (
+            vec![engine::DevslotSkippedPort {
+                remote_port: 80,
+                reason: engine::DevslotSkipReason::PrivilegedPort
+            }],
+            Vec::new(),
+            None
+        )
+    );
+}
+
+#[tokio::test]
+async fn should_open_only_the_asked_instance_when_the_host_lists_several() {
+    let first_ports = up_ports().await;
+    let second_ports = up_ports().await;
+    let listing = listing_of(&[
+        instance_entry(INSTANCE, &first_ports),
+        instance_entry(OTHER_INSTANCE, &second_ports),
+    ]);
+    let harness = start(Some(ok_script(&listing)), "").await;
+
+    harness
+        .engine
+        .devslot_up(support::ALIAS, OTHER_INSTANCE)
+        .await
+        .unwrap();
+
+    let remote_ports: Vec<u16> = harness
+        .engine
+        .snapshot()
+        .tunnels
+        .iter()
+        .map(|tunnel| tunnel.definition.effective_target_port())
+        .collect();
+    assert_eq!(remote_ports, vec![second_ports.web]);
+}
+
+#[tokio::test]
+async fn should_flag_the_app_port_as_shared_when_another_instance_lists_it() {
+    let ports = up_ports().await;
+    let listing = listing_of(&[
+        instance_entry(INSTANCE, &ports),
+        instance_entry(OTHER_INSTANCE, &ports),
+    ]);
+    let harness = start(Some(ok_script(&listing)), "").await;
+
+    let outcome = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap();
+
+    assert!(outcome.is_app_port_shared);
+}
+
+#[tokio::test]
+async fn should_report_the_listing_failure_without_creating_anything_when_the_host_fails() {
+    let script = ScriptedCommand {
+        stdout: Vec::new(),
+        stderr: b"registry locked\n".to_vec(),
+        ending: CommandEnding::ExitStatus(2),
+    };
+    let harness = start(Some(script), "").await;
+
+    let error = harness
+        .engine
+        .devslot_up(support::ALIAS, INSTANCE)
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(
+            &error,
+            engine::EngineError::Devslot(DevslotError::Failed {
+                status: Some(2),
+                ..
+            })
+        ),
+        "{error:?}"
+    );
+    assert_eq!(tunnel_ids(&harness), Vec::new());
+}

@@ -17,15 +17,16 @@ use crate::endpoint::Endpoint;
 use crate::error::ClientError;
 use crate::protocol::{
     AdoptResult, AvailableOpenerDto, CheckTargetResult, CredentialAnswer, CredentialResponseParams,
-    DaemonPathsResult, DeleteTagResult, DevslotDiscoveryDto, DevslotResyncParams,
-    DevslotResyncResultDto, DevslotResyncTunnelDto, EventMessage, ForgetSecretsResult, Hello,
+    DaemonPathsResult, DeleteTagResult, DevslotDiscoveryDto, DevslotHostName, DevslotInstanceName,
+    DevslotLinkDto, DevslotResyncParams, DevslotResyncResultDto, DevslotResyncTunnelDto,
+    DevslotUpParams, DevslotUpResultDto, EventMessage, ForgetSecretsResult, Hello,
     HostKeyDecisionDto, HostKeyResponseParams, HostParams, HostsResult, ImportPreviewDto,
     ImportScriptParams, LogEntryDto, LogsResult, OpenTunnelParams, OpenTunnelResult, OpenerSpecDto,
     OpenersResult, PreviewSoundParams, ProcessParams, QuitParams, RememberDto, RenameTagResult,
     Request, RequestEnvelope, ResolvedHostDto, SettingsDto, SettingsUpdateParams, SnapshotDto,
     SoundEventDto, StandbySoundDto, TagParams, TagRenameParams, TargetHealthDto,
     TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelSpecDto,
-    UiClaimResult, X11HostParams, X11LaunchParams, X11ProbeDto, encode_line,
+    UiClaimParams, UiClaimResult, X11HostParams, X11LaunchParams, X11ProbeDto, encode_line,
 };
 use connection::{read_handshake_answer, run_reader};
 use pending::PendingCalls;
@@ -299,6 +300,32 @@ impl IpcClient {
         self.call(Request::DevslotResync(DevslotResyncParams {
             host: host.to_owned(),
             tunnels,
+        }))
+        .await
+    }
+
+    /// Starts the tunnels of the web ports of one devslot instance of a host,
+    /// and has the daemon open the application in the browser when `open` is
+    /// set.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. The daemon answers
+    /// `not_found` for an unknown alias, `devslot_instance_not_found` when
+    /// the host does not list the instance, and the errors of
+    /// [`discover_devslot`](Self::discover_devslot) when the host cannot give
+    /// a listing. A port that fails, or a browser that does not open, is
+    /// reported in the result.
+    pub async fn devslot_up(
+        &self,
+        host: DevslotHostName,
+        instance: DevslotInstanceName,
+        open: bool,
+    ) -> Result<DevslotUpResultDto, ClientError> {
+        self.call(Request::DevslotUp(DevslotUpParams {
+            host,
+            instance,
+            open,
         }))
         .await
     }
@@ -584,7 +611,22 @@ impl IpcClient {
     /// Fails when the call fails; see [`ClientError`]. A daemon older than
     /// this method answers `unknown_method`.
     pub async fn claim_ui(&self) -> Result<bool, ClientError> {
-        let claim: UiClaimResult = self.call(Request::UiClaim {}).await?;
+        self.claim_ui_with_link(None).await
+    }
+
+    /// Like [`claim_ui`](Self::claim_ui), for a UI started by a link: when
+    /// the claim is refused, the older UI receives `link` to ask the user
+    /// about.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the call fails; see [`ClientError`]. A daemon older than
+    /// this method answers `unknown_method`.
+    pub async fn claim_ui_with_link(
+        &self,
+        link: Option<DevslotLinkDto>,
+    ) -> Result<bool, ClientError> {
+        let claim: UiClaimResult = self.call(Request::UiClaim(UiClaimParams { link })).await?;
         Ok(claim.claimed)
     }
 

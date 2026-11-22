@@ -2,22 +2,24 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use engine::{
-    Engine, EngineError, HostConfigResolver, MAX_STANDBY_VOLUME, MIN_STANDBY_VOLUME, OpenPlan,
-    StoreError, TunnelId, X11Error, preview_script, preview_ssh_config,
+    BROWSER_OPENER_ID, DevslotUp, Engine, EngineError, HostConfigResolver, MAX_STANDBY_VOLUME,
+    MIN_STANDBY_VOLUME, OpenPlan, StoreError, TunnelId, X11Error, preview_script,
+    preview_ssh_config,
 };
 use ipc::protocol::{
-    AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, DevslotResyncParams,
-    ForgetSecretsResult, HostsResult, IpcError, LogsResult, OpenTunnelParams, OpenTunnelResult,
-    OpenersResult, PreviewSoundParams, ProcessParams, QuitParams, RenameTagResult, Request,
-    ResponsePayload, SettingsUpdateParams, TagParams, TagRenameParams, TunnelIdParams,
-    UiClaimResult, X11HostParams, X11LaunchParams,
+    AdoptResult, CheckTargetResult, DaemonPathsResult, DeleteTagResult, DevslotLinkDto,
+    DevslotResyncParams, DevslotUpParams, ForgetSecretsResult, HostsResult, IpcError, LogsResult,
+    OpenTunnelParams, OpenTunnelResult, OpenersResult, PreviewSoundParams, ProcessParams,
+    QuitParams, RenameTagResult, Request, ResponsePayload, SettingsUpdateParams, TagParams,
+    TagRenameParams, TunnelIdParams, UiClaimResult, X11HostParams, X11LaunchParams,
 };
 use ipc::{ConnectionId, ConnectionInfo, RequestHandler};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use super::devslot_mapping::{
-    devslot_error_to_ipc, discovery_to_payload, resync_to_dto, resync_tunnels_from_dto,
+    OpenOutcome, devslot_error_to_ipc, discovery_to_payload, resync_to_dto,
+    resync_tunnels_from_dto, up_to_payload,
 };
 use super::launch::Launcher;
 use super::mapping::{
@@ -125,12 +127,13 @@ impl DaemonHandler {
             Request::X11Probe(params) => self.probe_x11(&params).await,
             Request::X11StartServer(params) => self.start_x11_server(&params).await,
             Request::SecretsForget {} => Ok(self.forget_secrets().await),
-            Request::UiClaim {} => Ok(self.claim_ui(requester)),
+            Request::UiClaim(params) => Ok(self.claim_ui(requester, params.link)),
             Request::TagsRename(params) => self.rename_tag(&params).await,
             Request::TagsDelete(params) => self.delete_tag(&params).await,
             Request::DaemonPaths {} => self.daemon_paths(),
             Request::DevslotDiscover(params) => self.discover_devslot(&params.host).await,
             Request::DevslotResync(params) => self.resync_devslot(params).await,
+            Request::DevslotUp(params) => self.devslot_up(&params).await,
         }
     }
 
@@ -211,9 +214,13 @@ impl DaemonHandler {
         })
     }
 
-    fn claim_ui(&self, requester: Option<ConnectionId>) -> ResponsePayload {
+    fn claim_ui(
+        &self,
+        requester: Option<ConnectionId>,
+        link: Option<DevslotLinkDto>,
+    ) -> ResponsePayload {
         ResponsePayload::UiClaim(UiClaimResult {
-            claimed: self.ui.claim(requester),
+            claimed: self.ui.claim(requester, link),
         })
     }
 
@@ -261,6 +268,37 @@ impl DaemonHandler {
             .await
             .map_err(engine_error_to_ipc)?;
         Ok(ResponsePayload::DevslotResync(resync_to_dto(&resync)))
+    }
+
+    async fn devslot_up(&self, params: &DevslotUpParams) -> Result<ResponsePayload, IpcError> {
+        let host = params.host.as_str();
+        self.ensure_known_host(host).await?;
+        let up = self
+            .engine
+            .devslot_up(host, params.instance.as_str())
+            .await
+            .map_err(engine_error_to_ipc)?;
+        let opening = self.open_devslot_application(&up, params.open).await;
+        up_to_payload(&up, opening).map(ResponsePayload::DevslotUp)
+    }
+
+    async fn open_devslot_application(&self, up: &DevslotUp, is_requested: bool) -> OpenOutcome {
+        let Some(tunnel_id) = up.app_tunnel.filter(|_| is_requested) else {
+            return OpenOutcome::NotAttempted;
+        };
+        match self.open_in_browser(tunnel_id).await {
+            Ok(address) => OpenOutcome::Opened(address),
+            Err(error) => OpenOutcome::Failed(error.message),
+        }
+    }
+
+    async fn open_in_browser(&self, id: TunnelId) -> Result<String, IpcError> {
+        let plan = self
+            .engine
+            .open_plan(id, Some(BROWSER_OPENER_ID))
+            .await
+            .map_err(engine_error_to_ipc)?;
+        self.launch(&plan).await
     }
 
     async fn ensure_known_host(&self, host: &str) -> Result<(), IpcError> {
@@ -676,13 +714,14 @@ mod tests {
     use ipc::protocol::{
         AvailableOpenerDto, ErrorCode, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenerSourceDto,
         OpenerSpecDto, SettingsDto, SoundEventDto, StandbySoundDto, TunnelDto, TunnelKindDto,
-        TunnelSpecDto,
+        TunnelSpecDto, UiClaimParams,
     };
     use russh::keys::Algorithm;
     use ssh_config::{ConfigSources, SystemEnvironment};
     use tempfile::TempDir;
     use test_support::{
-        EchoServer, REMOTE_USER, TestUser, Workspace, generate_key, write_private_key,
+        CommandEnding, EchoServer, REMOTE_USER, ScriptedCommand, TestUser, Workspace, generate_key,
+        write_private_key,
     };
     use zeroize::Zeroizing;
 
@@ -737,9 +776,13 @@ mod tests {
     }
 
     async fn start_ssh_backend() -> SshBackend {
+        start_ssh_backend_answering(None).await
+    }
+
+    async fn start_ssh_backend_answering(script: Option<ScriptedCommand>) -> SshBackend {
         let echo = EchoServer::start().await;
         let key = generate_key(Algorithm::Ed25519);
-        let server = test_support::TestServer::builder()
+        let mut builder = test_support::TestServer::builder()
             .host_key(generate_key(Algorithm::Ed25519))
             .user(
                 REMOTE_USER,
@@ -747,9 +790,11 @@ mod tests {
                     authorized_keys: vec![key.public_key().clone()],
                     ..TestUser::default()
                 },
-            )
-            .start()
-            .await;
+            );
+        if let Some(script) = script {
+            builder = builder.answering_commands(script);
+        }
+        let server = builder.start().await;
         let workspace = Workspace::new();
         let key_path = write_private_key(workspace.path(), "id_ed25519", &key, None);
         let identity_line = format!("IdentityFile {}", key_path.display());
@@ -791,6 +836,21 @@ mod tests {
 
     fn fixture_with(launcher: Arc<FakeLauncher>, saved_state: &AppState) -> Fixture {
         build_fixture(launcher, saved_state, RecordingLauncher::succeeding(), None)
+    }
+
+    async fn devslot_fixture(listing: &str, program_launcher: Arc<RecordingLauncher>) -> Fixture {
+        let script = ScriptedCommand {
+            stdout: listing.as_bytes().to_vec(),
+            stderr: Vec::new(),
+            ending: CommandEnding::ExitStatus(0),
+        };
+        let backend = start_ssh_backend_answering(Some(script)).await;
+        build_fixture(
+            FakeLauncher::succeeding(),
+            &AppState::default(),
+            program_launcher,
+            Some(backend),
+        )
     }
 
     async fn ssh_fixture(program_launcher: Arc<RecordingLauncher>) -> Fixture {
@@ -1323,7 +1383,7 @@ mod tests {
 
         let response = fixture
             .handler
-            .dispatch(None, Request::UiClaim {})
+            .dispatch(None, Request::UiClaim(UiClaimParams::default()))
             .await
             .unwrap();
 
@@ -1331,6 +1391,180 @@ mod tests {
             response,
             ResponsePayload::UiClaim(UiClaimResult { claimed: true })
         );
+    }
+
+    const DEVSLOT_INSTANCE: &str = "web-shop-098a";
+
+    fn devslot_listing(web_port: u16) -> String {
+        format!(
+            r#"{{"version":1,"instances":[{{"name":"{DEVSLOT_INSTANCE}","project":"web-shop","path":"/w/a","worktree":false,"slot":1,"app_url":"http://{DEVSLOT_INSTANCE}.localhost:{web_port}","services_running":true,"ports":[{{"var":"PORT","port":{web_port},"kind":"web","url":"http://{DEVSLOT_INSTANCE}.localhost:{web_port}"}}]}}]}}"#
+        )
+    }
+
+    fn devslot_up_request(host: &str, instance: &str, is_open_requested: bool) -> Request {
+        Request::DevslotUp(DevslotUpParams {
+            host: ipc::protocol::DevslotHostName::parse(host).unwrap(),
+            instance: ipc::protocol::DevslotInstanceName::parse(instance).unwrap(),
+            open: is_open_requested,
+        })
+    }
+
+    async fn devslot_up_result(
+        fixture: &Fixture,
+        instance: &str,
+        is_open_requested: bool,
+    ) -> ipc::protocol::DevslotUpResultDto {
+        let response = fixture
+            .handler
+            .dispatch(
+                None,
+                devslot_up_request(test_support::ALIAS, instance, is_open_requested),
+            )
+            .await
+            .unwrap();
+        match response {
+            ResponsePayload::DevslotUp(result) => result,
+            other => panic!("expected a devslot.up result, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn should_start_the_web_port_and_open_the_browser_when_the_instance_is_asked() {
+        let web_port = free_port().await;
+        let fixture =
+            devslot_fixture(&devslot_listing(web_port), RecordingLauncher::succeeding()).await;
+
+        let result = devslot_up_result(&fixture, DEVSLOT_INSTANCE, true).await;
+
+        let opened_urls = fixture.program_launcher.opened_urls();
+        assert_eq!(
+            (
+                result
+                    .started
+                    .iter()
+                    .map(|port| port.remote_port)
+                    .collect::<Vec<_>>(),
+                result.opened.clone(),
+                result.open_error,
+                opened_urls.len(),
+                opened_urls[0].contains(&format!("{DEVSLOT_INSTANCE}.localhost:{web_port}"))
+            ),
+            (vec![web_port], Some(opened_urls[0].clone()), None, 1, true)
+        );
+    }
+
+    #[tokio::test]
+    async fn should_not_open_the_browser_when_opening_is_not_asked() {
+        let fixture = devslot_fixture(
+            &devslot_listing(free_port().await),
+            RecordingLauncher::succeeding(),
+        )
+        .await;
+
+        let result = devslot_up_result(&fixture, DEVSLOT_INSTANCE, false).await;
+
+        assert_eq!(
+            (
+                result.started.len(),
+                result.opened,
+                fixture.program_launcher.opened_urls()
+            ),
+            (1, None, Vec::<String>::new())
+        );
+    }
+
+    #[tokio::test]
+    async fn should_report_the_open_error_without_failing_when_the_browser_cannot_be_launched() {
+        let fixture = devslot_fixture(
+            &devslot_listing(free_port().await),
+            RecordingLauncher::failing(),
+        )
+        .await;
+
+        let result = devslot_up_result(&fixture, DEVSLOT_INSTANCE, true).await;
+
+        assert_eq!(
+            (
+                result.started.len(),
+                result.opened,
+                result.open_error.is_some()
+            ),
+            (1, None, true)
+        );
+    }
+
+    #[tokio::test]
+    async fn should_answer_not_found_when_the_host_alias_is_unknown() {
+        let fixture = fixture();
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                devslot_up_request("unknown-host", DEVSLOT_INSTANCE, true),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    async fn should_answer_instance_not_found_with_both_names_when_the_host_does_not_list_it() {
+        let fixture = devslot_fixture(
+            &devslot_listing(free_port().await),
+            RecordingLauncher::succeeding(),
+        )
+        .await;
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                devslot_up_request(test_support::ALIAS, "web-shop-zzzz", true),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            (error.code, error.data),
+            (
+                ErrorCode::DevslotInstanceNotFound,
+                Some(serde_json::json!({"host": test_support::ALIAS, "instance": "web-shop-zzzz"}))
+            )
+        );
+    }
+
+    #[test]
+    fn should_reject_the_request_when_the_instance_is_longer_than_255_characters() {
+        let line = format!(
+            r#"{{"id":1,"method":"devslot.up","params":{{"host":"vega","instance":"{}","open":true}}}}"#,
+            "a".repeat(256)
+        );
+
+        let rejection = ipc::protocol::RequestEnvelope::parse(line.as_bytes()).unwrap_err();
+
+        assert_eq!(rejection.error.code, ErrorCode::InvalidRequest);
+    }
+
+    #[tokio::test]
+    async fn should_answer_an_instance_that_is_not_listed_even_when_the_listing_is_empty() {
+        let fixture = devslot_fixture(
+            r#"{"version":1,"instances":[]}"#,
+            RecordingLauncher::succeeding(),
+        )
+        .await;
+
+        let error = fixture
+            .handler
+            .dispatch(
+                None,
+                devslot_up_request(test_support::ALIAS, DEVSLOT_INSTANCE, true),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::DevslotInstanceNotFound);
     }
 
     #[tokio::test]

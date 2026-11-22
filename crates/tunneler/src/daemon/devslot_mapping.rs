@@ -2,20 +2,35 @@
 //! the IPC protocol.
 
 use engine::{
-    DevslotDiscovery, DevslotError, DevslotInstance, DevslotPort, DevslotPortStatus, DevslotResync,
-    DevslotResyncTunnel, DevslotStaleAction, DevslotStaleReason, DevslotStaleTunnel,
-    DevslotWarning,
+    DevslotDiscovery, DevslotError, DevslotFailedPort, DevslotInstance, DevslotPort,
+    DevslotPortStatus, DevslotRemovedRoute, DevslotResync, DevslotResyncTunnel, DevslotSkipReason,
+    DevslotSkippedPort, DevslotStaleAction, DevslotStaleReason, DevslotStaleTunnel, DevslotUp,
+    DevslotUpPort, DevslotWarning,
 };
 use ipc::protocol::{
-    DevslotDiscoveryDto, DevslotInstanceDto, DevslotPortDto, DevslotPortStatusDto,
-    DevslotResyncResultDto, DevslotResyncTunnelDto, DevslotStaleActionDto, DevslotStaleDto,
-    DevslotStaleReasonDto, DevslotWarningDto, IpcError, MAX_LINE_BYTES, ResponsePayload,
-    encode_response,
+    DevslotDiscoveryDto, DevslotFailedPortDto, DevslotInstanceDto, DevslotPortDto,
+    DevslotPortStatusDto, DevslotRemovedRouteDto, DevslotResyncResultDto, DevslotResyncTunnelDto,
+    DevslotSkipReasonDto, DevslotSkippedPortDto, DevslotStaleActionDto, DevslotStaleDto,
+    DevslotStaleReasonDto, DevslotUpPortDto, DevslotUpResultDto, DevslotWarningDto, IpcError,
+    MAX_LINE_BYTES, ResponsePayload, encode_response,
 };
 
 use super::mapping::{definition_from_dto, definition_to_dto};
 
 const TOO_LARGE_REASON: &str = "the listing is too large to send to the window";
+const UP_TOO_LARGE_REASON: &str = "the result is too large to send";
+
+/// What happened when the daemon was asked to open the application of an
+/// instance in the browser.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum OpenOutcome {
+    /// Opening was not asked, or there was no application tunnel to open.
+    NotAttempted,
+    /// The browser was launched on this address.
+    Opened(String),
+    /// The browser could not be launched; this says why.
+    Failed(String),
+}
 
 /// Maps a discovery to its DTO, refusing one whose response line the client
 /// would reject for its size.
@@ -144,8 +159,99 @@ pub(crate) fn resync_to_dto(resync: &DevslotResync) -> DevslotResyncResultDto {
     }
 }
 
+/// Maps what opening an instance did to its DTO, refusing one whose response
+/// line the client would reject for its size.
+pub(crate) fn up_to_payload(
+    up: &DevslotUp,
+    opening: OpenOutcome,
+) -> Result<DevslotUpResultDto, IpcError> {
+    let dto = up_to_dto(up, opening);
+    let payload = ResponsePayload::DevslotUp(dto);
+    let line = encode_response(Some(u64::MAX), &Ok(payload.clone()))
+        .map_err(|error| IpcError::internal(error.to_string()))?;
+    if line.len() >= MAX_LINE_BYTES {
+        return Err(IpcError::devslot_invalid_output(
+            &up.host,
+            UP_TOO_LARGE_REASON,
+        ));
+    }
+    let ResponsePayload::DevslotUp(dto) = payload else {
+        return Err(IpcError::internal("the result payload changed shape"));
+    };
+    Ok(dto)
+}
+
+fn up_to_dto(up: &DevslotUp, opening: OpenOutcome) -> DevslotUpResultDto {
+    let (opened, open_error) = match opening {
+        OpenOutcome::NotAttempted => (None, None),
+        OpenOutcome::Opened(address) => (Some(address), None),
+        OpenOutcome::Failed(message) => (None, Some(message)),
+    };
+    DevslotUpResultDto {
+        host: up.host.clone(),
+        instance: up.instance.clone(),
+        started: up.started.iter().map(up_port_to_dto).collect(),
+        existing: up.existing.iter().map(up_port_to_dto).collect(),
+        skipped: up
+            .skipped
+            .iter()
+            .copied()
+            .map(skipped_port_to_dto)
+            .collect(),
+        failed: up.failed.iter().map(failed_port_to_dto).collect(),
+        removed: up
+            .removed
+            .iter()
+            .copied()
+            .map(removed_route_to_dto)
+            .collect(),
+        needs_review: u32::try_from(up.needs_review).unwrap_or(u32::MAX),
+        app_url: up.app_url.clone(),
+        app_port_shared: up.is_app_port_shared,
+        opened,
+        open_error,
+    }
+}
+
+fn up_port_to_dto(port: &DevslotUpPort) -> DevslotUpPortDto {
+    DevslotUpPortDto {
+        remote_port: port.remote_port,
+        listen_port: port.listen_port,
+        tunnel_id: port.tunnel_id.to_string(),
+    }
+}
+
+fn skipped_port_to_dto(port: DevslotSkippedPort) -> DevslotSkippedPortDto {
+    DevslotSkippedPortDto {
+        remote_port: port.remote_port,
+        reason: match port.reason {
+            DevslotSkipReason::LocalPortBusy => DevslotSkipReasonDto::LocalPortBusy,
+            DevslotSkipReason::NeedsReview => DevslotSkipReasonDto::NeedsReview,
+            DevslotSkipReason::PrivilegedPort => DevslotSkipReasonDto::PrivilegedPort,
+        },
+    }
+}
+
+fn failed_port_to_dto(port: &DevslotFailedPort) -> DevslotFailedPortDto {
+    DevslotFailedPortDto {
+        remote_port: port.remote_port,
+        message: port.message.clone(),
+    }
+}
+
+fn removed_route_to_dto(route: DevslotRemovedRoute) -> DevslotRemovedRouteDto {
+    DevslotRemovedRouteDto {
+        listen_port: route.listen_port,
+        remote_port: route.remote_port,
+        is_temporary: route.is_temporary,
+    }
+}
+
 pub(crate) fn devslot_error_to_ipc(error: &DevslotError) -> IpcError {
     match error {
+        DevslotError::InstanceNotFound { host, instance } => {
+            IpcError::devslot_instance_not_found(host, instance)
+        }
         DevslotError::NotFound { host, path } => IpcError::devslot_not_found(host, path),
         DevslotError::Failed {
             host,
@@ -349,6 +455,145 @@ mod tests {
                 ErrorCode::Internal,
                 ErrorCode::ConnectionFailed
             ]
+        );
+    }
+
+    fn up_with(removed: Vec<DevslotRemovedRoute>) -> DevslotUp {
+        DevslotUp {
+            host: "vega".to_owned(),
+            instance: "web-shop-098a".to_owned(),
+            started: vec![DevslotUpPort {
+                remote_port: 20050,
+                listen_port: 30050,
+                tunnel_id: TunnelId::generate(),
+            }],
+            existing: Vec::new(),
+            skipped: vec![
+                DevslotSkippedPort {
+                    remote_port: 20051,
+                    reason: DevslotSkipReason::LocalPortBusy,
+                },
+                DevslotSkippedPort {
+                    remote_port: 20052,
+                    reason: DevslotSkipReason::NeedsReview,
+                },
+                DevslotSkippedPort {
+                    remote_port: 80,
+                    reason: DevslotSkipReason::PrivilegedPort,
+                },
+            ],
+            failed: vec![DevslotFailedPort {
+                remote_port: 20053,
+                message: "boom".to_owned(),
+            }],
+            removed,
+            needs_review: 2,
+            app_tunnel: None,
+            app_url: Some("http://web-shop-098a.localhost:20050".to_owned()),
+            is_app_port_shared: true,
+        }
+    }
+
+    #[test]
+    fn should_map_every_part_of_the_result_when_opening_an_instance() {
+        let up = up_with(vec![DevslotRemovedRoute {
+            listen_port: 20999,
+            remote_port: 20998,
+            is_temporary: true,
+        }]);
+
+        let dto = up_to_payload(&up, OpenOutcome::NotAttempted).unwrap();
+
+        assert_eq!(
+            (
+                dto.started[0].tunnel_id.clone(),
+                dto.skipped
+                    .iter()
+                    .map(|skipped| skipped.reason)
+                    .collect::<Vec<_>>(),
+                dto.failed[0].message.clone(),
+                dto.removed,
+                dto.needs_review,
+                dto.app_port_shared
+            ),
+            (
+                up.started[0].tunnel_id.to_string(),
+                vec![
+                    DevslotSkipReasonDto::LocalPortBusy,
+                    DevslotSkipReasonDto::NeedsReview,
+                    DevslotSkipReasonDto::PrivilegedPort
+                ],
+                "boom".to_owned(),
+                vec![DevslotRemovedRouteDto {
+                    listen_port: 20999,
+                    remote_port: 20998,
+                    is_temporary: true
+                }],
+                2,
+                true
+            )
+        );
+    }
+
+    #[test]
+    fn should_carry_the_opened_address_when_the_browser_was_launched() {
+        let dto = up_to_payload(
+            &up_with(Vec::new()),
+            OpenOutcome::Opened("http://a.localhost:30050/".to_owned()),
+        )
+        .unwrap();
+
+        assert_eq!(
+            (dto.opened, dto.open_error),
+            (Some("http://a.localhost:30050/".to_owned()), None)
+        );
+    }
+
+    #[test]
+    fn should_carry_the_open_error_when_the_browser_could_not_be_launched() {
+        let dto = up_to_payload(
+            &up_with(Vec::new()),
+            OpenOutcome::Failed("no browser".to_owned()),
+        )
+        .unwrap();
+
+        assert_eq!(
+            (dto.opened, dto.open_error),
+            (None, Some("no browser".to_owned()))
+        );
+    }
+
+    #[test]
+    fn should_refuse_the_result_when_its_encoded_line_would_exceed_the_ipc_limit() {
+        let routes = vec![
+            DevslotRemovedRoute {
+                listen_port: 20999,
+                remote_port: 20999,
+                is_temporary: true,
+            };
+            30_000
+        ];
+
+        let error = up_to_payload(&up_with(routes), OpenOutcome::NotAttempted).unwrap_err();
+
+        assert_eq!(error.code, ErrorCode::DevslotInvalidOutput);
+    }
+
+    #[test]
+    fn should_map_an_instance_that_is_not_listed_to_its_own_code_with_both_names() {
+        let error = DevslotError::InstanceNotFound {
+            host: "vega".to_owned(),
+            instance: "web-shop-098a".to_owned(),
+        };
+
+        let ipc_error = devslot_error_to_ipc(&error);
+
+        assert_eq!(
+            (ipc_error.code, ipc_error.data),
+            (
+                ErrorCode::DevslotInstanceNotFound,
+                Some(serde_json::json!({"host": "vega", "instance": "web-shop-098a"}))
+            )
         );
     }
 

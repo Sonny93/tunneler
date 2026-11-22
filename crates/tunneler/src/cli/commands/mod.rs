@@ -3,6 +3,7 @@
 mod check;
 mod daemon;
 mod desktop_entry;
+mod devslot;
 mod down;
 mod list;
 mod open;
@@ -14,6 +15,7 @@ mod up;
 pub(super) use check::check;
 pub(super) use daemon::{daemon, show_or_run_daemon};
 pub(super) use desktop_entry::desktop_entry;
+pub(super) use devslot::devslot;
 pub(super) use down::down;
 pub(super) use list::list;
 pub(super) use open::open;

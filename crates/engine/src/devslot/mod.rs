@@ -17,6 +17,8 @@ mod parse;
 mod project_tag;
 mod resync_plan;
 mod sanitize;
+mod up_outcome;
+mod up_plan;
 
 pub use analysis::{DevslotStaleAction, DevslotStaleReason, DevslotStaleTunnel};
 pub(crate) use analysis::{KnownTunnel, assign_port_statuses, find_stale_tunnels};
@@ -30,3 +32,10 @@ pub use parse::{MAX_DEVSLOT_INSTANCES, MAX_DEVSLOT_PORTS, MAX_DEVSLOT_PORTS_PER_
 pub use project_tag::devslot_project_tag;
 pub(crate) use resync_plan::plan_resync;
 pub(crate) use sanitize::{MAX_PATH_BYTES, sanitize_stderr, sanitize_text};
+pub use up_outcome::{
+    DevslotFailedPort, DevslotRemovedRoute, DevslotSkipReason, DevslotSkippedPort, DevslotUp,
+    DevslotUpPort,
+};
+pub(crate) use up_plan::{
+    DevslotUpPlan, PlannedTunnel, UpPlanInput, UpTunnelKind, plan_devslot_up,
+};

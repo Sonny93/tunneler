@@ -115,7 +115,7 @@ mod tests {
 
     use super::*;
     use crate::protocol::error::ErrorCode;
-    use crate::protocol::{TrayChangedEvent, TrayStatusDto};
+    use crate::protocol::{ShowRequestedEvent, TrayChangedEvent, TrayStatusDto};
 
     #[test]
     fn should_encode_a_success_with_its_result() {
@@ -193,7 +193,9 @@ mod tests {
 
         assert_eq!(
             frame,
-            ServerFrame::Event(Some(EventMessage::ShowRequested {}))
+            ServerFrame::Event(Some(EventMessage::ShowRequested(
+                ShowRequestedEvent::default()
+            )))
         );
     }
 

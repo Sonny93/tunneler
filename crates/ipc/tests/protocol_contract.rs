@@ -5,24 +5,27 @@ use std::collections::BTreeMap;
 use ipc::protocol::{
     AdoptResult, AvailableOpenerDto, CheckTargetResult, ClientKind, ConfigInvalidEvent,
     CredentialAnswer, CredentialRequestDto, CredentialRequestEvent, CredentialResponseParams,
-    DaemonPathsResult, DefaultOpenerDto, DeleteTagResult, DevslotDiscoveryDto, DevslotInstanceDto,
-    DevslotOriginDto, DevslotPortDto, DevslotPortStatusDto, DevslotResyncParams,
-    DevslotResyncResultDto, DevslotResyncTunnelDto, DevslotStaleActionDto, DevslotStaleDto,
-    DevslotStalePolicyDto, DevslotStaleReasonDto, DevslotWarningDto, ErrorCode, EventMessage,
-    ExternalForwardDto, ExternalProcessDto, ExternalsChangedEvent, FailureReasonDto,
-    ForgetSecretsResult, Hello, HostKeyAlertReasonDto, HostKeyDecisionDto, HostKeyRequestEvent,
-    HostKeyResponseParams, HostOptionDto, HostParams, HostsResult, ImportCandidateDto,
-    ImportPreviewDto, ImportScriptParams, ImportWarningDto, IpcError, LogEntryDto, LogLevelDto,
-    MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES, MetricsDto, OpenDefaultDto, OpenHostDto,
-    OpenOptionsDto, OpenSchemeDto, OpenTunnelParams, OpenTunnelResult, OpenerSourceDto,
-    OpenerSpecDto, OpenersResult, PROTOCOL_VERSION, PortOwnerDto, ProcessParams, PromptDto,
-    PromptResolvedEvent, QuitParams, RememberDto, RenameTagResult, Request, RequestEnvelope,
-    ResolvedHostDto, ResponsePayload, Secret, ServerFrame, SettingsDto, SettingsUpdateParams,
-    SnapshotDto, TagParams, TagRenameParams, TargetHealthDto, TemporaryTunnelSpecDto,
-    TrayChangedEvent, TrayStatusDto, TunnelChangedEvent, TunnelDefinitionDto, TunnelDto,
-    TunnelIdParams, TunnelKindDto, TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto,
-    TunnelStateDto, UiClaimResult, X11AnchorDto, X11ChangedEvent, X11HostParams, X11LaunchParams,
-    X11LauncherDto, X11ProbeDto, X11ServerStartDto, X11StateDto, encode_event, encode_response,
+    DaemonPathsResult, DefaultOpenerDto, DeleteTagResult, DevslotDiscoveryDto,
+    DevslotFailedPortDto, DevslotHostName, DevslotInstanceDto, DevslotInstanceName, DevslotLinkDto,
+    DevslotOriginDto, DevslotPortDto, DevslotPortStatusDto, DevslotRemovedRouteDto,
+    DevslotResyncParams, DevslotResyncResultDto, DevslotResyncTunnelDto, DevslotSkipReasonDto,
+    DevslotSkippedPortDto, DevslotStaleActionDto, DevslotStaleDto, DevslotStalePolicyDto,
+    DevslotStaleReasonDto, DevslotUpParams, DevslotUpPortDto, DevslotUpResultDto,
+    DevslotWarningDto, ErrorCode, EventMessage, ExternalForwardDto, ExternalProcessDto,
+    ExternalsChangedEvent, FailureReasonDto, ForgetSecretsResult, Hello, HostKeyAlertReasonDto,
+    HostKeyDecisionDto, HostKeyRequestEvent, HostKeyResponseParams, HostOptionDto, HostParams,
+    HostsResult, ImportCandidateDto, ImportPreviewDto, ImportScriptParams, ImportWarningDto,
+    IpcError, LogEntryDto, LogLevelDto, MAX_IMPORT_SCRIPT_BYTES, MAX_LINE_BYTES, METHOD_NAMES,
+    MetricsDto, OpenDefaultDto, OpenHostDto, OpenOptionsDto, OpenSchemeDto, OpenTunnelParams,
+    OpenTunnelResult, OpenerSourceDto, OpenerSpecDto, OpenersResult, PROTOCOL_VERSION,
+    PortOwnerDto, ProcessParams, PromptDto, PromptResolvedEvent, QuitParams, RememberDto,
+    RenameTagResult, Request, RequestEnvelope, ResolvedHostDto, ResponsePayload, Secret,
+    ServerFrame, SettingsDto, SettingsUpdateParams, ShowRequestedEvent, SnapshotDto, TagParams,
+    TagRenameParams, TargetHealthDto, TemporaryTunnelSpecDto, TrayChangedEvent, TrayStatusDto,
+    TunnelChangedEvent, TunnelDefinitionDto, TunnelDto, TunnelIdParams, TunnelKindDto,
+    TunnelLogEvent, TunnelMetricsEvent, TunnelSpecDto, TunnelStateDto, UiClaimParams,
+    UiClaimResult, X11AnchorDto, X11ChangedEvent, X11HostParams, X11LaunchParams, X11LauncherDto,
+    X11ProbeDto, X11ServerStartDto, X11StateDto, encode_event, encode_response,
 };
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
@@ -207,6 +210,74 @@ fn devslot_resync() -> DevslotResyncParams {
     }
 }
 
+fn devslot_link() -> DevslotLinkDto {
+    DevslotLinkDto::DevslotUp {
+        host: host_name(),
+        instance: instance_name(),
+    }
+}
+
+fn host_name() -> DevslotHostName {
+    DevslotHostName::parse("vega").unwrap()
+}
+
+fn instance_name() -> DevslotInstanceName {
+    DevslotInstanceName::parse("web-shop-098a").unwrap()
+}
+
+fn devslot_up_params() -> DevslotUpParams {
+    DevslotUpParams {
+        host: host_name(),
+        instance: instance_name(),
+        open: true,
+    }
+}
+
+fn up_port(remote_port: u16, listen_port: u16) -> DevslotUpPortDto {
+    DevslotUpPortDto {
+        remote_port,
+        listen_port,
+        tunnel_id: TUNNEL_ID.to_owned(),
+    }
+}
+
+fn devslot_up_result() -> DevslotUpResultDto {
+    DevslotUpResultDto {
+        host: "vega".to_owned(),
+        instance: "web-shop-098a".to_owned(),
+        started: vec![up_port(20050, 30050)],
+        existing: vec![up_port(20051, 20051)],
+        skipped: vec![
+            DevslotSkippedPortDto {
+                remote_port: 20052,
+                reason: DevslotSkipReasonDto::LocalPortBusy,
+            },
+            DevslotSkippedPortDto {
+                remote_port: 20053,
+                reason: DevslotSkipReasonDto::NeedsReview,
+            },
+            DevslotSkippedPortDto {
+                remote_port: 80,
+                reason: DevslotSkipReasonDto::PrivilegedPort,
+            },
+        ],
+        failed: vec![DevslotFailedPortDto {
+            remote_port: 20054,
+            message: "the tunnel failed to start".to_owned(),
+        }],
+        removed: vec![DevslotRemovedRouteDto {
+            listen_port: 20999,
+            remote_port: 20999,
+            is_temporary: true,
+        }],
+        needs_review: 2,
+        app_url: Some("http://web-shop-098a.localhost:20050".to_owned()),
+        app_port_shared: true,
+        opened: Some("http://web-shop-098a.localhost:30050/".to_owned()),
+        open_error: None,
+    }
+}
+
 fn port_owner() -> PortOwnerDto {
     PortOwnerDto {
         pid: 4242,
@@ -336,7 +407,9 @@ fn every_request() -> Vec<Request> {
         Request::X11Probe(x11_host()),
         Request::X11StartServer(x11_host()),
         Request::SecretsForget {},
-        Request::UiClaim {},
+        Request::UiClaim(UiClaimParams {
+            link: Some(devslot_link()),
+        }),
         Request::TagsRename(TagRenameParams {
             from: "dev".to_owned(),
             to: "staging".to_owned(),
@@ -349,6 +422,7 @@ fn every_request() -> Vec<Request> {
             host: "vega".to_owned(),
         }),
         Request::DevslotResync(devslot_resync()),
+        Request::DevslotUp(devslot_up_params()),
     ]
 }
 
@@ -420,7 +494,10 @@ fn every_event() -> Vec<EventMessage> {
         EventMessage::TrayChanged(TrayChangedEvent {
             status: TrayStatusDto::MissingHost,
         }),
-        EventMessage::ShowRequested {},
+        EventMessage::ShowRequested(ShowRequestedEvent::default()),
+        EventMessage::ShowRequested(ShowRequestedEvent {
+            link: Some(devslot_link()),
+        }),
         EventMessage::PromptResolved(PromptResolvedEvent {
             prompt_id: "p1".to_owned(),
         }),
@@ -485,7 +562,7 @@ fn should_serialize_hello_as_documented() {
 
     assert_eq!(
         serde_json::to_string(&envelope).unwrap(),
-        r#"{"id":1,"method":"hello","params":{"protocolVersion":5,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
+        r#"{"id":1,"method":"hello","params":{"protocolVersion":6,"clientKind":"cli","clientVersion":"0.1.0","subscribeEvents":false,"canPrompt":false}}"#
     );
 }
 
@@ -1202,8 +1279,18 @@ fn should_serialize_a_forget_secrets_response_as_documented() {
 #[test]
 fn should_serialize_the_ui_claim_request_as_documented() {
     assert_eq!(
-        to_json(&Request::UiClaim {}),
+        to_json(&Request::UiClaim(UiClaimParams::default())),
         json!({"method":"ui.claim","params":{}})
+    );
+}
+
+#[test]
+fn should_serialize_the_ui_claim_request_with_its_link_as_documented() {
+    assert_eq!(
+        to_json(&Request::UiClaim(UiClaimParams {
+            link: Some(devslot_link())
+        })),
+        json!({"method":"ui.claim","params":{"link":{"kind":"devslotUp","host":"vega","instance":"web-shop-098a"}}})
     );
 }
 
@@ -1211,7 +1298,62 @@ fn should_serialize_the_ui_claim_request_as_documented() {
 fn should_accept_ui_claim_without_params() {
     let envelope = RequestEnvelope::parse(br#"{"id":5,"method":"ui.claim"}"#).unwrap();
 
-    assert_eq!(envelope.request, Request::UiClaim {});
+    assert_eq!(envelope.request, Request::UiClaim(UiClaimParams::default()));
+}
+
+#[test]
+fn should_accept_ui_claim_with_null_params() {
+    let envelope =
+        RequestEnvelope::parse(br#"{"id":5,"method":"ui.claim","params":null}"#).unwrap();
+
+    assert_eq!(envelope.request, Request::UiClaim(UiClaimParams::default()));
+}
+
+#[test]
+fn should_accept_ui_claim_with_empty_params() {
+    let envelope = RequestEnvelope::parse(br#"{"id":5,"method":"ui.claim","params":{}}"#).unwrap();
+
+    assert_eq!(envelope.request, Request::UiClaim(UiClaimParams::default()));
+}
+
+#[test]
+fn should_accept_ui_claim_with_an_invalid_link_marker() {
+    let envelope = RequestEnvelope::parse(
+        br#"{"id":5,"method":"ui.claim","params":{"link":{"kind":"invalid"}}}"#,
+    )
+    .unwrap();
+
+    assert_eq!(
+        envelope.request,
+        Request::UiClaim(UiClaimParams {
+            link: Some(DevslotLinkDto::Invalid)
+        })
+    );
+}
+
+#[test]
+fn should_reject_ui_claim_when_the_instance_of_the_link_is_out_of_bounds() {
+    let line = format!(
+        r#"{{"id":5,"method":"ui.claim","params":{{"link":{{"kind":"devslotUp","host":"vega","instance":"{}"}}}}}}"#,
+        "a".repeat(256)
+    );
+
+    let rejection = RequestEnvelope::parse(line.as_bytes()).unwrap_err();
+
+    assert_eq!(
+        (rejection.id, rejection.error.code),
+        (Some(5), ErrorCode::InvalidRequest)
+    );
+}
+
+#[test]
+fn should_reject_ui_claim_when_the_host_of_the_link_starts_with_a_dash() {
+    let rejection = RequestEnvelope::parse(
+        br#"{"id":5,"method":"ui.claim","params":{"link":{"kind":"devslotUp","host":"-vega","instance":"web-shop-098a"}}}"#,
+    )
+    .unwrap_err();
+
+    assert_eq!(rejection.error.code, ErrorCode::InvalidRequest);
 }
 
 #[test]
@@ -1433,8 +1575,45 @@ fn should_serialize_a_tray_changed_event_as_documented() {
 #[test]
 fn should_serialize_a_show_requested_event_with_an_empty_data_object() {
     assert_eq!(
-        encode_event(&EventMessage::ShowRequested {}).unwrap(),
+        encode_event(&EventMessage::ShowRequested(ShowRequestedEvent::default())).unwrap(),
         "{\"event\":\"show.requested\",\"data\":{}}\n"
+    );
+}
+
+#[test]
+fn should_serialize_a_show_requested_event_with_its_link() {
+    let event = EventMessage::ShowRequested(ShowRequestedEvent {
+        link: Some(devslot_link()),
+    });
+
+    assert_eq!(
+        encode_event(&event).unwrap(),
+        "{\"event\":\"show.requested\",\"data\":{\"link\":{\"kind\":\"devslotUp\",\"host\":\"vega\",\"instance\":\"web-shop-098a\"}}}\n"
+    );
+}
+
+#[test]
+fn should_serialize_a_show_requested_event_with_an_invalid_link_as_a_bare_kind() {
+    let event = EventMessage::ShowRequested(ShowRequestedEvent {
+        link: Some(DevslotLinkDto::Invalid),
+    });
+
+    assert_eq!(
+        encode_event(&event).unwrap(),
+        "{\"event\":\"show.requested\",\"data\":{\"link\":{\"kind\":\"invalid\"}}}\n"
+    );
+}
+
+#[test]
+fn should_not_read_a_show_requested_event_whose_link_is_out_of_bounds() {
+    let line = format!(
+        r#"{{"event":"show.requested","data":{{"link":{{"kind":"devslotUp","host":"vega","instance":"{}"}}}}}}"#,
+        "a".repeat(256)
+    );
+
+    assert_eq!(
+        ServerFrame::parse(line.as_bytes()).unwrap(),
+        ServerFrame::Event(None)
     );
 }
 
@@ -1459,7 +1638,7 @@ fn should_serialize_a_protocol_mismatch_with_both_versions() {
     assert_eq!(
         line,
         concat!(
-            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 5, the client protocol 9","data":{"client":9,"daemon":5}}}"#,
+            r#"{"id":1,"error":{"code":"protocol_mismatch","message":"the daemon speaks protocol 6, the client protocol 9","data":{"client":9,"daemon":6}}}"#,
             "\n"
         )
     );
@@ -1942,8 +2121,178 @@ fn should_serialize_the_new_error_codes_as_documented() {
 }
 
 #[test]
-fn should_list_forty_three_methods() {
-    assert_eq!(METHOD_NAMES.len(), 43);
+fn should_list_forty_four_methods() {
+    assert_eq!(METHOD_NAMES.len(), 44);
+}
+
+#[test]
+fn should_speak_protocol_version_six() {
+    assert_eq!(PROTOCOL_VERSION, 6);
+}
+
+#[test]
+fn should_serialize_devslot_up_as_documented() {
+    let envelope = RequestEnvelope {
+        id: 7,
+        request: Request::DevslotUp(devslot_up_params()),
+    };
+
+    assert_eq!(
+        serde_json::to_string(&envelope).unwrap(),
+        r#"{"id":7,"method":"devslot.up","params":{"host":"vega","instance":"web-shop-098a","open":true}}"#
+    );
+}
+
+#[test]
+fn should_reject_devslot_up_when_the_instance_is_out_of_bounds() {
+    let line = format!(
+        r#"{{"id":7,"method":"devslot.up","params":{{"host":"vega","instance":"{}","open":false}}}}"#,
+        "a".repeat(256)
+    );
+
+    let rejection = RequestEnvelope::parse(line.as_bytes()).unwrap_err();
+
+    assert_eq!(
+        (rejection.id, rejection.error.code),
+        (Some(7), ErrorCode::InvalidRequest)
+    );
+}
+
+#[test]
+fn should_reject_devslot_up_when_the_host_is_out_of_bounds() {
+    let line = format!(
+        r#"{{"id":7,"method":"devslot.up","params":{{"host":"{}","instance":"web-shop-098a","open":false}}}}"#,
+        "a".repeat(65)
+    );
+
+    let rejection = RequestEnvelope::parse(line.as_bytes()).unwrap_err();
+
+    assert_eq!(rejection.error.code, ErrorCode::InvalidRequest);
+}
+
+#[test]
+fn should_reject_devslot_up_when_a_name_starts_with_a_dot() {
+    let rejection = RequestEnvelope::parse(
+        br#"{"id":7,"method":"devslot.up","params":{"host":"vega","instance":".hidden","open":false}}"#,
+    )
+    .unwrap_err();
+
+    assert_eq!(rejection.error.code, ErrorCode::InvalidRequest);
+}
+
+#[test]
+fn should_accept_devslot_up_when_the_names_are_at_the_limit() {
+    let line = format!(
+        r#"{{"id":7,"method":"devslot.up","params":{{"host":"{}","instance":"{}","open":false}}}}"#,
+        "h".repeat(64),
+        "i".repeat(255)
+    );
+
+    assert!(RequestEnvelope::parse(line.as_bytes()).is_ok());
+}
+
+#[test]
+fn should_reject_devslot_up_without_the_open_flag() {
+    let rejection = RequestEnvelope::parse(
+        br#"{"id":7,"method":"devslot.up","params":{"host":"vega","instance":"web-shop-098a"}}"#,
+    )
+    .unwrap_err();
+
+    assert_eq!(rejection.error.code, ErrorCode::InvalidRequest);
+}
+
+#[test]
+fn should_serialize_a_devslot_up_result_as_documented() {
+    assert_eq!(
+        to_json(&devslot_up_result()),
+        json!({
+            "host": "vega",
+            "instance": "web-shop-098a",
+            "started": [{"remotePort": 20050, "listenPort": 30050, "tunnelId": TUNNEL_ID}],
+            "existing": [{"remotePort": 20051, "listenPort": 20051, "tunnelId": TUNNEL_ID}],
+            "skipped": [
+                {"remotePort": 20052, "reason": "localPortBusy"},
+                {"remotePort": 20053, "reason": "needsReview"},
+                {"remotePort": 80, "reason": "privilegedPort"}
+            ],
+            "failed": [{"remotePort": 20054, "message": "the tunnel failed to start"}],
+            "removed": [{"listenPort": 20999, "remotePort": 20999, "isTemporary": true}],
+            "needsReview": 2,
+            "appUrl": "http://web-shop-098a.localhost:20050",
+            "appPortShared": true,
+            "opened": "http://web-shop-098a.localhost:30050/"
+        })
+    );
+}
+
+#[test]
+fn should_omit_the_optional_keys_of_a_devslot_up_result_when_they_are_absent() {
+    let result = DevslotUpResultDto {
+        app_url: None,
+        opened: None,
+        open_error: None,
+        ..devslot_up_result()
+    };
+
+    let value = to_json(&result);
+
+    assert_eq!(
+        (
+            value.get("appUrl"),
+            value.get("opened"),
+            value.get("openError")
+        ),
+        (None, None, None)
+    );
+}
+
+#[test]
+fn should_serialize_the_open_error_of_a_devslot_up_result() {
+    let result = DevslotUpResultDto {
+        opened: None,
+        open_error: Some("no browser".to_owned()),
+        ..devslot_up_result()
+    };
+
+    assert_eq!(to_json(&result)["openError"], json!("no browser"));
+}
+
+#[test]
+fn should_answer_a_devslot_up_result_as_a_bare_result() {
+    let line = encode_response(
+        Some(4),
+        &Ok(ResponsePayload::DevslotUp(devslot_up_result())),
+    )
+    .unwrap();
+
+    let value: Value = serde_json::from_str(line.trim_end()).unwrap();
+
+    assert_eq!(
+        (value["id"].clone(), value["result"]["instance"].clone()),
+        (json!(4), json!("web-shop-098a"))
+    );
+}
+
+#[test]
+fn should_round_trip_a_devslot_up_result() {
+    let result = devslot_up_result();
+
+    let decoded: DevslotUpResultDto = serde_json::from_value(to_json(&result)).unwrap();
+
+    assert_eq!(decoded, result);
+}
+
+#[test]
+fn should_serialize_the_devslot_instance_not_found_error_with_its_data() {
+    let error = IpcError::devslot_instance_not_found("vega", "web-shop-098a");
+
+    assert_eq!(
+        (error.code.as_str(), error.data.unwrap()),
+        (
+            "devslot_instance_not_found",
+            json!({"host": "vega", "instance": "web-shop-098a"})
+        )
+    );
 }
 
 #[test]
