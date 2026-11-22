@@ -28,7 +28,7 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 - Les ports tenus par d'autres programmes apparaissent comme des conflits, avec le programme et son pid.
 
 ### Interface
-- Icône dans la zone de notification dont la forme et l'infobulle disent l'état global, avec un menu pour activer les tags.
+- Icône dans la zone de notification : le logo de Tunneler, coloré selon l'état global, avec une infobulle qui le résume et un menu pour activer les tags.
 - Fenêtre à la demande : le processus s'arrête à la fermeture de la fenêtre, les tunnels continuent dans le daemon.
 - Liste de tunnels groupée par hôte, avec tags, sélection multiple, menus contextuels et palette de commandes (Ctrl+K).
 - Panneau de détails avec journaux et métriques en direct, import depuis `ssh_config` et depuis des scripts `ssh -L` collés. Les tiroirs glissent à l'ouverture et à la fermeture.

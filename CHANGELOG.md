@@ -14,6 +14,7 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ### Changed
 
+- The tray icon is now the Tunneler logo, its arch coloured by the global state (grey when idle, green when healthy, amber when degraded, red on error), instead of a different shape per state.
 - The devslot import tab now suggests a free local port when the port of an instance is already the listening port of another tunnel, even a stopped one, as it already did for a port used by another program.
 - `tunneler desktop-entry install` registers the `tunneler://` link scheme in the menu entry it writes, and asks the desktop to refresh its database when `update-desktop-database` is available. An existing entry gets the scheme the next time the daemon starts.
 

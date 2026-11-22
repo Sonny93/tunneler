@@ -28,7 +28,7 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 - Ports held by other programs are shown as conflicts, with the program and its pid.
 
 ### Interface
-- Tray icon whose shape and tooltip show the global state, with a menu to toggle tags.
+- Tray icon: the Tunneler logo, coloured by the global state, with a tooltip that sums it up and a menu to toggle tags.
 - On-demand window: the process exits when the window closes, the tunnels keep running in the daemon.
 - Tunnel list grouped by host, with tags, multi-selection, context menus and a command palette (Ctrl+K).
 - Detail drawer with live logs and metrics, an import from `ssh_config` and from pasted `ssh -L` scripts. The drawers slide in and out.

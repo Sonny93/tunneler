@@ -1,23 +1,36 @@
-//! The tray icons, drawn procedurally: one distinct shape per status, so that
-//! the status never relies on colour alone, with a dark outline that reads on
-//! light and dark panels.
+//! The tray icons, drawn procedurally: the Tunneler logo (a dark rounded
+//! square holding an arch with a dark opening), whose arch colour carries the
+//! global status. The status is also text in the tooltip and the menu, so the
+//! colour is never the only carrier.
 
 use super::view::GlobalStatus;
 
 const ICON_SIZE: u32 = 32;
 const SUBSAMPLES_PER_AXIS: u32 = 4;
-const OUTLINE_WIDTH: f32 = 1.5;
 const CENTER: f32 = 16.0;
-const RING_RADIUS: f32 = 11.0;
-const RING_HALF_THICKNESS: f32 = 4.0;
-const DISC_RADIUS: f32 = 13.5;
-const OUTLINE_COLOR: [u8; 3] = [30, 30, 30];
+const BACKGROUND_CORNER_RADIUS: f32 = 7.0;
+const ARCH_BOTTOM: f32 = 26.0;
+const BACKGROUND_COLOR: [u8; 3] = [31, 41, 55];
+const OPENING_COLOR: [u8; 3] = [15, 23, 42];
 const IDLE_COLOR: [u8; 3] = [158, 158, 158];
 const HEALTHY_COLOR: [u8; 3] = [46, 160, 67];
 const DEGRADED_COLOR: [u8; 3] = [245, 166, 35];
 const ERROR_COLOR: [u8; 3] = [220, 53, 69];
-const TRIANGLE: [(f32, f32); 3] = [(16.0, 2.5), (29.5, 27.5), (2.5, 27.5)];
-const DIAMOND: [(f32, f32); 4] = [(16.0, 2.0), (30.0, 16.0), (16.0, 30.0), (2.0, 16.0)];
+const ARCH: ArchShape = ArchShape {
+    radius: 10.0,
+    circle_center_y: 15.0,
+};
+const OPENING: ArchShape = ArchShape {
+    radius: 5.0,
+    circle_center_y: 15.5,
+};
+
+/// A half circle on top of a box that stops at [`ARCH_BOTTOM`].
+#[derive(Clone, Copy)]
+struct ArchShape {
+    radius: f32,
+    circle_center_y: f32,
+}
 
 /// A square RGBA picture, row by row.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,47 +43,25 @@ pub(crate) struct IconImage {
     pub(crate) height: u32,
 }
 
-/// Where a sample lies relative to the shape.
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum Sample {
-    Outside,
-    Outline,
-    Fill,
+fn distance_to_rounded_square(x: f32, y: f32) -> f32 {
+    let inner_half_size = CENTER - BACKGROUND_CORNER_RADIUS;
+    let offset_x = (x - CENTER).abs() - inner_half_size;
+    let offset_y = (y - CENTER).abs() - inner_half_size;
+    offset_x.max(0.0).hypot(offset_y.max(0.0)) + offset_x.max(offset_y).min(0.0)
+        - BACKGROUND_CORNER_RADIUS
 }
 
-fn distance_to_circle(x: f32, y: f32, radius: f32) -> f32 {
-    (x - CENTER).hypot(y - CENTER) - radius
-}
-
-fn distance_to_ring(x: f32, y: f32) -> f32 {
-    (distance_to_circle(x, y, RING_RADIUS)).abs() - RING_HALF_THICKNESS
-}
-
-/// The largest signed distance to the lines of a convex polygon whose
-/// vertices are in the orientation of [`TRIANGLE`] and [`DIAMOND`].
-fn distance_to_convex_polygon(x: f32, y: f32, vertices: &[(f32, f32)]) -> f32 {
-    let successors = vertices.iter().cycle().skip(1);
-    vertices
-        .iter()
-        .zip(successors)
-        .map(|(start, end)| {
-            let (edge_x, edge_y) = (end.0 - start.0, end.1 - start.1);
-            let length = edge_x.hypot(edge_y);
-            ((x - start.0) * edge_y - (y - start.1) * edge_x) / length
-        })
-        .fold(f32::NEG_INFINITY, f32::max)
-}
-
-fn distance_to_shape(status: GlobalStatus, x: f32, y: f32) -> f32 {
-    match status {
-        GlobalStatus::Idle => distance_to_ring(x, y),
-        GlobalStatus::Healthy => distance_to_circle(x, y, DISC_RADIUS),
-        GlobalStatus::Degraded => distance_to_convex_polygon(x, y, &TRIANGLE),
-        GlobalStatus::Error => distance_to_convex_polygon(x, y, &DIAMOND),
+fn distance_to_arch(shape: ArchShape, x: f32, y: f32) -> f32 {
+    let offset_x = (x - CENTER).abs();
+    if y < shape.circle_center_y {
+        return offset_x.hypot(y - shape.circle_center_y) - shape.radius;
     }
+    let outside_x = offset_x - shape.radius;
+    let outside_y = y - ARCH_BOTTOM;
+    outside_x.max(0.0).hypot(outside_y.max(0.0)) + outside_x.max(outside_y).min(0.0)
 }
 
-fn fill_color(status: GlobalStatus) -> [u8; 3] {
+fn arch_color(status: GlobalStatus) -> [u8; 3] {
     match status {
         GlobalStatus::Idle => IDLE_COLOR,
         GlobalStatus::Healthy => HEALTHY_COLOR,
@@ -79,15 +70,17 @@ fn fill_color(status: GlobalStatus) -> [u8; 3] {
     }
 }
 
-fn classify(status: GlobalStatus, x: f32, y: f32) -> Sample {
-    let distance = distance_to_shape(status, x, y);
-    if distance > 0.0 {
-        Sample::Outside
-    } else if distance > -OUTLINE_WIDTH {
-        Sample::Outline
-    } else {
-        Sample::Fill
+fn sample_color(status: GlobalStatus, x: f32, y: f32) -> Option<[u8; 3]> {
+    if distance_to_arch(OPENING, x, y) <= 0.0 {
+        return Some(OPENING_COLOR);
     }
+    if distance_to_arch(ARCH, x, y) <= 0.0 {
+        return Some(arch_color(status));
+    }
+    if distance_to_rounded_square(x, y) <= 0.0 {
+        return Some(BACKGROUND_COLOR);
+    }
+    None
 }
 
 #[allow(clippy::cast_precision_loss)]
@@ -99,10 +92,8 @@ fn pixel(status: GlobalStatus, column: u32, row: u32) -> [u8; 4] {
         for sub_column in 0..SUBSAMPLES_PER_AXIS {
             let x = column as f32 + (sub_column as f32 + 0.5) * step;
             let y = row as f32 + (sub_row as f32 + 0.5) * step;
-            let color = match classify(status, x, y) {
-                Sample::Outside => continue,
-                Sample::Outline => OUTLINE_COLOR,
-                Sample::Fill => fill_color(status),
+            let Some(color) = sample_color(status, x, y) else {
+                continue;
             };
             covered_samples += 1;
             for (sum, channel) in color_sum.iter_mut().zip(color) {
@@ -129,7 +120,7 @@ fn blend(covered_samples: u32, color_sum: [u32; 3]) -> [u8; 4] {
     ]
 }
 
-/// The icon of a status: a 32×32 anti-aliased picture.
+/// The icon of a status: the logo as a 32×32 anti-aliased picture.
 pub(crate) fn render_icon(status: GlobalStatus) -> IconImage {
     let rgba = (0..ICON_SIZE)
         .flat_map(|row| (0..ICON_SIZE).map(move |column| (column, row)))
@@ -144,8 +135,6 @@ pub(crate) fn render_icon(status: GlobalStatus) -> IconImage {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::*;
 
     const ALL_STATUSES: [GlobalStatus; 4] = [
@@ -154,26 +143,35 @@ mod tests {
         GlobalStatus::Degraded,
         GlobalStatus::Error,
     ];
-    const OPAQUE_THRESHOLD: u8 = 128;
-    const MEANINGFUL_SHAPE_DIFFERENCE_IN_PIXELS: usize = 60;
     const HUE_TOLERANCE_DEGREES: f32 = 12.0;
+    const ARCH_SIDE_PIXEL: (u32, u32) = (8, 22);
+    const OPENING_PIXEL: (u32, u32) = (16, 22);
+    const BACKGROUND_PIXEL: (u32, u32) = (3, 16);
 
-    fn silhouette(status: GlobalStatus) -> Vec<bool> {
+    fn pixel_at(status: GlobalStatus, (column, row): (u32, u32)) -> [u8; 4] {
+        let offset = ((row * ICON_SIZE + column) * 4) as usize;
+        let rgba = render_icon(status).rgba;
+        [
+            rgba[offset],
+            rgba[offset + 1],
+            rgba[offset + 2],
+            rgba[offset + 3],
+        ]
+    }
+
+    fn color_at(status: GlobalStatus, position: (u32, u32)) -> [u8; 3] {
+        let [red, green, blue, _] = pixel_at(status, position);
+        [red, green, blue]
+    }
+
+    fn alpha_channel(status: GlobalStatus) -> Vec<u8> {
         render_icon(status)
             .rgba
             .as_chunks::<4>()
             .0
             .iter()
-            .map(|pixel| pixel[3] >= OPAQUE_THRESHOLD)
+            .map(|pixel| pixel[3])
             .collect()
-    }
-
-    fn differing_pixels(first: GlobalStatus, second: GlobalStatus) -> usize {
-        silhouette(first)
-            .into_iter()
-            .zip(silhouette(second))
-            .filter(|(left, right)| left != right)
-            .count()
     }
 
     fn hue_degrees([red, green, blue]: [u8; 3]) -> f32 {
@@ -194,23 +192,8 @@ mod tests {
         sector * 60.0
     }
 
-    fn dominant_fill_color(status: GlobalStatus) -> [u8; 3] {
-        let mut occurrences: HashMap<[u8; 3], usize> = HashMap::new();
-        for pixel in render_icon(status).rgba.as_chunks::<4>().0 {
-            let color = [pixel[0], pixel[1], pixel[2]];
-            if pixel[3] == u8::MAX && color != OUTLINE_COLOR {
-                *occurrences.entry(color).or_default() += 1;
-            }
-        }
-        occurrences
-            .into_iter()
-            .max_by_key(|(_, count)| *count)
-            .map(|(color, _)| color)
-            .unwrap()
-    }
-
     fn assert_hue_near(status: GlobalStatus, expected_degrees: f32) {
-        let hue = hue_degrees(dominant_fill_color(status));
+        let hue = hue_degrees(color_at(status, ARCH_SIDE_PIXEL));
         let gap = (hue - expected_degrees).abs();
         let circular_gap = gap.min(360.0 - gap);
         assert!(
@@ -236,23 +219,12 @@ mod tests {
     }
 
     #[test]
-    fn should_draw_different_shapes_for_every_pair_of_statuses() {
-        for (index, first) in ALL_STATUSES.into_iter().enumerate() {
-            for second in ALL_STATUSES.into_iter().skip(index + 1) {
-                assert!(
-                    differing_pixels(first, second) >= MEANINGFUL_SHAPE_DIFFERENCE_IN_PIXELS,
-                    "{first:?} and {second:?} look alike"
-                );
-            }
+    fn should_draw_the_same_silhouette_for_every_status() {
+        let reference = alpha_channel(GlobalStatus::Idle);
+
+        for status in ALL_STATUSES {
+            assert_eq!(alpha_channel(status), reference, "{status:?}");
         }
-    }
-
-    #[test]
-    fn should_leave_the_hole_of_the_idle_ring_transparent() {
-        let icon = render_icon(GlobalStatus::Idle);
-        let center_alpha = icon.rgba[((16 * ICON_SIZE + 16) * 4 + 3) as usize];
-
-        assert_eq!(center_alpha, 0);
     }
 
     #[test]
@@ -263,24 +235,42 @@ mod tests {
     }
 
     #[test]
-    fn should_use_a_grey_fill_when_idle() {
-        let [red, green, blue] = dominant_fill_color(GlobalStatus::Idle);
+    fn should_use_a_grey_arch_when_idle() {
+        let [red, green, blue] = color_at(GlobalStatus::Idle, ARCH_SIDE_PIXEL);
 
         assert!(red == green && green == blue);
     }
 
     #[test]
-    fn should_use_a_green_fill_when_healthy() {
+    fn should_use_a_green_arch_when_healthy() {
         assert_hue_near(GlobalStatus::Healthy, 130.0);
     }
 
     #[test]
-    fn should_use_an_amber_fill_when_degraded() {
+    fn should_use_an_amber_arch_when_degraded() {
         assert_hue_near(GlobalStatus::Degraded, 38.0);
     }
 
     #[test]
-    fn should_use_a_red_fill_when_in_error() {
+    fn should_use_a_red_arch_when_in_error() {
         assert_hue_near(GlobalStatus::Error, 353.0);
+    }
+
+    #[test]
+    fn should_keep_the_opening_the_same_color_for_every_status() {
+        for status in ALL_STATUSES {
+            assert_eq!(color_at(status, OPENING_PIXEL), OPENING_COLOR, "{status:?}");
+        }
+    }
+
+    #[test]
+    fn should_keep_the_background_the_same_color_for_every_status() {
+        for status in ALL_STATUSES {
+            assert_eq!(
+                color_at(status, BACKGROUND_PIXEL),
+                BACKGROUND_COLOR,
+                "{status:?}"
+            );
+        }
     }
 }

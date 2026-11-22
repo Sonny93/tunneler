@@ -54,7 +54,7 @@ Les zones cliquables font au moins 24 × 24 px (WCAG 2.5.8).
 
 ## Zone de notification
 - Les entrées du menu sont du texte et incluent l'état (« dev : 3/5 actifs »). Les tags sont cochables.
-- L'infobulle résume l'état global, et chaque état a une forme d'icône distincte.
+- L'infobulle résume l'état global en texte. L'icône est le logo de Tunneler, dont la couleur suit l'état : comme pour les pastilles colorées de l'interface, l'état reste toujours disponible en texte dans l'infobulle, le menu et l'interface.
 - Elle n'est jamais la seule voie : tout ce qu'elle fait existe dans l'interface et la CLI.
 
 ## Ligne de commande

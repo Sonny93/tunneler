@@ -54,7 +54,7 @@ Clickable areas are at least 24 by 24 px (WCAG 2.5.8).
 
 ## Tray
 - Menu items are text and include the state ("dev: 3/5 active"). Tags are checkable.
-- The tooltip summarises the global state, and each state has a distinct icon shape.
+- The tooltip summarises the global state in text. The icon is the Tunneler logo, whose colour follows the state: as with the coloured dots in the UI, the state is always available as text in the tooltip, the menu and the UI.
 - The tray is never the only way: everything it does is available in the UI and the CLI.
 
 ## Command line
