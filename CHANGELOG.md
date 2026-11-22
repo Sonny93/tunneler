@@ -4,6 +4,8 @@ All notable changes to Tunneler are written here for the people who use it. The 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-22
+
 ### Added
 
 - devslot discovery: the import panel has a "From devslot" tab that lists the instances of a host (`ds ls --json` over SSH) and starts tunnels to their ports, temporary by default or saved with "Keep these tunnels" (tags `devslot` and `ds-<project>`). Each discovery removes the temporary tunnels whose port is gone and asks about the saved ones, or deletes them with `devslot_stale = "delete"`. Web ports open at `http://<label>.localhost:<port>`.
@@ -140,7 +142,8 @@ First release.
 - English and French, dark and light themes, and documentation opened from the app with F1.
 - A Windows installer, a Debian package, an AppImage and portable archives, with signed updates from the GitHub releases.
 
-[Unreleased]: https://github.com/Sonny93/tunneler/compare/v0.6.1...main
+[Unreleased]: https://github.com/Sonny93/tunneler/compare/v0.7.0...main
+[0.7.0]: https://github.com/Sonny93/tunneler/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/Sonny93/tunneler/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/Sonny93/tunneler/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Sonny93/tunneler/compare/v0.4.1...v0.5.0
