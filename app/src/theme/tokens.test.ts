@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { getContrastRatio } from './contrast_ratio';
-import { THEME_TOKENS, type ThemeName, type ThemeTokens } from './tokens';
+import { getContrastRatio } from '#/theme/contrast_ratio';
+import { THEME_TOKENS, type ThemeName, type ThemeTokens } from '#/theme/tokens';
 
 const TEXT_MINIMUM = 4.5;
 const COMPONENT_MINIMUM = 3;

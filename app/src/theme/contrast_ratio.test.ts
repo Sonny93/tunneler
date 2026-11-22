@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getContrastRatio, getRelativeLuminance } from './contrast_ratio';
+import { getContrastRatio, getRelativeLuminance } from '#/theme/contrast_ratio';
 
 describe('getContrastRatio', () => {
 	it('should return 21 for black on white', () => {

@@ -1,4 +1,4 @@
-import type { ThemeTokens } from './tokens';
+import type { ThemeTokens } from '#/theme/tokens';
 
 const SHORT_NAMES: Readonly<Partial<Record<keyof ThemeTokens, string>>> = {
 	background: 'bg',

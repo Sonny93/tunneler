@@ -64,6 +64,7 @@ async function runSequentially<TSpec>(
 ): Promise<DevslotStartOutcome> {
 	const results: ItemResult[] = [];
 	for (const item of items) {
+		// oxlint-disable-next-line no-await-in-loop -- items run one after the other by design
 		results.push(await runItem(item));
 	}
 	return foldResults(results);

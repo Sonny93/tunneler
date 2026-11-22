@@ -28,6 +28,7 @@ export async function createImportedTunnels(
 	const failures: ImportFailure[] = [];
 	for (const [position, { index, spec }] of importSpecs.entries()) {
 		try {
+			// oxlint-disable-next-line no-await-in-loop -- tunnels are created in order so progress and port conflicts stay predictable
 			await gateway.createTunnel(spec);
 			createdIndexes.push(index);
 		} catch (rejection) {

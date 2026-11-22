@@ -1,5 +1,5 @@
-import { getTokenCssVariable, getTokenName } from './token_names';
-import { THEME_TOKENS, type ThemeName, type ThemeTokens } from './tokens';
+import { getTokenCssVariable, getTokenName } from '#/theme/token_names';
+import { THEME_TOKENS, type ThemeName, type ThemeTokens } from '#/theme/tokens';
 
 const DARK_MODE_SELECTOR = '.dark';
 

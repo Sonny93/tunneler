@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildThemeColors, buildThemeCss } from './theme_css';
-import { THEME_TOKENS } from './tokens';
+import { buildThemeColors, buildThemeCss } from '#/theme/theme_css';
+import { THEME_TOKENS } from '#/theme/tokens';
 
 describe('buildThemeCss', () => {
 	it('should declare the light tokens on :root', () => {

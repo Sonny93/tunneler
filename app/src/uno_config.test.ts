@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+// oxlint-disable-next-line no-restricted-imports -- uno.config.ts sits at the app root, outside the #/ alias
 import unoConfig from '../uno.config';
 
 function isScanned(path: string): boolean {
