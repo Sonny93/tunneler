@@ -7,8 +7,15 @@ All notable changes to Tunneler are written here for the people who use it. The 
 ### Added
 
 - devslot discovery: the import panel has a "From devslot" tab that lists the instances of a host (`ds ls --json` over SSH) and starts tunnels to their ports, temporary by default or saved with "Keep these tunnels" (tags `devslot` and `ds-<project>`). Each discovery removes the temporary tunnels whose port is gone and asks about the saved ones, or deletes them with `devslot_stale = "delete"`. Web ports open at `http://<label>.localhost:<port>`.
+- `tunneler devslot <host> <instance>` opens a devslot instance in one step: it tunnels the web ports of the instance and opens the application in the browser. `--no-open` leaves the browser alone and `--json` prints the result for scripts. Running it again creates nothing new.
+- The `tunneler://devslot/<host>/<instance>` link does the same from a page or a message. Tunneler always asks for confirmation, naming the host and the instance, before it connects. The Windows installer and the Debian package register the link, and so does `tunneler desktop-entry install` for the archive. The Windows portable zip, the AppImage and macOS do not.
 - Settings `devslot_persist` and `devslot_stale`, and per host `devslot_path` (where `ds` is on the host) and `devslot_persist`, in `tunnels.toml`.
 - `open.host_name` on a tunnel: a `<label>.localhost` name used in the URL opened in the browser.
+
+### Changed
+
+- The devslot import tab now suggests a free local port when the port of an instance is already the listening port of another tunnel, even a stopped one, as it already did for a port used by another program.
+- `tunneler desktop-entry install` registers the `tunneler://` link scheme in the menu entry it writes, and asks the desktop to refresh its database when `update-desktop-database` is available. An existing entry gets the scheme the next time the daemon starts.
 
 ### Fixed
 

@@ -2,7 +2,11 @@ import { vi, type Mock } from 'vitest';
 
 import type { DaemonGateway } from '#/daemon/daemon_gateway';
 import type { EventMessage, SnapshotDto } from '#/daemon/protocol';
-import { buildSnapshot, buildTunnel } from '#/testing/factories';
+import {
+	buildDevslotUpResult,
+	buildSnapshot,
+	buildTunnel,
+} from '#/testing/factories';
 
 export type FakeGateway = {
 	[Method in keyof DaemonGateway]: Mock<DaemonGateway[Method]>;
@@ -87,6 +91,10 @@ export function createFakeGateway(
 		resyncDevslot: vi.fn((_host, tunnels) =>
 			Promise.resolve({ removed: tunnels.map(({ id }) => id), skipped: [] })
 		),
+		devslotUp: vi.fn((host, instance) =>
+			Promise.resolve(buildDevslotUpResult({ host, instance }))
+		),
+		takeLaunchLink: vi.fn(() => Promise.resolve(null)),
 		openTunnel: vi.fn(() =>
 			Promise.resolve({ target: 'http://localhost:3333/' })
 		),

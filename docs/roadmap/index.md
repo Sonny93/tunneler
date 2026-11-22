@@ -39,9 +39,13 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 - English and French, for the window, the tray and the notifications. The language follows the system or is picked in the settings.
 
 ### Command line
-- `tunneler up`, `down`, `status`, `list`, `open`, `check`, `quit` and `purge`, with `--json` output and documented exit codes.
+- `tunneler up`, `down`, `status`, `list`, `open`, `check`, `devslot`, `quit` and `purge`, with `--json` output and documented exit codes.
 - `tunneler desktop-entry install` gives the Linux archive an application menu entry and icons; the daemon keeps the entry pointing at the current `tunneler-ui`, and `tunneler purge` removes it.
 - Tunnels are selected by port, by `host:port` or by tag.
+
+### devslot
+- Discovery from the import panel: list the instances of a host with `ds ls --json`, start tunnels to their ports (temporary or saved, tagged `devslot` and `ds-<project>`), open web ports at `http://<label>.localhost:<port>`, and clean up the tunnels whose port is gone. See [Tunnels from devslot](/guide/devslot).
+- One-step open: `tunneler devslot <host> <instance>`, or a `tunneler://devslot/<host>/<instance>` link that opens Tunneler and asks for confirmation first, tunnels the web ports of the instance and opens the browser.
 
 ### Distribution
 - Windows installer (per user or per machine), Debian package, portable zip, tar.gz, and an AppImage of the UI.
@@ -52,7 +56,6 @@ What Tunneler does today, what comes next, what needs testing on real machines, 
 
 ## Next
 
-- devslot discovery: from the import panel, list the instances of a host with `ds ls --json`, start tunnels to their ports (temporary or saved, tagged `devslot` and `ds-<project>`), open web ports at `http://<label>.localhost:<port>`, and clean up the tunnels whose port is gone. See [Tunnels from devslot](/guide/devslot).
 - Whatever the [Needs testing](#needs-testing) section turns up.
 
 ## Needs testing
@@ -78,6 +81,7 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 
 ### Both
 - **devslot discovery.** Checked against a real host: discover, start temporary tunnels (including on a port already used locally), open a web port in the browser. Still to check: saved tunnels, stop an instance and discover again (the stale tunnels should go or be asked about), a host where `ds` is missing from the non-interactive `PATH` (with and without `devslot_path`), and an instance with a forced port.
+- **devslot link.** Click a `tunneler://devslot/...` link after installing the Windows installer, the `.deb`, and `tunneler desktop-entry install` (the archive): the confirmation should name the host and the instance. The prompts Chrome and Firefox show before opening an external application. When the window is already open on Windows, it should come to the front. And `tunneler devslot` against a real host, with and without `--no-open`.
 - **X11.** VcXsrv on Windows and Xorg or Xwayland on Linux, against a real `sshd`: a remote `xeyes` should show up without `xauth`.
 - **Applications installed while Tunneler runs.** Install TigerVNC, Remmina or FreeRDP while Tunneler runs, then open the window: the application should show in Settings › Opening without a restart, and a tunnel on its port should open in it.
 - **SOCKS.** `curl --socks5` through a dynamic tunnel to a real `sshd`.
@@ -107,7 +111,9 @@ Most of the code runs in automated tests against an in-process SSH server. Real 
 - There is no `adopt`, `kill` or `ignore` on the command line.
 
 ### devslot discovery
-- There is no command line equivalent: discovery is in the import panel only.
+- The `tunneler://` link is not registered by the Windows portable zip, the AppImage or macOS: use the command there. Browsers usually ask before opening an external application, and a terminal may not make the link clickable.
+- The alias in a link comes from the server's devslot configuration. A computer that knows the server under another alias gets links that fail as an unknown alias: type `tunneler devslot` with its own alias.
+- `tunneler devslot` tunnels web ports only, and not those below 1024. Services such as a database, and stale saved tunnels that need a decision, are left to the import panel.
 - `devslot_path` and `devslot_persist` of a host are edited by hand in `tunnels.toml`; the window does not write them.
 - When the local port differs from the remote one, links the app builds (absolute URLs in a page) still point at the remote port and do not work.
 

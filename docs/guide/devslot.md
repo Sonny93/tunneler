@@ -13,7 +13,46 @@ The ports an instance forces in its own configuration can be shared with other i
 
 Tunneler runs `ds ls --json` on the host, over the SSH session it already shares with that host's tunnels. This is the only command it ever runs there, and only when you select "Discover". A discovery that takes more than 20 seconds is cancelled, apart from the time spent waiting for a passphrase or password.
 
-Every discovered tunnel is a local tunnel that listens on `127.0.0.1`, whatever the default bind address in the settings, and reaches the same port on the host. If that port is already in use on your computer (for example by devslot running there too, since it hands out the same ports), Tunneler suggests a free local port (the remote port plus 10000, or the next free one) and fills it in; you can change it in the list. Links the app builds (such as an absolute URL in a page) still point at the remote port, so they stop working when the two ports differ.
+Every discovered tunnel is a local tunnel that listens on `127.0.0.1`, whatever the default bind address in the settings, and reaches the same port on the host. If that port is already in use on your computer (for example by devslot running there too, since it hands out the same ports), or is the listening port of another tunnel of Tunneler, even a stopped one, Tunneler suggests a free local port (the remote port plus 10000, or the next free one) and fills it in; you can change it in the list. Links the app builds (such as an absolute URL in a page) still point at the remote port, so they stop working when the two ports differ.
+
+## Open an instance in one step
+
+When you already know which instance you want, skip the panel. One command, or one link, does the whole path: it finds the instance on the host, tunnels its web ports and opens the application in your browser.
+
+```sh
+tunneler devslot vega web-shop-098a
+```
+
+`vega` is the alias of the host in your `ssh_config`, as this computer knows it. `web-shop-098a` is the name of the instance as `ds ls` prints it: a main checkout or a worktree. The link form is `tunneler://devslot/vega/web-shop-098a`. Both segments are letters, digits, `.`, `_` and `-`, start with a letter or a digit, and are at most 64 (host) and 255 (instance) characters. The command and its options are in the [command line reference](../reference/cli#tunneler-devslot-host-instance).
+
+When the server's devslot configuration has a `[tunneler] host = "<alias>"` entry, `ds info` prints this command and this link next to the preview URL. The server only prints text: nothing happens on your computer until you run the command or click the link.
+
+### What it does
+
+1. Runs `ds ls --json` on the host, like the discovery above.
+2. Removes the stale devslot tunnels that need no question: the temporary ones, and the saved ones when `devslot_stale = "delete"`, under the same safety rule as above. The routes it removed are listed. A saved tunnel that would need your decision is left alone: the command says how many wait, and the import panel is where you answer.
+3. Starts a tunnel for each web port of the instance that has none, as in the import panel. A port that already has a devslot tunnel of this host, listening on the loopback (`127.0.0.1`, `::1` or `localhost`, or the default bind address of the settings when the tunnel sets none), is reused, and started if it was stopped. Any other tunnel that forwards the port, one you configured yourself or one that listens on `0.0.0.0`, is yours: the port is skipped and you start that tunnel yourself. A tunnel listens on `127.0.0.1`, and takes a free local port when the remote one is in use on this computer.
+4. Opens the application in the browser, at `http://<label>.localhost:<port>`, unless you pass `--no-open`.
+
+Only web ports are tunneled. Services such as a database are not, and neither are ports below 1024 (left to the import panel). A port below 1024 is reported as skipped, by design. A port that is skipped because it is in use and no free port was found, because a stale tunnel holds it and waits for your decision, or because a tunnel you configured already forwards it, is reported too and makes the command exit with 4, like a port whose tunnel failed.
+
+Running it twice creates nothing new: the second run finds the tunnels of the first, and only opens the browser again. When another instance lists the same port as the application, the browser may reach that other one, and the output says so.
+
+The tunnels are temporary or saved following `devslot_persist`, like in the import panel (see [Temporary or saved](#temporary-or-saved)). Without a setting they are temporary.
+
+### The link
+
+Clicking a `tunneler://devslot/<host>/<instance>` link opens Tunneler, which always shows a confirmation naming the host and the instance before it makes any SSH connection. Any web page can point to a link of this kind, so the confirmation is what keeps a page from opening connections from your computer. A link that does not follow the format, or whose host is not an alias of your `ssh_config`, shows an error and nothing else happens. While a confirmation is shown, a new link is ignored: answer the first one.
+
+A browser usually asks before it hands a link to another application. A terminal may not make `tunneler://` links clickable: the command is the path that always works.
+
+The link works when the program registered the `tunneler` scheme with your system:
+
+- the Windows installer and the Debian package do it for you;
+- for the Linux archive (`tar.gz`), run `tunneler desktop-entry install`, which adds the scheme to the menu entry it writes;
+- the Windows portable zip, the AppImage and macOS do not register it: use the command there.
+
+The alias comes from the server's configuration. A second computer that knows the same server under another alias gets links that fail with an unknown alias: type the command with the alias that computer uses.
 
 ## Where `ds` is
 

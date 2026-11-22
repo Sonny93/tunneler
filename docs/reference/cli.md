@@ -142,11 +142,32 @@ Removes everything Tunneler left on the machine except the programs. See [Update
 | `-y`, `--yes` | Do not ask. Required without a terminal, otherwise the exit code is 5. |
 | `--keep-config` | Keep `tunnels.toml`, `state.toml` and the stored passphrases. |
 
+### `tunneler devslot <HOST> <INSTANCE>`
+
+Tunnels the web ports of a [devslot](../guide/devslot) instance and opens it in the browser. `HOST` is an alias of your `ssh_config` and `INSTANCE` is the name of the instance as `ds ls` prints it. The daemon is started when it is not running. If a password, a passphrase or an unknown host key has to be confirmed, you are asked in the terminal when there is one. Running it again creates nothing new.
+
+Both arguments are 1 to 64 characters (`HOST`) or 1 to 255 (`INSTANCE`) of letters, digits, `.`, `_` and `-`, the first one a letter or a digit. Anything else is refused with exit code 2, before any connection.
+
+| Option | Meaning |
+|---|---|
+| `--no-open` | Start the tunnels and leave the browser alone. |
+| `--json` | Print the result as one line of JSON. |
+
+Only web ports are tunneled, and not those below 1024 (skipped by design, not a failure). The text output gives one line per port (started, already set up, skipped with the reason, failed with the message), the stale routes it removed first, then the address opened. With `--json`, the line is an object with the keys `host`, `instance`, `started`, `existing`, `skipped`, `failed`, `removed`, `needsReview`, `appPortShared`, and, when they apply, `appUrl`, `opened` and `openError`. `started` and `existing` list `{ remotePort, listenPort, tunnelId }`, `skipped` lists `{ remotePort, reason }` with a reason of `localPortBusy`, `needsReview`, `existingTunnel` (a tunnel you configured, or one listening beyond the loopback, already forwards the port: start it yourself) or `privilegedPort`, `failed` lists `{ remotePort, message }`, and `removed` lists `{ listenPort, remotePort, isTemporary }`.
+
+Exit codes: 0 when the instance is up, 1 for an error (unknown host, instance not listed, connection or `ds` failure), 4 when some web ports failed or were skipped because the local port is busy, a stale tunnel needs your decision or a tunnel you configured already forwards the port, 6 when the command on the host timed out, 8 when the browser could not be opened.
+
+```sh
+tunneler devslot vega web-shop-098a
+tunneler devslot vega web-shop-098a --no-open
+tunneler devslot vega web-shop-098a --json
+```
+
 ### `tunneler desktop-entry <install|uninstall>`
 
 Linux only. Adds Tunneler to the application menu, or removes it again. The archive has no installer, so this is how it gets a menu entry. See [Getting started](../guide/getting-started#linux).
 
-`install` writes `com.minimalstuff.tunneler.desktop` and three icons under the user data directory (`$XDG_DATA_HOME`, usually `~/.local/share`), pointing at the `tunneler-ui` next to `tunneler`. Run it again after an update that moves the programs to another folder. It also points an existing launch-at-login entry at this `tunneler`, and never creates one. It refuses to run from `/usr` (but not `/usr/local`), where a package ships its own entry, and never overwrites a `.desktop` file that Tunneler did not write. It writes only the files that are missing or different, prints `Wrote` or `Unchanged` for each, and starts nothing.
+`install` writes `com.minimalstuff.tunneler.desktop` and three icons under the user data directory (`$XDG_DATA_HOME`, usually `~/.local/share`), pointing at the `tunneler-ui` next to `tunneler`. Run it again after an update that moves the programs to another folder. It also points an existing launch-at-login entry at this `tunneler`, and never creates one. It refuses to run from `/usr` (but not `/usr/local`), where a package ships its own entry, and never overwrites a `.desktop` file that Tunneler did not write. It writes only the files that are missing or different, prints `Wrote` or `Unchanged` for each, and starts nothing. The entry also registers the `tunneler://` link scheme (`MimeType=x-scheme-handler/tunneler;`, and `%u` on the `Exec` line), see [Open an instance in one step](../guide/devslot#open-an-instance-in-one-step). After writing it, `install` runs `update-desktop-database` on the applications directory when that program exists, and ignores a failure.
 
 `uninstall` removes the entry and the icons. It refuses to remove a `.desktop` file that Tunneler did not write.
 
@@ -159,7 +180,7 @@ tunneler desktop-entry uninstall
 
 ## Output
 
-- `--json` is on `status` and `list`. The output is one line, meant for scripts.
+- `--json` is on `status`, `list` and `devslot`. The output is one line, meant for scripts.
 - Colour is used when the output is a terminal that supports it and `NO_COLOR` is not set. `NO_COLOR` set to a non-empty value turns it off, and `--color never` does too. `--color always` forces it.
 - Nothing is carried by colour alone: states are text and a symbol.
 - Prompts for a passphrase, a password or a host key appear only when the command runs in a terminal.
@@ -172,11 +193,11 @@ tunneler desktop-entry uninstall
 | 1 | Error. The message on stderr says what. |
 | 2 | Invalid usage. |
 | 3 | The daemon is not running. |
-| 4 | Some tunnels failed to start or are blocked by another program (`up`). A tunnel provided by an external `ssh` counts as started. |
+| 4 | Some tunnels failed to start or are blocked by another program (`up`), or some web ports of the instance failed, or were skipped because the local port is busy, a stale tunnel needs a decision or a tunnel you configured already forwards the port (`devslot`). A tunnel provided by an external `ssh` counts as started. |
 | 5 | A confirmation is needed but cannot be asked: not a terminal, pass `--yes` (`quit`, `purge`). |
-| 6 | Timed out waiting. |
+| 6 | Timed out waiting, or the command on the host timed out (`devslot`). |
 | 7 | The target of the tunnel does not answer (`check`). |
-| 8 | The tunnel did not become ready, or the browser or application could not be launched (`open`). |
+| 8 | The tunnel did not become ready, or the browser or application could not be launched (`open`, `devslot`). |
 | 9 | The application given with `--with` is not available (`open`). |
 
 ## Environment variables

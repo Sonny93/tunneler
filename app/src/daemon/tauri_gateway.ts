@@ -53,6 +53,9 @@ export function createTauriGateway(): DaemonGateway {
 		importScript: (text) => call('import_script', { text }),
 		discoverDevslot: (host) => call('discover_devslot', { host }),
 		resyncDevslot: (host, tunnels) => call('resync_devslot', { host, tunnels }),
+		devslotUp: (host, instance, open) =>
+			call('devslot_up', { host, instance, open }),
+		takeLaunchLink: () => call('take_launch_link'),
 		openTunnel: (id, opener) => call('open_tunnel', { id, with: opener }),
 		adoptExternal: (id) => call('adopt_external', { id }),
 		killExternal: (pid) => call('kill_external', { pid }),

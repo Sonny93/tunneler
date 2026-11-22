@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { TunnelSpecDto } from '#/daemon/protocol';
+import type { DevslotLinkDto, TunnelSpecDto } from '#/daemon/protocol';
 import type { SettingsTab } from '#/settings/settings_tab';
 import {
 	readSidebarCollapsed,
@@ -28,6 +28,9 @@ export type TagRenameOrigin = 'sidebar' | 'palette' | 'list';
 
 export type TagRenameRequest = { tag: string; origin: TagRenameOrigin };
 
+/** A link waiting for the user's answer; the `id` tells two links to the same instance apart. */
+export type DevslotLinkRequest = { id: number; link: DevslotLinkDto };
+
 export type TrayProblemKind = 'missingHost' | 'failed';
 
 type UiState = {
@@ -39,6 +42,8 @@ type UiState = {
 	isSidebarCollapsed: boolean;
 	/** The tag whose rename dialog is open. */
 	tagRename: TagRenameRequest | null;
+	/** The `tunneler://` link whose dialog is shown; a link is never swapped for another one. */
+	devslotLinkRequest: DevslotLinkRequest | null;
 	/** A just-renamed tag whose sidebar row takes the focus once it is rendered. */
 	pendingFocusTag: string | null;
 	/** Whether the « Tous les tunnels » filter takes the focus once rendered, e.g. after a tag was deleted. */
@@ -78,6 +83,10 @@ type UiActions = {
 	toggleSidebar: () => void;
 	openTagRename: (tag: string, origin: TagRenameOrigin) => void;
 	closeTagRename: () => void;
+	/** Shows the dialog of `link` unless one is already shown; tells whether it was taken. */
+	offerDevslotLink: (link: DevslotLinkDto) => boolean;
+	/** Closes the dialog of request `id`; a newer request is left alone. */
+	closeDevslotLink: (id: number) => void;
 	focusTagRow: (tag: string) => void;
 	clearPendingFocusTag: () => void;
 	focusAllFilter: () => void;
@@ -99,6 +108,7 @@ export const INITIAL_UI_STATE: UiState = {
 	isPaletteOpen: false,
 	isSidebarCollapsed: false,
 	tagRename: null,
+	devslotLinkRequest: null,
 	pendingFocusTag: null,
 	isAllFilterFocusPending: false,
 	dismissedTrayProblem: null,
@@ -108,7 +118,9 @@ export const INITIAL_UI_STATE: UiState = {
 	selectionAnchorId: null,
 };
 
-export const useUiStore = create<UiState & UiActions>()((set) => ({
+let nextDevslotLinkRequestId = 1;
+
+export const useUiStore = create<UiState & UiActions>()((set, get) => ({
 	...INITIAL_UI_STATE,
 	isSidebarCollapsed: readSidebarCollapsed(),
 	openTunnelEditor: (tunnelId) =>
@@ -142,6 +154,17 @@ export const useUiStore = create<UiState & UiActions>()((set) => ({
 		}),
 	openTagRename: (tag, origin) => set({ tagRename: { tag, origin } }),
 	closeTagRename: () => set({ tagRename: null }),
+	offerDevslotLink: (link) => {
+		if (get().devslotLinkRequest !== null) return false;
+		const devslotLinkRequest = { id: nextDevslotLinkRequestId, link };
+		nextDevslotLinkRequestId += 1;
+		set({ devslotLinkRequest });
+		return true;
+	},
+	closeDevslotLink: (id) =>
+		set((state) =>
+			state.devslotLinkRequest?.id === id ? { devslotLinkRequest: null } : state
+		),
 	focusTagRow: (pendingFocusTag) => set({ pendingFocusTag }),
 	clearPendingFocusTag: () => set({ pendingFocusTag: null }),
 	focusAllFilter: () => set({ isAllFilterFocusPending: true }),

@@ -7,8 +7,10 @@ mod commands;
 mod connection_slot;
 mod credential;
 mod daemon_binary;
+mod devslot_link;
 mod documentation_commands;
 mod documentation_page;
+mod foreground_permission;
 mod main_window;
 mod pending_update;
 mod reveal_target;
@@ -21,18 +23,26 @@ mod window_attention;
 use std::time::Duration;
 
 use bridge::BridgeState;
+use devslot_link::find_launch_link;
 use pending_update::PendingUpdate;
+use startup_claim::StartupAction;
 use tauri::Manager;
 
 const STARTUP_REVEAL_DEADLINE: Duration = Duration::from_secs(15);
+const EXIT_SUCCESS: i32 = 0;
 
 fn main() -> tauri::Result<()> {
     tauri::Builder::default()
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(BridgeState::default())
         .manage(PendingUpdate::default())
         .setup(|app| {
+            if claim_launch_link(app.handle()) == Some(StartupAction::Exit) {
+                app.handle().exit(EXIT_SUCCESS);
+                return Ok(());
+            }
             main_window::create_main_window(app)?;
             reveal_window_when_startup_stalls(app.handle().clone());
             Ok(())
@@ -46,6 +56,8 @@ fn main() -> tauri::Result<()> {
             commands::import_script,
             commands::discover_devslot,
             commands::resync_devslot,
+            commands::devslot_up,
+            commands::take_launch_link,
             commands::tunnel_logs,
             commands::open_tunnel,
             commands::create_tunnel,
@@ -85,6 +97,18 @@ fn main() -> tauri::Result<()> {
             documentation_commands::open_documentation,
         ])
         .run(tauri::generate_context!())
+}
+
+/// When the app was started by a link, claims the UI role with it before any
+/// window exists. `setup` is synchronous and nothing is shown yet, so waiting
+/// for the connection and the claim here (bounded by their own timeouts) costs
+/// nothing and avoids creating a window that would have to be torn down.
+fn claim_launch_link(app: &tauri::AppHandle) -> Option<StartupAction> {
+    let link = find_launch_link(std::env::args_os())?;
+    let bridge = app.state::<BridgeState>();
+    Some(tauri::async_runtime::block_on(
+        bridge.claim_with_launch_link(link),
+    ))
 }
 
 fn reveal_window_when_startup_stalls(app: tauri::AppHandle) {

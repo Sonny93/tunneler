@@ -82,17 +82,19 @@ impl MenuEntryFiles {
         Ok(std::iter::once(entry).chain(icons).collect())
     }
 
-    /// Points the entry at `ui_program` when Tunneler wrote it and it points
-    /// elsewhere. Does nothing when there is no entry, or when it is not ours.
-    pub(super) fn refresh(&self, ui_program: &Path) -> Result<(), MenuEntryError> {
+    /// Points the entry at `ui_program` when Tunneler wrote it and its text
+    /// differs, and returns whether it rewrote it. Does nothing when there is
+    /// no entry, or when it is not ours.
+    pub(super) fn refresh(&self, ui_program: &Path) -> Result<bool, MenuEntryError> {
         match self.read_entry()? {
             Some(existing)
                 if is_written_by_tunneler(&existing)
                     && existing != render_menu_entry(ui_program) =>
             {
-                self.write_entry(ui_program)
+                self.write_entry(ui_program)?;
+                Ok(true)
             }
-            _ => Ok(()),
+            _ => Ok(false),
         }
     }
 
@@ -112,6 +114,11 @@ impl MenuEntryFiles {
             }
         }
         Ok(removed)
+    }
+
+    /// The directory that holds the `.desktop` file.
+    pub(super) fn applications_directory(&self) -> Option<&Path> {
+        self.entry_path.parent()
     }
 
     /// Whether Tunneler's entry is installed.
@@ -292,7 +299,7 @@ mod tests {
 
         let content = fs::read_to_string(&files.entry_path).unwrap();
         assert!(
-            content.contains(&format!("Exec={UI_PROGRAM}\n")),
+            content.contains(&format!("Exec={UI_PROGRAM} %u\n")),
             "{content}"
         );
     }
@@ -374,8 +381,9 @@ mod tests {
         let files = files_in(&directory);
         files.install(Path::new("/old/tunneler-ui")).unwrap();
 
-        files.refresh(Path::new(UI_PROGRAM)).unwrap();
+        let is_rewritten = files.refresh(Path::new(UI_PROGRAM)).unwrap();
 
+        assert!(is_rewritten);
         let content = fs::read_to_string(&files.entry_path).unwrap();
         assert!(
             content.contains(&format!("TryExec={UI_PROGRAM}\n")),
@@ -384,12 +392,22 @@ mod tests {
     }
 
     #[test]
+    fn should_not_rewrite_an_up_to_date_entry_when_refreshing() {
+        let directory = tempfile::tempdir().unwrap();
+        let files = files_in(&directory);
+        files.install(Path::new(UI_PROGRAM)).unwrap();
+
+        assert!(!files.refresh(Path::new(UI_PROGRAM)).unwrap());
+    }
+
+    #[test]
     fn should_not_create_the_entry_when_refreshing_and_there_is_none() {
         let directory = tempfile::tempdir().unwrap();
         let files = files_in(&directory);
 
-        files.refresh(Path::new(UI_PROGRAM)).unwrap();
+        let is_rewritten = files.refresh(Path::new(UI_PROGRAM)).unwrap();
 
+        assert!(!is_rewritten);
         assert!(!files.entry_path.exists());
     }
 
@@ -399,8 +417,9 @@ mod tests {
         let files = files_in(&directory);
         write_foreign_entry(&files);
 
-        files.refresh(Path::new(UI_PROGRAM)).unwrap();
+        let is_rewritten = files.refresh(Path::new(UI_PROGRAM)).unwrap();
 
+        assert!(!is_rewritten);
         assert_eq!(
             fs::read_to_string(&files.entry_path).unwrap(),
             FOREIGN_ENTRY

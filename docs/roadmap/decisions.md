@@ -66,6 +66,9 @@ A temporary tunnel never carries tags, so the tag commands and `tunnels.toml` ar
 ### Discovery lives on the Tunneler side
 Tunneler lists instances with `ds ls --json` and works out the tunnels itself. It does not use `ds tunnels`, so the rules for tags, ports and cleanup stay in one place and a change to them does not depend on the `ds` version installed on the host.
 
+### An external trigger, by command or link
+`tunneler devslot <host> <instance>` and the `tunneler://devslot/<host>/<instance>` link do the same thing: discover on the host, start the tunnels of the instance's web ports, open the application. The devslot server only prints the command and the link as text. The security boundary is the person who runs the command or clicks the link, never a process on the server. A link is always confirmed in the window, with the host and the instance named, before any SSH connection, because any web page can trigger the `tunneler` scheme. Both arguments are validated against the same bounds (letters, digits, `.`, `_`, `-`, first character alphanumeric, 64 and 255 characters) so that a segment never reads as a command line option. Rejected: a Tunneler agent on the server that drives the computer's tunnels, because any process on the server could then open tunnels here; and a `ds ls --json --watch` stream, which would solve discovery but not the one-step gesture.
+
 ## Closing the app
 
 Tunnels live inside the daemon, so they cannot outlive it.

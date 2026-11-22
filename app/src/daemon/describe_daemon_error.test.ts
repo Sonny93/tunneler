@@ -33,6 +33,11 @@ describe('describeDaemonError', () => {
 			'devslot on vega answered something unusable: not json',
 		],
 		[
+			'devslot_instance_not_found',
+			{ host: 'vega', instance: 'web-shop-098a' },
+			'vega does not list the devslot instance web-shop-098a',
+		],
+		[
 			'remote_command_timeout',
 			{ host: 'vega', seconds: 20 },
 			'The command on vega did not finish within 20 s',

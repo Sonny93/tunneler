@@ -21,9 +21,13 @@ ipc = { path = "../../crates/ipc" }
 serde.workspace = true
 serde_json.workspace = true
 tauri = "2"
+tauri-plugin-deep-link = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-updater = "2"
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync", "time"] }
 tracing.workspace = true
 zeroize = { workspace = true, features = ["serde"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_UI_WindowsAndMessaging"] }

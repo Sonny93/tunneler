@@ -2,7 +2,8 @@
 //! `icons/hicolor/` of the user data directory (`$XDG_DATA_HOME`, usually
 //! `~/.local/share`), per the Desktop Entry and Icon Theme specifications.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 use directories::BaseDirs;
@@ -13,6 +14,8 @@ use super::programs::{
 };
 use super::{InstallReport, MenuEntry, MenuEntryError};
 use crate::daemon::login_launch::repoint_owned_entry;
+
+const DESKTOP_DATABASE_PROGRAM: &str = "update-desktop-database";
 
 struct SystemMenuEntry;
 
@@ -50,9 +53,34 @@ pub(crate) fn install_menu_entry() -> Result<InstallReport, MenuEntryError> {
             expected: expected_ui_program(&executable),
         })?;
     reject_control_characters(&ui_program)?;
-    let files = system_files()?.install(&ui_program)?;
+    let menu_files = system_files()?;
+    let files = menu_files.install(&ui_program)?;
+    refresh_desktop_database_of(&menu_files);
     let autostart = repoint_owned_entry(&executable)?;
     Ok(InstallReport { files, autostart })
+}
+
+fn refresh_desktop_database_of(files: &MenuEntryFiles) {
+    if let Some(applications_directory) = files.applications_directory() {
+        refresh_desktop_database(applications_directory);
+    }
+}
+
+/// Asks the desktop to re-read the scheme handlers of `applications_directory`.
+/// Best effort: the program may be missing, and the desktop rereads the
+/// directory on its own sooner or later.
+fn refresh_desktop_database(applications_directory: &Path) {
+    let outcome = Command::new(DESKTOP_DATABASE_PROGRAM)
+        .arg(applications_directory)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    match outcome {
+        Ok(status) if status.success() => {}
+        Ok(status) => tracing::debug!(%status, "{DESKTOP_DATABASE_PROGRAM} failed"),
+        Err(error) => tracing::debug!(%error, "cannot run {DESKTOP_DATABASE_PROGRAM}"),
+    }
 }
 
 /// Removes the entry and the icons, and returns what was removed.
@@ -85,7 +113,10 @@ fn refresh_menu_entry() -> Result<(), MenuEntryError> {
     match find_ui_program(&executable) {
         Some(ui_program) => {
             reject_control_characters(&ui_program)?;
-            files.refresh(&ui_program)
+            if files.refresh(&ui_program)? {
+                refresh_desktop_database_of(&files);
+            }
+            Ok(())
         }
         None => Ok(()),
     }

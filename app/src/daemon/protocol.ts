@@ -263,6 +263,60 @@ export type DevslotResyncResultDto = {
 	skipped: string[];
 };
 
+/** What a window relays from a `tunneler://devslot/<host>/<instance>` link; the text of an invalid link is never relayed. */
+export type DevslotLinkDto =
+	| { kind: 'devslotUp'; host: string; instance: string }
+	| { kind: 'invalid' };
+
+/** A port of the instance that has a tunnel. */
+export type DevslotUpPortDto = {
+	remotePort: number;
+	listenPort: number;
+	tunnelId: string;
+};
+
+export type DevslotSkipReasonDto =
+	| 'localPortBusy'
+	| 'needsReview'
+	| 'existingTunnel'
+	| 'privilegedPort';
+
+export type DevslotSkippedPortDto = {
+	remotePort: number;
+	reason: DevslotSkipReasonDto;
+};
+
+export type DevslotFailedPortDto = { remotePort: number; message: string };
+
+/** A stale route that `devslot.up` removed first. */
+export type DevslotRemovedRouteDto = {
+	listenPort: number;
+	remotePort: number;
+	isTemporary: boolean;
+};
+
+export type DevslotUpResultDto = {
+	host: string;
+	instance: string;
+	/** Ports whose tunnel was created now. */
+	started: DevslotUpPortDto[];
+	/** Ports that already had a tunnel, started when it was stopped. */
+	existing: DevslotUpPortDto[];
+	skipped: DevslotSkippedPortDto[];
+	failed: DevslotFailedPortDto[];
+	removed: DevslotRemovedRouteDto[];
+	/** Stale tunnels kept for the user to decide in the import panel. */
+	needsReview: number;
+	/** Text the host listed: never a link, never opened from here. */
+	appUrl?: string;
+	/** Whether the application port is listed by several instances: the browser may reach another one. */
+	appPortShared: boolean;
+	/** The address the daemon built and opened in the browser. */
+	opened?: string;
+	/** Why nothing was opened, when opening was asked and failed. */
+	openError?: string;
+};
+
 /** The pages of the documentation site the app can open. */
 export type DocumentationPageDto = 'home' | 'applications';
 
@@ -398,7 +452,7 @@ export type EventMessage =
 	| { event: 'quit.requested'; data: Record<string, never> }
 	| { event: 'standby.requested'; data: Record<string, never> }
 	| { event: 'tray.changed'; data: { status: TrayStatusDto } }
-	| { event: 'show.requested'; data: Record<string, never> }
+	| { event: 'show.requested'; data: { link?: DevslotLinkDto } }
 	| { event: 'externals.changed'; data: { processes: ExternalProcessDto[] } }
 	| { event: 'prompt.resolved'; data: { promptId: string } }
 	| { event: 'x11.changed'; data: { host: string; state: X11StateDto } };

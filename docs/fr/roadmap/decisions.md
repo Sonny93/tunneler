@@ -66,6 +66,9 @@ Un tunnel temporaire ne porte jamais de tags : les commandes de tags et `tunnels
 ### La découverte vit du côté de Tunneler
 Tunneler liste les instances avec `ds ls --json` et calcule lui-même les tunnels. Il n'utilise pas `ds tunnels` : les règles de tags, de ports et de nettoyage restent en un seul endroit, et ne dépendent pas de la version de `ds` installée sur l'hôte.
 
+### Un déclencheur externe, par commande ou par lien
+`tunneler devslot <hôte> <instance>` et le lien `tunneler://devslot/<hôte>/<instance>` font la même chose : découvrir sur l'hôte, démarrer les tunnels des ports web de l'instance, ouvrir l'application. Le serveur devslot n'affiche que la commande et le lien, en texte. La frontière de sécurité, c'est la personne qui lance la commande ou clique sur le lien, jamais un processus du serveur. Un lien est toujours confirmé dans la fenêtre, avec l'hôte et l'instance nommés, avant toute connexion SSH, parce que n'importe quelle page web peut déclencher le schéma `tunneler`. Les deux arguments sont validés selon les mêmes bornes (lettres, chiffres, `.`, `_`, `-`, premier caractère alphanumérique, 64 et 255 caractères) pour qu'un segment ne soit jamais lu comme une option de ligne de commande. Écartés : un agent Tunneler sur le serveur qui piloterait les tunnels de l'ordinateur, car tout processus du serveur pourrait alors ouvrir des tunnels ici ; et un flux `ds ls --json --watch`, qui réglerait la découverte mais pas le geste en une étape.
+
 ## Fermeture
 
 Les tunnels vivent dans le daemon : ils ne peuvent pas lui survivre.

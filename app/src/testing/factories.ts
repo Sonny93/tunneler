@@ -3,6 +3,7 @@ import type {
 	DevslotDiscoveryDto,
 	DevslotInstanceDto,
 	DevslotPortDto,
+	DevslotUpResultDto,
 	DevslotStaleTunnelDto,
 	ImportCandidateDto,
 	ImportPreviewDto,
@@ -46,6 +47,25 @@ export function buildTunnel(
 		isAwake: false,
 		isTemporary: false,
 		defaultOpener: { id: 'browser', name: 'Browser' },
+		...overrides,
+	};
+}
+
+export function buildDevslotUpResult(
+	overrides: Readonly<Partial<DevslotUpResultDto>> = {}
+): DevslotUpResultDto {
+	return {
+		host: 'vega',
+		instance: 'web-shop-098a',
+		started: [{ remotePort: 20050, listenPort: 20050, tunnelId: 'tunnel-1' }],
+		existing: [],
+		skipped: [],
+		failed: [],
+		removed: [],
+		needsReview: 0,
+		appUrl: 'http://web-shop.localhost:20050',
+		appPortShared: false,
+		opened: 'http://web-shop.localhost:20050',
 		...overrides,
 	};
 }

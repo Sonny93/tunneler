@@ -1,3 +1,5 @@
+import { DevslotLinkHost } from '#/devslot_link/devslot_link_host';
+import { useDevslotLinkListener } from '#/devslot_link/use_devslot_link_listener';
 import { HostConfigDrawer } from '#/host_config/host_config_drawer';
 import { ImportDrawer } from '#/import/import_drawer';
 import { CommandPalette } from '#/palette/command_palette';
@@ -17,9 +19,11 @@ export function Overlays() {
 	useGlobalShortcuts();
 	useQuitRequestListener();
 	useStandbyRequestListener();
+	useDevslotLinkListener();
 
 	return (
 		<>
+			<DevslotLinkHost />
 			<TunnelFormDrawer />
 			<SettingsDialogHost />
 			<X11Drawer />

@@ -4,8 +4,10 @@ import type {
 	ImportPreviewDto,
 	DeleteTagResultDto,
 	DevslotDiscoveryDto,
+	DevslotLinkDto,
 	DevslotResyncResultDto,
 	DevslotResyncTunnelDto,
+	DevslotUpResultDto,
 	DocumentationPageDto,
 	AvailableOpenerDto,
 	OpenerSpecDto,
@@ -87,6 +89,14 @@ export type DaemonGateway = {
 		host: string,
 		tunnels: readonly DevslotResyncTunnelDto[]
 	): Promise<DevslotResyncResultDto>;
+	/** Starts the tunnels of the web ports of one devslot instance and, when `open` is set, has the daemon open the application in the browser. */
+	devslotUp(
+		host: string,
+		instance: string,
+		open: boolean
+	): Promise<DevslotUpResultDto>;
+	/** The link the app was started with, once: the next call resolves to `null`. */
+	takeLaunchLink(): Promise<DevslotLinkDto | null>;
 	/** The daemon builds the URL, starts a stopped tunnel and waits until it is ready, then opens it with `opener` (`browser` or an id) or the default action. */
 	openTunnel(id: string, opener?: string): Promise<OpenTunnelResultDto>;
 	adoptExternal(id: string): Promise<readonly string[]>;

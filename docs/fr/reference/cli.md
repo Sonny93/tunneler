@@ -142,11 +142,32 @@ Supprime tout ce que Tunneler a laissé sur la machine, sauf les programmes. Voy
 | `-y`, `--yes` | Ne demande pas. Obligatoire hors terminal, sinon le code de sortie est 5. |
 | `--keep-config` | Garde `tunnels.toml`, `state.toml` et les passphrases mémorisées. |
 
+### `tunneler devslot <HÔTE> <INSTANCE>`
+
+Ouvre les tunnels vers les ports web d'une instance [devslot](../guide/devslot) et l'ouvre dans le navigateur. `HÔTE` est un alias de votre `ssh_config` et `INSTANCE` le nom de l'instance tel que `ds ls` l'affiche. Le daemon est démarré quand il ne tourne pas. Si un mot de passe, une passphrase ou une clé d'hôte inconnue doit être confirmé, la question est posée dans le terminal quand il y en a un. La relancer ne crée rien de nouveau.
+
+Les deux arguments comptent de 1 à 64 caractères (`HÔTE`) ou de 1 à 255 (`INSTANCE`), faits de lettres, de chiffres, de `.`, `_` et `-`, le premier étant une lettre ou un chiffre. Toute autre valeur est refusée avec le code de sortie 2, avant toute connexion.
+
+| Option | Signification |
+|---|---|
+| `--no-open` | Démarre les tunnels et laisse le navigateur tranquille. |
+| `--json` | Affiche le résultat en une ligne de JSON. |
+
+Seuls les ports web sont tunnelés, et pas ceux inférieurs à 1024 (ignorés volontairement, ce n'est pas un échec). La sortie texte donne une ligne par port (démarré, déjà en place, ignoré avec la raison, en échec avec le message), les routes périmées retirées d'abord, puis l'adresse ouverte. Avec `--json`, la ligne est un objet avec les clés `host`, `instance`, `started`, `existing`, `skipped`, `failed`, `removed`, `needsReview`, `appPortShared` et, quand elles s'appliquent, `appUrl`, `opened` et `openError`. `started` et `existing` listent des `{ remotePort, listenPort, tunnelId }`, `skipped` des `{ remotePort, reason }` avec une raison parmi `localPortBusy`, `needsReview`, `existingTunnel` (un tunnel que vous avez configuré, ou qui écoute au-delà de la boucle locale, transmet déjà le port : démarrez-le vous-même) ou `privilegedPort`, `failed` des `{ remotePort, message }`, et `removed` des `{ listenPort, remotePort, isTemporary }`.
+
+Codes de sortie : 0 quand l'instance est ouverte, 1 pour une erreur (hôte inconnu, instance absente de la liste, échec de connexion ou de `ds`), 4 quand des ports web ont échoué ou ont été ignorés parce que le port local est occupé, qu'un tunnel périmé attend votre décision ou qu'un tunnel que vous avez configuré transmet déjà le port, 6 quand la commande sur l'hôte a dépassé le délai, 8 quand le navigateur n'a pas pu être ouvert.
+
+```sh
+tunneler devslot vega web-shop-098a
+tunneler devslot vega web-shop-098a --no-open
+tunneler devslot vega web-shop-098a --json
+```
+
 ### `tunneler desktop-entry <install|uninstall>`
 
 Linux seulement. Ajoute Tunneler au menu des applications, ou l'en retire. L'archive n'a pas d'installeur : c'est ainsi qu'elle obtient une entrée de menu. Voyez [Premiers pas](../guide/getting-started#linux).
 
-`install` écrit `com.minimalstuff.tunneler.desktop` et trois icônes sous le dossier de données de l'utilisateur (`$XDG_DATA_HOME`, en général `~/.local/share`), avec le `tunneler-ui` qui est à côté de `tunneler`. Relancez-la après une mise à jour qui déplace les programmes dans un autre dossier. Elle fait aussi pointer une entrée de lancement à l'ouverture de session existante vers ce `tunneler`, sans jamais en créer une. Elle refuse de s'exécuter depuis `/usr` (mais pas `/usr/local`), où un paquet fournit sa propre entrée, et n'écrase jamais un fichier `.desktop` que Tunneler n'a pas écrit. Elle n'écrit que les fichiers absents ou différents, affiche `Wrote` ou `Unchanged` pour chacun, et ne lance rien.
+`install` écrit `com.minimalstuff.tunneler.desktop` et trois icônes sous le dossier de données de l'utilisateur (`$XDG_DATA_HOME`, en général `~/.local/share`), avec le `tunneler-ui` qui est à côté de `tunneler`. Relancez-la après une mise à jour qui déplace les programmes dans un autre dossier. Elle fait aussi pointer une entrée de lancement à l'ouverture de session existante vers ce `tunneler`, sans jamais en créer une. Elle refuse de s'exécuter depuis `/usr` (mais pas `/usr/local`), où un paquet fournit sa propre entrée, et n'écrase jamais un fichier `.desktop` que Tunneler n'a pas écrit. Elle n'écrit que les fichiers absents ou différents, affiche `Wrote` ou `Unchanged` pour chacun, et ne lance rien. L'entrée déclare aussi le schéma de lien `tunneler://` (`MimeType=x-scheme-handler/tunneler;`, et `%u` sur la ligne `Exec`), voir [Ouvrir une instance en une étape](../guide/devslot#ouvrir-une-instance-en-une-etape). Après l'avoir écrite, `install` lance `update-desktop-database` sur le dossier des applications quand ce programme existe, et ignore un échec.
 
 `uninstall` supprime l'entrée et les icônes. Elle refuse de supprimer un fichier `.desktop` que Tunneler n'a pas écrit.
 
@@ -159,7 +180,7 @@ tunneler desktop-entry uninstall
 
 ## Sortie
 
-- `--json` existe sur `status` et `list`. La sortie tient sur une ligne, faite pour les scripts.
+- `--json` existe sur `status`, `list` et `devslot`. La sortie tient sur une ligne, faite pour les scripts.
 - La couleur est utilisée quand la sortie est un terminal qui la gère et que `NO_COLOR` n'est pas défini. `NO_COLOR` défini à une valeur non vide la désactive, et `--color never` aussi. `--color always` la force.
 - Aucune information n'est portée par la seule couleur : les états sont du texte et un symbole.
 - Les invites de passphrase, de mot de passe ou de clé d'hôte n'apparaissent que si la commande tourne dans un terminal.
@@ -172,11 +193,11 @@ tunneler desktop-entry uninstall
 | 1 | Erreur. Le message sur stderr dit laquelle. |
 | 2 | Usage invalide. |
 | 3 | Le daemon ne tourne pas. |
-| 4 | Des tunnels n'ont pas démarré ou sont bloqués par un autre programme (`up`). Un tunnel fourni par un `ssh` externe compte comme démarré. |
+| 4 | Des tunnels n'ont pas démarré ou sont bloqués par un autre programme (`up`), ou des ports web de l'instance ont échoué, ou ont été ignorés parce que le port local est occupé, qu'un tunnel périmé attend une décision ou qu'un tunnel que vous avez configuré transmet déjà le port (`devslot`). Un tunnel fourni par un `ssh` externe compte comme démarré. |
 | 5 | Une confirmation est nécessaire mais impossible à demander : pas de terminal, passez `--yes` (`quit`, `purge`). |
-| 6 | Délai dépassé. |
+| 6 | Délai dépassé, ou la commande sur l'hôte a dépassé le délai (`devslot`). |
 | 7 | La cible du tunnel ne répond pas (`check`). |
-| 8 | Le tunnel n'est pas devenu prêt, ou le navigateur ou l'application n'a pas pu être lancé (`open`). |
+| 8 | Le tunnel n'est pas devenu prêt, ou le navigateur ou l'application n'a pas pu être lancé (`open`, `devslot`). |
 | 9 | L'application donnée avec `--with` n'est pas disponible (`open`). |
 
 ## Variables d'environnement

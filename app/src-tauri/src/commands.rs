@@ -1,11 +1,12 @@
 //! The commands the front end invokes; each one forwards to the daemon.
 
 use ipc::protocol::{
-    AvailableOpenerDto, DeleteTagResult, DevslotDiscoveryDto, DevslotResyncResultDto,
-    DevslotResyncTunnelDto, ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto, LogEntryDto,
-    OpenTunnelResult, OpenerSpecDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto,
-    SoundEventDto, StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto,
-    TunnelDto, TunnelSpecDto, X11ProbeDto,
+    AvailableOpenerDto, DeleteTagResult, DevslotDiscoveryDto, DevslotHostName, DevslotInstanceName,
+    DevslotLinkDto, DevslotResyncResultDto, DevslotResyncTunnelDto, DevslotUpResultDto,
+    ForgetSecretsResult, HostKeyDecisionDto, ImportPreviewDto, LogEntryDto, OpenTunnelResult,
+    OpenerSpecDto, RememberDto, ResolvedHostDto, SettingsDto, SnapshotDto, SoundEventDto,
+    StandbySoundDto, TargetHealthDto, TemporaryTunnelSpecDto, TunnelDefinitionDto, TunnelDto,
+    TunnelSpecDto, X11ProbeDto,
 };
 use std::path::Path;
 
@@ -77,6 +78,27 @@ pub async fn resync_devslot(
     tunnels: Vec<DevslotResyncTunnelDto>,
 ) -> CommandResult<DevslotResyncResultDto> {
     Ok(state.client()?.resync_devslot(&host, tunnels).await?)
+}
+
+/// Starts the tunnels of the web ports of one devslot instance and, when
+/// `open` is set, has the daemon open the application in the browser. Both
+/// names are checked against the devslot contract when the arguments are read.
+#[tauri::command]
+pub async fn devslot_up(
+    state: State<'_, BridgeState>,
+    host: DevslotHostName,
+    instance: DevslotInstanceName,
+    open: bool,
+) -> CommandResult<DevslotUpResultDto> {
+    Ok(state.client()?.devslot_up(host, instance, open).await?)
+}
+
+/// The link the app was started with, once: the next call answers nothing.
+#[tauri::command]
+pub async fn take_launch_link(
+    state: State<'_, BridgeState>,
+) -> CommandResult<Option<DevslotLinkDto>> {
+    Ok(state.take_launch_link())
 }
 
 #[tauri::command]

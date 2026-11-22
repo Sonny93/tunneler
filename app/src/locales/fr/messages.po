@@ -63,6 +63,10 @@ msgstr "{count, plural, one {# connexion ouverte sera coupée.} other {# connexi
 msgid "{count, plural, one {# running tunnel or X11 session will be stopped.} other {# running tunnels or X11 sessions will be stopped.}}"
 msgstr "{count, plural, one {# tunnel ou session X11 en cours sera arrêté.} other {# tunnels ou sessions X11 en cours seront arrêtés.}}"
 
+#: src/devslot_link/describe_devslot_up.ts:64
+msgid "{count, plural, one {# stale tunnel needs your review in the import panel (From devslot).} other {# stale tunnels need your review in the import panel (From devslot).}}"
+msgstr "{count, plural, one {# tunnel obsolète demande votre avis dans le panneau d'import (Depuis devslot).} other {# tunnels obsolètes demandent votre avis dans le panneau d'import (Depuis devslot).}}"
+
 #: src/import/devslot/devslot_texts.ts:47
 msgid "{count, plural, one {# stale tunnel removed: } other {# stale tunnels removed: }}{routeList}"
 msgstr "{count, plural, one {# tunnel périmé supprimé : } other {# tunnels périmés supprimés : }}{routeList}"
@@ -99,6 +103,10 @@ msgstr "{count, plural, one {Démarrer # tunnel} other {Démarrer # tunnels}}"
 msgid "{count, plural, one {Starting # tunnel…} other {Starting # tunnels…}}"
 msgstr "{count, plural, one {Démarrage de # tunnel…} other {Démarrage de # tunnels…}}"
 
+#: src/devslot_link/describe_devslot_up.ts:37
+msgid "{existingCount, plural, one {# tunnel already running} other {# tunnels already running}}"
+msgstr "{existingCount, plural, one {# tunnel déjà actif} other {# tunnels déjà actifs}}"
+
 #: src/daemon/use_daemon_action.ts:38
 #: src/prompts/use_prompt_actions.ts:42
 #: src/quit/use_quit_flow.tsx:55
@@ -110,6 +118,10 @@ msgstr "{failureMessage} : {errorMessage}"
 msgid "{forgottenCount, plural, =0 {No passphrase was remembered} one {# passphrase forgotten} other {# passphrases forgotten}}"
 msgstr "{forgottenCount, plural, =0 {Aucune passphrase mémorisée} one {# passphrase oubliée} other {# passphrases oubliées}}"
 
+#: src/daemon/describe_daemon_error.ts:58
+msgid "{host} does not list the devslot instance {instance}"
+msgstr "{host} ne liste pas l'instance devslot {instance}"
+
 #: src/import/describe_import_warning.ts:30
 msgid "{host}: unsupported forward (Unix socket or remote SOCKS): "
 msgstr "{host} : forward non pris en charge (socket Unix ou SOCKS distant) : "
@@ -117,6 +129,10 @@ msgstr "{host} : forward non pris en charge (socket Unix ou SOCKS distant) : "
 #: src/import/use_import_form.ts:63
 msgid "{importedText}, {failedCount} failed:"
 msgstr "{importedText}, {failedCount} en échec :"
+
+#: src/devslot_link/describe_devslot_up.ts:145
+msgid "{instance} on {host}:"
+msgstr "{instance} sur {host} :"
 
 #: src/import/devslot/devslot_texts.ts:11
 msgid "{instanceCount, plural, =0 {No devslot instance found} one {# devslot instance found} other {# devslot instances found}}"
@@ -173,6 +189,10 @@ msgstr "{selected} (indisponible)"
 #: src/shared/app_ui_provider.tsx:23
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {# sélectionné} other {# sélectionnés}}"
+
+#: src/devslot_link/describe_devslot_up.ts:27
+msgid "{startedCount, plural, one {# tunnel started} other {# tunnels started}}"
+msgstr "{startedCount, plural, one {# tunnel démarré} other {# tunnels démarrés}}"
 
 #: src/import/devslot/devslot_texts.ts:37
 msgid "{startedCount} started, {failedCount} failed"
@@ -261,6 +281,14 @@ msgstr "0 pour désactiver"
 #: src/shared/open_host_options.ts:21
 msgid "127.0.0.1, or [::1] when the tunnel listens on IPv6"
 msgstr "127.0.0.1, ou [::1] quand le tunnel écoute en IPv6"
+
+#: src/devslot_link/devslot_link_confirm_content.tsx:43
+msgid "A link asks Tunneler to open the instance {instance} on the host {host}."
+msgstr "Un lien demande à Tunneler d'ouvrir l'instance {instance} sur l'hôte {host}."
+
+#: src/devslot_link/use_devslot_link_listener.ts:24
+msgid "A Tunneler link is already waiting for your answer"
+msgstr "Un lien Tunneler attend déjà votre réponse"
 
 #: src/prompts/host_key_prompt_content.tsx:78
 msgid "Accept and save"
@@ -387,6 +415,10 @@ msgstr "Résultat de l'analyse"
 msgid "Analyze"
 msgstr "Analyser"
 
+#: src/devslot_link/describe_devslot_up.ts:131
+msgid "Another instance lists the same application port: the browser may show that one."
+msgstr "Une autre instance liste le même port d'application : le navigateur peut afficher celle-là."
+
 #: src/tunnel_form/open_options_fields.tsx:145
 msgid "App host name:"
 msgstr "Nom d'hôte de l'application :"
@@ -448,6 +480,7 @@ msgstr "Les deux"
 msgid "Browser"
 msgstr "Navigateur"
 
+#: src/devslot_link/devslot_link_confirm_content.tsx:99
 #: src/openers/opener_form.tsx:183
 #: src/prompts/credential_prompt_content.tsx:95
 #: src/settings/settings_dialog_form.tsx:46
@@ -535,6 +568,8 @@ msgstr "Effacer la sélection"
 msgid "click"
 msgstr "clic"
 
+#: src/devslot_link/devslot_link_confirm_content.tsx:88
+#: src/devslot_link/devslot_link_problem_content.tsx:28
 #: src/shared/app_ui_provider.tsx:11
 msgid "Close"
 msgstr "Fermer"
@@ -632,7 +667,7 @@ msgstr "Copier l'empreinte"
 msgid "Copy the ssh command"
 msgstr "Copier la commande ssh"
 
-#: src/daemon/describe_daemon_error.ts:58
+#: src/daemon/describe_daemon_error.ts:68
 msgid "Could not connect to {host}: {message}"
 msgstr "Connexion à {host} impossible : {message}"
 
@@ -704,6 +739,10 @@ msgstr "Mise à jour impossible"
 #: src/x11/use_launch_x11.ts:19
 msgid "Couldn't launch {name} on {host}"
 msgstr "Lancement de {name} sur {host} impossible"
+
+#: src/devslot_link/use_open_devslot_instance.ts:80
+msgid "Couldn't open {instance} on {host}: {description}"
+msgstr "Impossible d'ouvrir {instance} sur {host} : {description}"
 
 #: src/documentation/use_open_documentation.ts:20
 msgid "Couldn't open the documentation"
@@ -1305,7 +1344,7 @@ msgstr "Installée ailleurs, par exemple une version portable ? Ajoutez-la ci-de
 msgid "Installing, Tunneler will restart."
 msgstr "Installation en cours, Tunneler va redémarrer."
 
-#: src/daemon/describe_daemon_error.ts:84
+#: src/daemon/describe_daemon_error.ts:94
 msgid "Internal error"
 msgstr "Erreur interne"
 
@@ -1588,6 +1627,10 @@ msgstr "Aucun résultat"
 msgid "No ssh_config alias matches "
 msgstr "Aucun alias ssh_config ne correspond à "
 
+#: src/devslot_link/describe_devslot_up.ts:44
+msgid "No tunnel was started."
+msgstr "Aucun tunnel n'a été démarré."
+
 #: src/tunnels/selection/use_bulk_tunnel_actions.tsx:164
 msgid "No tunnels to update"
 msgstr "Aucun tunnel à modifier"
@@ -1596,9 +1639,13 @@ msgstr "Aucun tunnel à modifier"
 msgid "No tunnels yet."
 msgstr "Aucun tunnel configuré."
 
-#: src/daemon/describe_daemon_error.ts:88
+#: src/daemon/describe_daemon_error.ts:98
 msgid "No update is available"
 msgstr "Aucune mise à jour disponible"
+
+#: src/devslot_link/describe_devslot_up.ts:59
+msgid "No web address was found to open."
+msgstr "Aucune adresse web à ouvrir n'a été trouvée."
 
 #. placeholder {0}: status.display
 #: src/x11/x11_server_status.tsx:39
@@ -1663,9 +1710,17 @@ msgstr "Activé : les tunnels sont enregistrés et étiquetés devslot. Désacti
 msgid "One argument per line, passed as is: no shell interprets quotes or spaces. {hostPlaceholder} is the address the tunnel listens on (localhost or its IP), {portPlaceholder} is the local port of the tunnel (not the target port), {urlPlaceholder} is the full address, as opened in the browser."
 msgstr "Un argument par ligne, transmis tel quel : aucun shell n’interprète les guillemets ni les espaces. {hostPlaceholder} est l’adresse d’écoute du tunnel (localhost ou son IP), {portPlaceholder} est le port local du tunnel (pas le port de la cible), {urlPlaceholder} est l’adresse complète, telle qu’ouverte dans le navigateur."
 
+#: src/devslot_link/devslot_link_confirm_content.tsx:47
+msgid "Only continue if you trust where this link comes from."
+msgstr "Ne continuez que si vous faites confiance à la source de ce lien."
+
 #: src/tag_rename/validate_tag_name.ts:10
 msgid "Only one tag, without a comma."
 msgstr "Un seul tag, sans virgule."
+
+#: src/devslot_link/devslot_link_confirm_content.tsx:102
+msgid "Open"
+msgstr "Ouvrir"
 
 #: src/openers/open_choices.ts:64
 msgid "Open {endpointLabel} in the browser"
@@ -1674,6 +1729,10 @@ msgstr "Ouvrir {endpointLabel} dans le navigateur"
 #: src/openers/open_choices.ts:67
 msgid "Open {endpointLabel} with {name}"
 msgstr "Ouvrir {endpointLabel} avec {name}"
+
+#: src/devslot_link/build_devslot_link_modal_request.tsx:67
+msgid "Open a devslot instance"
+msgstr "Ouvrir une instance devslot"
 
 #: src/shortcuts/shortcut_definitions.ts:46
 msgid "Open a started tunnel with its default action"
@@ -1714,12 +1773,21 @@ msgstr "Ouvrir avec {name}"
 msgid "Open with…"
 msgstr "Ouvrir avec…"
 
+#: src/devslot_link/describe_devslot_up.ts:54
+msgid "Opened {opened} in the browser."
+msgstr "{opened} ouvert dans le navigateur."
+
 #: src/settings/settings_open_fieldset.tsx:39
 #: src/settings/settings_tabs.tsx:45
 #: src/tunnel_form/open_options_fields.tsx:110
 #: src/tunnel_form/tunnel_form_fields.tsx:151
 msgid "Opening"
 msgstr "Ouverture"
+
+#: src/devslot_link/devslot_link_confirm_content.tsx:48
+#: src/devslot_link/use_open_devslot_instance.ts:88
+msgid "Opening {instance} on {host}…"
+msgstr "Ouverture de {instance} sur {host}…"
 
 #: src/tunnel_form/build_open_preview.ts:146
 msgid "Opens {url}"
@@ -1791,6 +1859,22 @@ msgstr "port {listenPort} du serveur {host} vers {target}"
 msgid "Port {port} is already in use on this computer: choose another local port."
 msgstr "Le port {port} est déjà utilisé sur cet ordinateur : choisissez un autre port local."
 
+#: src/devslot_link/describe_devslot_up.ts:77
+msgid "Port {remotePort} could not be started: {message}"
+msgstr "Le port {remotePort} n'a pas pu être démarré : {message}"
+
+#: src/devslot_link/describe_devslot_up.ts:92
+msgid "Port {remotePort} was skipped: a stale tunnel for it needs your review in the import panel (From devslot)."
+msgstr "Le port {remotePort} a été ignoré : un tunnel obsolète le concernant demande votre avis dans le panneau d'import (Depuis devslot)."
+
+#: src/devslot_link/describe_devslot_up.ts:96
+msgid "Port {remotePort} was skipped: a tunnel you configured already forwards it. Start that tunnel yourself."
+msgstr "Le port {remotePort} a été ignoré : un tunnel que vous avez configuré le redirige déjà. Démarrez ce tunnel vous-même."
+
+#: src/devslot_link/describe_devslot_up.ts:88
+msgid "Port {remotePort} was skipped: no free port was found on this computer."
+msgstr "Le port {remotePort} a été ignoré : aucun port libre n'a été trouvé sur cet ordinateur."
+
 #: src/import/devslot/devslot_texts.ts:106
 msgid "Port {variable} of {instance} was skipped: it is not a valid port number."
 msgstr "Le port {variable} de {instance} a été ignoré : ce n'est pas un numéro de port valide."
@@ -1810,6 +1894,10 @@ msgstr "port occupé par {owner}"
 #: src/tunnels/tunnel_state_detail.ts:26
 msgid "port in use by an unknown process"
 msgstr "port occupé par un processus inconnu"
+
+#: src/devslot_link/describe_devslot_up.ts:115
+msgid "Ports below 1024 are left to the import panel (From devslot): {ports}."
+msgstr "Les ports inférieurs à 1024 sont laissés au panneau d'import (Depuis devslot) : {ports}."
 
 #: src/import/import_script_tab.tsx:38
 msgid "PowerShell or shell script (ssh -L …), list of ports (3333, 5432), or one option per line."
@@ -2431,6 +2519,10 @@ msgstr "L'adresse est obligatoire."
 msgid "The application listed for the target port, else the browser"
 msgstr "L'application prévue pour le port cible, sinon le navigateur"
 
+#: src/devslot_link/describe_devslot_up.ts:57
+msgid "The browser could not be opened: {openError}"
+msgstr "Le navigateur n'a pas pu être ouvert : {openError}"
+
 #: src/settings/use_confirm_discard.ts:26
 msgid "The changes you made to the settings are not saved yet."
 msgstr "Les modifications apportées aux paramètres ne sont pas encore enregistrées."
@@ -2439,11 +2531,11 @@ msgstr "Les modifications apportées aux paramètres ne sont pas encore enregist
 msgid "The command is required."
 msgstr "La commande est obligatoire."
 
-#: src/daemon/describe_daemon_error.ts:68
+#: src/daemon/describe_daemon_error.ts:78
 msgid "The command on {host} did not finish within {seconds} s"
 msgstr "La commande sur {host} ne s'est pas terminée en {seconds} s"
 
-#: src/daemon/describe_daemon_error.ts:82
+#: src/daemon/describe_daemon_error.ts:92
 msgid "The daemon is not reachable"
 msgstr "Le daemon est injoignable"
 
@@ -2454,6 +2546,10 @@ msgstr "Le délai doit être un nombre entier de secondes supérieur à 0."
 #: src/settings/validate_settings_form.ts:18
 msgid "The duration must be zero or a positive number of seconds."
 msgstr "La durée doit être un nombre de secondes positif ou nul."
+
+#: src/devslot_link/build_devslot_link_modal_request.tsx:58
+msgid "The host {host} is not in your SSH configuration (ssh_config). Add it there, then open the link again."
+msgstr "L'hôte {host} n'est pas dans votre configuration SSH (ssh_config). Ajoutez-le, puis rouvrez le lien."
 
 #: src/tunnel_form/validate_tunnel_form.ts:25
 msgid "The host is required."
@@ -2563,7 +2659,7 @@ msgstr "Le tunnel est retiré de la configuration, et arrêté s’il est en cou
 msgid "The tunnel keeps its port without an SSH session until the first connection. Takes effect on the next start."
 msgstr "Le tunnel garde son port sans session SSH jusqu'à la première connexion. Prend effet au prochain démarrage."
 
-#: src/daemon/describe_daemon_error.ts:86
+#: src/daemon/describe_daemon_error.ts:96
 msgid "The update failed"
 msgstr "La mise à jour a échoué"
 
@@ -2590,6 +2686,14 @@ msgstr "Ils redémarreront après la mise à jour, car les tunnels actifs sont r
 #: src/openers/validate_opener_form.ts:40
 msgid "This identifier is already used by one of your applications."
 msgstr "Cet identifiant est déjà utilisé par une de vos applications."
+
+#: src/devslot_link/build_devslot_link_modal_request.tsx:48
+msgid "This is not a valid Tunneler devslot link. A devslot link looks like tunneler://devslot/host/instance, with an SSH host of your configuration and the name of a devslot instance."
+msgstr "Ce n'est pas un lien devslot Tunneler valide. Un lien devslot ressemble à tunneler://devslot/hôte/instance, avec un hôte SSH de votre configuration et le nom d'une instance devslot."
+
+#: src/devslot_link/build_devslot_link_modal_request.tsx:19
+msgid "This link cannot be opened"
+msgstr "Ce lien ne peut pas être ouvert"
 
 #: src/settings/settings_field_specs.ts:80
 msgid "Time before an unused session is closed (seconds)"
@@ -2659,6 +2763,10 @@ msgstr "Tunneler peut démarrer VcXsrv ou Xming s'il est installé (Windows)."
 #: src/tray/tray_status_notice_text.ts:25
 msgid "Tunneler keeps running when you close this window. To reopen it, run “tunneler” again. On GNOME, install the “AppIndicator and KStatusNotifierItem Support” extension to show the icon."
 msgstr "Tunneler continue de tourner quand vous fermez cette fenêtre. Pour la rouvrir, relancez « tunneler ». Sous GNOME, installez l’extension « AppIndicator and KStatusNotifierItem Support » pour afficher l’icône."
+
+#: src/devslot_link/devslot_link_confirm_content.tsx:45
+msgid "Tunneler will connect to the host over SSH, run ds ls --json, start tunnels for the web ports of the instance (temporary, unless your devslot setting saves them) and open the application in your browser."
+msgstr "Tunneler va se connecter à l'hôte en SSH, exécuter ds ls --json, démarrer des tunnels pour les ports web de l'instance (temporaires, sauf si votre réglage devslot les enregistre) et ouvrir l'application dans votre navigateur."
 
 #: src/settings/settings_open_fieldset.tsx:49
 msgid "Tunnels without an application"

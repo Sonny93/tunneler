@@ -176,7 +176,10 @@ fn should_write_the_entry_and_the_three_icons_when_installing() {
     assert_eq!(code(&output), 0, "{}", stderr(&output));
     let entry = fs::read_to_string(sandbox.entry()).unwrap();
     assert!(
-        entry.contains(&format!("\nExec={}\n", installation.ui_program().display())),
+        entry.contains(&format!(
+            "\nExec={} %u\n",
+            installation.ui_program().display()
+        )),
         "{entry}"
     );
     assert!(entry.contains("\nX-Tunneler-MenuEntry=true\n"), "{entry}");
@@ -221,7 +224,7 @@ fn should_rewrite_the_exec_when_installing_again_from_another_folder() {
     assert_eq!(code(&output), 0, "{}", stderr(&output));
     let entry = fs::read_to_string(sandbox.entry()).unwrap();
     assert!(
-        entry.contains(&format!("\nExec={}\n", newer.ui_program().display())),
+        entry.contains(&format!("\nExec={} %u\n", newer.ui_program().display())),
         "{entry}"
     );
     assert!(

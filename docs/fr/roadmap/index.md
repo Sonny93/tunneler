@@ -39,9 +39,13 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 - Anglais et français, pour la fenêtre, l'icône de la zone de notification et les notifications. La langue suit le système ou se choisit dans les réglages.
 
 ### Ligne de commande
-- `tunneler up`, `down`, `status`, `list`, `open`, `check`, `quit` et `purge`, avec sortie `--json` et codes de sortie documentés.
+- `tunneler up`, `down`, `status`, `list`, `open`, `check`, `devslot`, `quit` et `purge`, avec sortie `--json` et codes de sortie documentés.
 - `tunneler desktop-entry install` donne à l'archive Linux une entrée de menu des applications et des icônes ; le daemon la garde pointée sur le `tunneler-ui` courant, et `tunneler purge` la supprime.
 - Les tunnels se désignent par port, par `hôte:port` ou par tag.
+
+### devslot
+- Découverte depuis le panneau d'import : lister les instances d'un hôte avec `ds ls --json`, démarrer des tunnels vers leurs ports (temporaires ou enregistrés, avec les tags `devslot` et `ds-<projet>`), ouvrir les ports web sur `http://<label>.localhost:<port>`, et nettoyer les tunnels dont le port a disparu. Voir [Tunnels depuis devslot](/fr/guide/devslot).
+- Ouverture en une étape : `tunneler devslot <hôte> <instance>`, ou un lien `tunneler://devslot/<hôte>/<instance>` qui ouvre Tunneler et demande d'abord une confirmation, ouvre les tunnels vers les ports web de l'instance et ouvre le navigateur.
 
 ### Distribution
 - Installeur Windows (par utilisateur ou pour la machine), paquet Debian, zip portable, tar.gz et une AppImage de l'interface.
@@ -52,7 +56,6 @@ Ce que fait Tunneler aujourd'hui, ce qui vient ensuite, ce qu'il faut tester sur
 
 ## Prochainement
 
-- Découverte devslot : depuis le panneau d'import, lister les instances d'un hôte avec `ds ls --json`, démarrer des tunnels vers leurs ports (temporaires ou enregistrés, avec les tags `devslot` et `ds-<projet>`), ouvrir les ports web sur `http://<label>.localhost:<port>`, et nettoyer les tunnels dont le port a disparu. Voir [Tunnels depuis devslot](/fr/guide/devslot).
 - Ce que la section [À tester](#a-tester) fera ressortir.
 
 ## À tester
@@ -78,6 +81,7 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 
 ### Les deux systèmes
 - **Découverte devslot.** Vérifié contre un vrai hôte : découvrir, démarrer des tunnels temporaires (y compris sur un port déjà utilisé localement), ouvrir un port web dans le navigateur. Reste à vérifier : les tunnels enregistrés, arrêter une instance puis redécouvrir (les tunnels périmés doivent partir ou faire l'objet d'une question), un hôte où `ds` n'est pas dans le `PATH` non interactif (avec et sans `devslot_path`), et une instance avec un port imposé.
+- **Lien devslot.** Cliquer sur un lien `tunneler://devslot/...` après l'installeur Windows, le `.deb` et `tunneler desktop-entry install` (l'archive) : la confirmation doit nommer l'hôte et l'instance. Les invites que Chrome et Firefox affichent avant d'ouvrir une application externe. Quand la fenêtre est déjà ouverte sous Windows, elle doit passer au premier plan. Et `tunneler devslot` contre un vrai hôte, avec et sans `--no-open`.
 - **X11.** VcXsrv sous Windows et Xorg ou Xwayland sous Linux, contre un vrai `sshd` : un `xeyes` distant doit s'afficher sans `xauth`.
 - **Applications installées pendant que Tunneler tourne.** Installer TigerVNC, Remmina ou FreeRDP pendant que Tunneler tourne, puis ouvrir la fenêtre : l'application doit apparaître dans Paramètres › Ouverture sans redémarrage, et un tunnel sur son port doit s'ouvrir avec elle.
 - **SOCKS.** `curl --socks5` à travers un tunnel dynamique vers un vrai `sshd`.
@@ -107,7 +111,9 @@ L'essentiel du code tourne dans des tests automatiques contre un serveur SSH en 
 - Il n'y a pas de `adopt`, `kill` ni `ignore` en ligne de commande.
 
 ### Découverte devslot
-- Il n'y a pas d'équivalent en ligne de commande : la découverte n'existe que dans le panneau d'import.
+- Le lien `tunneler://` n'est pas déclaré par le zip portable Windows, l'AppImage ni macOS : utilisez la commande. Les navigateurs demandent en général une confirmation avant d'ouvrir une application externe, et un terminal ne rend pas toujours le lien cliquable.
+- L'alias d'un lien vient de la configuration devslot du serveur. Un ordinateur qui connaît le serveur sous un autre alias obtient des liens qui échouent avec un alias inconnu : tapez `tunneler devslot` avec son propre alias.
+- `tunneler devslot` ne tunnele que les ports web, et pas ceux inférieurs à 1024. Les services comme une base de données, et les tunnels enregistrés périmés qui demandent une décision, sont laissés au panneau d'import.
 - `devslot_path` et `devslot_persist` d'un hôte s'éditent à la main dans `tunnels.toml` : la fenêtre ne les écrit pas.
 - Quand le port local diffère du port distant, les liens que l'application construit (URL absolues dans une page) pointent toujours vers le port distant et ne fonctionnent pas.
 
