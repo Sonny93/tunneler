@@ -197,7 +197,7 @@ jobs:
                 }}' > latest.json
       - name: Write the checksums
         working-directory: packages
-        run: sha256sum * > SHA256SUMS
+        run: sha256sum -- * > SHA256SUMS
       - name: Attach the packages
         run: gh release upload "$GITHUB_REF_NAME" packages/* --clobber
       - name: Publish the release
