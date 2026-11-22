@@ -11,6 +11,7 @@ import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildSettings, buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
+import { getFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 
 function renderPalette() {
@@ -181,7 +182,7 @@ describe('CommandPalette', () => {
 
 		await user.type(getInput(), '3333');
 
-		expect(screen.getByRole('status')).toHaveTextContent('4 commands');
+		expect(getFilledLiveRegion('status')).toHaveTextContent('4 commands');
 	});
 
 	it('should filter ignoring case and accents', async () => {
@@ -204,7 +205,7 @@ describe('CommandPalette', () => {
 
 		await user.type(getInput(), 'zzzz');
 
-		expect(screen.getByRole('status')).toHaveTextContent('No commands');
+		expect(getFilledLiveRegion('status')).toHaveTextContent('No commands');
 		expect(screen.queryByRole('option')).not.toBeInTheDocument();
 		expect(getInput()).toHaveAttribute('aria-expanded', 'false');
 	});

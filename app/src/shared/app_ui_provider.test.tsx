@@ -1,4 +1,4 @@
-import { ThemeToggle } from '@minimalstuff/ui';
+import { Button, ThemeToggle } from '@minimalstuff/ui';
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
@@ -29,6 +29,20 @@ describe('AppUIProvider', () => {
 
 		expect(
 			screen.getByRole('button', { name: /^Thème : .+, changer$/ })
+		).toBeInTheDocument();
+	});
+
+	it('should give loading buttons the French loading label when French is active', async () => {
+		await activateLocale('fr');
+
+		renderWithI18n(
+			<AppUIProvider>
+				<Button loading>Vérifier</Button>
+			</AppUIProvider>
+		);
+
+		expect(
+			screen.getByRole('button', { name: /^Vérifier.*Chargement/ })
 		).toBeInTheDocument();
 	});
 });

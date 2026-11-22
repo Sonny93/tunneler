@@ -11,6 +11,10 @@ import { useUiStore, type TagRenameOrigin } from '#/state/ui_store';
 import { TagRenameHost } from '#/tag_rename/tag_rename_host';
 import { buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
+import {
+	findFilledLiveRegion,
+	getFilledLiveRegions,
+} from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 
 function renderHost(
@@ -136,7 +140,7 @@ describe('TagRenameHost', () => {
 		await submitName(user, name);
 
 		expect(await findField()).toHaveAccessibleDescription(message);
-		expect(screen.getAllByRole('alert')[0]).toHaveTextContent(message);
+		expect(getFilledLiveRegions('alert')[0]).toHaveTextContent(message);
 		expect(gateway.renameTag).not.toHaveBeenCalled();
 	});
 
@@ -163,7 +167,7 @@ describe('TagRenameHost', () => {
 
 		await submitName(user, 'staging');
 
-		expect((await screen.findAllByRole('alert'))[0]).toHaveTextContent(
+		expect(await findFilledLiveRegion('alert')).toHaveTextContent(
 			'Tag rejected'
 		);
 		expect(useToastStore.getState().toasts).toEqual([]);

@@ -138,7 +138,7 @@ msgstr "{instance} on {host}:"
 msgid "{instanceCount, plural, =0 {No devslot instance found} one {# devslot instance found} other {# devslot instances found}}"
 msgstr "{instanceCount, plural, =0 {No devslot instance found} one {# devslot instance found} other {# devslot instances found}}"
 
-#: src/import/devslot/run_devslot_start.ts:139
+#: src/import/devslot/run_devslot_start.ts:140
 msgid "{label} was created but did not start: {messageList}"
 msgstr "{label} was created but did not start: {messageList}"
 
@@ -166,6 +166,10 @@ msgstr "{process} (pid {pid})"
 msgid "{process} to {destination} (pid {pid})"
 msgstr "{process} to {destination} (pid {pid})"
 
+#: src/shared/app_ui_provider.tsx:26
+msgid "{remainingCount, plural, one {# character left} other {# characters left}}"
+msgstr "{remainingCount, plural, one {# character left} other {# characters left}}"
+
 #: src/tag_delete/describe_tag_deletion.ts:30
 msgid "{removedCount, plural, one {Tag {tag} removed from # tunnel} other {Tag {tag} removed from # tunnels}}"
 msgstr "{removedCount, plural, one {Tag {tag} removed from # tunnel} other {Tag {tag} removed from # tunnels}}"
@@ -186,7 +190,7 @@ msgstr "{running}/{total} active"
 msgid "{selected} (unavailable)"
 msgstr "{selected} (unavailable)"
 
-#: src/shared/app_ui_provider.tsx:23
+#: src/shared/app_ui_provider.tsx:32
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {# selected} other {# selected}}"
 
@@ -574,6 +578,7 @@ msgstr "click"
 msgid "Close"
 msgstr "Close"
 
+#: src/shared/app_ui_provider.tsx:23
 #: src/shared/toasts/toast_item.tsx:56
 msgid "Close notification"
 msgstr "Close notification"
@@ -644,8 +649,13 @@ msgid "Control"
 msgstr "Control"
 
 #: src/import/devslot/devslot_not_found_hint.tsx:40
+#: src/shared/app_ui_provider.tsx:19
 msgid "Copied"
 msgstr "Copied"
+
+#: src/shared/app_ui_provider.tsx:21
+msgid "Copy"
+msgstr "Copy"
 
 #: src/x11/x11_display_section.tsx:29
 msgid "Copy {command}"
@@ -671,7 +681,7 @@ msgstr "Copy the ssh command"
 msgid "Could not connect to {host}: {message}"
 msgstr "Could not connect to {host}: {message}"
 
-#: src/import/devslot/run_devslot_start.ts:136
+#: src/import/devslot/run_devslot_start.ts:137
 msgid "Could not create {label}: {messageList}"
 msgstr "Could not create {label}: {messageList}"
 
@@ -683,7 +693,7 @@ msgstr "Could not delete {route}:"
 msgid "Could not remove the stale tunnels:"
 msgstr "Could not remove the stale tunnels:"
 
-#: src/import/devslot/run_devslot_start.ts:142
+#: src/import/devslot/run_devslot_start.ts:143
 msgid "Could not start {label}: {messageList}"
 msgstr "Could not start {label}: {messageList}"
 
@@ -1487,6 +1497,10 @@ msgstr "Listens on this computer, target reached from the server"
 msgid "Lists the devslot instances of a host (ds ls --json) and offers to tunnel their ports."
 msgstr "Lists the devslot instances of a host (ds ls --json) and offers to tunnel their ports."
 
+#: src/shared/app_ui_provider.tsx:20
+msgid "Loading"
+msgstr "Loading"
+
 #: src/tunnel_details/tunnel_log_section.tsx:30
 msgid "Loading the log…"
 msgstr "Loading the log…"
@@ -1556,7 +1570,7 @@ msgstr "Lowercase letters, digits and dashes. Cannot be changed after creation."
 msgid "Marimba"
 msgstr "Marimba"
 
-#: src/shared/app_ui_provider.tsx:26
+#: src/shared/app_ui_provider.tsx:35
 msgid "Maximum of {maxSelectedValues} reached"
 msgstr "Maximum of {maxSelectedValues} reached"
 
@@ -1705,6 +1719,10 @@ msgstr "Notification"
 #: src/tray/tray_status_notice_text.ts:31
 msgid "Notification icon unavailable"
 msgstr "Notification icon unavailable"
+
+#: src/shared/app_ui_provider.tsx:22
+msgid "Notifications"
+msgstr "Notifications"
 
 #: src/import/devslot/devslot_ask_item.tsx:31
 msgid "Now belongs to another project"

@@ -9,6 +9,10 @@ import { HostConfigDrawer } from '#/host_config/host_config_drawer';
 import { useToastStore } from '#/shared/toasts/toast_store';
 import { useUiStore } from '#/state/ui_store';
 import { createFakeGateway } from '#/testing/fake_gateway';
+import {
+	findFilledLiveRegion,
+	getFilledLiveRegion,
+} from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 
 const RESOLVED_HOST: ResolvedHostDto = {
@@ -79,7 +83,7 @@ describe('HostConfigDrawer', () => {
 	it('should announce the number of options', async () => {
 		renderDrawer();
 
-		expect(await screen.findByRole('status')).toHaveTextContent(
+		expect(await findFilledLiveRegion('status')).toHaveTextContent(
 			'3 options shown'
 		);
 	});
@@ -91,7 +95,7 @@ describe('HostConfigDrawer', () => {
 
 		await user.type(screen.getByLabelText('Filter options'), 'JULES');
 
-		expect(screen.getByRole('status')).toHaveTextContent('1 option shown');
+		expect(getFilledLiveRegion('status')).toHaveTextContent('1 option shown');
 		expect(screen.queryByText('nova.example.com')).not.toBeInTheDocument();
 	});
 
@@ -102,7 +106,7 @@ describe('HostConfigDrawer', () => {
 
 		await user.type(screen.getByLabelText('Filter options'), 'zzz');
 
-		expect(screen.getByRole('status')).toHaveTextContent('No options shown');
+		expect(getFilledLiveRegion('status')).toHaveTextContent('No options shown');
 		expect(screen.queryByRole('table')).not.toBeInTheDocument();
 	});
 
@@ -145,7 +149,7 @@ describe('HostConfigDrawer', () => {
 		useUiStore.getState().openHostConfig('nova');
 		renderWithGateway(<HostConfigDrawer />, gateway);
 
-		expect(await screen.findByRole('alert')).toHaveTextContent(
+		expect(await findFilledLiveRegion('alert')).toHaveTextContent(
 			"Couldn't read the configuration: ssh -G a failed"
 		);
 		await user.click(screen.getByRole('button', { name: 'Retry' }));

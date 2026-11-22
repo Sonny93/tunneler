@@ -18,6 +18,7 @@ import {
 	buildTunnel,
 } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
+import { findFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -789,7 +790,7 @@ describe('SettingsDialog', () => {
 
 		await clickSave(user);
 
-		const alert = await screen.findByRole('alert');
+		const alert = await findFilledLiveRegion('alert');
 		expect(alert).toHaveTextContent('Invalid address.');
 		expect(alert).toHaveFocus();
 		expect(
@@ -879,7 +880,7 @@ describe('SettingsDialog', () => {
 			await clickSave(user);
 
 			expect(gateway.updateSettings).not.toHaveBeenCalled();
-			expect(await screen.findByRole('alert')).toHaveTextContent(
+			expect(await findFilledLiveRegion('alert')).toHaveTextContent(
 				'An application form still has input'
 			);
 			expect(getTab('Opening')).toHaveAttribute('aria-selected', 'true');

@@ -14,6 +14,7 @@ import {
 	buildTunnel,
 } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
+import { findFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { TunnelDetailsDrawer } from '#/tunnel_details/tunnel_details_drawer';
 
@@ -406,7 +407,7 @@ describe('TunnelDetailsDrawer', () => {
 			);
 			renderDrawer(gateway);
 
-			expect(await screen.findByRole('alert')).toHaveTextContent(
+			expect(await findFilledLiveRegion('alert')).toHaveTextContent(
 				'Log unavailable: tunnel not found'
 			);
 			await userEvent.click(screen.getByRole('button', { name: 'Retry' }));

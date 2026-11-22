@@ -27,7 +27,7 @@ const renderFieldset = (gateway = createFakeGateway()) =>
 	);
 
 const clickCheckNow = () =>
-	userEvent.click(screen.getByRole('button', { name: 'Check now' }));
+	userEvent.click(screen.getByRole('button', { name: /^Check now/ }));
 
 describe('SettingsUpdateCheck', () => {
 	it('should have an empty status region before any check and no axe violations', async () => {

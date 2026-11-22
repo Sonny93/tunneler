@@ -37,7 +37,7 @@ export function SettingsLanguageFieldset({
 			<Select
 				name="language"
 				label={t`Display language`}
-				options={options.map((option) => ({ ...option }))}
+				options={options}
 				value={value}
 				onChange={handleChange}
 			/>

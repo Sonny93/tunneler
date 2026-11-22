@@ -13,6 +13,7 @@ import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildDevslotUpResult } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
+import { findFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 
 vi.mock('#/devslot_link/use_activation_delay', () => ({
@@ -64,7 +65,7 @@ describe('DevslotLinkHost', () => {
 		const { gateway } = renderHost();
 		offer(VALID_LINK);
 
-		await user.click(await screen.findByRole('button', { name: 'Open' }));
+		await user.click(await screen.findByRole('button', { name: /^Open/ }));
 
 		await waitFor(() =>
 			expect(gateway.devslotUp).toHaveBeenCalledWith(
@@ -115,9 +116,9 @@ describe('DevslotLinkHost', () => {
 		renderHost(gateway);
 		offer(VALID_LINK);
 
-		await user.click(await screen.findByRole('button', { name: 'Open' }));
+		await user.click(await screen.findByRole('button', { name: /^Open/ }));
 
-		expect(screen.getByRole('button', { name: 'Open' })).toHaveAttribute(
+		expect(screen.getByRole('button', { name: /^Open/ })).toHaveAttribute(
 			'aria-busy',
 			'true'
 		);
@@ -136,7 +137,7 @@ describe('DevslotLinkHost', () => {
 		);
 		renderHost(gateway);
 		offer(VALID_LINK);
-		await user.click(await screen.findByRole('button', { name: 'Open' }));
+		await user.click(await screen.findByRole('button', { name: /^Open/ }));
 
 		await user.keyboard('{Escape}');
 		await waitFor(() =>
@@ -158,9 +159,9 @@ describe('DevslotLinkHost', () => {
 		renderHost(gateway);
 		offer(VALID_LINK);
 
-		await user.click(await screen.findByRole('button', { name: 'Open' }));
+		await user.click(await screen.findByRole('button', { name: /^Open/ }));
 
-		expect(await screen.findByRole('alert')).toHaveTextContent(
+		expect(await findFilledLiveRegion('alert')).toHaveTextContent(
 			"Couldn't open web-shop-098a on vega."
 		);
 	});
@@ -176,7 +177,7 @@ describe('DevslotLinkHost', () => {
 		);
 		renderHost(gateway);
 		offer(VALID_LINK);
-		await user.click(await screen.findByRole('button', { name: 'Open' }));
+		await user.click(await screen.findByRole('button', { name: /^Open/ }));
 		await user.keyboard('{Escape}');
 		await waitFor(() =>
 			expect(useUiStore.getState().devslotLinkRequest).toBeNull()
@@ -207,9 +208,9 @@ describe('DevslotLinkHost', () => {
 		renderHost(gateway);
 		offer(VALID_LINK);
 
-		await user.click(await screen.findByRole('button', { name: 'Open' }));
+		await user.click(await screen.findByRole('button', { name: /^Open/ }));
 
-		expect(await screen.findByRole('alert')).toHaveTextContent(
+		expect(await findFilledLiveRegion('alert')).toHaveTextContent(
 			'vega does not list the devslot instance web-shop-098a'
 		);
 		expect(document.activeElement).toHaveTextContent('Close');
@@ -228,9 +229,9 @@ describe('DevslotLinkHost', () => {
 		renderHost(gateway);
 		offer(VALID_LINK);
 
-		await user.click(await screen.findByRole('button', { name: 'Open' }));
+		await user.click(await screen.findByRole('button', { name: /^Open/ }));
 
-		expect(await screen.findByRole('alert')).toHaveTextContent(
+		expect(await findFilledLiveRegion('alert')).toHaveTextContent(
 			'Port 20051 could not be started: refused'
 		);
 		expect(useToastStore.getState().toasts).toEqual([]);
@@ -246,7 +247,7 @@ describe('DevslotLinkHost', () => {
 		});
 		expect(dialog).toHaveTextContent('not a valid Tunneler devslot link');
 		expect(
-			screen.queryByRole('button', { name: 'Open' })
+			screen.queryByRole('button', { name: /^Open/ })
 		).not.toBeInTheDocument();
 		expect(await axe(dialog)).toHaveNoViolations();
 	});
@@ -261,7 +262,7 @@ describe('DevslotLinkHost', () => {
 			'The host vega is not in your SSH configuration'
 		);
 		expect(
-			screen.queryByRole('button', { name: 'Open' })
+			screen.queryByRole('button', { name: /^Open/ })
 		).not.toBeInTheDocument();
 		expect(gateway.devslotUp).not.toHaveBeenCalled();
 		expect(await axe(dialog)).toHaveNoViolations();

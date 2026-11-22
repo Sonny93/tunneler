@@ -19,6 +19,7 @@ import {
 	buildTunnel,
 } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
+import { findFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 
 const POWERSHELL_PORTS = [3333, 3334, 3335, 3336, 3337, 3338, 3339, 3340];
@@ -141,7 +142,7 @@ describe('ImportDrawer', () => {
 		await user.type(screen.getByRole('textbox'), SCRIPT);
 		await user.click(screen.getByRole('button', { name: 'Analyze' }));
 
-		const alert = await screen.findByRole('alert');
+		const alert = await findFilledLiveRegion('alert');
 		expect(alert).toHaveTextContent('Analysis failed:');
 		expect(alert).toHaveTextContent('script trop long');
 		expect(alert).toHaveFocus();
@@ -474,7 +475,7 @@ describe('ImportDrawer', () => {
 				screen.getByRole('button', { name: 'Import 2 tunnels' })
 			);
 
-			const summary = await screen.findByRole('alert');
+			const summary = await findFilledLiveRegion('alert');
 			expect(summary).toHaveTextContent('1 tunnel imported, 1 failed');
 			expect(summary).toHaveTextContent(
 				'4444 → nova:4444: Port 4444 is already in use'
@@ -505,7 +506,7 @@ describe('ImportDrawer', () => {
 
 			await user.click(screen.getByRole('button', { name: 'Import 1 tunnel' }));
 
-			expect(await screen.findByRole('status')).toHaveTextContent(
+			expect(await findFilledLiveRegion('status')).toHaveTextContent(
 				'Import in progress: 0 of 1'
 			);
 			act(() => finishCreation());

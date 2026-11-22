@@ -18,6 +18,7 @@ import {
 	buildTunnel,
 } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
+import { findFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -76,7 +77,8 @@ async function discover(user: User) {
 	await screen.findByRole('heading', { name: 'Discovery result' });
 }
 
-const getTabStatus = () => screen.getAllByRole('status')[0];
+const getTabStatus = () =>
+	within(screen.getByRole('tabpanel')).getByRole('status');
 const getPort = (name: RegExp) => screen.getByRole('checkbox', { name });
 
 describe('Import from devslot', () => {
@@ -265,7 +267,7 @@ describe('Import from devslot', () => {
 		);
 		await user.click(screen.getByRole('button', { name: 'Discover' }));
 
-		const alert = await screen.findByRole('alert');
+		const alert = await findFilledLiveRegion('alert');
 		expect(alert).toHaveTextContent('devslot was not found on vega');
 		expect(alert).toHaveFocus();
 		expect(
@@ -334,7 +336,7 @@ describe('Import from devslot', () => {
 			screen.getByRole('button', { name: 'Create and start 1 tunnel' })
 		);
 
-		const alert = await screen.findByRole('alert');
+		const alert = await findFilledLiveRegion('alert');
 		expect(alert).toHaveTextContent('0 started, 1 failed:');
 		expect(alert).toHaveTextContent('was created but did not start: no route');
 		expect(gateway.deleteTunnel).not.toHaveBeenCalled();
@@ -478,7 +480,7 @@ describe('Import from devslot', () => {
 
 		await user.click(screen.getByRole('button', { name: /^Delete 20060/ }));
 
-		const alert = await screen.findByRole('alert');
+		const alert = await findFilledLiveRegion('alert');
 		expect(alert).toHaveTextContent('Could not delete 20060 to vega:20060:');
 		expect(screen.getByRole('button', { name: /^Delete 20060/ })).toBeEnabled();
 	});
@@ -580,7 +582,7 @@ describe('Import from devslot', () => {
 
 		await user.click(screen.getByRole('button', { name: 'Start 1 tunnel' }));
 
-		await screen.findByRole('alert');
+		await findFilledLiveRegion('alert');
 		const outputs = screen.getAllByRole('status');
 		expect(outputs.at(-1)).toHaveTextContent('0 started, 1 failed');
 		expect(

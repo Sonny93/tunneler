@@ -14,6 +14,7 @@ import { useDaemonStore } from '#/state/daemon_store';
 import { useUiStore } from '#/state/ui_store';
 import { buildOpener, buildSettings, buildTunnel } from '#/testing/factories';
 import { createFakeGateway } from '#/testing/fake_gateway';
+import { findFilledLiveRegion } from '#/testing/filled_live_region';
 import { renderWithGateway } from '#/testing/render_with_gateway';
 import { TunnelFormDrawer } from '#/tunnel_form/tunnel_form_drawer';
 
@@ -346,7 +347,7 @@ describe('TunnelFormDrawer', () => {
 
 		await user.click(screen.getByRole('button', { name: 'Create' }));
 
-		const alert = await screen.findByRole('alert');
+		const alert = await findFilledLiveRegion('alert');
 		expect(alert).toHaveTextContent('Port 3333 is already in use.');
 		expect(alert).toHaveTextContent('Unknown host.');
 		expect(alert).toHaveFocus();
@@ -365,7 +366,9 @@ describe('TunnelFormDrawer', () => {
 
 		await user.click(screen.getByRole('button', { name: 'Create' }));
 
-		expect(await screen.findByRole('alert')).toHaveTextContent('Disque plein');
+		expect(await findFilledLiveRegion('alert')).toHaveTextContent(
+			'Disque plein'
+		);
 	});
 
 	it('should close without saving on cancel', async () => {

@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 import { getThemeAriaLabel } from '#/header/theme_aria_label';
 
-function buildLabels(i18n: I18n): Partial<UILabels> {
+function buildLabels(i18n: I18n): UILabels {
 	return {
 		close: i18n._(msg`Close`),
 		confirm: i18n._(msg`Confirm`),
@@ -16,6 +16,15 @@ function buildLabels(i18n: I18n): Partial<UILabels> {
 		search: i18n._(msg`Search`),
 		clear: i18n._(msg`Clear`),
 		required: i18n._(msg`required`),
+		copied: i18n._(msg`Copied`),
+		loading: i18n._(msg`Loading`),
+		copy: i18n._(msg`Copy`),
+		notifications: i18n._(msg`Notifications`),
+		closeNotification: i18n._(msg`Close notification`),
+		charactersRemaining: (remainingCount) =>
+			i18n._(
+				msg`${plural(remainingCount, { one: '# character left', other: '# characters left' })}`
+			),
 		currentTheme: (theme) => getThemeAriaLabel(theme, i18n),
 		overflowCount: (hiddenCount) => `+${hiddenCount}`,
 		selectedCount: (selectedCount) =>
